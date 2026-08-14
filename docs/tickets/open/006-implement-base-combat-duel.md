@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-08-14T11:56:30Z
 origin: agent-proposed
 tags: [implementation, simulation, combat, blocking, lifecycle]
@@ -11,6 +11,7 @@ sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
   - codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73
   - codex:019ffff9-3be5-7da2-8811-5df376ffc9a4
+  - codex:019ffff6-6034-76b1-96a2-b080ac183346
 ---
 
 # Implement deterministic base combat and a complete duel loop
@@ -74,3 +75,6 @@ Movement becomes a game only when aiming, recoil, projectiles, blocking, damage,
 - 2026-08-14T12:11:01Z stage admission end session codex:019ffff9-3be5-7da2-8811-5df376ffc9a4 — Rejected only the incorrect provisional classification of exact confirmed base health; all behavior, evidence, ordering, human-choice, and risk boundaries otherwise passed.
 - 2026-08-14T12:11:01Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Moving `1.0` base health into the embedded sourced-tuning contract without changing its numeric behavior.
 - 2026-08-14T12:11:01Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Bound exact base health to `spec/player.json` and left only genuinely unmeasured values in the provisional list.
+- 2026-08-14T12:14:13Z stage admission start session codex:019ffff6-6034-76b1-96a2-b080ac183346 — Final cold read of exact corrected candidate `58fa739e64f9a2154fc34c535f5b413832f8ff94` against both rejection rounds, provenance, timer/contact edges, dependencies, evidence, and risk.
+- 2026-08-14T12:14:13Z stage admission end session codex:019ffff6-6034-76b1-96a2-b080ac183346 — Admitted at risk 4 with no findings: one base duel, four fixed phases, one collision vocabulary, exact source ownership, named provisional values, and public/native evidence leave no human choice or material ambiguity.
+- 2026-08-14T12:14:13Z stage implement start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Implementing validated aim, combat tuning, stable bullets and swept contacts, recoil/damage/block impulses, deterministic duel phases/reset/hash, live controls, HUD, and focused regressions without changing spec.

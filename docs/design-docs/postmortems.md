@@ -613,3 +613,9 @@ Reviewer `codex:019ffff9-3be5-7da2-8811-5df376ffc9a4` rejected exact ticket cand
 The correction loads that unchanged value from the embedded player facts and reserves the provisional label for genuinely unmeasured combat behavior.
 One parallel inspection exceeded its display budget, one diff used an incorrectly expanded parent SHA before the exact revision was supplied, and one read guessed nonexistent `docs/design/match-flow.md`; focused reads recovered all evidence.
 The review created no files, processes, or temporary artifacts.
+
+## 2026-08-14 — Ticket 006's final admission review passed after focused rereads
+
+Reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` admitted exact ticket candidate `58fa739e64f9a2154fc34c535f5b413832f8ff94` at risk 4 with no findings.
+One broad combined correction/source inspection exceeded the display budget and was truncated; focused reads of the ticket, ledger, measurements, combat, match, controls, and dependencies recovered the complete evidence.
+The review changed nothing and left no residue.

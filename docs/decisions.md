@@ -258,6 +258,12 @@ The approved slice loads immutable embedded arena data through a stream-testable
 The complete gate passed 42 simulation and 37 checker tests, repeated deterministic hash `28bca5e37a7a3255`, a zero-warning release build, byte-identical spec trees, Godot editor/runtime smoke, and live GPU capture.
 The candidate was fast-forwarded to `main` unchanged before this integration record was appended.
 
+## 2026-08-14 — Admit the base combat duel slice
+
+Reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` admitted ticket 006 at risk 4 after tickets 002 and 005 closed and two earlier admission reviews corrected seven combat/lifecycle ambiguities plus one provenance error.
+The contract binds a single complete base duel with fixed tick phases, measured gun/block/ring-out facts, explicit provisional behavior, deterministic swept contacts and impulses, bilateral spawn/result locks, exact reset preservation, and native evidence for both local control paths.
+No human choice remains because every unmeasured value and fallback is named, while scoring, drafts, cards, arena cadence, bots, controller defaults, audio, camera, and production assets remain separate outcomes.
+
 ## 2026-08-14 — Keep gameplay data embedded behind stream-loadable simulation APIs
 
 The simplest new design would give the pure simulation immutable arena and tuning values directly, with loading owned at an outer application boundary.
