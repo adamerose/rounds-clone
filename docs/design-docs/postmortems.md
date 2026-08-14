@@ -927,3 +927,11 @@ Focused reads recovered the 12 stat-only effects, exact match facts, tuning surf
 
 Two searches also guessed absent `src/Rounds.Godot` and `app` directories before the repository inventory located the shell at `game/Main.cs`.
 The failed searches returned useful simulation and arena results first, left no generated output, and were replaced with the tracked-path inventory.
+
+## 2026-08-14 — Ticket 008's first admission found an impossible branch and incomplete hash ownership
+
+Reviewer `codex:01a00135-7e77-7f82-aa78-1831e5864da6` rejected exact candidate `7c03c8486ad7aa3af7b6befb6fb8290985b848d7` because a player cannot reach five cards before their next loss ends the match, so the proposed capped-loser continuation was unreachable.
+The same cold read found that custom per-player combat profiles had no exact hash compatibility rule, the second opening pick did not explicitly reset current health and ammunition from both profiles, and arena selection did not bind its bounded PCG operation.
+
+The correction removes the unreachable path, conditionally extends `Sim.Hash` only for non-vanilla profiles, routes the opening through the same non-incrementing reset, and requires one `NextBounded(61)` arena selection after removing the current map.
+The review's one inventory command named an absent top-level `tests` directory, and one `git cat-file` probe let PowerShell misparse `HEAD^{commit}`; both returned nonzero without changing files, and exact identity plus the useful inventories were independently established.
