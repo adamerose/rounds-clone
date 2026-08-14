@@ -96,3 +96,13 @@ No original media or extracted game data is committed; the clean-room boundary i
 The specification gate uses a dependency-free JSON Schema subset validator covering every keyword present in the committed schemas.
 It fails on unsupported future schema keywords so an unimplemented vocabulary cannot silently weaken provenance enforcement.
 This avoids introducing a validator package with a commercial-use maintenance EULA into the eventual distributable while retaining a mechanically tested schema contract.
+
+## 2026-08-14 — Accept explicit single-source limits instead of contaminated independence
+
+Movement, jumping, projectile speed, projectile radius, and out-of-bounds timing each have only one action- and modifier-controlled observation in the selected recordings.
+Shot-contaminated or card-contaminated comparisons remain visible in the measurement log but do not count toward coverage.
+Body scale, recoil, block timing, and camera framing retain two independent accepted sources.
+This is a more useful implementation contract than inflating source counts: every estimate remains tunable, and the harness must later compare clone-generated controlled captures against the recorded bands.
+
+Fresh reviewer session `codex:019fff26-f793-7293-87fe-8a816060e432` approved exact candidate `6681545522380445e270edc6c2888fb0a3e81d5c` with no findings.
+The candidate was fast-forwarded to `main` unchanged.

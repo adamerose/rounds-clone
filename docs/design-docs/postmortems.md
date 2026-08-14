@@ -220,3 +220,12 @@ The correction will start at the grounded frame, record the full 4.5078-diameter
 
 The review refreshed ignored `bin/`, `obj/`, and `game/.godot/` outputs but changed no tracked file.
 Two read-only PowerShell formatting commands also failed with an `empty pipe element` parser error before corrected commands succeeded without creating files.
+
+## 2026-08-14 — Ticket 002's approving review lacked OpenCV
+
+Reviewer session `codex:019fff26-f793-7293-87fe-8a816060e432` approved exact candidate `6681545522380445e270edc6c2888fb0a3e81d5c` with no findings.
+Its attempted OpenCV import failed with `ModuleNotFoundError`, so frame inspection used Pillow and NumPy and still reproduced every accepted interval and derivation.
+The review refreshed ignored build and Godot outputs but changed no tracked file.
+
+The reviewer left diagnostic PNGs at `C:\Users\Adam\AppData\Local\Temp\codex-review-019fff5` under the review-only no-cleanup rule.
+Integration cleanup removed that exact directory, the earlier reported review-diagnostic directory, and the ignored `research/raw/` correction frames after validating each target.

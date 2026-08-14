@@ -9,8 +9,10 @@ risk: 6
 depends-on: [1]
 sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
+  - codex:019ffef0-fa87-7a50-960e-5b747abd5c3b
   - codex:019fff0e-f811-71d0-a4aa-27137690f147
   - codex:019fff1d-fe99-7af1-a895-91bf4b242796
+  - codex:019fff26-f793-7293-87fe-8a816060e432
 ---
 
 # Research core rules and footage measurements
@@ -77,3 +79,6 @@ Locking sourced values and tolerances now prevents implementation intuition from
 - 2026-08-14T07:21:39Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Rechecking the full grounded-to-apex arithmetic, endpoint-span failure, source coverage, build, deterministic smoke, and Godot boundaries.
 - 2026-08-14T07:21:39Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Full repository gate passed with zero build warnings, 20 tests, repeated smoke hash f250d549cfb52a8b, Godot editor/runtime smoke, unchanged formatting, passing ticket format, and a clean diff check.
 - 2026-08-14T07:21:39Z stage review start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Preparing the third corrected candidate for a fresh non-author review against ticket 002 and all prior rejection findings.
+- 2026-08-14T07:29:56Z stage review end session codex:019fff26-f793-7293-87fe-8a816060e432 — Approved exact candidate 6681545522380445e270edc6c2888fb0a3e81d5c with no findings after independently inspecting source frames, recomputing all 19 derivations, and passing the full 20-test gate.
+- 2026-08-14T07:29:56Z stage integration start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Fast-forwarding the approved exact candidate onto unchanged main.
+- 2026-08-14T07:29:56Z stage integration end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Main advanced from 8fb9156d78be65d52365a683f2705441b21a5c81 to reviewed candidate 6681545522380445e270edc6c2888fb0a3e81d5c without reconciliation.
