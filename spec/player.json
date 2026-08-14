@@ -1,0 +1,162 @@
+{
+  "$schema": "./schema/mechanics.schema.json",
+  "schemaVersion": 1,
+  "kind": "player",
+  "targetBuild": "21020021",
+  "facts": [
+    {
+      "id": "player-diameter",
+      "statement": "One base player body diameter is the spatial normalization unit.",
+      "status": "confirmed",
+      "value": 1.0,
+      "unit": "player diameters",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "player diameters" },
+      "method": "Defines the project unit and anchors all footage normalization.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-base-health",
+      "statement": "Base maximum health is normalized to one.",
+      "status": "confirmed",
+      "value": 1.0,
+      "unit": "health ratio",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "health ratio" },
+      "method": "Defines the health unit used by proportional card and damage values.",
+      "sources": ["wiki-moveset", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-body-shape",
+      "statement": "The damage and environment collider is approximately circular, while arms, gun, face, and hat are presentation.",
+      "status": "estimate",
+      "value": "circle",
+      "unit": "collider shape",
+      "confidence": "medium",
+      "tolerance": { "kind": "behavioral", "value": "stable rolling contact and radial hits", "unit": "behavior" },
+      "method": "Compared rotating body silhouettes, ledge contacts, and projectile impacts.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-run-speed",
+      "statement": "Base sustained horizontal speed is about 0.11 player diameters per simulation tick.",
+      "status": "estimate",
+      "value": 0.11,
+      "unit": "player diameters per tick",
+      "confidence": "medium",
+      "tolerance": { "kind": "absolute", "value": 0.02, "unit": "player diameters per tick" },
+      "method": "Normalized unobstructed and airborne horizontal trajectories against 17-19 pixel body diameters in two recordings.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-ground-acceleration",
+      "statement": "Ground control reaches sustained speed in roughly eight ticks.",
+      "status": "estimate",
+      "value": 0.014,
+      "unit": "player diameters per tick squared",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 0.006, "unit": "player diameters per tick squared" },
+      "method": "Estimated the short velocity ramp after direction changes visible at 30 fps.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-air-control-ratio",
+      "statement": "Airborne horizontal control retains most ground authority.",
+      "status": "estimate",
+      "value": 0.8,
+      "unit": "ground acceleration ratio",
+      "confidence": "medium",
+      "tolerance": { "kind": "range", "value": [0.65, 1.0], "unit": "ground acceleration ratio" },
+      "method": "Compared long airborne lateral corrections with ground starts.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-jump-capacity",
+      "statement": "A player stores one jump that may be used on the ground or in the air and is restored by ground contact.",
+      "status": "confirmed",
+      "value": 1,
+      "unit": "stored jumps",
+      "confidence": "medium",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "stored jumps" },
+      "method": "Cross-checked the moveset description with ledge-fall and grounded-jump sequences.",
+      "sources": ["wiki-moveset", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-jump-speed",
+      "statement": "A base jump begins near 0.21 player diameters per tick upward.",
+      "status": "estimate",
+      "value": 0.21,
+      "unit": "player diameters per tick",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 0.04, "unit": "player diameters per tick" },
+      "method": "Fit a ballistic arc to unmodified-looking jumps after normalizing player diameter.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-gravity",
+      "statement": "Base airborne gravity is near 0.009 player diameters per tick squared.",
+      "status": "estimate",
+      "value": 0.009,
+      "unit": "player diameters per tick squared",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 0.0025, "unit": "player diameters per tick squared" },
+      "method": "Derived gravity from measured jump height and time-to-apex ranges.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-jump-apex-height",
+      "statement": "A base jump rises roughly 2.5 player diameters above takeoff.",
+      "status": "estimate",
+      "value": 2.5,
+      "unit": "player diameters",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 0.6, "unit": "player diameters" },
+      "method": "Compared takeoff and apex body centers against the measured player diameter.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-jump-apex-time",
+      "statement": "A base jump reaches its apex in about 23 ticks.",
+      "status": "estimate",
+      "value": 23,
+      "unit": "ticks",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 5, "unit": "ticks" },
+      "method": "Counted 30 fps frames from takeoff to apex and converted each frame to two simulation ticks.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-ground-friction",
+      "statement": "Releasing horizontal input damps ground velocity quickly without an immediate hard stop.",
+      "status": "estimate",
+      "value": 0.72,
+      "unit": "velocity retained per tick",
+      "confidence": "low",
+      "tolerance": { "kind": "range", "value": [0.55, 0.85], "unit": "velocity retained per tick" },
+      "method": "Estimated deceleration from short settling motions on flat platforms.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-rotation",
+      "statement": "The circular body rotates visibly from contacts, recoil, and knockback while aim remains world-directed.",
+      "status": "confirmed",
+      "value": true,
+      "unit": "rule",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "body rotation does not rotate aim input", "unit": "behavior" },
+      "method": "Observed independent body roll and gun aiming in both recordings.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "player-base-regeneration",
+      "statement": "Base players do not regenerate health during a duel.",
+      "status": "confirmed",
+      "value": 0,
+      "unit": "health ratio per tick",
+      "confidence": "medium",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "health ratio per tick" },
+      "method": "Observed persistent damage between hits where no healing card was present.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    }
+  ]
+}

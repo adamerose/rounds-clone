@@ -1,0 +1,162 @@
+{
+  "$schema": "./schema/mechanics.schema.json",
+  "schemaVersion": 1,
+  "kind": "match",
+  "targetBuild": "21020021",
+  "facts": [
+    {
+      "id": "match-target-version",
+      "statement": "The fidelity target is the current public Windows build 21020021, identified in-game as v1.1.2.a75ee335a.",
+      "status": "confirmed",
+      "value": { "buildId": "21020021", "version": "v1.1.2.a75ee335a" },
+      "unit": "build identity",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "builds" },
+      "method": "Cross-checked the installed Steam app manifest, live main-menu version label, and SteamDB public branch.",
+      "sources": ["runtime-build-21020021", "steamdb-depots"]
+    },
+    {
+      "id": "match-players",
+      "statement": "Vanilla play is one player against one player.",
+      "status": "confirmed",
+      "value": 2,
+      "unit": "players",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "players" },
+      "method": "Used official store scope and direct match recordings.",
+      "sources": ["steam-store", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "match-initial-draft-choices",
+      "statement": "Each player begins by choosing one card from five offered cards.",
+      "status": "confirmed",
+      "value": { "choices": 5, "picksPerPlayer": 1 },
+      "unit": "cards",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "cards" },
+      "method": "Counted the sequential starting choices in two independent recordings.",
+      "sources": ["footage-wcg", "footage-ssag", "wiki-rounds"]
+    },
+    {
+      "id": "match-duel-kill-award",
+      "statement": "A duel kill awards the surviving player half of a round point.",
+      "status": "confirmed",
+      "value": 0.5,
+      "unit": "round points",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "round points" },
+      "method": "Matched the HALF player overlay and half-filled score circle after first kills in both recordings.",
+      "sources": ["footage-wcg", "footage-ssag", "wiki-rounds"]
+    },
+    {
+      "id": "match-round-kills",
+      "statement": "Two duel wins complete one round point.",
+      "status": "confirmed",
+      "value": 2,
+      "unit": "duel wins",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "duel wins" },
+      "method": "Observed HALF followed by ROUND overlays and a full score circle.",
+      "sources": ["footage-wcg", "footage-ssag", "wiki-rounds"]
+    },
+    {
+      "id": "match-loser-draft-choices",
+      "statement": "After a full round point, the losing player chooses one persistent card from five choices.",
+      "status": "confirmed",
+      "value": { "choices": 5, "picks": 1, "recipient": "round loser" },
+      "unit": "cards",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "cards" },
+      "method": "Followed the ROUND overlay into the single-player five-card draft in both recordings.",
+      "sources": ["steam-store", "footage-wcg", "footage-ssag", "wiki-rounds"]
+    },
+    {
+      "id": "match-victory-points",
+      "statement": "The first player to five full round points wins the match.",
+      "status": "confirmed",
+      "value": 5,
+      "unit": "round points",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "round points" },
+      "method": "Cross-checked the five-dot score display, completed match footage, and community rules summary.",
+      "sources": ["footage-wcg", "footage-ssag", "wiki-rounds"]
+    },
+    {
+      "id": "match-card-persistence",
+      "statement": "Chosen cards stack and persist through every later duel in the match.",
+      "status": "confirmed",
+      "value": true,
+      "unit": "rule",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "all chosen effects remain active", "unit": "rule" },
+      "method": "Tracked the growing card icons and retained effects across map changes.",
+      "sources": ["steam-store", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "match-maximum-cards",
+      "statement": "A player can hold at most five cards in the vanilla five-point loop, including the starting card.",
+      "status": "confirmed",
+      "value": 5,
+      "unit": "cards per player",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "cards" },
+      "method": "Derived one starting card plus at most four loser drafts before the opponent reaches five points.",
+      "sources": ["footage-wcg", "wiki-rounds"]
+    },
+    {
+      "id": "match-duel-reset",
+      "statement": "Each duel resets spawn position, health, ammunition, block cooldown, and transient projectiles while retaining cards and score.",
+      "status": "confirmed",
+      "value": ["spawn", "health", "ammo", "blockCooldown", "projectiles"],
+      "unit": "reset fields",
+      "confidence": "medium",
+      "tolerance": { "kind": "behavioral", "value": "fresh combat state before control unlocks", "unit": "rule" },
+      "method": "Compared the starts of consecutive duels in both recordings.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "match-map-cadence",
+      "statement": "The arena remains for the two half-point duels and changes after a full round point.",
+      "status": "confirmed",
+      "value": "change after full round",
+      "unit": "rule",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "same map within a round", "unit": "rule" },
+      "method": "Followed arena continuity across half-point and full-point transitions.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "match-control-lock",
+      "statement": "A brief spawn presentation precedes each duel and player control unlocks together.",
+      "status": "confirmed",
+      "value": true,
+      "unit": "rule",
+      "confidence": "medium",
+      "tolerance": { "kind": "behavioral", "value": "no unilateral early movement", "unit": "rule" },
+      "method": "Compared player motion and spawn animation at repeated duel starts.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "match-simultaneous-death",
+      "statement": "A simultaneous death should replay the duel without awarding a half point until current-build observation proves otherwise.",
+      "status": "open",
+      "value": "replay duel with no award",
+      "unit": "provisional rule",
+      "confidence": "low",
+      "tolerance": { "kind": "behavioral", "value": "must not award both players", "unit": "rule" },
+      "method": "No clean simultaneous-death example appeared in the selected recordings, so the least score-distorting rule is explicit and provisional.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "match-release-date",
+      "statement": "ROUNDS released on 2021-04-01, so the goal's 2020 label is treated as a naming error rather than a separate ruleset.",
+      "status": "confirmed",
+      "value": "2021-04-01",
+      "unit": "date",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "days" },
+      "method": "Used the official Steam release date.",
+      "sources": ["steam-store"]
+    }
+  ]
+}

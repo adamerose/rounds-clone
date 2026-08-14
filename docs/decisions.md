@@ -82,3 +82,17 @@ The first playable scope is therefore exactly two opposing players.
 Early concept work used three cards and accidentally reused the original card name `Burst`.
 Research shows vanilla Rounds presents five upgrades, so the accepted draft concept now shows five choices with wholly original working names and illustrations.
 This changes the presentation spec before implementation rather than teaching the UI the wrong choice count.
+
+## 2026-08-14 — Target public build 21020021 and preserve uncertainty
+
+The fidelity target is the current public Windows build `21020021`, identified in-game as `v1.1.2.a75ee335a`.
+The Steam app manifest, live menu, and SteamDB agree on that identity.
+Public 2021 and 2022 match recordings remain usable for base-mechanics measurement because later official updates describe platform, rendering, options, cross-play, and isolated scaling fixes rather than a complete base-movement retune.
+Where current runtime observation is unavailable, footage-derived values remain estimates with explicit confidence and tolerance rather than becoming exact constants.
+
+The media service rejected complete 60 fps extraction, so measurements use 29.97 or 30 fps previews with approximately two-tick temporal resolution and deliberately broad timing tolerances.
+No original media or extracted game data is committed; the clean-room boundary is public behavior, public metadata, and derived measurements only.
+
+The specification gate uses a dependency-free JSON Schema subset validator covering every keyword present in the committed schemas.
+It fails on unsupported future schema keywords so an unimplemented vocabulary cannot silently weaken provenance enforcement.
+This avoids introducing a validator package with a commercial-use maintenance EULA into the eventual distributable while retaining a mechanically tested schema contract.

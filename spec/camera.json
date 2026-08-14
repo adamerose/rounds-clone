@@ -1,0 +1,118 @@
+{
+  "$schema": "./schema/mechanics.schema.json",
+  "schemaVersion": 1,
+  "kind": "camera",
+  "targetBuild": "21020021",
+  "facts": [
+    {
+      "id": "camera-aspect-ratio",
+      "statement": "The primary framing target is 16:9.",
+      "status": "confirmed",
+      "value": 1.7777777778,
+      "unit": "width to height ratio",
+      "confidence": "high",
+      "tolerance": { "kind": "absolute", "value": 0.01, "unit": "ratio" },
+      "method": "Used the 640x360 recordings and 2048x1152 current-build window.",
+      "sources": ["runtime-build-21020021", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-mode",
+      "statement": "Each arena uses a stable full-stage camera rather than following one player.",
+      "status": "confirmed",
+      "value": "fixed full-stage",
+      "unit": "camera mode",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "both spawn regions remain visible", "unit": "behavior" },
+      "method": "Checked screen landmarks while players crossed and separated in both recordings.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-horizontal-span",
+      "statement": "Common arenas span about 35 player diameters across the 16:9 viewport.",
+      "status": "estimate",
+      "value": 35,
+      "unit": "player diameters",
+      "confidence": "medium",
+      "tolerance": { "kind": "absolute", "value": 5, "unit": "player diameters" },
+      "method": "Divided 640-pixel frame width by repeated 17-19 pixel body diameters.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-vertical-span",
+      "statement": "Common arenas span about 20 player diameters vertically.",
+      "status": "estimate",
+      "value": 20,
+      "unit": "player diameters",
+      "confidence": "medium",
+      "tolerance": { "kind": "absolute", "value": 3, "unit": "player diameters" },
+      "method": "Divided 360-pixel frame height by repeated 17-19 pixel body diameters.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-duel-zoom",
+      "statement": "The camera does not visibly zoom during an ordinary duel.",
+      "status": "confirmed",
+      "value": false,
+      "unit": "zoom changes",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "stage landmarks retain pixel size", "unit": "behavior" },
+      "method": "Compared static platform dimensions throughout duels.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-score-placement",
+      "statement": "Compact point and ammunition indicators occupy the upper corners outside the arena focus.",
+      "status": "confirmed",
+      "value": "upper corners",
+      "unit": "screen region",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "must not obscure center combat", "unit": "behavior" },
+      "method": "Observed HUD placement across maps and resolutions.",
+      "sources": ["runtime-build-21020021", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-out-of-bounds-margin",
+      "statement": "The kill plane or side bound sits approximately one player diameter beyond the visible play edge.",
+      "status": "estimate",
+      "value": 1.0,
+      "unit": "player diameters",
+      "confidence": "low",
+      "tolerance": { "kind": "range", "value": [0.0, 2.0], "unit": "player diameters" },
+      "method": "Estimated body-center travel from last visible frame to the death transition.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-out-of-bounds-result-delay",
+      "statement": "An out-of-bounds death resolves within about six ticks of crossing the kill bound.",
+      "status": "estimate",
+      "value": 6,
+      "unit": "ticks",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 4, "unit": "ticks" },
+      "method": "Counted frames between the last body image and duel-result fade.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-transition-style",
+      "statement": "Deaths transition through a brief darkened result overlay before the next duel, draft, or map.",
+      "status": "confirmed",
+      "value": "darken then result overlay",
+      "unit": "transition",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "combat state visually settles before next phase", "unit": "behavior" },
+      "method": "Observed HALF and ROUND transitions in both recordings.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "camera-shake",
+      "statement": "Impacts and large effects use short screen-space shake without changing the stable arena framing.",
+      "status": "confirmed",
+      "value": true,
+      "unit": "rule",
+      "confidence": "medium",
+      "tolerance": { "kind": "behavioral", "value": "returns to identical framing", "unit": "behavior" },
+      "method": "Compared transient whole-frame offsets around impacts.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    }
+  ]
+}

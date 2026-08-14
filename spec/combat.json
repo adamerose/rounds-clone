@@ -1,0 +1,184 @@
+{
+  "$schema": "./schema/mechanics.schema.json",
+  "schemaVersion": 1,
+  "kind": "combat",
+  "targetBuild": "21020021",
+  "facts": [
+    {
+      "id": "combat-base-ammo",
+      "statement": "The base gun holds three shots.",
+      "status": "confirmed",
+      "value": 3,
+      "unit": "shots",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "shots" },
+      "method": "Cross-checked the moveset description and three-dot ammunition HUD before card modifiers.",
+      "sources": ["wiki-moveset", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-base-damage",
+      "statement": "A base bullet removes about 55 percent of base health, making two clean hits lethal.",
+      "status": "estimate",
+      "value": 0.55,
+      "unit": "base health ratio",
+      "confidence": "medium",
+      "tolerance": { "kind": "absolute", "value": 0.05, "unit": "base health ratio" },
+      "method": "Used the community approximately-60-percent value and repeated two-hit kills in footage.",
+      "sources": ["wiki-moveset", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-fire-interval",
+      "statement": "The unmodified gun has roughly an 18-tick minimum interval between shots.",
+      "status": "estimate",
+      "value": 18,
+      "unit": "ticks",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 5, "unit": "ticks" },
+      "method": "Counted visible muzzle events in card loadouts without attack-speed modifiers.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-reload-time",
+      "statement": "An empty unmodified magazine refills after about 120 ticks.",
+      "status": "estimate",
+      "value": 120,
+      "unit": "ticks",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 24, "unit": "ticks" },
+      "method": "Measured last-shot to restored-ammo intervals and excluded visible reload modifiers.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-reload-trigger",
+      "statement": "Reload begins automatically after the last shot and completes the whole magazine together.",
+      "status": "confirmed",
+      "value": "automatic full-magazine reload",
+      "unit": "rule",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "no per-round loading", "unit": "behavior" },
+      "method": "Tracked ammunition dots after magazine depletion in both recordings.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-projectile-speed",
+      "statement": "An unmodified bullet travels about 2.4 player diameters per tick.",
+      "status": "estimate",
+      "value": 2.4,
+      "unit": "player diameters per tick",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 0.7, "unit": "player diameters per tick" },
+      "method": "Measured muzzle-to-impact pixel travel across two-tick source frames and normalized by body diameter.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-projectile-radius",
+      "statement": "The base damaging projectile radius is about eight percent of a player diameter, smaller than its streak and glow.",
+      "status": "estimate",
+      "value": 0.08,
+      "unit": "player diameters",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 0.03, "unit": "player diameters" },
+      "method": "Separated the bright core from the larger motion streak in close frames.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-base-bounces",
+      "statement": "Base bullets are destroyed on their first environment impact.",
+      "status": "confirmed",
+      "value": 0,
+      "unit": "environment bounces",
+      "confidence": "high",
+      "tolerance": { "kind": "exact", "value": 0, "unit": "environment bounces" },
+      "method": "Compared base projectiles with later explicit bounce-card behavior.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-recoil-speed",
+      "statement": "Each base shot gives the shooter roughly 0.10 player diameters per tick of opposite velocity.",
+      "status": "estimate",
+      "value": 0.10,
+      "unit": "player diameters per tick",
+      "confidence": "low",
+      "tolerance": { "kind": "absolute", "value": 0.04, "unit": "player diameters per tick" },
+      "method": "Measured immediate shooter displacement after isolated airborne and grounded shots.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-hit-knockback",
+      "statement": "A base bullet imparts knockback along its travel direction in addition to damage.",
+      "status": "confirmed",
+      "value": true,
+      "unit": "rule",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "hit displacement is directionally consistent", "unit": "behavior" },
+      "method": "Observed target acceleration after nonlethal hits from several directions.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-block-window",
+      "statement": "Base block protects for about 15 ticks.",
+      "status": "estimate",
+      "value": 15,
+      "unit": "ticks",
+      "confidence": "medium",
+      "tolerance": { "kind": "absolute", "value": 5, "unit": "ticks" },
+      "method": "Counted the visible circular shield from appearance through collapse at 30 fps.",
+      "sources": ["footage-wcg", "footage-ssag", "wiki-moveset"]
+    },
+    {
+      "id": "combat-block-cooldown",
+      "statement": "Base block recharges in about 240 ticks.",
+      "status": "estimate",
+      "value": 240,
+      "unit": "ticks",
+      "confidence": "medium",
+      "tolerance": { "kind": "absolute", "value": 30, "unit": "ticks" },
+      "method": "Measured intervals between unmodified-looking blocks and cross-checked card text that adds whole seconds to cooldown.",
+      "sources": ["footage-wcg", "footage-ssag", "wiki-moveset"]
+    },
+    {
+      "id": "combat-block-projectile-response",
+      "statement": "A projectile contacting an active block is reflected away and does not deal its direct hit damage.",
+      "status": "confirmed",
+      "value": "reflect and negate direct hit",
+      "unit": "rule",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "reflected projectile can threaten its former owner", "unit": "behavior" },
+      "method": "Tracked shield contacts and reflected bullet paths in both recordings.",
+      "sources": ["wiki-moveset", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-block-damage-scope",
+      "statement": "Block does not erase damage-over-time effects that were already applied.",
+      "status": "confirmed",
+      "value": "direct contacts only",
+      "unit": "rule",
+      "confidence": "medium",
+      "tolerance": { "kind": "behavioral", "value": "existing status effects continue", "unit": "behavior" },
+      "method": "Used the moveset description and poison-card sequences.",
+      "sources": ["wiki-moveset", "footage-ssag"]
+    },
+    {
+      "id": "combat-block-push",
+      "statement": "Block applies a radial impulse to nearby players and can launch the blocker when used next to the arena boundary.",
+      "status": "confirmed",
+      "value": true,
+      "unit": "rule",
+      "confidence": "medium",
+      "tolerance": { "kind": "behavioral", "value": "clear separation and wall-assisted launch", "unit": "behavior" },
+      "method": "Cross-checked close-range blocks and wall-adjacent shield bounces.",
+      "sources": ["wiki-moveset", "footage-wcg", "footage-ssag"]
+    },
+    {
+      "id": "combat-death-conditions",
+      "statement": "A player dies when health reaches zero or when the body leaves the arena kill bounds.",
+      "status": "confirmed",
+      "value": ["health depleted", "out of bounds"],
+      "unit": "conditions",
+      "confidence": "high",
+      "tolerance": { "kind": "behavioral", "value": "exactly one duel result emitted", "unit": "behavior" },
+      "method": "Observed both projectile deaths and fall or launch deaths.",
+      "sources": ["footage-wcg", "footage-ssag"]
+    }
+  ]
+}

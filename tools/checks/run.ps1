@@ -12,7 +12,7 @@ try {
     & $dotnet build 'Rounds.sln' --configuration Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
     & $dotnet run --project 'tools/Rounds.Checks/Rounds.Checks.csproj' --configuration Release --no-build --no-restore -- .
-    if ($LASTEXITCODE -ne 0) { throw 'Determinism boundary check failed.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Repository checks failed.' }
     & $dotnet test 'Rounds.sln' --configuration Release --no-build --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
     $first = & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- smoke --seed 20260814 --ticks 600

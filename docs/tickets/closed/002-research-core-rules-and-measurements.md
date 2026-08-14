@@ -1,0 +1,59 @@
+---
+format: 3
+status: closed
+created: 2026-08-14T05:42:13Z
+origin: human-request
+tags: [research, specification, fidelity]
+value: 10
+risk: 6
+depends-on: [1]
+sessions:
+  - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
+---
+
+# Research core rules and footage measurements
+
+The project has a sourced, machine-readable fidelity target for the vanilla match loop and base player, weapon, block, movement, and camera behavior before those rules are implemented.
+
+## Outcome
+
+- Name the exact public vanilla PC build or behavior window this clone targets and explain how later platform-only fixes are treated.
+- Create a source index that records title, publisher, URL, access date, source kind, scope, and reliability.
+- Create machine-readable specifications for match flow, player controls, base combat tuning, and measurement targets.
+- Measure movement, jumping, bullets, recoil, blocking, camera framing, and out-of-bounds behavior from frame-addressable gameplay footage.
+- Record conflicts and unknowns without silently converting estimates into facts.
+- Add mechanical schema/provenance validation to the repository gate.
+- File bounded follow-up tickets for the complete vanilla card catalog and map catalog.
+
+## Why
+
+The simulation can reproduce only what the research artifact makes explicit.
+Locking sourced values and tolerances now prevents implementation intuition from becoming an untraceable substitute for the original game's behavior.
+
+## Essential constraints
+
+- Use official store copy and patch notes for product scope and version history.
+- Use the current public Windows build as the default target unless evidence shows a gameplay regression or undocumented card retune; record any exception.
+- Prefer direct 60 fps footage without edits, overlays, mods, or variable playback speed for measurements.
+- Express distances in player diameters, time in 60 Hz ticks, speeds in player diameters per tick, and ratios as dimensionless values.
+- Every non-obvious value carries at least one source, confidence, derivation method, and tolerance.
+- Keep downloaded video and frames under gitignored `research/raw/`; commit only notes, source metadata, measurement procedures, and derived values.
+- Do not change `src/` or implement researched mechanics in this ticket.
+- Do not copy original art, audio, text, or code into the repository.
+
+## Evidence required
+
+- JSON schema validation passes for every new `spec/` artifact.
+- A provenance check rejects a representative fact that lacks a source or confidence.
+- At least two independent gameplay recordings support the highest-impact movement and combat measurements, or the conflict is explicit.
+- `spec/measurements.json` includes the observed frame interval, pixel measurements, normalized result, tolerance, source timestamp, and confidence for each metric.
+- The exact match sequence is supported from initial card choice through five-point victory, including two-kill points and five-choice loser drafts.
+- The complete repository gate remains green without any implementation change.
+
+## Work log
+
+- 2026-08-14T05:42:13Z stage research start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Adam's build directive explicitly admits the research dependency; starting with official version history, vanilla 1v1 scope, and frame-addressable mechanics sources.
+- 2026-08-14T06:20:15Z stage research end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Pinned public build 21020021, sourced the complete match sequence, recorded 12 frame measurements from two independent matches, and preserved every disputed value as an estimate or open rule.
+- 2026-08-14T06:20:15Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Exercising schema and provenance failures, the full .NET solution, deterministic smoke hash, and Godot editor/runtime boundary.
+- 2026-08-14T06:20:15Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Repository checks passed, 14 tests passed, smoke hash repeated as f250d549cfb52a8b, Godot editor import/runtime passed, formatting was unchanged, and ticket format passed.
+- 2026-08-14T06:20:15Z stage review start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Preparing the completed exact candidate for a fresh non-author review against ticket 002.

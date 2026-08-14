@@ -1,0 +1,101 @@
+{
+  "$schema": "./schema/source-index.schema.json",
+  "schemaVersion": 1,
+  "accessedOn": "2026-08-14",
+  "sources": [
+    {
+      "id": "steam-store",
+      "title": "ROUNDS Steam store page",
+      "publisher": "Landfall Games and Valve",
+      "url": "https://store.steampowered.com/app/1557740/ROUNDS/",
+      "accessedOn": "2026-08-14",
+      "kind": "official-store",
+      "scope": "Official 1v1 premise, losing-player upgrade loop, release date, power-up count, and map count.",
+      "reliability": "high"
+    },
+    {
+      "id": "runtime-build-21020021",
+      "title": "Installed public Windows build 21020021",
+      "publisher": "Landfall Games and Valve Steam client",
+      "url": "steam://rungameid/1557740",
+      "accessedOn": "2026-08-14",
+      "kind": "runtime-observation",
+      "scope": "Steam app manifest identifies build 21020021 and depot manifest 3274682947036329080; the live main menu identifies v1.1.2.a75ee335a.",
+      "reliability": "high",
+      "notes": "Observed through public build metadata and the running game without reading or copying game code or assets."
+    },
+    {
+      "id": "steamdb-depots",
+      "title": "ROUNDS depots",
+      "publisher": "SteamDB",
+      "url": "https://steamdb.info/app/1557740/depots/",
+      "accessedOn": "2026-08-14",
+      "kind": "build-index",
+      "scope": "Public branch build history and current public Build ID 21020021.",
+      "reliability": "medium",
+      "notes": "Third-party index corroborated by the local Steam app manifest."
+    },
+    {
+      "id": "steam-news",
+      "title": "ROUNDS announcements",
+      "publisher": "Landfall Games",
+      "url": "https://steamcommunity.com/app/1557740/allnews/",
+      "accessedOn": "2026-08-14",
+      "kind": "official-announcement",
+      "scope": "Official 2024-2025 update history, including cross-play, rendering, bullet-scaling, options, and platform fixes.",
+      "reliability": "high"
+    },
+    {
+      "id": "patch-105",
+      "title": "ROUNDS patch 1.05",
+      "publisher": "Landfall Games via Steam",
+      "url": "https://steamdb.info/patchnotes/6522764/",
+      "accessedOn": "2026-08-14",
+      "kind": "build-index",
+      "scope": "Vanilla card balance changes that establish the post-launch mechanics baseline.",
+      "reliability": "medium"
+    },
+    {
+      "id": "footage-wcg",
+      "title": "Rounds No Commentary Gameplay",
+      "publisher": "The Fighter",
+      "url": "https://www.youtube.com/watch?v=wcg7PHrWj6o",
+      "accessedOn": "2026-08-14",
+      "kind": "gameplay-recording",
+      "scope": "Unedited 17:37 online match recorded from a native 60 fps upload on 2021-06-22.",
+      "reliability": "medium",
+      "notes": "Frame analysis used a 640x360 29.97 fps preview because the current media server rejected complete 60 fps downloads; timings therefore resolve to about two simulation ticks."
+    },
+    {
+      "id": "footage-ssag",
+      "title": "ROUNDS Gameplay (No Commentary)",
+      "publisher": "Big Pig Gaming",
+      "url": "https://www.youtube.com/watch?v=SSagJXOL1kw",
+      "accessedOn": "2026-08-14",
+      "kind": "gameplay-recording",
+      "scope": "Unedited 09:22 online match recorded from a native 60 fps upload on 2022-03-05.",
+      "reliability": "medium",
+      "notes": "Frame analysis used a 640x360 30 fps preview because the current media server rejected complete 60 fps downloads; timings therefore resolve to two simulation ticks."
+    },
+    {
+      "id": "wiki-rounds",
+      "title": "Rounds",
+      "publisher": "ROUNDS Wiki community",
+      "url": "https://rounds.fandom.com/wiki/Rounds",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "Match scoring, upgrade cadence, and victory sequence cross-checked against footage.",
+      "reliability": "low"
+    },
+    {
+      "id": "wiki-moveset",
+      "title": "Moveset",
+      "publisher": "ROUNDS Wiki community",
+      "url": "https://rounds.fandom.com/wiki/Moveset",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "Default ammunition, approximate damage, jump storage, block behavior, and wall-adjacent shield bounce.",
+      "reliability": "low"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ No Landfall art, audio, text, or source code is included.
 
 The repository is in active construction.
 The bootstrap milestone provides a deterministic input/hash boundary, a headless harness, mechanical architecture checks, automated tests, and a loadable Godot shell.
+The core research milestone pins public build `21020021` (`v1.1.2.a75ee335a`) and defines sourced match, controls, player, combat, camera, and footage-measurement specifications.
 
 ## Quick start on Windows
 
@@ -34,7 +35,7 @@ $godot = Get-ChildItem .tools/godot-4.7.1 -Filter '*mono_win64_console.exe' -Rec
 ```
 
 The current shell is an architectural smoke surface, not a playable match yet.
-Gameplay arrives after the sourced mechanical specification is complete.
+Gameplay implementation now has a mechanically validated core specification, while the complete card and arena catalogs remain separate research milestones.
 
 ## Project map
 
@@ -42,8 +43,10 @@ Gameplay arrives after the sourced mechanical specification is complete.
 - `src/Rounds.Harness/` runs simulations, replays, measurements, self-play, and renders as those capabilities land.
 - `src/Rounds.Sim.Tests/` protects simulation behavior.
 - `game/` contains the Godot presentation shell.
-- `spec/` will hold the sourced fidelity target and becomes read-only after research.
+- `spec/` holds the sourced fidelity target and becomes read-only after each research contract closes.
+- `research/notes/` explains measurement methods, conflicts, and the clean-room boundary without committing source media.
 - `tools/checks/` is the local and CI verification entry point.
 - `docs/architecture.md` and `docs/design/` hold binding technical and product design.
 
 See `GOAL.md` for the full completion bar.
+See `research/notes/core-rules.md` for the current match sequence, measurement targets, and known uncertainty.

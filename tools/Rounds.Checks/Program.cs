@@ -6,8 +6,10 @@ internal static class Program
     {
         var repository = Path.GetFullPath(args.Length > 0 ? args[0] : ".");
         var failures = DeterminismBoundaryChecker.CheckSimulation(
-            Path.Combine(repository, "src", "Rounds.Sim"));
-        if (failures.Count > 0)
+                Path.Combine(repository, "src", "Rounds.Sim"))
+            .Concat(SpecChecker.CheckRepository(repository))
+            .ToArray();
+        if (failures.Length > 0)
         {
             foreach (var failure in failures)
             {
@@ -17,7 +19,7 @@ internal static class Program
             return 1;
         }
 
-        Console.WriteLine("determinism boundary check passed");
+        Console.WriteLine("repository checks passed");
         return 0;
     }
 }
