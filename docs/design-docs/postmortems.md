@@ -913,3 +913,9 @@ Giving every direct history helper the same explicit verifier environment fixed 
 Reviewer `codex:01a00122-91f3-7250-b63c-55c236365989` approved exact candidate `11dc0a55d2994c1206c168fdbbe7e44e26947656` with no findings after independently rebuilding a missing verifier, rejecting the invalid-intermediate/later-valid chain, and passing the explicit integration range, full gate, both render sizes, Godot exits, action pins, and unchanged spec tree.
 The review's first combined fixture command was safety-blocked before execution, and initial exact-clone cleanup met read-only generated Git objects.
 After validating the temporary path and normalizing only those generated attributes, cleanup removed the clone completely; no process, ref, tracked change, or reviewer temporary artifact remained.
+
+## 2026-08-14 — Ticket 007 cleanup needed build-server shutdown
+
+The first cleanup removed the replacement worktree and its tool-cache junction, but Git returned `Invalid argument` while deleting the original cache-bearing worktree and stopped before dropping the transfer stash.
+The original directory remained inside the exact `.ivy/worktrees/` container with clean tracked state and no reparse points; repository .NET build-server shutdown released its generated files.
+After normalizing only generated file attributes, exact recursive deletion succeeded, the known stash object `38b03103232d0e1d4518d5e85477788bd07ea14e` was dropped, and final inspection found one clean main worktree, no stash, no ticket worktree, and the single validated root reel.
