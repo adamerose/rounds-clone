@@ -597,3 +597,12 @@ The reviewer stopped the exact game process, deleted the exact temporary PNG, ve
 The first cleanup command assumed the root checkout contained the ignored worktree-local .NET executable, so its build-server shutdown step failed before Git unregistered the movement worktree but again reported `Invalid argument` while leaving the directory.
 The owner resolved and validated the exact `005-movement-collision` path under `.ivy/worktrees`, used its residual SDK to stop the MSBuild and compiler servers, and confirmed Git no longer registered it.
 An extended-path runtime deletion then removed only that validated abandoned directory, and final checks proved both filesystem and worktree-list absence.
+
+## 2026-08-14 — Ticket 006's first admission review found six combat contract gaps
+
+Reviewer `codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73` rejected exact ticket candidate `537d94d38ae2fe2da71cf69d3976828164000d8d` before implementation.
+The ticket resolved ring-outs immediately despite a binding six-tick observable delay, named block-push magnitudes without defining wall-assisted self-launch, left initial/reset zero-aim behavior open, did not prove native shell controls, omitted the confirmed bilateral spawn lock, and chose a three-state block machine while leaving the living design's unsourced recovery phase active.
+The same review asked for exact reflected-movement and bullet-lifetime boundaries.
+Correction binds all seven behaviors, adds focused evidence, and requires the living design update without expanding into score, draft, cards, or arena cadence.
+Several broad read-only searches used nonexistent design paths, Windows-incompatible wildcard paths, or absent directories and exited 1; one output was truncated before focused reads recovered every cited fact.
+No files, processes, or temporary artifacts were left by the review.
