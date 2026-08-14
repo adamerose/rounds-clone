@@ -7,14 +7,12 @@ if (-not (Test-Path -LiteralPath $dotnet)) {
 
 Push-Location $repository
 try {
-    & node 'tools/checks/check-determinism.mjs' .
-    if ($LASTEXITCODE -ne 0) { throw 'Determinism boundary check failed.' }
-    & node --test 'tools/checks/check-determinism.test.mjs'
-    if ($LASTEXITCODE -ne 0) { throw 'Determinism checker tests failed.' }
     & $dotnet restore 'Rounds.sln' --locked-mode
     if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
     & $dotnet build 'Rounds.sln' --configuration Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+    & $dotnet run --project 'tools/Rounds.Checks/Rounds.Checks.csproj' --configuration Release --no-build --no-restore -- .
+    if ($LASTEXITCODE -ne 0) { throw 'Determinism boundary check failed.' }
     & $dotnet test 'Rounds.sln' --configuration Release --no-build --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
     $first = & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- smoke --seed 20260814 --ticks 600

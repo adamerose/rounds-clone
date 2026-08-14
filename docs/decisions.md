@@ -70,3 +70,15 @@ The visible working title is `RICOCHET`, which communicates the core combat loop
 
 The founding `GOAL.md` named `docs/postmortems.md`, while the active Ivy playbook requires `docs/design-docs/postmortems.md`.
 The goal and architecture now point to the playbook path so failures have one append-only home instead of two diverging copies.
+
+## 2026-08-14 — Keep team ownership but target vanilla 1v1
+
+The official Steam listing describes vanilla Rounds as 1v1, contradicting the founding architecture's claim that it ships 2v2.
+The first playable scope is therefore exactly two opposing players.
+`TeamId` remains because it makes ownership and target filtering explicit without adding a four-player mode or changing the match scope.
+
+## 2026-08-14 — Show five original draft choices
+
+Early concept work used three cards and accidentally reused the original card name `Burst`.
+Research shows vanilla Rounds presents five upgrades, so the accepted draft concept now shows five choices with wholly original working names and illustrations.
+This changes the presentation spec before implementation rather than teaching the UI the wrong choice count.

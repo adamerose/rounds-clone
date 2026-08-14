@@ -46,3 +46,20 @@ PowerShell's `ErrorActionPreference` does not turn native nonzero exit codes int
 
 Staging the generated solution and NuGet lock files warned that their Windows CRLF working copies would be normalized to LF when Git next touched them.
 The repository now declares LF for text and binary treatment for PNG concepts in `.gitattributes`, then renormalizes the candidate so the committed representation is explicit and stable across platforms.
+
+## 2026-08-14 — Bootstrap candidate 0b91884 failed review
+
+Fresh reviewer `codex:019ffeb9-c691-70c3-b458-78885d222233` requested changes to candidate `0b91884a9bbe5c0683519356dfa34136e6959bbb`.
+The checker missed common forms of four prohibited APIs; Node, the CI runner/action, and the mutable .NET installer were not fully pinned; the architecture falsely said vanilla Rounds shipped 2v2; and the accepted draft concept reused the original `Burst` card name.
+Correction replaces the checker and its tests with pinned-.NET projects, verifies exact download hashes, pins the CI runner generation and checkout commit, fixes the 1v1 rationale, and replaces the draft concept with five original choices.
+
+## 2026-08-14 — Local `view_image` showed an incomplete copy despite identical bytes
+
+The revised five-card concept rendered correctly from its generated-image source, but `view_image` showed only the empty top background when given the worktree copy.
+SHA-256 hashes and byte lengths are identical (`13829567af2a9980a4f3667ef182ef126bf6322c01cfa57d7280118f06564d3f` and 2,229,360 bytes), so this is a local viewer/path anomaly rather than asset corruption.
+The source image was visually inspected at original detail, and byte equality proves the committed project asset is that inspected image.
+
+## 2026-08-14 — The abandoned installer remained in the ignored tool cache
+
+Replacing the mutable .NET installer flow left `.tools/dotnet-install.ps1` from the first bootstrap attempt.
+It was an ignored, reproducible download with no remaining caller and was removed permanently; the installed pinned SDK and Godot runtime remain intact.

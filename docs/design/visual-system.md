@@ -4,7 +4,7 @@ The accepted visual direction is defined by three generated concept screens:
 
 - `docs/design/concepts/main-menu.png`
 - `docs/design/concepts/gameplay-primary.png`
-- `docs/design/concepts/card-draft.png`
+- `docs/design/concepts/card-draft-v2.png`
 
 They are the visual acceptance references, not runtime UI assets.
 The game recreates their system with original reusable assets, code-native text, and live simulation state.
@@ -44,7 +44,7 @@ Every control defines its size and weight explicitly; no engine-default typograp
 
 - Menus use open alignment and underlines, not rounded panels.
 - Player setup is aligned directly on the background with team-colored rules and focus marks.
-- Draft choices use three warm-paper cards, one illustration region, one title, and one short effect line.
+- Draft choices use five warm-paper cards, one illustration region, one title, and one short effect line.
 - Selected elements gain a team-colored outline, a small scale increase, and a hard offset shadow.
 - HUD scoring uses circles and short rules rather than boxes.
 - Prompts use simple controller/keyboard glyphs and plain labels along the bottom edge.
@@ -79,7 +79,7 @@ The win screen reuses the arena and HUD motifs instead of introducing a new comp
 
 The menu may show only `RICOCHET`, `PLAY`, `HOW TO PLAY`, `SETTINGS`, `QUIT`, `LOCAL MATCH`, `PLAYER 1`, `PLAYER 2`, `HUMAN`, `BOT`, `START`, `SELECT`, and `BACK` above the fold.
 The arena uses score marks, the first-to-five target, and the tiny `RICOCHET` watermark shown in the gameplay concept.
-The draft uses the selected player's color/name, `PICK ONE`, three card titles and effect lines from live card data, `CHOOSE`, and `DETAILS`.
+The draft uses the selected player's color/name, `PICK ONE`, five card titles and effect lines from live card data, `CHOOSE`, and `DETAILS`.
 
 ## Responsive and display behavior
 

@@ -48,7 +48,7 @@ Every structural decision below exists to keep those three cheap and reliable.
 | Physics | Written by us: kinematic character controller, swept-circle bullets, static AABB level geometry | Solver-driven player movement feels mushy; engine physics is neither deterministic nor version-stable | No — all tuning is downstream of it |
 | Numbers | `double`, our own `Vec2` | Godot's `Vector2` is `float` and would weld the core to the engine | No |
 | Tick | Fixed 60 Hz, decoupled from render rate; no wall-clock in the sim | Every duration constant is expressed in ticks | No |
-| Players | `List<Player>` with a `TeamId` from the first commit | Rounds ships 2v2; a hardcoded two calcifies across a hundred files | No |
+| Players | `List<Player>` with a `TeamId` from the first commit | Vanilla Rounds is 1v1, but explicit team ownership keeps targeting and friendly-fire rules from assuming that the opponent is always the other list index | No |
 | Networking | None for now | Deterministic input-driven sim keeps rollback available later at no cost today | Deliberately deferred |
 | Research | Agent-produced, with per-fact provenance; never reviewed by a human | Fidelity ceiling is the research artifact's fidelity, so provenance and footage measurement carry the weight | No |
 | Raw research media | Gitignored, never committed | Committed screenshots or video frames are in git history permanently | Literally irreversible |
