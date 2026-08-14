@@ -327,6 +327,91 @@ public sealed class SpecCheckerTests : IDisposable
         Assert.Contains(failures, failure => failure.StartsWith("SPEC037 cards.json", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void UnsupportedMapPrimitiveIsRejectedBySchema()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["primitives"]![0]!["primitive"] = "triangle";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC001 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void UnknownMapSourceIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["visualEvidence"]!["source"] = "missing-source";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC055 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DuplicateMapIdIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![1]!["id"] = document["maps"]![0]!["id"]!.GetValue<string>();
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC041 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void UnsafeMapSpawnSeparationIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["spawnRegions"]![1]!["xMin"] = -1.6;
+        document["maps"]![0]!["spawnRegions"]![1]!["xMax"] = -0.4;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC050 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void UnboundedMapCoordinateIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["primitives"]![0]!["x"] = 41;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC056 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RepresentativeMapMustExhibitItsNamedCategory()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["representativeExamples"]!["ringOut"] = "fixture-map-0";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC057 maps.json", StringComparison.Ordinal));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_repository))
@@ -380,6 +465,7 @@ public sealed class SpecCheckerTests : IDisposable
         }
 
         WriteMeasurements("player-fact");
+        WriteMaps();
     }
 
     private void WriteCards()
@@ -554,5 +640,97 @@ public sealed class SpecCheckerTests : IDisposable
               }]
             }
             """);
+    }
+
+    private void WriteMaps()
+    {
+        static JsonObject Bounds(double xMin, double xMax, double yMin, double yMax) => new()
+        {
+            ["xMin"] = xMin,
+            ["xMax"] = xMax,
+            ["yMin"] = yMin,
+            ["yMax"] = yMax,
+        };
+
+        static JsonObject Provenance() => new()
+        {
+            ["status"] = "provisional",
+            ["confidence"] = "low",
+            ["method"] = "Fixture vectorization.",
+            ["tolerance"] = "Fixture tolerance.",
+            ["sources"] = new JsonArray("source-one"),
+        };
+
+        var maps = new JsonArray();
+        for (var index = 0; index < 70; index++)
+        {
+            maps.Add(new JsonObject
+            {
+                ["id"] = $"fixture-map-{index}",
+                ["sourceRow"] = index + 2,
+                ["visualEvidence"] = new JsonObject
+                {
+                    ["source"] = "source-one",
+                    ["previewSha256"] = new string('0', 64),
+                    ["previewPixels"] = new JsonObject { ["width"] = 230, ["height"] = 128 },
+                },
+                ["archetype"] = "static-structure",
+                ["symmetry"] = "mirror",
+                ["ringOutFocused"] = false,
+                ["cameraBounds"] = Bounds(-18, 18, -10, 10),
+                ["collisionBounds"] = Bounds(-15, 15, -0.5, 0.5),
+                ["killBoundaryY"] = -12,
+                ["spawnRegions"] = new JsonArray(
+                    new JsonObject { ["id"] = "spawn-left", ["xMin"] = -8.6, ["xMax"] = -7.4, ["yMin"] = 0.75, ["yMax"] = 1.25, ["clearanceDiameters"] = 1 },
+                    new JsonObject { ["id"] = "spawn-right", ["xMin"] = 7.4, ["xMax"] = 8.6, ["yMin"] = 0.75, ["yMax"] = 1.25, ["clearanceDiameters"] = 1 }),
+                ["primitives"] = new JsonArray(
+                    new JsonObject { ["id"] = "platform-001", ["primitive"] = "rect", ["role"] = "static", ["x"] = 0, ["y"] = 0, ["width"] = 30, ["height"] = 1 }),
+                ["behaviorModules"] = new JsonArray(),
+                ["provenance"] = Provenance(),
+                ["unknowns"] = new JsonArray("Fixture unknown."),
+            });
+        }
+
+        maps[1]!["behaviorModules"] = new JsonArray(
+            new JsonObject { ["id"] = "moving-001", ["kind"] = "moving-assembly", ["bounds"] = Bounds(-2, 2, -1, 1), ["timingStatus"] = "unknown" });
+        maps[2]!["behaviorModules"] = new JsonArray(
+            new JsonObject { ["id"] = "breakable-001", ["kind"] = "breakable-field", ["bounds"] = Bounds(-2, 2, -1, 1), ["timingStatus"] = "unknown" });
+        maps[3]!["behaviorModules"] = new JsonArray(
+            new JsonObject { ["id"] = "saw-001", ["kind"] = "radial-saw", ["x"] = 0, ["y"] = 5, ["radius"] = 1, ["timingStatus"] = "unknown" });
+        maps[4]!["symmetry"] = "asymmetric";
+        maps[5]!["ringOutFocused"] = true;
+
+        var vocabulary = new JsonArray();
+        foreach (var id in new[] { "rect", "radial-saw", "breakable-field", "moving-assembly", "physics-assembly" })
+        {
+            vocabulary.Add(new JsonObject { ["id"] = id, ["purpose"] = "Fixture vocabulary entry." });
+        }
+
+        var document = new JsonObject
+        {
+            ["$schema"] = "./schema/maps.schema.json",
+            ["schemaVersion"] = 1,
+            ["targetBuild"] = "21020021",
+            ["targetVersion"] = "v1.1.2.a75ee335a",
+            ["catalogCount"] = 70,
+            ["units"] = new JsonObject { ["distance"] = "player-diameters", ["time"] = "60-hz-ticks", ["thumbnailPlayerDiameterPixels"] = 6.4, ["gridCellPixels"] = 5 },
+            ["geometryVocabulary"] = vocabulary,
+            ["reconciliation"] = new JsonArray(
+                new JsonObject { ["source"] = "source-one", ["reportedCount"] = 70, ["relationship"] = "lower-bound", ["notes"] = "Fixture lower bound." },
+                new JsonObject { ["source"] = "source-one", ["reportedCount"] = 70, ["relationship"] = "exact-preview-index", ["notes"] = "Fixture preview index." },
+                new JsonObject { ["source"] = "source-one", ["reportedCount"] = 0, ["relationship"] = "observed-subset", ["notes"] = "Fixture subset." }),
+            ["representativeExamples"] = new JsonObject
+            {
+                ["static"] = "fixture-map-0",
+                ["moving"] = "fixture-map-1",
+                ["breakable"] = "fixture-map-2",
+                ["hazard"] = "fixture-map-3",
+                ["asymmetric"] = "fixture-map-4",
+                ["ringOut"] = "fixture-map-5",
+            },
+            ["maps"] = maps,
+        };
+
+        File.WriteAllText(Path.Combine(_repository, "spec", "maps.json"), document.ToJsonString());
     }
 }

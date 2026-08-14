@@ -335,3 +335,77 @@ During review, `jq` was unavailable and the JSON audit used PowerShell, while Fa
 
 The first correction patch lacked card-specific context and replaced GameFAQs on Abyssal Countdown's hook and Barrage's projectile count instead of the intended Brawler and Pristine Perseverence health effects.
 An immediate semantic inspection exposed the two wrong targets before verification, and an ID-anchored patch restored them while changing only the intended effects.
+
+## 2026-08-14 — The map admission review guessed ticket 002's obsolete filename
+
+The independent ticket 004 admission review first tried `docs/tickets/closed/002-research-reference-build-and-match-rules.md`, which does not exist after the ticket's final naming.
+Repository file discovery immediately found `docs/tickets/closed/002-research-core-rules-and-measurements.md`, and the reviewer confirmed its closed status before admitting the dependent map research.
+
+## 2026-08-14 — The public map sheet resisted two ordinary retrieval paths
+
+Opening the public Google Sheet through the ordinary web reader returned a safe-open error, while the fetch fallback reached an edit page that required JavaScript and exposed no map rows.
+The sheet's public CSV export succeeded and established 71 rows including the header, while the real browser exposed all 70 row-ordered preview images needed for visual research.
+
+## 2026-08-14 — The first browser extraction session timed out
+
+The first browser capability and page-state request exceeded its 30-second command limit and reset the persistent browser kernel before producing usable state.
+One troubleshooting inventory and a 60-second reconnect restored the public sheet session, after which the browser downloaded all 70 previews without another missing asset.
+
+## 2026-08-14 — The CSV reader flattened the map sheet
+
+The general URL reader returned the public CSV as flattened text that was unsuitable for preserving row boundaries.
+A direct CSV parser reproduced 71 rows and 70 map entries, so the catalog uses the browser images for silhouettes and the parsed sheet only for exact row ordering.
+
+## 2026-08-14 — Map silhouette analysis could not use OpenCV
+
+The environment did not provide the `cv2` module for the planned image segmentation pass.
+A Pillow flood-fill and contact-sheet workflow produced inspectable silhouettes and spawn diagnostics for all 70 previews, with the generated geometry remaining explicitly coarse and low-confidence.
+Pillow also emitted a `getdata` deprecation warning while deriving masks; retained code should use `get_flattened_data` if this temporary analysis becomes a supported tool.
+
+## 2026-08-14 — The first map schema used unsupported validator keywords
+
+The initial map schema used `maximum` and `maxItems`, but the repository's intentionally small schema validator rejects unsupported keywords instead of silently ignoring them.
+The targeted checker suite failed at `SPEC001`, so numeric maxima and the exactly-two-spawns rule moved into the semantic map checker while the schema kept only supported structural constraints.
+
+## 2026-08-14 — The unsafe-spawn regression used a safe boundary value
+
+The first unsafe-spawn fixture placed the two spawn centers exactly eight player diameters apart, which satisfies the contract's minimum separation and correctly produced no `SPEC050` failure.
+The fixture now places them seven diameters apart so it exercises the intended unsafe boundary without weakening the eight-diameter rule.
+
+## 2026-08-14 — The first real-map gate exposed rounded envelopes and two conservative hazard overlaps
+
+The map checker passed all fixtures but rejected 69 real collision envelopes because the fixed camera edge rounded to 17.969 diameters while silhouette-derived collision edges rounded to 17.970.
+It also rejected the inferred spawns on `arena-016` and `arena-045` because their centers fell within the visible saw radius plus a one-diameter clearance.
+The correction widened every fixed camera envelope to its intended 18-diameter half-width and moved only those two provisional spawn regions to supported portions of the same visible platforms outside conservative saw clearance.
+The repository checker then passed all 70 maps.
+
+## 2026-08-14 — The map worktree predates the card research note
+
+A documentation inspection tried to use `research/notes/cards.md` as a formatting reference, but the map worktree branches from `main` before ticket 003 and therefore does not contain that later file.
+The existing core-rules note and repository sentence-per-line convention provide the local prose pattern, and the eventual rebase will bring the independent card note into this worktree.
+
+## 2026-08-14 — The ring-out representative contradicted its own classification
+
+The first representative set named `arena-064` for ring-out coverage even though that same entry has `ringOutFocused: false`.
+The semantic checker had verified only that representative IDs existed, allowing a category label and arena classification to disagree.
+The correction selects classified ring-out arena `arena-006`, requires every representative to exhibit its named static, moving, breakable, hazard, asymmetric, or ring-out property, and adds a regression for mismatched category coverage.
+
+## 2026-08-14 — The first full map gate outlived its launcher timeout
+
+The map worktree had no local `.tools` cache, so its first full gate spent the 120-second command window downloading and expanding the pinned .NET SDK and Godot instead of reaching compilation.
+The launcher timed out with no captured output, but its bootstrap child remained live and continued growing the verified Godot archive, so the owning session monitored it rather than cancelling a progressing installation.
+One 30-second process-wait probe returned exit code 1 as the watched process completed between the wait and follow-up inspection, but the installed SDK reported 8.0.423 and the expected Godot console executable was present.
+The immediate gate rerun used those local tools and passed with zero warnings, 26 tests, repository checks, deterministic hash `f250d549cfb52a8b`, and Godot editor and runtime smoke.
+
+## 2026-08-14 — Temporary map previews were removed after derivation
+
+The browser research workflow left one exact temporary asset bundle containing 77 files, including six diagnostic PNG contact sheets and the downloaded preview payloads.
+After the committed hashes, vectors, classifications, and uncertainty notes made the raw bundle unnecessary, the owning session validated the absolute temp parent and UUID leaf, deleted only that directory, and verified it absent.
+The public sheet tab was then closed and the persistent browser kernel reset, leaving no live research session or original preview asset in the repository.
+
+## 2026-08-14 — Card integration overlapped five map catalog files
+
+Rebasing the completed map catalog onto integrated ticket 003 conflicted in the shared decisions ledger, postmortem ledger, source index, and checker-test file, while the main checker merged automatically.
+The resolution retained both decision and failure histories, all card sources plus the map sheet, every card regression plus six map regressions, and both card and map cross-check paths.
+The combined full gate then passed with zero warnings, 37 tests, repository checks, deterministic hash `f250d549cfb52a8b`, and Godot editor and runtime smoke.
+Git also warned that the generated map JSON and mechanically resolved test file had CRLF working copies that would normalize to LF when touched; staged diff checks confirm the repository form is valid.

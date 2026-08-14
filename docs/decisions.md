@@ -155,3 +155,27 @@ The catalog records those exclusions explicitly, and the repository gate now rej
 Fresh reviewer session `codex:019fff67-9eba-7042-8e81-fc16c3885b45` approved exact candidate `02c339a89dfdbb3ecf276f886d82f064e5a4eda5` with no findings.
 The review independently confirmed the 67-card reconciliation, the corrected Brawler and Pristine Perseverence percentage sources, every prior stacking and patch correction, 31 passing tests, deterministic hash `f250d549cfb52a8b`, and Godot editor and runtime smoke.
 The candidate was fast-forwarded to `main` unchanged before this integration record was appended.
+
+## 2026-08-14 — Admit ticket 004 as bounded arena research
+
+Reviewer session `codex:019fff46-e63b-7911-8124-12c0d8fe0b12` admitted ticket 004 at risk 4 after ticket 002 closed.
+The contract binds current-build arena enumeration, player-diameter geometry, clean-room presentation, representative behavior coverage, schema failures, and an implementation order without implementing physics or rendering.
+No human choice remains because unavailable geometry and source conflicts must stay explicit rather than being invented.
+
+## 2026-08-14 — Use 70 row-stable project arena IDs
+
+The official store's “70+ maps” remains a lower bound, while the public community sheet provides an exact row-ordered index of 70 vanilla previews.
+The catalog therefore binds `arena-001` through `arena-070` to sheet rows 2 through 71 without retaining proposed names or internal identifiers.
+Random current-build matches do not provide exhaustive enumeration, so the difference between the sheet index and the active runtime pool remains explicit rather than being filled from extracted game data.
+
+## 2026-08-14 — Treat preview geometry as a coarse implementation contract
+
+The arena catalog converts preview silhouettes to five-pixel grid rectangles in player-diameter units and records a ±0.8-diameter coordinate tolerance plus ±20 percent global scale uncertainty.
+This is enough to preserve layout topology, sightlines, supported spawn regions, hazard placement, and implementation order without shipping or tracing original visual assets.
+Controlled current-build captures must retune scale, camera margins, and exact collisions before a map graduates from provisional geometry.
+
+## 2026-08-14 — Do not infer dynamic behavior from still previews
+
+Visible saws, breakable groups, moving groups, and physics structures become reusable behavior-module regions rather than invented timing or material constants.
+Paths, rotation, health, fragments, constraints, masses, damping, contact response, and reset sequencing remain unknown until direct behavior evidence binds them.
+The first playable map work should implement static topology before enabling each behavior family from separately measured evidence.

@@ -161,6 +161,17 @@
       "scope": "Contemporaneous player reports about repeated numerical, idempotent, duration, radius, and hook card behavior.",
       "reliability": "low",
       "notes": "Reports disagree on several hook-heavy cards, so all inferred formulas except the integer bounce-count case remain provisional."
+    },
+    {
+      "id": "community-map-sheet",
+      "title": "ROUNDS maps community names",
+      "publisher": "ROUNDS community contributors",
+      "url": "https://docs.google.com/spreadsheets/d/1HFc2Svqcbpib71damoUTUfLsuxDcNt0c9WSFHgKYvpI/edit?usp=sharing",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "Public row-ordered index containing 70 vanilla arena preview images and community naming proposals.",
+      "reliability": "medium",
+      "notes": "The project uses only row order, preview hashes, and derived coarse geometry; it does not retain internal identifiers, screenshots, or original assets."
     }
   ]
 }

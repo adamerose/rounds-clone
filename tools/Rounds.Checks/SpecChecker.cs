@@ -28,6 +28,7 @@ public static class SpecChecker
         ["combat.json"] = "mechanics.schema.json",
         ["camera.json"] = "mechanics.schema.json",
         ["measurements.json"] = "measurements.schema.json",
+        ["maps.json"] = "maps.schema.json",
     };
 
     private static readonly HashSet<string> KnownCardTargets =
@@ -339,6 +340,227 @@ public static class SpecChecker
             {
                 failures.Add($"SPEC015 measurements.json omits required coverage for fact `{factId}`.");
             }
+        }
+
+        CrossCheckMaps(documents["maps.json"].RootElement, sourceIds, failures);
+    }
+
+    private static void CrossCheckMaps(JsonElement root, HashSet<string> sourceIds, List<string> failures)
+    {
+        var units = root.GetProperty("units");
+        if (units.GetProperty("thumbnailPlayerDiameterPixels").GetDouble() > 20 || units.GetProperty("gridCellPixels").GetInt32() > 16)
+        {
+            failures.Add("SPEC056 maps.json unit calibration exceeds supported bounds.");
+        }
+
+        var vocabulary = root.GetProperty("geometryVocabulary").EnumerateArray()
+            .Select(item => item.GetProperty("id").GetString()!)
+            .ToHashSet(StringComparer.Ordinal);
+        var maps = root.GetProperty("maps").EnumerateArray().ToArray();
+        if (maps.Length != root.GetProperty("catalogCount").GetInt32())
+        {
+            failures.Add($"SPEC040 maps.json contains {maps.Length} arenas but declares {root.GetProperty("catalogCount").GetInt32()}.");
+        }
+
+        var mapIds = new HashSet<string>(StringComparer.Ordinal);
+        var mapsById = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        var sourceRows = new HashSet<int>();
+        foreach (var map in maps)
+        {
+            var mapId = map.GetProperty("id").GetString()!;
+            if (!mapIds.Add(mapId))
+            {
+                failures.Add($"SPEC041 maps.json duplicates arena id `{mapId}`.");
+                continue;
+            }
+            mapsById.Add(mapId, map);
+
+            var sourceRow = map.GetProperty("sourceRow").GetInt32();
+            if (sourceRow > 71)
+            {
+                failures.Add($"SPEC056 maps.json arena `{mapId}` source row exceeds 71.");
+            }
+            if (!sourceRows.Add(sourceRow))
+            {
+                failures.Add($"SPEC042 maps.json duplicates source row `{sourceRow}`.");
+            }
+
+            ValidateMapSource(map.GetProperty("visualEvidence").GetProperty("source").GetString()!, sourceIds, $"arena `{mapId}` visual evidence", failures);
+            foreach (var source in map.GetProperty("provenance").GetProperty("sources").EnumerateArray())
+            {
+                ValidateMapSource(source.GetString()!, sourceIds, $"arena `{mapId}` provenance", failures);
+            }
+
+            var camera = map.GetProperty("cameraBounds");
+            var collision = map.GetProperty("collisionBounds");
+            if (!ValidBounds(camera) || !ValidBounds(collision) || !Bounded(camera) || !Bounded(collision))
+            {
+                failures.Add($"SPEC043 maps.json arena `{mapId}` has reversed camera or collision bounds.");
+                continue;
+            }
+
+            if (!Contains(camera, collision))
+            {
+                failures.Add($"SPEC044 maps.json arena `{mapId}` collision bounds escape its camera bounds.");
+            }
+
+            var primitiveIds = new HashSet<string>(StringComparer.Ordinal);
+            var primitives = map.GetProperty("primitives").EnumerateArray().ToArray();
+            foreach (var primitive in primitives)
+            {
+                var primitiveId = primitive.GetProperty("id").GetString()!;
+                if (!primitiveIds.Add(primitiveId))
+                {
+                    failures.Add($"SPEC045 maps.json arena `{mapId}` duplicates primitive id `{primitiveId}`.");
+                }
+
+                var primitiveKind = primitive.GetProperty("primitive").GetString()!;
+                if (!vocabulary.Contains(primitiveKind))
+                {
+                    failures.Add($"SPEC046 maps.json arena `{mapId}` uses undeclared primitive `{primitiveKind}`.");
+                }
+
+                if (Math.Abs(primitive.GetProperty("x").GetDouble()) > 40 ||
+                    Math.Abs(primitive.GetProperty("y").GetDouble()) > 40 ||
+                    primitive.GetProperty("width").GetDouble() > 80 ||
+                    primitive.GetProperty("height").GetDouble() > 80)
+                {
+                    failures.Add($"SPEC056 maps.json arena `{mapId}` primitive `{primitiveId}` exceeds supported coordinates.");
+                }
+            }
+
+            var spawnCenters = new List<(double X, double Y)>();
+            var spawnRegions = map.GetProperty("spawnRegions").EnumerateArray().ToArray();
+            if (spawnRegions.Length != 2)
+            {
+                failures.Add($"SPEC056 maps.json arena `{mapId}` must contain exactly two spawn regions.");
+            }
+
+            foreach (var spawn in spawnRegions)
+            {
+                if (!ValidBounds(spawn) || !Bounded(spawn) || !Contains(camera, spawn) || spawn.GetProperty("clearanceDiameters").GetDouble() > 10)
+                {
+                    failures.Add($"SPEC047 maps.json arena `{mapId}` has an invalid or out-of-camera spawn region.");
+                    continue;
+                }
+
+                var centerX = (spawn.GetProperty("xMin").GetDouble() + spawn.GetProperty("xMax").GetDouble()) / 2;
+                var centerY = (spawn.GetProperty("yMin").GetDouble() + spawn.GetProperty("yMax").GetDouble()) / 2;
+                spawnCenters.Add((centerX, centerY));
+                var supported = primitives.Any(primitive =>
+                {
+                    var halfWidth = primitive.GetProperty("width").GetDouble() / 2;
+                    var top = primitive.GetProperty("y").GetDouble() + primitive.GetProperty("height").GetDouble() / 2;
+                    return centerX >= primitive.GetProperty("x").GetDouble() - halfWidth &&
+                           centerX <= primitive.GetProperty("x").GetDouble() + halfWidth &&
+                           centerY - top >= 0.2 && centerY - top <= 1.3;
+                });
+                if (!supported || spawn.GetProperty("yMin").GetDouble() <= map.GetProperty("killBoundaryY").GetDouble() + 1)
+                {
+                    failures.Add($"SPEC048 maps.json arena `{mapId}` has an unsupported or kill-bound-adjacent spawn.");
+                }
+
+                foreach (var saw in map.GetProperty("behaviorModules").EnumerateArray().Where(module => module.GetProperty("kind").GetString() == "radial-saw"))
+                {
+                    var distance = Math.Sqrt(Math.Pow(centerX - saw.GetProperty("x").GetDouble(), 2) + Math.Pow(centerY - saw.GetProperty("y").GetDouble(), 2));
+                    if (distance < saw.GetProperty("radius").GetDouble() + 1)
+                    {
+                        failures.Add($"SPEC049 maps.json arena `{mapId}` places a spawn inside saw clearance.");
+                    }
+                }
+            }
+
+            if (spawnCenters.Count == 2 && Math.Abs(spawnCenters[1].X - spawnCenters[0].X) < 8)
+            {
+                failures.Add($"SPEC050 maps.json arena `{mapId}` separates spawn centers by less than eight player diameters.");
+            }
+
+            foreach (var module in map.GetProperty("behaviorModules").EnumerateArray())
+            {
+                var kind = module.GetProperty("kind").GetString()!;
+                if (!vocabulary.Contains(kind))
+                {
+                    failures.Add($"SPEC051 maps.json arena `{mapId}` uses undeclared behavior module `{kind}`.");
+                }
+
+                if (kind == "radial-saw" && (!module.TryGetProperty("x", out _) || !module.TryGetProperty("y", out _) || !module.TryGetProperty("radius", out _)))
+                {
+                    failures.Add($"SPEC052 maps.json arena `{mapId}` saw lacks position or radius.");
+                }
+                else if (kind != "radial-saw" && !module.TryGetProperty("bounds", out _))
+                {
+                    failures.Add($"SPEC053 maps.json arena `{mapId}` regional behavior lacks bounds.");
+                }
+
+                if ((module.TryGetProperty("bounds", out var moduleBounds) && (!ValidBounds(moduleBounds) || !Bounded(moduleBounds))) ||
+                    (module.TryGetProperty("x", out var moduleX) && Math.Abs(moduleX.GetDouble()) > 40) ||
+                    (module.TryGetProperty("y", out var moduleY) && Math.Abs(moduleY.GetDouble()) > 40) ||
+                    (module.TryGetProperty("radius", out var moduleRadius) && moduleRadius.GetDouble() > 10))
+                {
+                    failures.Add($"SPEC056 maps.json arena `{mapId}` behavior module `{module.GetProperty("id").GetString()}` exceeds supported coordinates.");
+                }
+            }
+
+            var killBoundary = map.GetProperty("killBoundaryY").GetDouble();
+            if (killBoundary < -40 || killBoundary > 0)
+            {
+                failures.Add($"SPEC056 maps.json arena `{mapId}` kill boundary exceeds supported coordinates.");
+            }
+        }
+
+        foreach (var reconciliation in root.GetProperty("reconciliation").EnumerateArray())
+        {
+            ValidateMapSource(reconciliation.GetProperty("source").GetString()!, sourceIds, "arena reconciliation", failures);
+        }
+
+        foreach (var example in root.GetProperty("representativeExamples").EnumerateObject())
+        {
+            var exampleId = example.Value.GetString()!;
+            if (!mapsById.TryGetValue(exampleId, out var map))
+            {
+                failures.Add($"SPEC054 maps.json representative `{example.Name}` targets missing arena `{exampleId}`.");
+                continue;
+            }
+
+            var modules = map.GetProperty("behaviorModules").EnumerateArray().ToArray();
+            var matchesCategory = example.Name switch
+            {
+                "static" => modules.Length == 0 && map.GetProperty("primitives").EnumerateArray().Any(primitive => primitive.GetProperty("role").GetString() == "static"),
+                "moving" => modules.Any(module => module.GetProperty("kind").GetString() == "moving-assembly"),
+                "breakable" => modules.Any(module => module.GetProperty("kind").GetString() == "breakable-field"),
+                "hazard" => modules.Any(module => module.GetProperty("kind").GetString() == "radial-saw"),
+                "asymmetric" => map.GetProperty("symmetry").GetString() == "asymmetric",
+                "ringOut" => map.GetProperty("ringOutFocused").GetBoolean(),
+                _ => false,
+            };
+            if (!matchesCategory)
+            {
+                failures.Add($"SPEC057 maps.json representative `{example.Name}` arena `{exampleId}` does not exhibit that category.");
+            }
+        }
+    }
+
+    private static bool ValidBounds(JsonElement bounds) =>
+        bounds.GetProperty("xMin").GetDouble() < bounds.GetProperty("xMax").GetDouble() &&
+        bounds.GetProperty("yMin").GetDouble() < bounds.GetProperty("yMax").GetDouble();
+
+    private static bool Bounded(JsonElement bounds) =>
+        Math.Abs(bounds.GetProperty("xMin").GetDouble()) <= 40 &&
+        Math.Abs(bounds.GetProperty("xMax").GetDouble()) <= 40 &&
+        Math.Abs(bounds.GetProperty("yMin").GetDouble()) <= 40 &&
+        Math.Abs(bounds.GetProperty("yMax").GetDouble()) <= 40;
+
+    private static bool Contains(JsonElement outer, JsonElement inner) =>
+        inner.GetProperty("xMin").GetDouble() >= outer.GetProperty("xMin").GetDouble() &&
+        inner.GetProperty("xMax").GetDouble() <= outer.GetProperty("xMax").GetDouble() &&
+        inner.GetProperty("yMin").GetDouble() >= outer.GetProperty("yMin").GetDouble() &&
+        inner.GetProperty("yMax").GetDouble() <= outer.GetProperty("yMax").GetDouble();
+
+    private static void ValidateMapSource(string sourceId, HashSet<string> sourceIds, string subject, List<string> failures)
+    {
+        if (!sourceIds.Contains(sourceId))
+        {
+            failures.Add($"SPEC055 maps.json {subject} cites unknown source `{sourceId}`.");
         }
     }
 
