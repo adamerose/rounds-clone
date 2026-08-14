@@ -333,3 +333,9 @@ The final contract has no human choice: it binds canonical bytes, stream playbac
 
 The empty-ledger byte grammar was re-admitted by reviewer `codex:01a000ac-dd36-7902-81e2-5b2c75826c5d` at exact candidate `228e55a5dfb32ea10be0568ca7d672ba311cfda5` after implementation proved a terminal blank line conflicts with the repository whitespace gate.
 An empty ledger now ends after the heading LF; the blank separator arrives as part of the first append-only entry.
+
+## 2026-08-14 — Integrate deterministic replays and the validated reel
+
+Fresh reviewer `codex:01a00122-91f3-7250-b63c-55c236365989` approved exact candidate `11dc0a55d2994c1206c168fdbbe7e44e26947656` with no findings after five earlier implementation reviews exposed clean-runner, validation-order, general-renderer, legacy-history, and intermediate-replay bypasses.
+The integrated boundary records canonical two-player input streams with periodic hashes, replays them through both the harness and playable Godot shell, protects every historical golden revision through public playback, and publishes a pinned nightly 600-frame reel.
+The approved gate passed 167 simulation/replay/history tests, 37 repository-checker tests, the real pre-ticket integration range, deterministic smoke, interrupted and complete Godot playback, a one-frame generic render, and the six-state canonical render while leaving match scoring, drafts, cards, bots, controller defaults, and production presentation for later slices.

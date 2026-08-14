@@ -23,6 +23,7 @@ sessions:
   - codex:01a000eb-212e-7640-82f7-a7b11c745b87
   - codex:01a000fd-0cf6-7142-aae8-c71a8445bd6a
   - codex:01a0010d-da47-7f20-adb3-831c90ff5aae
+  - codex:01a00122-91f3-7250-b63c-55c236365989
 ---
 
 # Add deterministic replays and a rendered reel
@@ -197,3 +198,7 @@ A small exact replay boundary now turns every later failure into a reproducible 
 - 2026-08-14T16:27:26Z stage review end session codex:01a0010d-da47-7f20-adb3-831c90ff5aae — Rejected the candidate because history checked intermediate replay hash text and ledger transitions but canonically replayed only the final effective tree, allowing a later valid commit to hide an earlier invalid golden.
 - 2026-08-14T16:27:26Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening implementation to export and publicly replay every added or replaced golden from the exact commit where it changes, with an invalid-intermediate/later-valid range regression.
 - 2026-08-14T16:34:53Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Exported each changed golden's exact Git blob and verified its canonical filename, bytes, and deterministic playback before accepting the transition; the invalid-B/later-valid-C range now fails at B, all 30 history fixtures pass, the real integration range replays its first golden, and the full zero-warning gate passes 167 simulation tests plus 37 checker tests.
+- 2026-08-14T16:45:59Z stage review start session codex:01a00122-91f3-7250-b63c-55c236365989 — Independently reviewed exact candidate 11dc0a55d2994c1206c168fdbbe7e44e26947656 across the complete ticket, explicit integration range, hostile intermediate replay, renderer, process, workflow, and residue boundaries.
+- 2026-08-14T16:45:59Z stage review end session codex:01a00122-91f3-7250-b63c-55c236365989 — Approved the exact candidate with no findings after the full gate, clean verifier rebuild, A/B/C rejection, one-frame and canonical renders, Godot exits, spec comparison, pins, and cleanup all passed.
+- 2026-08-14T16:45:59Z stage integrate start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Fast-forwarding the approved six-commit replay history to main, preserving the ignored validated reel, and running the explicit pre-ticket integration range before removing every ticket workspace and transfer artifact.
+- 2026-08-14T16:45:59Z stage integrate end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Fast-forwarded main to reviewed candidate 11dc0a55d2994c1206c168fdbbe7e44e26947656 and copied the validated 21,389,476-byte local reel; final range verification and residue cleanup follow this bookkeeping commit.
