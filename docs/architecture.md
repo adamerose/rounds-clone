@@ -1,0 +1,228 @@
+# Rounds clone — architecture
+
+Binding decisions for this project.
+Agents read this before writing code.
+If implementation proves a decision here is wrong, stop, record the change and its reasoning in `docs/decisions.md`, update this file, and continue — do not quietly diverge from it.
+
+Prose in this repository is written **one sentence per line**.
+Markdown renderers ignore single newlines, so it looks the same, and it keeps diffs to the sentence that actually changed instead of reflowing whole paragraphs.
+
+## What we're building
+
+A faithful reimplementation of Rounds (Landfall, 2020): a 2D versus platform shooter played in short rounds.
+Two or more players fight; the player who is behind picks a card between rounds; cards stack combinatorially until matches turn absurd.
+Mechanics are reimplemented from research.
+No original art, audio, or text is copied.
+
+The project is built by autonomous agents with no human reviewing the code.
+That single constraint shapes nearly everything below.
+
+## The idea everything else follows from
+
+Nobody is checking this work by hand, so quality is held up entirely by what a machine can verify.
+An unattended loop drifts toward whatever it can measure, so the measurements have to be the real thing rather than a proxy for it.
+Three signals carry the project:
+
+1. **Replay determinism.**
+   The same seed and the same input stream must produce a byte-identical state hash.
+   That is one assertion, it cannot be softened into meaninglessness, and it catches almost every behavioral regression in the simulation.
+
+2. **Self-play statistics.**
+   Thousands of headless bot matches per build.
+   Crash rate, round length distribution, per-card win rate, bullet count ceilings.
+   This catches balance problems, infinite-stalemate card combinations, and performance cliffs that no unit test would notice.
+
+3. **Footage measurements.**
+   Dimensionless quantities measured from real Rounds gameplay video — jump apex in player-heights, bullet speed in player-widths per second, block window in frames — compared against the same measurement taken from our own simulation.
+   This is the only fidelity check that doesn't route through an agent's own description of the game.
+
+Every structural decision below exists to keep those three cheap and reliable.
+
+## Locked decisions
+
+| Decision | Choice | Why | Reversible? |
+|---|---|---|---|
+| Engine | Godot 4 | Text `.tscn` project files that merge, headless CLI, real 2D tooling | Cheap, given the boundary below |
+| Language | C# (.NET 8) | Static types act as a reviewer that never tires; ~10–50× faster than GDScript, which matters at self-play volume | No |
+| Where the rules live | A pure C# library, `Rounds.Sim`, with zero Godot references | Headless testing, fast self-play, determinism we control | No |
+| Physics | Written by us: kinematic character controller, swept-circle bullets, static AABB level geometry | Solver-driven player movement feels mushy; engine physics is neither deterministic nor version-stable | No — all tuning is downstream of it |
+| Numbers | `double`, our own `Vec2` | Godot's `Vector2` is `float` and would weld the core to the engine | No |
+| Tick | Fixed 60 Hz, decoupled from render rate; no wall-clock in the sim | Every duration constant is expressed in ticks | No |
+| Players | `List<Player>` with a `TeamId` from the first commit | Rounds ships 2v2; a hardcoded two calcifies across a hundred files | No |
+| Networking | None for now | Deterministic input-driven sim keeps rollback available later at no cost today | Deliberately deferred |
+| Research | Agent-produced, with per-fact provenance; never reviewed by a human | Fidelity ceiling is the research artifact's fidelity, so provenance and footage measurement carry the weight | No |
+| Raw research media | Gitignored, never committed | Committed screenshots or video frames are in git history permanently | Literally irreversible |
+
+## The module boundary
+
+The most important structural rule in the project:
+
+**`Rounds.Sim` does not know Godot exists.**
+
+It's a plain .NET class library.
+No `using Godot;`, no `Node` inheritance, no `Vector2`, no `_Process`, no scene tree.
+It exposes roughly:
+
+```csharp
+public sealed class World { /* players, bullets, level, rng, tick, ... */ }
+
+public static class Sim
+{
+    public static void Step(World world, ReadOnlySpan<Input> inputs);
+    public static ulong Hash(World world);
+}
+```
+
+The Godot project is a shell: read gamepads, call `Step` once per fixed tick, draw `World`, play sounds, run menus.
+It never contains a game rule.
+A card's behavior never lives in a scene.
+
+This is what makes headless self-play a `for` loop instead of an engineering project, and it's what makes Godot replaceable if it disappoints.
+
+## Determinism rules
+
+Each of these is cheap now and a rewrite later.
+Each is a mechanical check in `tools/checks/`.
+
+1. **No Godot in the sim.**
+   `src/Rounds.Sim/` contains no `using Godot;` and its `.csproj` references no Godot assembly.
+2. **`double` only.**
+   No `float` declarations in the sim.
+3. **Our own trig.**
+   `Math.Sqrt` is correctly rounded and allowed.
+   `Sin`, `Cos`, `Tan`, `Atan`, `Atan2`, `Pow`, `Exp`, and `Log` are not pinned across .NET versions — they may only be called from `src/Rounds.Sim/Math/Trig.cs`.
+4. **Our own RNG.**
+   No `System.Random` anywhere in the sim.
+   A seeded PCG lives in `World` so replays carry their randomness with them.
+5. **No unordered iteration.**
+   No `Dictionary<>` or `HashSet<>` inside the sim; their enumeration order is unspecified and would silently break replays.
+   Use lists and arrays, and sort by a stable id anywhere order could matter.
+6. **No wall clock.**
+   No `DateTime`, `Stopwatch`, or `Environment.TickCount` in the sim.
+7. **No concurrency.**
+   No `async`, `Task`, or threads inside `Step`.
+   Parallelism belongs to the harness, one match per thread.
+
+## What CI enforces, and what no agent may relax
+
+These run on every commit.
+An agent that cannot make one pass must record why in `docs/decisions.md` and fix the cause, never the check.
+
+1. The seven determinism rules above.
+2. **Golden replays reproduce.**
+   Every replay in `replays/` re-simulates to its recorded state hash.
+   A changed hash fails the build unless the same commit adds an entry to `replays/intentional-breaks.md` naming the behavior that changed and why.
+3. **`spec/` is read-only to implementation work.**
+   Changing a researched value requires re-deriving it from a source, not reasoning about it.
+   Commits that touch both `spec/` and `src/` fail.
+4. **Self-play is green.**
+   N headless matches complete with no crash, no assertion failure, and every match terminates inside the round cap.
+5. **Dependency versions are pinned exactly.**
+   A version bump is its own commit, reviewed as a retune of the whole game, because that is what it is.
+6. **The nightly reel renders.**
+   If replay-to-video is broken, the build is red.
+   This is the only window a human has into the project.
+7. **Tests may not be deleted or weakened to go green.**
+   Removing or loosening an assertion requires a `docs/decisions.md` entry explaining what was wrong with it.
+
+## Research artifact
+
+`spec/` is the project's fidelity target and its root of trust.
+It is produced once, up front, and read-only thereafter.
+
+Every value carries where it came from:
+
+```json
+{
+  "id": "bouncy",
+  "displayName": "Bouncy",
+  "rarity": "common",
+  "effects": [{ "stat": "bullet.bounces", "op": "add", "value": 2 }],
+  "stacking": "additive",
+  "sources": [
+    { "kind": "wiki", "url": "...", "confidence": "high" },
+    { "kind": "video", "id": "...", "t": "4:12", "confidence": "medium" }
+  ],
+  "confidence": "high",
+  "conflicts": []
+}
+```
+
+Where sources disagree, the disagreement is recorded in `conflicts` rather than silently resolved by whichever agent wrote last.
+Low-confidence values are the first place to look when self-play statistics come out strange.
+
+`spec/measurements.json` holds the dimensionless quantities extracted from footage.
+The harness produces the same measurements from the simulation, and the fidelity check compares them within a stated tolerance.
+
+## Design documents
+
+- `docs/design/physics-and-maps.md` — movement, collision, bullets, blocking, level format, and the unit system.
+  Read it before touching anything in `Rounds.Sim/Physics/`.
+
+## Repo layout
+
+```
+src/
+  Rounds.Sim/           class library — zero Godot references
+    World.cs, Sim.cs
+    Math/               Vec2, Trig, Rng
+    Physics/            kinematic controller, swept circles, level geometry
+    Cards/              hook surface, registry, one file per card
+  Rounds.Harness/       console app: self-play, replay, stats, measurement, render
+  Rounds.Sim.Tests/     unit and property tests
+game/                   the Godot project — rendering, input, audio, menus, juice
+spec/                   research output; read-only to implementation
+  cards/, maps/, tuning.json, measurements.json
+replays/                golden corpus + expected hashes + intentional-breaks.md
+research/
+  raw/                  GITIGNORED — screenshots, video frames, downloads
+  notes/                committed prose with provenance
+docs/                   architecture.md, decisions.md, postmortems.md, design/
+tools/checks/           the mechanical checks CI runs
+```
+
+## Cards
+
+Cards are the game, and they're also where parallel agents collide, so they get a fixed surface rather than free access to the world.
+
+A card is data plus optional hooks:
+
+```csharp
+public interface ICard
+{
+    CardId Id { get; }
+    void ModifyStats(ref PlayerStats stats);          // additive/multiplicative, declared in data
+    void OnRoundStart(World w, PlayerRef p);
+    void OnBulletSpawn(World w, PlayerRef p, ref Bullet b);
+    void OnBulletHit(World w, in HitInfo hit);
+    void OnBlock(World w, PlayerRef p);
+    void OnDamageDealt(World w, in DamageInfo d);
+    void OnDamageTaken(World w, in DamageInfo d);
+}
+```
+
+Rules that keep 120 cards from breaking each other:
+
+- Hooks run in a fixed order: hook priority, then card id.
+  Never insertion order.
+- Stacking semantics come from `spec/` — additive, multiplicative, max-wins, or count-based — not from imperative code inside the card.
+- One card per file.
+  A card that needs a hook the interface doesn't have is a change to this document, recorded in `docs/decisions.md`, not an ad-hoc reach into world state.
+
+## What the orchestrator may change freely
+
+Workflow is not fixed here.
+The orchestrator decides task ordering, how many agents run in parallel, how work is split, when to research versus build, and how tickets are shaped, and it is expected to change all of that as the project develops.
+
+What it may not change without amending this document: the module boundary, the seven determinism rules, the CI invariants, and the read-only status of `spec/` and `replays/`.
+
+## Open items
+
+- **Frame capture.**
+  Godot's `--headless` uses dummy display and rendering drivers and cannot produce images.
+  The nightly reel needs either Xvfb, a windowed run on a machine with a display, or a small standalone renderer that reads replay files.
+  Decide and build this early; it's the only visibility anyone has into the project.
+- **Web export.**
+  Godot's C# support for browser builds has been unreliable.
+  If a playable link ever matters, verify it before the codebase is large.
+  Otherwise the game is desktop-only.
