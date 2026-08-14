@@ -57,6 +57,23 @@ public sealed class CollisionTests
     }
 
     [Fact]
+    public void NearCornerOverlapKeepsRadialNormal()
+    {
+        var box = Obb.Create("box", 0, Vec2.Zero, 2.0, 2.0, 0.0);
+        var offset = 0.000007;
+
+        var hit = Collision.SweepCircle(
+            new Vec2(1.0 + offset, 1.0 + offset),
+            0.5,
+            Vec2.Zero,
+            box);
+
+        Assert.True(hit.HasHit);
+        var diagonal = 1.0 / System.Math.Sqrt(2.0);
+        AssertVector(new Vec2(diagonal, diagonal), hit.Normal, precision: 10);
+    }
+
+    [Fact]
     public void ZeroMotionOutsideBoxDoesNotHit()
     {
         var box = Obb.Create("box", 0, Vec2.Zero, 2.0, 2.0, 0.0);

@@ -6,6 +6,7 @@ public static class Collision
 {
     public const double TimeEpsilon = 1e-10;
     public const double ContactEpsilon = 1e-10;
+    private const double ContactEpsilonSquared = ContactEpsilon * ContactEpsilon;
 
     public static SweepHit SweepCircle(Vec2 origin, double radius, Vec2 delta, Obb box)
     {
@@ -71,7 +72,7 @@ public static class Collision
             System.Math.Clamp(origin.Y, -half.Y, half.Y));
         var offset = origin - closest;
         var distanceSquared = offset.LengthSquared;
-        if (distanceSquared > ContactEpsilon)
+        if (distanceSquared > ContactEpsilonSquared)
         {
             var distance = System.Math.Sqrt(distanceSquared);
             if (distance >= radius - ContactEpsilon)

@@ -11,6 +11,7 @@ sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
   - codex:019ffff6-6034-76b1-96a2-b080ac183346
   - codex:019ffff9-3be5-7da2-8811-5df376ffc9a4
+  - codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73
 ---
 
 # Implement deterministic movement and static arena collision
@@ -67,3 +68,9 @@ Movement against real level geometry is the foundation for shooting, recoil, rin
 - 2026-08-14T11:27:31Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Running focused boundaries, the complete release gate, deterministic replay, spec immutability, Godot editor/runtime smoke, and GPU-rendered visual inspection before candidate review.
 - 2026-08-14T11:28:29Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Passed 39 simulation and 37 checker tests, repository checks, zero-warning release build, repeated 600-tick hash `28bca5e37a7a3255`, unchanged spec, Godot editor/runtime smoke, and a clean GPU frame of the live arena.
 - 2026-08-14T11:28:29Z stage review start session codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73 — Sending the complete detached candidate to a fresh non-author review against ticket 005 and the supported public evidence.
+- 2026-08-14T11:39:10Z stage review end session codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73 — Rejected exact candidate `c523642e731be3003aa845b91e5dad2864d4d120`: unsupported spawn IDs survived public loading, and a linear epsilon compared to squared distance destabilized near-corner overlap normals.
+- 2026-08-14T11:39:10Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Adding regressions for static spawn support and near-corner overlap normals, then enforcing arena invariants and dimensionally correct collision tolerances.
+- 2026-08-14T11:41:18Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reproduced both findings with failing public tests, then rejected missing support references, protected direct arena construction, and compared squared corner distance with a squared epsilon.
+- 2026-08-14T11:41:18Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the exact two regressions, full simulation suite, repository policy, release build, deterministic smoke, spec immutability, and Godot smoke for the corrected candidate.
+- 2026-08-14T11:41:18Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Passed both new boundaries, 41 simulation and 37 checker tests, repository checks, zero-warning release build, repeated hash `28bca5e37a7a3255`, unchanged spec, and Godot editor/runtime smoke.
+- 2026-08-14T11:41:18Z stage review start session codex:019ffff9-3be5-7da2-8811-5df376ffc9a4 — Sending the corrected exact candidate to an isolated non-author context that admitted the frozen contract but has not reviewed or authored its implementation.

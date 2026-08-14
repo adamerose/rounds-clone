@@ -31,6 +31,31 @@ public sealed class ArenaDefinition
             throw new ArgumentException("An arena requires static collision and exactly two spawn regions.");
         }
 
+        for (var index = 0; index < boxes.Length; index++)
+        {
+            if (boxes.Take(index).Any(existing => existing.Id == boxes[index].Id))
+            {
+                throw new ArgumentException($"Arena `{id}` duplicates static box `{boxes[index].Id}`.");
+            }
+        }
+
+        for (var index = 0; index < spawnArray.Length; index++)
+        {
+            var spawn = spawnArray[index];
+            if (string.IsNullOrWhiteSpace(spawn.Id) ||
+                !spawn.Bounds.IsValid ||
+                string.IsNullOrWhiteSpace(spawn.SupportPrimitiveId) ||
+                !boxes.Any(box => box.Id == spawn.SupportPrimitiveId))
+            {
+                throw new ArgumentException($"Arena `{id}` has an invalid or unsupported spawn region.");
+            }
+
+            if (spawnArray.Take(index).Any(existing => existing.Id == spawn.Id))
+            {
+                throw new ArgumentException($"Arena `{id}` duplicates spawn region `{spawn.Id}`.");
+            }
+        }
+
         Id = id;
         CameraBounds = cameraBounds;
         CollisionBounds = collisionBounds;

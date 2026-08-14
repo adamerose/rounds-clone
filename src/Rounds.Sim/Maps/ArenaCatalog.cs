@@ -37,7 +37,14 @@ public sealed class ArenaCatalog
         var arenas = new List<ArenaDefinition>();
         foreach (var map in root.GetProperty("maps").EnumerateArray())
         {
-            arenas.Add(ParseArena(map));
+            try
+            {
+                arenas.Add(ParseArena(map));
+            }
+            catch (ArgumentException exception)
+            {
+                throw new InvalidDataException("Arena catalog contains an invalid arena definition.", exception);
+            }
         }
 
         if (arenas.Count != root.GetProperty("catalogCount").GetInt32())

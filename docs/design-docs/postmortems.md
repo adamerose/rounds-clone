@@ -553,3 +553,23 @@ The first build command assumed another worktree contained a usable `.tools/dotn
 One read-only arena inventory piped directly from a completed PowerShell `foreach` block and hit the known empty-pipeline parser error before a collected-array retry returned the intended roles.
 One frontend inspection guessed `game/Rounds.Godot/Main.cs` and `game/Rounds.Godot/project.godot`, and the same command guessed `tools/Rounds.Harness/Program.cs`; `rg --files` immediately located the actual `game/Main.cs`, `game/project.godot`, and `src/Rounds.Harness/Program.cs` paths.
 These failures changed no tracked files and left no residue.
+
+## 2026-08-14 — Ticket 005's first implementation review found two untested public boundaries
+
+Fresh reviewer `codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73` rejected exact candidate `c523642e731be3003aa845b91e5dad2864d4d120` because the stream catalog loader accepted spawn support IDs that named no loaded static box, while the catalog test asserted only the two-spawn count.
+The same review found that initial corner overlap compared squared offset distance with a linear epsilon, producing a discontinuous axis normal for offsets of about `0.000007` diameters.
+Correction makes both invariants explicit at their public boundaries and retains regressions for the malformed support reference and radial near-corner normal.
+The computer-control package lacked its skill-required `documentation()` API and rejected the verified live Godot window with a contradictory ownership error; a scoped Win32 capture proved the arena and both players render, but indistinguishable injected-key frames were not claimed as control evidence.
+One review revision-range interpolation produced invalid `git diff` syntax before a quoted retry, and one no-match search exited 1; the reviewer stopped the exact Godot process, removed all four screenshots, and left no residue.
+
+## 2026-08-14 — Combat-slice discovery used two invalid Windows path forms
+
+A read-only `rg` call supplied Unix-style recursive file globs that Windows rejected after the useful combat and match spec reads had completed.
+A corrected directory search then included a nonexistent empty `docs/tickets/open` directory in `Get-ChildItem`, which failed after returning the closed ticket names.
+Focused directory reads recovered the design evidence, and neither mistake changed files or left residue.
+
+## 2026-08-14 — One fresh reviewer reservation exposed the owner's session UUID
+
+A newly isolated reviewer context reported the top-level owner's provider session UUID instead of a distinct durable reviewer ID before inspecting any repository file.
+The owner cancelled that reservation immediately; it ran no commands and made no changes.
+The corrected candidate instead went to the existing isolated admission context whose distinct provider-qualified session had not authored or reviewed the implementation.
