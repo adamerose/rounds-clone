@@ -23,6 +23,12 @@
           "GodotSharp": "4.7.1"
         }
       },
+      "rounds.replay": {
+        "type": "Project",
+        "dependencies": {
+          "Rounds.Sim": "[1.0.0, )"
+        }
+      },
       "rounds.sim": {
         "type": "Project"
       }

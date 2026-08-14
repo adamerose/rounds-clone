@@ -15,6 +15,19 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Repository checks failed.' }
     & $dotnet test 'Rounds.sln' --configuration Release --no-build --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+    & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- verify-replays --directory 'replays/golden'
+    if ($LASTEXITCODE -ne 0) { throw 'Golden replay verification failed.' }
+    $goldenBase = $env:ROUNDS_GOLDEN_BASE
+    $goldenHead = if ($env:ROUNDS_GOLDEN_HEAD) { $env:ROUNDS_GOLDEN_HEAD } else { 'HEAD' }
+    if (-not $goldenBase) {
+        $parentLines = @(& git rev-list --parents -n 1 $goldenHead)
+        $parents = $parentLines[0].Split(' ', [StringSplitOptions]::RemoveEmptyEntries)
+        if ($parents.Count -eq 1) { $goldenBase = 'ROOT' }
+        elseif ($parents.Count -eq 2) { $goldenBase = $parents[1] }
+        else { throw 'Merge commits require explicit ROUNDS_GOLDEN_BASE and ROUNDS_GOLDEN_HEAD for the local gate.' }
+    }
+    & 'tools/checks/check-golden-history.ps1' -Base $goldenBase -Head $goldenHead
+    if ($LASTEXITCODE -ne 0) { throw 'Golden replay history check failed.' }
     $first = & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- smoke --seed 20260814 --ticks 600
     $second = & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- smoke --seed 20260814 --ticks 600
     if ($LASTEXITCODE -ne 0 -or $first -ne $second) { throw 'Repeated smoke runs did not match.' }

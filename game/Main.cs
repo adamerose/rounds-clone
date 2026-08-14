@@ -1,4 +1,5 @@
 using Godot;
+using Rounds.Replay;
 using Rounds.Sim;
 using Rounds.Sim.Maps;
 using SimVector = Rounds.Sim.Math.Vec2;
@@ -12,18 +13,46 @@ public partial class Main : Node2D
     private static readonly Color Red = Color.FromHtml("ff625f");
     private static readonly Color Blue = Color.FromHtml("48a9ff");
     private readonly PlayerInput[] _inputs = new PlayerInput[2];
+    private ReplayPlayback? _replay;
     private World _world = null!;
 
     public override void _Ready()
     {
         Engine.PhysicsTicksPerSecond = World.TickRate;
         _world = World.CreateSmoke(1UL);
+        var arguments = OS.GetCmdlineUserArgs();
+        if (arguments.Length > 0)
+        {
+            if (arguments.Length != 2 || arguments[0] != "--replay")
+            {
+                FailReplay("Usage: Rounds.Game -- --replay <path>");
+                return;
+            }
+
+            try
+            {
+                using var stream = File.OpenRead(arguments[1]);
+                _replay = new ReplayPlayback(ReplayCodec.Load(stream));
+                _world = _replay.World;
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or ArgumentException)
+            {
+                FailReplay(exception.Message);
+                return;
+            }
+        }
         QueueRedraw();
     }
 
     public override void _PhysicsProcess(double delta)
     {
         _ = delta;
+        if (_replay is not null)
+        {
+            StepReplay();
+            return;
+        }
+
         var camera = CameraTransform.For(_world.Arena.CameraBounds);
         var mouseWorld = camera.ToWorld(GetGlobalMousePosition());
         var firstAim = mouseWorld - _world.Players[0].Position;
@@ -43,6 +72,39 @@ public partial class Main : Node2D
             ReadKeyboardAim());
         Rounds.Sim.Sim.Step(_world, _inputs);
         QueueRedraw();
+    }
+
+    private void StepReplay()
+    {
+        if (_replay is null || _replay.IsComplete)
+        {
+            return;
+        }
+
+        try
+        {
+            _replay.StepNext();
+        }
+        catch (Exception exception) when (exception is ReplayMismatchException or InvalidOperationException)
+        {
+            FailReplay(exception.Message);
+            return;
+        }
+
+        QueueRedraw();
+        if (_replay.IsComplete)
+        {
+            var hash = Rounds.Sim.Sim.Hash(_replay.World);
+            GD.Print(FormattableString.Invariant(
+                $"REPLAY_COMPLETE id={_replay.Replay.ReplayId} ticks={_replay.ConsumedTicks} hash={hash:x16} frames={_replay.ConsumedTicks}"));
+            SetPhysicsProcess(false);
+        }
+    }
+
+    private void FailReplay(string message)
+    {
+        GD.PushError($"Replay failed: {message}");
+        GetTree().Quit(1);
     }
 
     public override void _Draw()

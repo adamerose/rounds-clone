@@ -685,3 +685,124 @@ No temporary file, live process, or tracked residue remained; focused tests refr
 `git worktree remove` removed the exact combat worktree registration but reported `Invalid argument` while leaving its directory and rebuildable ignored outputs behind.
 Read-only inspection found six `dotnet.exe` build-server processes whose executable paths all resolved inside that exact worktree.
 After stopping only those verified processes, an extended-path recursive deletion removed the already-integrated residual directory; final checks proved the directory and registration absent and root `main` clean.
+
+## 2026-08-14 — Ticket 007 initially looked for tools in fresh checkouts
+
+Two consecutive read-only Godot-help commands assumed pinned tools already existed first in the new ticket worktree and then in root, so discovery failed and the attempted empty command invocation produced a second error each time.
+The project intentionally ignores `.tools`; running the supported bootstrap in the ticket worktree restored the pinned SDK and Godot, after which local `--help` confirmed AVI/PNG movie output, forced fixed FPS, and frame-limited quit support.
+
+## 2026-08-14 — Ticket 007's first admission review exposed four underspecified boundaries
+
+Reviewer `codex:01a0005d-9cf9-7730-964c-44052ae7659b` rejected exact candidate `f2916be681324139325cb21486d6a43d67fd633d` because its parent-only golden guard could miss earlier commits and synthetic merges, its deletion ledger had no sentinel, its JSON shape did not determine independent canonical bytes, and its AVI check did not prove one simulation tick per declared frame.
+The correction defines a complete ordered schema, same-commit ledger grammar, full-history event ranges, post-step frame semantics, completion marker, AVI header count, pinned workflow actions, and seven-day retention.
+During review, one combined instruction read failed because the worktree has no local `AGENTS.md`; an `rg --files` call included the nonexistent future `replays/` directory and exited 1 after useful output; and one redundant diff check expanded the parent revision incorrectly and reported `bad object` before `HEAD^` passed.
+The reviewer used the existing ignored pinned Godot installation and left no file, process, or temporary residue.
+
+## 2026-08-14 — Ticket 007's second admission review found an unreachable root case
+
+Reviewer `codex:01a00067-2a24-7c62-b0de-4a8d79fa34ef` rejected exact candidate `1b825a0f5237a05ffd8f6834c833adf1320d65fb` because the declared two-SHA history interface had no value for a root commit and the broad push trigger included tag and deleted-ref events without a usable candidate head.
+The correction adds an exact `ROOT` range sentinel, excludes tag pushes, skips deleted branch refs, and uses `ROOT` for an initial or orphan branch history.
+The reviewer first looked for absent worktree-local `AGENTS.md` and stale `docs/GOAL.md`, one broad read was truncated, and one `rg` used an unsupported Windows wildcard before an exact filename succeeded.
+An empty-tree-as-commit check failed intentionally and proved that it cannot substitute for the missing sentinel; no file, process, or temporary residue remained.
+
+## 2026-08-14 — Replay implementation mapping guessed two absent paths
+
+The first host read guessed `src/Rounds.Game/Main.cs`, but the Godot host lives at `game/Main.cs`.
+A later project-policy read guessed a central `Directory.Packages.props`, but this repository keeps dependency versions and lock files per project.
+Both combined read-only commands still returned the useful neighboring files, and neither created a file, process, or residue.
+
+## 2026-08-14 — Ticket 007's third admission review closed an orphan-history bypass
+
+Reviewer `codex:01a0006e-339c-73f0-99e9-d966cfcead82` rejected exact candidate `623f44122513fc6e4cd09a53fe8f5e81144c8329` because an established orphan branch, unrelated pull request, or force push without a merge base could use `ROOT` and recreate protected goldens as new files without a ledger entry.
+The correction permits `ROOT` only when every fetched ref is contained in the candidate history, requires ordinary bases to be ancestors, and rejects every established-history case without a merge base.
+The reviewer included the future absent `replays/` directory in one listing, had one broad read truncated, and had one numbered-line PowerShell formatter exit 1 before a simple read succeeded.
+No file, process, or temporary residue remained.
+
+## 2026-08-14 — GitHub API URLs were rejected by the web safety layer
+
+Official GitHub release search returned the checkout and upload-artifact releases, but direct opens of their GitHub API tag-reference URLs were rejected as unsafe before any response was fetched.
+Focused official release results still established the release tags and short digests; implementation will verify full immutable digests before committing the workflows.
+
+## 2026-08-14 — Ticket 007's fourth admission review replaced ref visibility with provenance
+
+Reviewer `codex:01a00072-a9bb-7de0-9941-688b793a486a` rejected exact candidate `39e677f27db2807f9c62a8ce4846178ab7abd80c` because deleting every established ref could still make an orphan appear to be first history, a commit introduced only by a tag would not run CI, and stale force-push or pull-request SHAs might be absent from the current full-ref fetch.
+The correction anchors every CI candidate to repository inception `b9073b6a9c110b5fbca5e242d49bd03a8cecef12`, forbids CI use of `ROOT`, explicitly fetches every event SHA, and checks lightweight and annotated commit tags while skipping only deletions and non-commit targets.
+The reviewer first looked for absent worktree-local `AGENTS.md`, included future absent `replays/` and `godot/` paths in one listing, guessed absent `game/scripts/Main.cs`, and recovered one truncated broad read with focused reads.
+No file, process, or review-specific artifact remained.
+
+## 2026-08-14 — Ticket 007's fifth admission review found endpoint laundering
+
+Reviewer `codex:01a0007a-0880-70a1-b793-7f37a393f662` rejected exact candidate `81da55b521798b88a41a58977058b344d5ed5dde` because a normal diverged pull request was incorrectly rejected, a branch forked before a golden could replace the endpoint corpus while treating its file as new, a deleted basename could later be re-added, and the 16-character aim encoding did not state hexadecimal nibble order.
+The correction uses a verified merge base plus target endpoint comparison, rejects non-fast-forward branch updates and tag retargets, confines new tags to default history, permanently reserves deleted basenames, and defines exact most-significant-first lowercase hexadecimal aim bits.
+The reviewer made three combined reads that returned useful content before failing on absent guessed paths, had one broad read truncated, and recovered every inspection with exact paths and focused reads.
+No file, process, or review artifact remained.
+
+## 2026-08-14 — Ticket 007's sixth admission review required prospective PR state
+
+Reviewer `codex:01a00080-987e-7bf3-b737-fc702b77fb97` rejected exact candidate `85fe5b916b6710c8c72072c0f20931683034f828` after an isolated fixture proved that comparing a diverged PR base directly with its head falsely reports a base-only golden as deleted even though a three-way merge preserves it.
+The correction gives event policy three explicit revisions and compares the established base with a conflict-free prospective merge tree while continuing to audit only the feature commit range.
+It also narrows tag policy to observable in-place updates; a delete followed by recreation remains fully verified as a new tag because stateless Git event data cannot distinguish it from first creation.
+The reviewer first read absent local guidance and an obsolete ticket filename, recovered one truncated read, had an initial fixture command rejected, used an unsupported PowerShell parameter in a second attempt, and then created a corrected isolated fixture whose newline handling left carriage returns in both consistently addressed filenames.
+Cleanup was initially rejected and then met read-only Git objects; after validating the two exact temporary roots, the reviewer cleared their attributes, deleted them, and verified no file, process, or tracked residue remained.
+
+## 2026-08-14 — Ticket 007's seventh admission review composed transition chains and reservations
+
+Reviewer `codex:01a0008a-3d1e-74a0-8e6b-fb021ecf0291` rejected exact candidate `f57735b45185b364963a805d130d03579635dc5c` because endpoint matching demanded an impossible direct `A→C` entry after valid same-commit `A→B` and `B→C` transitions, and a prospective merge could resurrect a basename deleted after the feature fork.
+The correction follows the ordered chain of already validated transitions, accepts only clean automatic two-parent merge trees as inherited state, and revalidates the complete effective corpus and permanent deletion reservations.
+The reviewer first read absent local guidance, included the future absent replay directory in one inventory, guessed obsolete `game/scripts/Main.cs`, and recovered one truncated broad read with focused paths.
+No file, process, temporary fixture, Git object, or review residue was created.
+
+## 2026-08-14 — Ticket 007's eighth admission review added creation to transition history
+
+Reviewer `codex:01a00090-916c-7161-81c5-276b71c5c437` rejected exact candidate `d1aca45e60f3da7bf251e36630113605d20c0e3b` because a trusted-root tag range could not chain a valid first addition into later replacements, a newly published old branch could falsely delete a default-only golden, and the stated later-commit recovery could not remove an already rejected merge from history.
+The correction models every validated new file as an implicit `absent→hash` transition, uses a prospective merge for new-branch endpoints, and requires a rejected merge to be rebased or cleanly recreated.
+The reviewer first read absent worktree-local guidance, recovered one truncated read with focused paths, and had one unquoted `^{commit}` revision misparsed by PowerShell before the quoted revision succeeded.
+No file, process, temporary fixture, Git object, or review residue remained.
+
+## 2026-08-14 — Ticket 007 passed admission after nine exact candidates
+
+Reviewer `codex:01a00096-742f-71f1-b5fc-80f5772e2046` admitted exact candidate `a1621ab87c9e9653ef8f875854e662e815dd7cb7` at risk 4 with no findings after eight rejected candidates progressively closed canonical-byte, Git event, endpoint, merge, deletion-reservation, and movie-proof ambiguities.
+The final review first looked for absent worktree-local `AGENTS.md` and `docs/design-docs/architecture.md`, included an absent `tests/` path in one search, and had one unquoted `^{tree}` revision misparsed by PowerShell before focused reads recovered every check.
+No file, process, temporary fixture, Git object, or review residue remained.
+
+## 2026-08-14 — Replay core integration required lock and namespace corrections
+
+The first replay-library build started with locked restore after adding three project references, so NuGet correctly rejected the stale per-project lock graphs before compilation.
+An explicit dependency reevaluation updated only those lock files; compilation then exposed that .NET 8 seals `InvalidDataException`, so structured replay mismatch diagnostics moved to a dedicated `Exception` type.
+The next build resolved `Sim` as the containing `Rounds.Sim` namespace from inside `Rounds.Replay`; fully qualifying the existing static simulation class corrected all five errors, and the following build passed with zero warnings.
+
+## 2026-08-14 — Fixed FPS is required for tick-per-frame replay mode
+
+Two read-only Godot replay probes used `--quit-after` without `--fixed-fps`; process frames advanced faster than real-time physics ticks, so each exited successfully before consuming 600 inputs and emitted no completion marker.
+The fixed-60 probe consumed exactly 600 inputs and printed the expected completion hash, matching the admitted movie-mode contract.
+
+## 2026-08-14 — Headless Godot movie writing crashed and the first AVI offset was wrong
+
+The first public render used Godot's dummy headless renderer, which entered movie mode and then crashed before frame 1 with a null texture in `texture_2d_get` and process code `-1073741819`.
+Removing only `--headless` selected the pinned compatibility renderer and produced all 600 frames plus the exact replay marker, but the validator initially read AVI `dwFlags` at chunk offset 20 and reported 16 frames.
+The AVI main-header payload begins after the four-byte chunk ID and four-byte size, so `dwTotalFrames` is at chunk offset 24; the corrected end-to-end render declared and validated exactly 600 frames.
+
+## 2026-08-14 — Replay frame extraction tried unavailable codecs and the wrong chunk ID
+
+Neither the ambient nor bundled Python runtime included OpenCV, and no bundled `ffmpeg` executable was present.
+The first direct MJPEG extraction looked for compressed-frame chunk ID `00dc`, found zero frames, and wrote four empty ignored JPEGs; those exact files and their generated directory were immediately removed and verified absent.
+Godot's AVI uses `00db` chunks for its MJPEG payloads; the corrected scan found 600 JPEG frames and extracted four ignored inspection images showing spawn, result, reset, and active combat.
+
+## 2026-08-14 — The admitted empty-ledger grammar contradicted the whitespace gate
+
+The frozen ticket required an empty intentional-break ledger to contain a heading followed by a blank line, but `git diff --check` correctly reports that representation as a new blank line at end of file.
+The first implementation commit command printed that failure and still continued to commit because its semicolon-separated PowerShell commands did not test the native checker exit code before invoking Git.
+Implementation stopped immediately after the commit, ticket 007 returned to blocked, and the corrected grammar ends an empty ledger after the heading LF while adding the separating blank line only with the first entry.
+Future combined candidate commands must explicitly branch on every native checker exit code rather than relying on `$ErrorActionPreference`.
+
+## 2026-08-14 — Ticket 007's empty-ledger amendment passed re-admission
+
+Reviewer `codex:01a000ac-dd36-7902-81e2-5b2c75826c5d` re-admitted exact candidate `228e55a5dfb32ea10be0568ca7d672ba311cfda5` with no findings after proving the empty file is heading plus LF and the first separator and entry can be added by pure append.
+The first guidance read guessed absent worktree-local `AGENTS.md`, and one verification left `^{commit}` unquoted for PowerShell before quoted revisions succeeded.
+No file, process, fixture, or review residue remained; the reviewer correctly noted that the partial history parser still needed implementation alignment with the re-admitted grammar.
+
+## 2026-08-14 — Correct bytes could not repair already committed invalid ledger history
+
+After re-admission, the aligned history parser rejected implementation commit `c94540d0a9eda95936d782653ad8fae9a74048cd` because that commit contains the superseded heading-plus-blank empty ledger; the later byte correction would also violate append-only prefix history.
+Grandfathering the bad commit would weaken the exact policy the ticket exists to enforce.
+The safe recovery is a new isolated worktree from `main` with the complete reviewed design and implementation tree applied as one squash, introducing the golden and corrected empty ledger together without rewriting or destroying the original worktree.

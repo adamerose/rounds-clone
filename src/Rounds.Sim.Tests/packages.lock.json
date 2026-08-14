@@ -1019,6 +1019,12 @@
       "rounds.checks": {
         "type": "Project"
       },
+      "rounds.replay": {
+        "type": "Project",
+        "dependencies": {
+          "Rounds.Sim": "[1.0.0, )"
+        }
+      },
       "rounds.sim": {
         "type": "Project"
       }

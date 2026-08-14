@@ -299,3 +299,37 @@ This one path handles floors, walls, slopes, corners, thin geometry, and later b
 The research binds run speed, acceleration, air control, gravity, jump speed, jump capacity, friction retention, and a four-tick jump buffer, but not jump release, contact threshold, ground probe, or collision skin.
 The first playable slice uses a `0.5` jump-release multiplier, `0.65` ground-normal threshold, `0.04`-diameter ground probe, `0.000001`-diameter collision skin, and four slide iterations.
 Boundary tests make their observable effect explicit so later controlled comparison can retune them without mistaking provisional feel for measured vanilla behavior.
+
+## 2026-08-14 — Put replay encoding outside the simulation
+
+The simplest replay is the seed, arena ID, exact input stream, and periodic hashes needed to reconstruct a world through `Sim.Step`.
+A small `Rounds.Replay` library owns canonical JSON, validation, recording, and playback so `Rounds.Sim` stays unaware of files while the harness and Godot share one implementation.
+Aim uses raw IEEE-754 bits rather than decimal text because the existing checksum distinguishes signed zero and must reproduce every accepted finite input exactly.
+
+## 2026-08-14 — Protect behavior with checkpoints, not state snapshots
+
+Snapshots would turn private world layout into a file format and could hide a broken transition by restoring its result.
+Version 1 stores a hash after every 60 ticks and at the final tick, then stops at the first mismatch with exact diagnostics.
+This keeps the replay small, localizes drift to at most one second, and still proves the complete input stream regenerated the state.
+
+## 2026-08-14 — Render the replay through the playable Godot shell
+
+Godot 4.7.1's pinned movie writer accepts an AVI path, fixed FPS, and a frame limit, so the nightly reel can use the same shell people play instead of a second visual implementation.
+Replay mode replaces only live input acquisition, checks the same hashes as the harness, and leaves simulation and drawing paths unchanged.
+AVI output remains ignored and hardware-dependent; the replay hash, successful frame count, RIFF container, and inspected representative frames are the durable evidence.
+
+## 2026-08-14 — Anchor replay history and compare exposed endpoints
+
+A per-commit parent diff is necessary to require a golden change and its explanation together, but it is not sufficient when branches diverge: a file added on an old fork can replace a same-named golden that appeared later on the target branch.
+CI therefore trusts the repository's unique inception commit `b9073b6a9c110b5fbca5e242d49bd03a8cecef12`, rejects candidates outside that provenance, and checks every commit in the selected range.
+For a diverged pull request it separately compares the established target with a conflict-free prospective three-way merge tree, not the raw feature head, so target-only additions survive while actual corpus replacements remain explicit.
+Non-fast-forward branch updates and in-place tag updates are rejected because they discard the prior exposed endpoint; a delete-and-recreate tag is treated as a new fully verified tag because stateless event data cannot distinguish it from first creation.
+Deleted golden names remain permanently reserved because version 1 has no unambiguous same-commit restore transition.
+
+## 2026-08-14 — Admit deterministic replay and reel ticket
+
+Fresh reviewer `codex:01a00096-742f-71f1-b5fc-80f5772e2046` admitted exact candidate `a1621ab87c9e9653ef8f875854e662e815dd7cb7` at risk 4 after dependency 006 closed and eight earlier exact reviews exposed and corrected the format, history, event, endpoint, merge, and rendered-frame edge cases.
+The final contract has no human choice: it binds canonical bytes, stream playback, a protected golden corpus, explicit Git provenance, replay-only Godot input, exact AVI frame evidence, and pinned seven-day nightly output while leaving match scoring, cards, bots, and presentation outside the slice.
+
+The empty-ledger byte grammar was re-admitted by reviewer `codex:01a000ac-dd36-7902-81e2-5b2c75826c5d` at exact candidate `228e55a5dfb32ea10be0568ca7d672ba311cfda5` after implementation proved a terminal blank line conflicts with the repository whitespace gate.
+An empty ledger now ends after the heading LF; the blank separator arrives as part of the first append-only entry.

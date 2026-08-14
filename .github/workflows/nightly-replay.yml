@@ -1,0 +1,31 @@
+name: Nightly replay reel
+
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Provision pinned SDK and engine
+        shell: pwsh
+        run: ./tools/bootstrap.ps1 -IncludeGodot
+      - name: Verify repository and golden corpus
+        shell: pwsh
+        run: ./tools/checks/run.ps1
+      - name: Render and validate canonical replay
+        shell: pwsh
+        run: ./tools/render-replay.ps1 -Replay replays/golden/base-combat-006-seed-1.rounds-replay.json -Output reels/2026-08-14-base-combat.avi
+      - name: Upload validated replay reel
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rounds-base-combat-reel
+          path: reels/2026-08-14-base-combat.avi
+          if-no-files-found: error
+          retention-days: 7

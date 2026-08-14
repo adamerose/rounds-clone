@@ -2,14 +2,25 @@ name: CI
 
 on:
   push:
+    branches:
+      - '**'
+    tags:
+      - '**'
   pull_request:
 
 jobs:
   verify:
+    if: github.event_name != 'push' || github.event.deleted == false
     runs-on: windows-2025
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Verify replay history event
+        shell: pwsh
+        run: ./tools/checks/check-ci-golden-event.ps1 -EventName '${{ github.event_name }}' -EventPath '${{ github.event_path }}'
       - name: Provision pinned SDK
         shell: pwsh
         run: ./tools/bootstrap.ps1 -IncludeGodot
