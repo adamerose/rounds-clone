@@ -351,3 +351,9 @@ Vanilla duel hashes and replay files remain exact; behavior cards, rarity weight
 Every visible window launched for this project belongs on monitor 4, the 1920x1080 display at zero-based screen index 3, so development does not interrupt work on the three main monitors.
 Godot selects that screen before showing command-line or exported runs and repeats the selection when the scene starts to cover editor launches.
 Agent-launched GUI tools must choose that monitor before showing; tools without startup placement support must launch hidden or minimized, move there, and only then become visible.
+
+## 2026-08-14 — Integrate deterministic matches and stat cards
+
+Fresh reviewer `codex:01a00174-06cd-7250-9346-7b3c17b490c0` approved exact candidate `16f41c8e94e143d4e30a8a8dd4a2ace68b30b2c0` after the first review exposed and the correction fixed a cross-tier card-identity bypass and missing deterministic evidence.
+The integrated game now plays sequential opening and comeback drafts, folds 12 stat-only cards into player-specific combat, scores first to five, changes among 62 static arenas, preserves the approved duel replay contract, and shows the complete local match through Godot.
+Every project window is also bound to the small fourth monitor through project guidance, Godot pre-show settings, and a runtime fallback.

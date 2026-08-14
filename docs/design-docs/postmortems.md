@@ -994,3 +994,12 @@ An ordered list scan is sufficient for the 70-entry load-only catalog and satisf
 
 One combined catalog, simulation-hash, and test-access inventory returned exit 1 because its final search found no `InternalsVisibleTo` declaration after the earlier reads had succeeded.
 The tests already exercise internal state through the existing public setters and narrow reflection only where individual private match-hash fields require isolation; the failed search changed nothing.
+
+## 2026-08-14 — Ticket 008 passed correction review and cleanup
+
+Fresh reviewer `codex:01a00174-06cd-7250-9346-7b3c17b490c0` approved exact candidate `16f41c8e94e143d4e30a8a8dd4a2ace68b30b2c0` with no findings after independently passing all 44 focused correction tests, zero-warning build, repository checks, both protected smoke hashes, golden replay verification, unchanged spec and replay trees, and the monitor-placement safeguards.
+The review's first broad diff and source reads exceeded the display budget, and one combined search named absent `src/Rounds.Replay.Tests` after returning useful output.
+It also mistakenly attempted an official Godot documentation search alongside local reads even though the web tool requires sequential use; focused sequential reads recovered every boundary without changing files or leaving residue.
+
+After fast-forward integration, cleanup verified the detached worktree was clean, screen and test processes were absent, and `.tools` was an exact junction to the shared root cache.
+Removing only that junction preserved the shared cache; build-server shutdown released generated outputs, and `git worktree remove --force` removed the exact ticket worktree without error.
