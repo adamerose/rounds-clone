@@ -85,4 +85,100 @@ if ($declaredFrames -ne $totalTicks) {
     throw "Replay movie declares $declaredFrames frames; expected $totalTicks."
 }
 
+function Read-FourCC([byte[]]$Data, [int]$Offset) {
+    return [Text.Encoding]::ASCII.GetString($Data, $Offset, 4)
+}
+
+$moviStart = -1
+$moviEnd = -1
+$chunk = 12
+while ($chunk -le $bytes.Length - 12) {
+    $chunkId = Read-FourCC $bytes $chunk
+    $chunkSize = [BitConverter]::ToUInt32($bytes, $chunk + 4)
+    $next = [long]$chunk + 8 + $chunkSize + ($chunkSize -band 1)
+    if ($next -gt $bytes.Length) { throw "AVI top-level chunk `$chunkId` exceeds the file." }
+    if ($chunkId -ceq 'LIST' -and (Read-FourCC $bytes ($chunk + 8)) -ceq 'movi') {
+        $moviStart = $chunk + 12
+        $moviEnd = $chunk + 8 + $chunkSize
+        break
+    }
+    $chunk = [int]$next
+}
+if ($moviStart -lt 0) { throw 'Replay movie has no AVI movi list.' }
+
+$videoChunks = [Collections.Generic.List[object]]::new()
+$chunk = $moviStart
+while ($chunk -le $moviEnd - 8) {
+    $chunkId = Read-FourCC $bytes $chunk
+    $chunkSize = [BitConverter]::ToUInt32($bytes, $chunk + 4)
+    $payload = $chunk + 8
+    $next = [long]$payload + $chunkSize + ($chunkSize -band 1)
+    if ($next -gt $moviEnd) { throw "AVI movi chunk `$chunkId` exceeds its list." }
+    if ($chunkId -ceq '00db') {
+        $videoChunks.Add([pscustomobject]@{ Offset = $payload; Size = [int]$chunkSize })
+    }
+    $chunk = [int]$next
+}
+if ($chunk -ne $moviEnd -or $videoChunks.Count -ne $totalTicks) {
+    throw "Replay movie contains $($videoChunks.Count) decodable video chunks; expected $totalTicks."
+}
+
+Add-Type -AssemblyName System.Drawing.Common
+function Measure-DecodedFrame([int]$FrameNumber) {
+    $record = $videoChunks[$FrameNumber - 1]
+    $stream = [IO.MemoryStream]::new($bytes, $record.Offset, $record.Size, $false, $true)
+    $source = $null
+    $bitmap = $null
+    $graphics = $null
+    $locked = $null
+    try {
+        $source = [Drawing.Image]::FromStream($stream, $true, $true)
+        if ($source.Width -ne 1280 -or $source.Height -ne 720) {
+            throw "Replay frame $FrameNumber decoded as $($source.Width)x$($source.Height); expected 1280x720."
+        }
+        $bitmap = [Drawing.Bitmap]::new(1280, 720, [Drawing.Imaging.PixelFormat]::Format24bppRgb)
+        $graphics = [Drawing.Graphics]::FromImage($bitmap)
+        $graphics.DrawImageUnscaled($source, 0, 0)
+        $rectangle = [Drawing.Rectangle]::new(0, 0, 1280, 720)
+        $locked = $bitmap.LockBits($rectangle, [Drawing.Imaging.ImageLockMode]::ReadOnly, [Drawing.Imaging.PixelFormat]::Format24bppRgb)
+        $pixels = [byte[]]::new([Math]::Abs($locked.Stride) * $locked.Height)
+        [Runtime.InteropServices.Marshal]::Copy($locked.Scan0, $pixels, 0, $pixels.Length)
+        $paper = 0
+        $red = 0
+        $blue = 0
+        for ($y = 0; $y -lt 720; $y++) {
+            $row = $y * [Math]::Abs($locked.Stride)
+            for ($x = 0; $x -lt 1280; $x++) {
+                $pixel = $row + ($x * 3)
+                $b = [int]$pixels[$pixel]
+                $g = [int]$pixels[$pixel + 1]
+                $r = [int]$pixels[$pixel + 2]
+                if ($r -gt 210 -and $g -gt 210 -and $b -gt 200) { $paper++ }
+                if ($r -gt 180 -and $r -gt ($g * 1.8) -and $r -gt ($b * 1.4)) { $red++ }
+                if ($b -gt 150 -and $b -gt ($r * 1.5) -and $b -gt ($g * 1.05)) { $blue++ }
+            }
+        }
+        if ($paper -lt 120000 -or $red -lt 1000 -or $blue -lt 1000) {
+            throw "Replay frame $FrameNumber is visually incomplete after independent decode: paper=$paper red=$red blue=$blue."
+        }
+        return [pscustomobject]@{ Frame = $FrameNumber; Paper = $paper; Red = $red; Blue = $blue }
+    } finally {
+        if ($locked -ne $null) { $bitmap.UnlockBits($locked) }
+        if ($graphics -ne $null) { $graphics.Dispose() }
+        if ($bitmap -ne $null) { $bitmap.Dispose() }
+        if ($source -ne $null) { $source.Dispose() }
+        $stream.Dispose()
+    }
+}
+
+$decoded = @{}
+foreach ($frameNumber in @(1, 62, 100, 181, 300, 600)) {
+    $decoded[$frameNumber] = Measure-DecodedFrame $frameNumber
+}
+if ($decoded[62].Red -lt $decoded[1].Red + 500) { throw 'Shield representative frame does not contain its expected team-color expansion.' }
+if (($decoded[181].Red + $decoded[181].Blue) -ge ($decoded[1].Red + $decoded[1].Blue - 500)) { throw 'Result representative frame does not show the expected defeated-player change.' }
+if (($decoded[300].Red + $decoded[300].Blue) -lt 4000) { throw 'Reset representative frame does not restore both visible players.' }
+$decodedSummary = $decoded.Keys | Sort-Object | ForEach-Object { $value = $decoded[$_]; "$($value.Frame):$($value.Paper)/$($value.Red)/$($value.Blue)" }
+Write-Output "independently decoded replay frames (frame:paper/red/blue) $($decodedSummary -join ', ')"
+
 Write-Output "validated replay movie id=$replayId ticks=$totalTicks hash=$expectedHash frames=$declaredFrames output=$outputPath"

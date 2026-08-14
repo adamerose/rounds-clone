@@ -833,3 +833,41 @@ The first endpoint deletion-chain fixture removed the corpus's only replay, so c
 The focused correction and complete 23-case history suite then passed, and every temporary Git repository and bare remote was removed by fixture cleanup.
 
 The ticket checker was run in the brief interval after changing status to `closed` but before moving the file from `open/`, so it correctly reported the directory mismatch. The immediate `git mv` and rerun passed; no stale ticket copy remains.
+
+## 2026-08-14 — Ticket 007 implementation review found six public-boundary gaps
+
+Reviewer `codex:01a000c5-7def-76c1-94ad-1f2c895696c6` rejected exact candidate `6fddf1786b827e778ad84d4be661e0d99642d213` despite its green supported gate.
+Independent JPEG decoding found large gray or missing-geometry regions in representative AVI frames; a ten-frame Godot run exited zero without consuming the 600-tick replay; prospective effective-corpus validation did not parse ledger bytes exactly; workflow checkout could fail on a blob tag before the intended skip; recorder construction created a world and checkpoint placeholders before validating bounds; and the negative corpus, CLI, and format evidence matrix was incomplete.
+Correction must establish each failure at its public boundary, share one byte-exact ledger parser across history and effective trees, make interrupted playback fail nonzero, choose a checkoutable commit before tag inspection, validate scalar replay metadata before allocation or world construction, and independently decode representative output frames.
+
+The reviewer first launched the gate with an accidental one-second timeout, guessed nonexistent `docs/design-docs/gameplay-spec.md`, and had cleanup commands rejected after a failed fixture inherited the parent `C:\Users\Adam` repository.
+That fixture left a redundant checked-out `feature` ref at the same exact commit as `main` and a temporary directory under the system temp root.
+A pre-existing zero-byte `C:\Users\Adam\.git\index.lock` from April blocked ordinary branch switching; after proving both refs were identical, cleanup changed only `HEAD` back to `main` and deleted the exact redundant ref with compare-and-delete, leaving the old lock untouched.
+The first combined recursive temp cleanup was policy-blocked, so a separate read-only path and reparse-point check preceded exact runtime deletion; the branch, ref, and temporary fixture are verified absent.
+A broad status read of the unusual user-home repository emitted permission and long-path warnings while enumerating its many unrelated untracked directories; it made no working-tree change.
+
+## 2026-08-14 — Replay review corrections required public-boundary reproductions
+
+The first interrupted-playback reproduction passed a relative replay path, which Godot resolved beneath `game/` and rejected as missing; the corrected absolute-path reproduction established the actual defect: playback stopped after ten of 600 ticks with exit code zero and no completion marker.
+The first fix tried the nonexistent Godot C# API `OS.SetExitCode`, and the zero-warning build failed; using the supported `SceneTree.Quit(1)` overload made incomplete playback fail with an explicit tick count while complete playback still exits zero with the exact marker.
+
+One broad source read guessed three absent replay filenames before locating the definitions in `ReplayCodec.cs` and `ReplayModel.cs`.
+The first raw-CR ledger fixture used normal Git text staging, so line-ending normalization produced no change to commit; a raw `hash-object --no-filters` fixture now preserves the malformed blob bytes, and its assertion targets the stable ledger-boundary diagnostic instead of PowerShell's lossy inner-exception text.
+No fixture repository or process survived disposal.
+
+## 2026-08-14 — AVI validation now parses the movie container and decodes pixels
+
+A diagnostic extraction command tried to resolve the absent output directory before creating it, producing a nonterminating `Join-Path` binding error even though its fallback created the intended ignored inspection directory.
+The corrected inspection parsed the `LIST movi` contents instead of scanning arbitrary RIFF bytes, which distinguishes the 600 video chunks from 600 matching index records.
+The supported renderer now independently decodes frames 1, 62, 100, 181, 300, and 600 through GDI+, verifies their 1280×720 dimensions and arena/player color coverage, and checks the block, result, and reset state changes.
+All six extracted inspection images were also visually complete; the exact ignored inspection directory was removed after verification.
+
+The first focused history-test command used the ambient `dotnet`, which had no installed SDK and correctly refused the repository's pinned 8.0.423 requirement.
+Rerunning through the repository-bundled `.tools/dotnet/dotnet.exe` passed all 25 history cases; no installation or environment change was made.
+
+The first full correction gate was accidentally launched with a one-second shell timeout and was terminated during its already up-to-date restore; the immediate bounded rerun reached the checks normally.
+That rerun then exposed a real wrapper defect after 147 simulation tests passed: the replay CLI script printed success but left `$LASTEXITCODE` set by its final intentionally failing mismatch process, so the parent gate treated the successful script as failed.
+The script now resets native process status only after all assertions and exact temporary-directory cleanup complete; the process-level negative cases remain required to return nonzero themselves.
+
+The first final `spec/` tree comparison left `^{tree}` unquoted in PowerShell, which misparsed the revision and printed a fatal ambiguity instead of a usable baseline hash.
+Quoting the exact revision proved both baseline and corrected candidate use the identical `065d80874b6d21dcc6e1f2f9550bcf43c52b5db8` spec tree.

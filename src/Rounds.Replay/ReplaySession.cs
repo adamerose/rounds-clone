@@ -12,20 +12,11 @@ public sealed class ReplayRecorder
 
     public ReplayRecorder(string replayId, ulong seed, string arenaId, int totalTicks)
     {
+        var arena = ReplayValidator.ValidateHeader(replayId, arenaId, totalTicks);
         ReplayId = replayId;
         ArenaId = arenaId;
         _totalTicks = totalTicks;
-        World = World.CreateMatch(seed, ArenaCatalog.LoadEmbedded().GetRequired(arenaId));
-
-        // Validate immutable header fields before any simulation step.
-        ReplayValidator.Validate(new ReplayDocument(
-            replayId,
-            seed,
-            arenaId,
-            totalTicks,
-            [new ReplayRun(totalTicks, new RecordedFrame(ZeroInput(), ZeroInput()))],
-            ExpectedPlaceholderCheckpoints(totalTicks),
-            0));
+        World = World.CreateMatch(seed, arena);
     }
 
     public string ReplayId { get; }
@@ -80,17 +71,6 @@ public sealed class ReplayRecorder
         return replay;
     }
 
-    private static RecordedPlayerInput ZeroInput() =>
-        RecordedPlayerInput.FromPlayerInput(new PlayerInput(0, false, false, false));
-
-    private static IEnumerable<ReplayCheckpoint> ExpectedPlaceholderCheckpoints(int totalTicks)
-    {
-        for (var tick = ReplayFormat.TickRate; tick < totalTicks; tick += ReplayFormat.TickRate)
-        {
-            yield return new ReplayCheckpoint(tick, 0);
-        }
-        yield return new ReplayCheckpoint(totalTicks, 0);
-    }
 }
 
 public sealed class ReplayPlayback
@@ -187,13 +167,13 @@ public static class ReplayCorpus
             var replay = ReplayCodec.Load(stream);
             var basename = Path.GetFileName(file);
             var stem = basename[..^ReplayFormat.FileSuffix.Length];
-            if (!string.Equals(stem, replay.ReplayId, StringComparison.Ordinal))
-            {
-                throw new InvalidDataException($"Replay filename `{basename}` does not match ID `{replay.ReplayId}`.");
-            }
             if (!ids.Add(replay.ReplayId))
             {
                 throw new InvalidDataException($"Replay corpus duplicates ID `{replay.ReplayId}`.");
+            }
+            if (!string.Equals(stem, replay.ReplayId, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException($"Replay filename `{basename}` does not match ID `{replay.ReplayId}`.");
             }
 
             var playback = new ReplayPlayback(replay);

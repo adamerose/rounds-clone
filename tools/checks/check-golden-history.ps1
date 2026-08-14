@@ -8,11 +8,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repository = [IO.Path]::GetFullPath($Repository)
+. (Join-Path $PSScriptRoot 'replay-ledger.ps1')
 $goldenPrefix = 'replays/golden/'
 $goldenSuffix = '.rounds-replay.json'
-$ledgerPath = 'replays/intentional-breaks.md'
-$ledgerHeader = '# Intentional replay breaks'
-$ledgerPattern = '^- replay: (?<file>[a-z0-9-]+\.rounds-replay\.json); old: (?<old>[0-9a-f]{16}); new: (?<new>[0-9a-f]{16}|deleted); reason: (?<reason>[^;]{1,200})$'
 
 function Invoke-Git {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
@@ -49,34 +47,6 @@ function Get-ReplayHash([string]$Revision, [string]$Path) {
         throw "Replay `$Path` at $Revision has no canonical terminal finalHash."
     }
     return $Matches.hash
-}
-
-function Read-Ledger([string]$Revision) {
-    $text = Get-FileText $Revision $ledgerPath $false
-    if ($null -eq $text) { return [pscustomobject]@{ Text = ''; Lines = @(); Entries = @() } }
-    if ($text -ceq "$ledgerHeader`n") { return [pscustomobject]@{ Text = $text; Lines = @(); Entries = @() } }
-    $lines = @($text -split "`n")
-    if ($lines.Count -lt 4 -or $lines[0] -cne $ledgerHeader -or $lines[1] -cne '' -or $lines[-1] -cne '') {
-        throw "Replay break ledger at $Revision has a noncanonical heading or newline layout."
-    }
-    $entryLines = @($lines[2..($lines.Count - 2)])
-    if ($entryLines | Where-Object { $_.Length -eq 0 }) {
-        throw "Replay break ledger at $Revision contains a blank entry line."
-    }
-    $entries = @()
-    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    foreach ($line in $entryLines) {
-        if ($line -cnotmatch $ledgerPattern) { throw "Replay break ledger line is malformed at $Revision`: $line" }
-        $reason = $Matches.reason
-        $invalidCharacters = @($reason.ToCharArray() | Where-Object { [int]$_ -lt 0x20 -or [int]$_ -gt 0x7e })
-        if ($reason[0] -eq ' ' -or $reason[-1] -eq ' ' -or $invalidCharacters.Count -gt 0) {
-            throw "Replay break reason is noncanonical at $Revision."
-        }
-        $key = "$($Matches.file)|$($Matches.old)|$($Matches.new)"
-        if (-not $seen.Add($key)) { throw "Replay break ledger duplicates transition `$key` at $Revision." }
-        $entries += [pscustomobject]@{ Line = $line; File = $Matches.file; Old = $Matches.old; New = $Matches.new }
-    }
-    return [pscustomobject]@{ Text = $text; Lines = $entryLines; Entries = $entries }
 }
 
 function Get-GoldenChanges([string]$Parent, [string]$Commit) {
@@ -124,9 +94,9 @@ try {
         }
 
         $parent = if ($parents.Count -eq 1) { $parents[0] } else { '' }
-        $oldLedger = if ($parent.Length -gt 0) { Read-Ledger $parent } else { [pscustomobject]@{ Text = ''; Lines = @(); Entries = @() } }
-        $newLedger = Read-Ledger $commit
-        if ($parent.Length -gt 0 -and -not $newLedger.Text.StartsWith($oldLedger.Text, [StringComparison]::Ordinal)) {
+        $oldLedger = if ($parent.Length -gt 0) { Read-ReplayLedgerFromGit -Repository $repository -Revision $parent } else { [pscustomobject]@{ Bytes = [byte[]]@(); Text = ''; Lines = @(); Entries = @() } }
+        $newLedger = Read-ReplayLedgerFromGit -Repository $repository -Revision $commit
+        if ($parent.Length -gt 0 -and -not (Test-ReplayLedgerBytePrefix -Candidate $newLedger.Bytes -Prefix $oldLedger.Bytes)) {
             throw "Replay break ledger was edited, reordered, or truncated at $commit."
         }
         $addedEntries = @($newLedger.Entries | Select-Object -Skip $oldLedger.Entries.Count)

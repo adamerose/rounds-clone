@@ -12,6 +12,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repository = [IO.Path]::GetFullPath($Repository)
+. (Join-Path $PSScriptRoot 'replay-ledger.ps1')
 $historyScript = Join-Path $PSScriptRoot 'check-golden-history.ps1'
 $trustedRoot = $TrustedRoot
 $goldenPrefix = 'replays/golden/'
@@ -55,11 +56,10 @@ function Test-EffectiveCorpus([string]$Treeish) {
         if ($LASTEXITCODE -ne 0) { throw "Could not archive effective replay corpus $Treeish." }
         & tar -xf $archive -C $temporary
         if ($LASTEXITCODE -ne 0) { throw "Could not extract effective replay corpus $Treeish." }
-        $ledger = Join-Path $temporary 'replays/intentional-breaks.md'
-        if (-not [IO.File]::Exists($ledger)) { throw 'Effective replay corpus has no intentional-break ledger.' }
+        $effectiveLedger = Read-ReplayLedgerFromGit -Repository $repository -Revision $Treeish
         $reserved = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-        foreach ($line in [IO.File]::ReadAllLines($ledger)) {
-            if ($line -match '^- replay: (?<file>[a-z0-9-]+\.rounds-replay\.json); old: [0-9a-f]{16}; new: deleted; reason: ') { $null = $reserved.Add($Matches.file) }
+        foreach ($entry in $effectiveLedger.Entries) {
+            if ($entry.New -ceq 'deleted') { $null = $reserved.Add($entry.File) }
         }
         $goldenDirectory = Join-Path $temporary 'replays/golden'
         foreach ($file in [IO.Directory]::EnumerateFiles($goldenDirectory)) {
@@ -90,6 +90,10 @@ try {
 
     $historyOutput = & $historyScript -Base $historyCommit -Head $candidateCommit -Repository $repository
     if ($LASTEXITCODE -ne 0) { throw 'Per-commit golden history validation failed.' }
+    if ($ProspectiveMerge -and $establishedCommit -cne $historyCommit) {
+        $null = & $historyScript -Base $historyCommit -Head $establishedCommit -Repository $repository
+        if ($LASTEXITCODE -ne 0) { throw 'Established golden history validation failed.' }
+    }
     $transitions = @()
     foreach ($line in $historyOutput) {
         if ($line -match '^TRANSITION (?<commit>[0-9a-f]{40}) (?<file>[a-z0-9-]+\.rounds-replay\.json) (?<old>absent|[0-9a-f]{16}) (?<new>deleted|[0-9a-f]{16})$') {

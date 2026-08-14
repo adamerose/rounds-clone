@@ -15,6 +15,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Repository checks failed.' }
     & $dotnet test 'Rounds.sln' --configuration Release --no-build --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+    & 'tools/checks/check-replay-cli.ps1' -Repository $repository
+    if ($LASTEXITCODE -ne 0) { throw 'Replay CLI process checks failed.' }
     & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- verify-replays --directory 'replays/golden'
     if ($LASTEXITCODE -ne 0) { throw 'Golden replay verification failed.' }
     $goldenBase = $env:ROUNDS_GOLDEN_BASE
@@ -44,7 +46,19 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Godot editor import failed.' }
     & $godot --headless --path 'game' --quit-after 3
     if ($LASTEXITCODE -ne 0) { throw 'Godot runtime smoke failed.' }
-    Write-Output 'Godot editor import and runtime smoke passed.'
+    $replayPath = Join-Path $repository 'replays/golden/base-combat-006-seed-1.rounds-replay.json'
+    $earlyOutput = @(& $godot --headless --path 'game' --fixed-fps 60 --quit-after 10 -- --replay $replayPath 2>&1)
+    $earlyExit = $LASTEXITCODE
+    if ($earlyExit -eq 0 -or $earlyOutput | Where-Object { $_ -match '^REPLAY_COMPLETE ' }) {
+        throw 'Godot accepted replay termination before consuming every input.'
+    }
+    $completeOutput = @(& $godot --headless --path 'game' --fixed-fps 60 --quit-after 600 -- --replay $replayPath 2>&1)
+    $completeExit = $LASTEXITCODE
+    $completion = 'REPLAY_COMPLETE id=base-combat-006-seed-1 ticks=600 hash=b91f86b6f1dc6b10 frames=600'
+    if ($completeExit -ne 0 -or @($completeOutput | Where-Object { $_ -ceq $completion }).Count -ne 1) {
+        throw 'Godot did not complete the full golden replay with its exact marker.'
+    }
+    Write-Output 'Godot editor, runtime, interrupted-replay, and complete-replay checks passed.'
 } finally {
     Pop-Location
 }

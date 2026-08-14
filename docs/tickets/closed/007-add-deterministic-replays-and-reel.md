@@ -19,6 +19,7 @@ sessions:
   - codex:01a00090-916c-7161-81c5-276b71c5c437
   - codex:01a00096-742f-71f1-b5fc-80f5772e2046
   - codex:01a000ac-dd36-7902-81e2-5b2c75826c5d
+  - codex:01a000c5-7def-76c1-94ad-1f2c895696c6
 ---
 
 # Add deterministic replays and a rendered reel
@@ -177,3 +178,7 @@ A small exact replay boundary now turns every later failure into a reproducible 
 - 2026-08-14T14:30:51Z stage admission end session codex:01a000ac-dd36-7902-81e2-5b2c75826c5d — Re-admitted ticket 007 with no findings after exact bytes, ticket format, full and amendment diffs, dependency 006, and risk 4 all passed.
 - 2026-08-14T14:30:51Z stage implement start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Resuming implementation by aligning the ledger parser, exercising Git fixtures, completing the supported gate, and hardening host and movie evidence.
 - 2026-08-14T14:53:13Z stage implement end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Completed canonical recording and playback, one protected 600-tick golden, 23 Git-history fixtures, public Godot replay mode, pinned CI and nightly workflows, and the ignored 600-frame reel; the zero-warning gate passed 111 simulation/replay tests, 37 checker tests, golden hash b91f86b6f1dc6b10, deterministic smoke, and Godot editor/runtime smoke with spec unchanged.
+- 2026-08-14T15:11:08Z stage review start session codex:01a000c5-7def-76c1-94ad-1f2c895696c6 — Reviewing exact candidate 6fddf1786b827e778ad84d4be661e0d99642d213 against the frozen replay, Git-event, validation-order, rendered-frame, process-exit, and evidence requirements.
+- 2026-08-14T15:11:08Z stage review end session codex:01a000c5-7def-76c1-94ad-1f2c895696c6 — Rejected incomplete AVI frames, successful early replay termination, non-byte-exact effective ledger validation, unreachable non-commit-tag skip, world construction before validation, and missing negative/process/corpus fixtures.
+- 2026-08-14T15:11:08Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening implementation to fix every rejected public boundary, regenerate independently decoded render evidence, and complete the frozen evidence matrix before a new exact review.
+- 2026-08-14T15:34:15Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Validated replay headers before allocation or world creation; made interrupted Godot playback fail; shared one raw-byte ledger parser across history and effective trees; made blob-tag CI checkout-safe; expanded canonical, corpus, history, and process evidence to 147 simulation tests; and regenerated a 600-frame reel whose six representative frames independently decode with expected visual state.

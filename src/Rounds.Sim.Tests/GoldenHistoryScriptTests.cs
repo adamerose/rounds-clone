@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using Rounds.Replay;
 using Rounds.Sim;
@@ -282,6 +283,55 @@ public sealed class GoldenHistoryScriptTests
     }
 
     [Fact]
+    public void ProspectiveEventRejectsAdvancedBaseWithCrLfLedgerBytes()
+    {
+        using var fixture = GitFixture.WithInitialReplay("baseline", 1);
+        var root = fixture.Head;
+        fixture.Git("switch", "-c", "feature");
+        fixture.WriteText("feature.txt", "feature\n");
+        var feature = fixture.Commit("feature");
+        fixture.Git("switch", "main");
+        var established = fixture.CommitRawFile(
+            "replays/intentional-breaks.md",
+            Encoding.ASCII.GetBytes("# Intentional replay breaks\r\n"),
+            "malformed advanced ledger bytes");
+
+        var result = fixture.Event(root, established, feature, prospective: true);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("ledger", result.Output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ProspectiveEventRejectsReorderedAdvancedBaseLedgerHistory()
+    {
+        using var fixture = GitFixture.WithInitialReplay("protected", 1);
+        var root = fixture.Head;
+        fixture.Git("switch", "-c", "feature");
+        fixture.WriteText("feature.txt", "feature\n");
+        var feature = fixture.Commit("feature");
+        fixture.Git("switch", "main");
+        var first = fixture.ReplayHash("protected");
+        fixture.WriteReplay("protected", 2);
+        var second = fixture.ReplayHash("protected");
+        fixture.AppendLedger("protected", first, second, "first transition");
+        fixture.Commit("first base transition");
+        fixture.WriteReplay("protected", 3);
+        var third = fixture.ReplayHash("protected");
+        fixture.AppendLedger("protected", second, third, "second transition");
+        fixture.Commit("second base transition");
+        fixture.WriteText(
+            "replays/intentional-breaks.md",
+            $"# Intentional replay breaks\n\n- replay: protected{ReplayFormat.FileSuffix}; old: {second}; new: {third}; reason: second transition\n- replay: protected{ReplayFormat.FileSuffix}; old: {first}; new: {second}; reason: first transition\n");
+        var established = fixture.Commit("reorder base ledger");
+
+        var result = fixture.Event(root, established, feature, prospective: true);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("edited, reordered, or truncated", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectiveEventRejectsReservedNameResurrectionFromOldFork()
     {
         using var fixture = GitFixture.WithInitialReplay("baseline", 1);
@@ -507,6 +557,7 @@ public sealed class GoldenHistoryScriptTests
         var nonCommit = fixture.CiEvent("push", blobEvent, root);
         Assert.True(nonCommit.ExitCode == 0, nonCommit.Output);
         Assert.Contains("does not peel to a commit", nonCommit.Output, StringComparison.Ordinal);
+        Assert.EndsWith("has_candidate=false\n", fixture.ReadText("github-output.txt").Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
 
         var deletedEvent = fixture.WriteEvent(new
         {
@@ -668,6 +719,17 @@ public sealed class GoldenHistoryScriptTests
             return Head;
         }
 
+        public string CommitRawFile(string relativePath, byte[] bytes, string message)
+        {
+            var path = Path.Combine(Root, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllBytes(path, bytes);
+            var blob = Git("hash-object", "-w", "--no-filters", path).Trim();
+            Git("update-index", "--add", "--cacheinfo", "100644", blob, relativePath.Replace('\\', '/'));
+            Git("commit", "-m", message);
+            return Head;
+        }
+
         public void WriteEmptyLedger() => WriteText("replays/intentional-breaks.md", "# Intentional replay breaks\n");
 
         public void AppendLedger(string id, string oldHash, string newHash, string reason)
@@ -706,6 +768,8 @@ public sealed class GoldenHistoryScriptTests
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, content);
         }
+
+        public string ReadText(string relativePath) => File.ReadAllText(Path.Combine(Root, relativePath));
 
         public ProcessResult PowerShell(string script, params string[] arguments) =>
             RunProcess(Root, "pwsh", ["-NoProfile", "-File", script, .. arguments]);
@@ -759,6 +823,7 @@ public sealed class GoldenHistoryScriptTests
                 {
                     ["ROUNDS_DOTNET"] = Path.Combine(Repository, ".tools", "dotnet", "dotnet.exe"),
                     ["ROUNDS_HARNESS_PROJECT"] = Path.Combine(Repository, "src", "Rounds.Harness", "Rounds.Harness.csproj"),
+                    ["GITHUB_OUTPUT"] = Path.Combine(Root, "github-output.txt"),
                 });
 
         public void Dispose()

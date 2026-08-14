@@ -34,6 +34,15 @@ function Merge-Base([string]$Left, [string]$Right) {
     return @($result)[0].Trim()
 }
 
+function Set-WorkflowCandidate([bool]$HasCandidate, [string]$Commit = '') {
+    if (-not $env:GITHUB_OUTPUT) { return }
+    $value = if ($HasCandidate) { 'true' } else { 'false' }
+    [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "has_candidate=$value`n", [Text.UTF8Encoding]::new($false))
+    if ($HasCandidate) {
+        [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "candidate_commit=$Commit`n", [Text.UTF8Encoding]::new($false))
+    }
+}
+
 Push-Location $repository
 try {
     $event = Get-Content -Raw -LiteralPath $EventPath | ConvertFrom-Json
@@ -47,11 +56,13 @@ try {
         $historyBase = Merge-Base $base $head
         & $eventScript -HistoryBase $historyBase -Established $base -Candidate $head -ProspectiveMerge -TrustedRoot $root -Repository $repository
         if ($LASTEXITCODE -ne 0) { throw 'Pull-request golden event check failed.' }
+        Set-WorkflowCandidate $true $head
         exit 0
     }
 
     if ($EventName -cne 'push') { throw "Unsupported CI event `$EventName`." }
     if ([bool]$event.deleted -or [string]$event.after -ceq $zeroSha) {
+        Set-WorkflowCandidate $false
         Write-Output 'golden event skipped: deleted ref has no candidate commit'
         exit 0
     }
@@ -61,6 +72,7 @@ try {
         if ([string]$event.before -cne $zeroSha) { throw 'In-place tag updates are not permitted by replay history policy.' }
         $peel = & git rev-parse --verify "$afterValue`^{commit}" 2>$null
         if ($LASTEXITCODE -ne 0) {
+            Set-WorkflowCandidate $false
             Write-Output 'golden event skipped: tag target does not peel to a commit'
             exit 0
         }
@@ -71,6 +83,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'New tag candidate is not contained in default-branch history.' }
         & $eventScript -HistoryBase $root -Established $root -Candidate $candidate -TrustedRoot $root -Repository $repository
         if ($LASTEXITCODE -ne 0) { throw 'Tag golden event check failed.' }
+        Set-WorkflowCandidate $true $candidate
         exit 0
     }
 
@@ -82,6 +95,7 @@ try {
         $historyBase = Merge-Base $defaultHead $candidateHead
         & $eventScript -HistoryBase $historyBase -Established $defaultHead -Candidate $candidateHead -ProspectiveMerge -TrustedRoot $root -Repository $repository
         if ($LASTEXITCODE -ne 0) { throw 'New-branch golden event check failed.' }
+        Set-WorkflowCandidate $true $candidateHead
         exit 0
     }
 
@@ -90,6 +104,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Non-fast-forward branch updates are not permitted by replay history policy.' }
     & $eventScript -HistoryBase $before -Established $before -Candidate $candidateHead -TrustedRoot $root -Repository $repository
     if ($LASTEXITCODE -ne 0) { throw 'Branch golden event check failed.' }
+    Set-WorkflowCandidate $true $candidateHead
 } finally {
     Pop-Location
 }

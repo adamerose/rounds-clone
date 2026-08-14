@@ -19,7 +19,6 @@ public partial class Main : Node2D
     public override void _Ready()
     {
         Engine.PhysicsTicksPerSecond = World.TickRate;
-        _world = World.CreateSmoke(1UL);
         var arguments = OS.GetCmdlineUserArgs();
         if (arguments.Length > 0)
         {
@@ -41,7 +40,20 @@ public partial class Main : Node2D
                 return;
             }
         }
+        else
+        {
+            _world = World.CreateSmoke(1UL);
+        }
         QueueRedraw();
+    }
+
+    public override void _ExitTree()
+    {
+        if (_replay is not null && !_replay.IsComplete)
+        {
+            GD.PushError($"Replay failed: process terminated after {_replay.ConsumedTicks} of {_replay.Replay.TotalTicks} ticks.");
+            GetTree().Quit(1);
+        }
     }
 
     public override void _PhysicsProcess(double delta)

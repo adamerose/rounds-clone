@@ -127,6 +127,7 @@ public static class ReplayCodec
         RequireInteger(root.GetProperty("tickRate"), ReplayFormat.TickRate, "tickRate");
         RequireInteger(root.GetProperty("playerCount"), ReplayFormat.PlayerCount, "playerCount");
         var totalTicks = RequireInt32(root.GetProperty("totalTicks"), "totalTicks");
+        ReplayValidator.ValidateHeader(replayId, arenaId, totalTicks);
 
         var runsElement = root.GetProperty("runs");
         RequireKind(runsElement, JsonValueKind.Array, "runs");
@@ -272,29 +273,7 @@ internal static class ReplayValidator
 {
     public static void Validate(ReplayDocument replay)
     {
-        if (!IsIdentifier(replay.ReplayId))
-        {
-            throw new InvalidDataException("Replay ID must be 1-64 lowercase ASCII hyphen-separated segments.");
-        }
-
-        if (!IsIdentifier(replay.ArenaId))
-        {
-            throw new InvalidDataException("Replay arena ID is malformed.");
-        }
-
-        try
-        {
-            _ = ArenaCatalog.LoadEmbedded().GetRequired(replay.ArenaId);
-        }
-        catch (KeyNotFoundException exception)
-        {
-            throw new InvalidDataException($"Replay arena `{replay.ArenaId}` is unsupported.", exception);
-        }
-
-        if (replay.TotalTicks is < 1 or > ReplayFormat.MaximumTicks)
-        {
-            throw new InvalidDataException($"Replay tick count must be between 1 and {ReplayFormat.MaximumTicks}.");
-        }
+        _ = ValidateHeader(replay.ReplayId, replay.ArenaId, replay.TotalTicks);
 
         if (replay.Runs.Count == 0)
         {
@@ -354,6 +333,36 @@ internal static class ReplayValidator
         {
             throw new InvalidDataException("Replay final checkpoint does not equal finalHash.");
         }
+    }
+
+    public static ArenaDefinition ValidateHeader(string replayId, string arenaId, int totalTicks)
+    {
+        if (!IsIdentifier(replayId))
+        {
+            throw new InvalidDataException("Replay ID must be 1-64 lowercase ASCII hyphen-separated segments.");
+        }
+
+        if (!IsIdentifier(arenaId))
+        {
+            throw new InvalidDataException("Replay arena ID is malformed.");
+        }
+
+        ArenaDefinition arena;
+        try
+        {
+            arena = ArenaCatalog.LoadEmbedded().GetRequired(arenaId);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            throw new InvalidDataException($"Replay arena `{arenaId}` is unsupported.", exception);
+        }
+
+        if (totalTicks is < 1 or > ReplayFormat.MaximumTicks)
+        {
+            throw new InvalidDataException($"Replay tick count must be between 1 and {ReplayFormat.MaximumTicks}.");
+        }
+
+        return arena;
     }
 
     private static void ValidatePlayer(RecordedPlayerInput input)
