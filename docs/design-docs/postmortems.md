@@ -606,3 +606,10 @@ The same review asked for exact reflected-movement and bullet-lifetime boundarie
 Correction binds all seven behaviors, adds focused evidence, and requires the living design update without expanding into score, draft, cards, or arena cadence.
 Several broad read-only searches used nonexistent design paths, Windows-incompatible wildcard paths, or absent directories and exited 1; one output was truncated before focused reads recovered every cited fact.
 No files, processes, or temporary artifacts were left by the review.
+
+## 2026-08-14 — Ticket 006's second admission review corrected base-health provenance
+
+Reviewer `codex:019ffff9-3be5-7da2-8811-5df376ffc9a4` rejected exact ticket candidate `bfbf7e7081ca47f87dc0945644081f0324ba6a8c` because it called `1.0` base health provisional even though `spec/player.json` confirms it exactly with high confidence.
+The correction loads that unchanged value from the embedded player facts and reserves the provisional label for genuinely unmeasured combat behavior.
+One parallel inspection exceeded its display budget, one diff used an incorrectly expanded parent SHA before the exact revision was supplied, and one read guessed nonexistent `docs/design/match-flow.md`; focused reads recovered all evidence.
+The review created no files, processes, or temporary artifacts.
