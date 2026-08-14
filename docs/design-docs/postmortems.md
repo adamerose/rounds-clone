@@ -229,3 +229,8 @@ The review refreshed ignored build and Godot outputs but changed no tracked file
 
 The reviewer left diagnostic PNGs at `C:\Users\Adam\AppData\Local\Temp\codex-review-019fff5` under the review-only no-cleanup rule.
 Integration cleanup removed that exact directory, the earlier reported review-diagnostic directory, and the ignored `research/raw/` correction frames after validating each target.
+
+## 2026-08-14 — Git could unregister ticket 002's worktree but not delete its long paths
+
+`git worktree remove --force` removed the detached worktree registration but reported `Filename too long` while deleting its ignored local tools and build outputs.
+The owning session revalidated the exact absolute target under `.ivy/worktrees/`, deleted only that orphan through the Windows long-path `System.IO.Directory` API, and verified both the directory and registration absent.
