@@ -673,3 +673,9 @@ The corrected public-boundary fixture runs the same shot in two otherwise identi
 
 A bounded read-only PowerShell search for floating-point addition orders accidentally constructed nested arrays inside arithmetic, repeated `op_Division` and null-index errors until the ten-second command timeout, and overflowed the display budget.
 The attempt created no file or process; correction instead makes source-order sorting explicit in the simulation and retains a public-boundary comparison across opposite arena storage orders.
+
+## 2026-08-14 — Corrected ticket 006 passed fresh implementation review
+
+Reviewer `codex:01a00054-0522-7b51-b4c6-e308a2387641` approved exact candidate `b9d2ed403866b2b7e2dde443a51eaebd239c0c5b` with no findings after independently exercising all five corrected boundaries and checking the whole candidate.
+Broad combined reads and one `git show` exceeded the display budget and were recovered with focused reads; one read-only spec check mistakenly treated a tree hash as a commit and emitted an oversized unrelated diff before `git rev-parse HEAD:spec` established the exact identity.
+No temporary file, live process, or tracked residue remained; focused tests refreshed only ordinary ignored build output.

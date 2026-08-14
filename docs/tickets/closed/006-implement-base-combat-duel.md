@@ -13,6 +13,7 @@ sessions:
   - codex:019ffff9-3be5-7da2-8811-5df376ffc9a4
   - codex:019ffff6-6034-76b1-96a2-b080ac183346
   - codex:01a00048-2aa0-7b33-87a8-edfba30eae67
+  - codex:01a00054-0522-7b51-b4c6-e308a2387641
 ---
 
 # Implement deterministic base combat and a complete duel loop
@@ -88,3 +89,7 @@ Movement becomes a game only when aiming, recoil, projectiles, blocking, damage,
 - 2026-08-14T12:50:20Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Replaced squared-norm aim detection with direct component nonzero checks and scaled normalization, made static block impulses explicitly source-ordered, added maximum/subnormal aim, exact bilateral push, combined floor/wall launch, reversed-storage contact-order, and overflow-only hash boundaries, and corrected the 26-test evidence label.
 - 2026-08-14T12:50:20Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the focused 24-case combat suite, complete repository gate, spec/ticket/diff checks, and deterministic smoke after the first implementation-review correction.
 - 2026-08-14T12:50:54Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Corrected gate passed with zero warnings, repository checks, 71/71 simulation tests, 37/37 checker tests, unchanged deterministic hash `d2687f48fe6dd085`, Godot editor/runtime smoke, ticket and diff checks, and no `spec/` change.
+- 2026-08-14T12:54:51Z stage review start session codex:01a00054-0522-7b51-b4c6-e308a2387641 — Freshly reviewing corrected exact candidate `b9d2ed403866b2b7e2dde443a51eaebd239c0c5b`, all prior findings, the complete ticket diff, focused extreme-aim/block/overflow boundaries, exact-candidate gate, native evidence, and immutable specs.
+- 2026-08-14T12:54:51Z stage review end session codex:01a00054-0522-7b51-b4c6-e308a2387641 — Approved exact candidate `b9d2ed403866b2b7e2dde443a51eaebd239c0c5b` with no findings after all five correction boundaries, 108 tests, deterministic smoke, Godot smoke, spec identity, ticket formatting, cumulative diff, and clean-status checks passed.
+- 2026-08-14T12:54:51Z stage integrate start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Fast-forwarding the exact approved combat candidate to clean root `main`, then recording review and integration bookkeeping without presenting those later bytes as reviewed implementation.
+- 2026-08-14T12:54:51Z stage integrate end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Fast-forwarded clean `main` from `6e837706fbe579740e1c5d795b2dd901d68dff98` to the exact approved candidate `b9d2ed403866b2b7e2dde443a51eaebd239c0c5b`; only review, integration, progress, and cleanup records follow.
