@@ -919,3 +919,11 @@ After validating the temporary path and normalizing only those generated attribu
 The first cleanup removed the replacement worktree and its tool-cache junction, but Git returned `Invalid argument` while deleting the original cache-bearing worktree and stopped before dropping the transfer stash.
 The original directory remained inside the exact `.ivy/worktrees/` container with clean tracked state and no reparse points; repository .NET build-server shutdown released its generated files.
 After normalizing only generated file attributes, exact recursive deletion succeeded, the known stash object `38b03103232d0e1d4518d5e85477788bd07ea14e` was dropped, and final inspection found one clean main worktree, no stash, no ticket worktree, and the single validated root reel.
+
+## 2026-08-14 — Ticket 008 inventory reads exceeded the display budget and guessed old shell paths
+
+The first combined card, tuning, match, ticket, decision, and architecture inventory exceeded the command display budget and was truncated twice.
+Focused reads recovered the 12 stat-only effects, exact match facts, tuning surfaces, RNG, arena roles, live shell, and current design decisions without changing files.
+
+Two searches also guessed absent `src/Rounds.Godot` and `app` directories before the repository inventory located the shell at `game/Main.cs`.
+The failed searches returned useful simulation and arena results first, left no generated output, and were replaced with the tracked-path inventory.
