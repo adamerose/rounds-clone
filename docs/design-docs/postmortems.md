@@ -679,3 +679,9 @@ The attempt created no file or process; correction instead makes source-order so
 Reviewer `codex:01a00054-0522-7b51-b4c6-e308a2387641` approved exact candidate `b9d2ed403866b2b7e2dde443a51eaebd239c0c5b` with no findings after independently exercising all five corrected boundaries and checking the whole candidate.
 Broad combined reads and one `git show` exceeded the display budget and were recovered with focused reads; one read-only spec check mistakenly treated a tree hash as a commit and emitted an oversized unrelated diff before `git rev-parse HEAD:spec` established the exact identity.
 No temporary file, live process, or tracked residue remained; focused tests refreshed only ordinary ignored build output.
+
+## 2026-08-14 — Ticket 006 worktree removal again needed build-server shutdown
+
+`git worktree remove` removed the exact combat worktree registration but reported `Invalid argument` while leaving its directory and rebuildable ignored outputs behind.
+Read-only inspection found six `dotnet.exe` build-server processes whose executable paths all resolved inside that exact worktree.
+After stopping only those verified processes, an extended-path recursive deletion removed the already-integrated residual directory; final checks proved the directory and registration absent and root `main` clean.
