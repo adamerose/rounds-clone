@@ -517,3 +517,11 @@ After the owning session stopped the exact installed ROUNDS process, an immediat
 The first measured-motion fixture used module bounds taller than its collision envelope, so the new containment rule correctly failed the otherwise-valid repository fixture before the fixture adopted its existing half-unit collision height.
 A cleanup inventory piped directly from a completed `foreach` block and reproduced PowerShell's empty-pipeline parser error before a collected-row retry listed both exact targets.
 The owner then validated the UUID-named evidence directory and generator cache by absolute path, deleted only those two directories through the runtime filesystem API, and verified both absent after all derived measurements were committed.
+
+## 2026-08-14 — Ticket 004's final review approved the corrected catalog
+
+Fresh reviewer `codex:019fffeb-75c7-7c30-82d5-ac46c0ec51a3` approved exact candidate `67369534652c9aac6e2fb278e6afdc09eab213a9` with no actionable findings.
+One read-only discovery named absent optional build files and exited with code 1 after useful results, one result-formatting mistake produced oversized truncated output, and one `ConvertTo-Json` diagnostic warned about its default nesting depth before focused reads recovered the evidence.
+The review's unbounded background gate launcher did not emit its planned process identifier, but its complete success output, empty error log, and absent review process established clean completion.
+The reviewer left one regenerated catalog and two gate logs under the user's temporary directory as instructed.
+The owner validated those three exact session-named files, deleted only them, and verified no review residue remained.

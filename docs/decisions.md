@@ -232,3 +232,9 @@ The observed endpoint-to-reversal interval is about 840 ticks with ±120-tick ti
 The bootstrap architecture's static-AABB phrase contradicted the binding map design and could not represent visible slopes without a second collision vocabulary.
 Static and behavior-owned oriented boxes preserve the deterministic custom-physics boundary while allowing the same local-coordinate sweep and contact code to support fixed, sloped, and moving surfaces.
 Hazard and dynamic visual roles keep unimplemented behavior from silently entering the static collision set.
+
+## 2026-08-14 — Integrate the reviewed vanilla arena catalog
+
+Fresh reviewer session `codex:019fffeb-75c7-7c30-82d5-ac46c0ec51a3` approved exact candidate `67369534652c9aac6e2fb278e6afdc09eab213a9` with no actionable findings.
+The review independently reproduced all ten arena-026 mover samples, identified workbook row 27 as the clear footage match, regenerated the 70-map catalog byte-for-byte, and passed the zero-warning 46-test gate plus Godot smoke.
+The candidate was fast-forwarded to `main` unchanged before this integration record was appended.

@@ -14,6 +14,7 @@ sessions:
   - codex:019fffa0-7ad0-7a30-8b5e-bf4bfa70ab8d
   - codex:019fffb3-110f-7762-a73c-f7941d144fc9
   - codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73
+  - codex:019fffeb-75c7-7c30-82d5-ac46c0ec51a3
 ---
 
 # Catalog and classify every vanilla arena
@@ -91,3 +92,7 @@ Arena geometry controls sightlines, recoil recovery, wall blocks, ring-outs, and
 - 2026-08-14T10:56:16Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Bound arena 026 with a 0.897384 row-footage match, ten paired motion samples, two behavior-owned boxes, partial 840-tick reversal timing, oriented-box architecture, and a 3,600-cell evidence ceiling.
 - 2026-08-14T10:56:16Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Running byte-identical generation, measured-motion and impossible-grid regressions, schema and semantic checks, tickets, build, all tests, deterministic simulation, Godot, formatting, and residue checks.
 - 2026-08-14T10:56:51Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Byte-identical catalog hash `39976c83d62b00476964a74c1cd27971ebf443a78855f3b1e379cb3fc8aad4ce`, zero-warning build, 46 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, diff formatting, and exact research-residue cleanup all passed.
+- 2026-08-14T11:05:38Z stage review start session codex:019fffeb-75c7-7c30-82d5-ac46c0ec51a3 — Independently reviewing exact candidate `67369534652c9aac6e2fb278e6afdc09eab213a9` against ticket 004, all four prior rejection classes, the public workbook and footage, clean-room limits, and the full supported gate.
+- 2026-08-14T11:05:38Z stage review end session codex:019fffeb-75c7-7c30-82d5-ac46c0ec51a3 — Approved with no actionable findings after independent byte-identical regeneration, mover-frame extraction, row matching, geometry ownership checks, formatting, and the zero-warning 46-test gate.
+- 2026-08-14T11:05:38Z stage integration start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Fast-forwarding the exact approved candidate onto clean `main` without modification.
+- 2026-08-14T11:05:38Z stage integration end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Integrated approved candidate `67369534652c9aac6e2fb278e6afdc09eab213a9` unchanged, then recorded review, cleanup, and integration bookkeeping separately.
