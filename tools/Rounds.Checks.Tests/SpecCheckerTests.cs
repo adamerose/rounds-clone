@@ -215,6 +215,64 @@ public sealed class SpecCheckerTests : IDisposable
         Assert.Contains(failures, failure => failure.StartsWith("SPEC001 cards.json", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void MissingPerEffectStackingProvenanceIsRejectedBySchema()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["cards"]![0]!["effects"]![0]!.AsObject().Remove("stackingProvenance");
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC001 cards.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MultiplyOperationWithPercentUnitIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        var effect = document["cards"]![0]!["effects"]![0]!;
+        effect["operation"] = "multiply";
+        effect["unit"] = "percent";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC030 cards.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void UndefinedCardEvaluationOrderIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["cards"]![0]!["effects"]![0]!["order"] = 999;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC029 cards.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ResolvedStackingWithUnknownEvidenceIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["cards"]![0]!["effects"]![0]!["stackingProvenance"]!["status"] = "unknown";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC031 cards.json", StringComparison.Ordinal));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_repository))
@@ -309,6 +367,7 @@ public sealed class SpecCheckerTests : IDisposable
                     ["order"] = 20,
                     ["cap"] = "none-observed",
                     ["provenance"] = Provenance(),
+                    ["stackingProvenance"] = Provenance(),
                 }),
                 ["unknowns"] = new JsonArray("Fixture unknown."),
             });
@@ -342,6 +401,8 @@ public sealed class SpecCheckerTests : IDisposable
                 new JsonObject { ["version"] = "fixture-one", ["date"] = "2026-08-14", ["source"] = "source-one", ["scope"] = "Fixture patch.", ["binding"] = "Fixture binding." },
                 new JsonObject { ["version"] = "fixture-two", ["date"] = "2026-08-14", ["source"] = "source-two", ["scope"] = "Fixture patch.", ["binding"] = "Fixture binding." },
                 new JsonObject { ["version"] = "fixture-three", ["date"] = "2026-08-14", ["source"] = "source-one", ["scope"] = "Fixture patch.", ["binding"] = "Fixture binding." }),
+            ["evaluationOrder"] = new JsonArray(
+                new JsonObject { ["order"] = 20, ["phase"] = "fixture-phase", ["rule"] = "Fixture evaluation phase." }),
             ["stackingCases"] = stackingCases,
             ["cards"] = cards,
         };

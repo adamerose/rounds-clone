@@ -126,3 +126,15 @@ This prevents later simulation work from treating a UI percentage as proof of ad
 ## 2026-08-14 — Bind official card fixes over older guides
 
 Patch 1.05 supplies changed numeric card values, patch 1.1.1 binds damage-based projectile scaling, and the November 2024 update binds corrected growth behavior for build 21020021.
+
+## 2026-08-14 — Treat stacking and caps as separate sourced facts
+
+The first card candidate reused displayed-value provenance for 62 additive, 15 count, and 67 uncapped claims that its sources did not establish.
+The corrected catalog gives every effect separate stacking-and-cap provenance, retains only five explicitly sourced representative formulas, and marks every other duplicate-copy formula or unobserved cap unresolved.
+Project evaluation phases remain implementation vocabulary rather than claims about the original engine's hidden order.
+
+## 2026-08-14 — Preserve all official patch 1.05 constraints
+
+The official 11 April 2021 note binds not only numeric card changes but also Abyssal Countdown's relative timing changes, Cold Bullets accumulation beyond two copies, and Shield Charge range independence from health.
+Exact values remain unknown where the note publishes only a direction or behavioral constraint.
+GameFAQs' older Parasite and Poison values remain attached as historical conflicts rather than corroborating the current build.

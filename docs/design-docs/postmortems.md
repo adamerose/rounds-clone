@@ -285,3 +285,23 @@ Running `dotnet restore --locked-mode` first and then `dotnet test --no-restore`
 The first patch that added the card research note also tried to append after an admission sentence that did not match the actual decision record's prose.
 The atomic patch wrote nothing.
 The retry anchored to the existing final sentence, added the note, and appended three concise decision sections without changing prior entries.
+
+## 2026-08-14 — Ticket 003's first review rejected unsupported stacking claims
+
+Fresh reviewer `codex:019fff46-9914-7892-900d-0298b80df82b` rejected exact candidate `a8edf4f305358dbd720b7f69d54c493e09d0c411`.
+The catalog had treated single-card display tables as evidence for 62 additive, 15 count, and 67 `none-observed` claims even though only five representative duplicate-card cases had stacking-specific support.
+It also presented older GameFAQs values as corroboration for current Parasite and Poison values, used a percent unit for Quick Reload's dimensionless factor, and dated official patch 1.05 ten days late.
+Correction separates stacking-and-cap provenance from numeric provenance, makes unsupported formulas and caps unknown, records the historical conflicts, and adds operation-unit and evaluation-order regressions.
+During review, the Fandom fallback produced no output before a 64-second timeout, one exploratory search request was malformed, and one read-only `rg` command named a nonexistent `scripts` path before the reviewer completed the full gate from remaining indexed and official evidence.
+The review refreshed ignored build and Godot outputs but changed no tracked file.
+
+## 2026-08-14 — A card-correction inspection named a nonexistent test path
+
+A read-only `rg` command included a root `tests` path that this repository does not have, so the search returned useful matches and then exited with code 1.
+The correction used the actual `tools/Rounds.Checks.Tests` path on the next inspection.
+
+## 2026-08-14 — The card correction guessed a nonexistent shared diff checker
+
+A verification command looked for `check-diff.mjs` under the Ivy ticket-check directory, but no such script exists, and a repository-wide filename search confirmed the absence.
+The supported `git diff --check` command remained the formatting gate.
+The same inspection also named a nonexistent root `scripts` directory while looking for gate documentation; reading `README.md` and `.github/workflows/ci.yml` supplied the actual `tools/checks/run.ps1` entry point.

@@ -4,7 +4,7 @@
   "title": "RICOCHET clean-room vanilla card catalog",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "targetBuild", "targetVersion", "catalogCount", "reconciliation", "patchHistory", "stackingCases", "cards"],
+  "required": ["schemaVersion", "targetBuild", "targetVersion", "catalogCount", "reconciliation", "patchHistory", "evaluationOrder", "stackingCases", "cards"],
   "properties": {
     "$schema": { "const": "./schema/cards.schema.json" },
     "schemaVersion": { "const": 1 },
@@ -20,6 +20,11 @@
       "type": "array",
       "minItems": 3,
       "items": { "$ref": "#/$defs/patchHistory" }
+    },
+    "evaluationOrder": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evaluationPhase" }
     },
     "stackingCases": {
       "type": "array",
@@ -85,6 +90,16 @@
         "binding": { "type": "string", "minLength": 1 }
       }
     },
+    "evaluationPhase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "phase", "rule"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "phase": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "rule": { "type": "string", "minLength": 1 }
+      }
+    },
     "behavior": {
       "type": "object",
       "additionalProperties": false,
@@ -98,17 +113,18 @@
     "effect": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "target", "operation", "value", "unit", "stacking", "order", "cap", "provenance"],
+      "required": ["id", "target", "operation", "value", "unit", "stacking", "order", "cap", "provenance", "stackingProvenance"],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
         "target": { "type": "string", "pattern": "^[a-z]+(?:[.-][a-z0-9]+)+$" },
         "operation": { "enum": ["add-flat", "add-percent", "multiply", "add-count", "max-wins", "register-hook"] },
         "value": { "type": "number" },
-        "unit": { "enum": ["percent", "seconds", "count", "metres", "hit-points", "presence", "damage-points"] },
+        "unit": { "enum": ["percent", "factor", "seconds", "count", "metres", "hit-points", "presence", "damage-points"] },
         "stacking": { "enum": ["additive", "multiplicative", "count", "max-wins", "hook-per-copy", "unresolved"] },
         "order": { "type": "integer", "minimum": 0 },
         "cap": { "enum": ["none-observed", "source-defined", "unknown"] },
-        "provenance": { "$ref": "#/$defs/provenance" }
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "stackingProvenance": { "$ref": "#/$defs/provenance" }
       }
     },
     "card": {

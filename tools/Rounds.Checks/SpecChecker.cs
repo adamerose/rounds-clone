@@ -344,6 +344,16 @@ public static class SpecChecker
 
     private static void CrossCheckCards(JsonElement root, HashSet<string> sourceIds, List<string> failures)
     {
+        var evaluationOrders = new HashSet<int>();
+        foreach (var phase in root.GetProperty("evaluationOrder").EnumerateArray())
+        {
+            var order = phase.GetProperty("order").GetInt32();
+            if (!evaluationOrders.Add(order))
+            {
+                failures.Add($"SPEC028 cards.json duplicates evaluation order `{order}`.");
+            }
+        }
+
         var cards = root.GetProperty("cards").EnumerateArray().ToArray();
         if (cards.Length != root.GetProperty("catalogCount").GetInt32())
         {
@@ -379,6 +389,38 @@ public static class SpecChecker
 
                 var provenance = effect.GetProperty("provenance");
                 ValidateProvenanceSources(provenance, sourceIds, $"card `{cardId}` effect `{effectId}`", failures);
+                var stackingProvenance = effect.GetProperty("stackingProvenance");
+                ValidateProvenanceSources(stackingProvenance, sourceIds, $"card `{cardId}` effect `{effectId}` stacking and cap", failures);
+
+                var order = effect.GetProperty("order").GetInt32();
+                if (!evaluationOrders.Contains(order))
+                {
+                    failures.Add($"SPEC029 cards.json card `{cardId}` effect `{effectId}` uses undefined evaluation order `{order}`.");
+                }
+
+                var operation = effect.GetProperty("operation").GetString()!;
+                var unit = effect.GetProperty("unit").GetString()!;
+                var requiredUnit = operation switch
+                {
+                    "multiply" => "factor",
+                    "add-percent" => "percent",
+                    "add-count" => "count",
+                    "register-hook" => "presence",
+                    _ => null,
+                };
+                if ((requiredUnit is not null && unit != requiredUnit) || (unit == "factor" && operation != "multiply"))
+                {
+                    failures.Add($"SPEC030 cards.json card `{cardId}` effect `{effectId}` uses operation `{operation}` with incompatible unit `{unit}`.");
+                }
+
+                var stacking = effect.GetProperty("stacking").GetString()!;
+                var cap = effect.GetProperty("cap").GetString()!;
+                var stackingStatus = stackingProvenance.GetProperty("status").GetString()!;
+                if ((stacking != "unresolved" || cap != "unknown") && stackingStatus == "unknown")
+                {
+                    failures.Add($"SPEC031 cards.json card `{cardId}` effect `{effectId}` asserts stacking or a cap without supporting provenance.");
+                }
+
                 if (effect.GetProperty("operation").GetString() != "register-hook")
                 {
                     var effectSources = provenance.GetProperty("sources").EnumerateArray().Select(item => item.GetString()!).ToArray();

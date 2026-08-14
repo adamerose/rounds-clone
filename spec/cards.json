@@ -33,10 +33,10 @@
   "patchHistory": [
     {
       "version": "1.05",
-      "date": "2021-04-21",
+      "date": "2021-04-11",
       "source": "patch-105",
-      "scope": "Changed Dazzle duration, Lifestealer drain, Leech wording, Careful Planning cadence, Poison ammunition and damage, Parasite health, Toxic Cloud damage, Healing Field activation, and Grow distance and cap.",
-      "binding": "The post-patch values recorded by affected card effects replace the older community-guide values."
+      "scope": "Changed Dazzle duration, Lifestealer drain, Leech wording, Careful Planning cadence, Poison ammunition and damage, Parasite health, Toxic Cloud damage, Healing Field activation, Grow distance and cap, Abyssal Countdown trigger and duration, Cold Bullets duplicate stacking beyond two copies, and Shield Charge range independence from health.",
+      "binding": "The post-patch numeric values replace older guide values. The relative Abyssal Countdown timing changes, Cold Bullets beyond-two stacking, and health-independent Shield Charge range are binding constraints; their undisclosed exact formulas remain unresolved."
     },
     {
       "version": "1.1.1",
@@ -162,7 +162,8 @@
           "tolerance": "Qualitative behavior only; exact radii, timing, and ordering are unresolved unless listed as effects.",
           "sources": [
             "wiki-all-cards",
-            "gamefaqs-card-list"
+            "gamefaqs-card-list",
+            "patch-105"
           ]
         }
       },
@@ -185,10 +186,21 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         }
       ],
       "unknowns": [
+        "Patch 1.05 confirms a shorter stillness trigger and longer active duration, but no clean-room source gives the current exact timings.",
         "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
       ]
     },
@@ -229,14 +241,24 @@
           "operation": "add-count",
           "value": 4,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -249,14 +271,24 @@
           "operation": "add-count",
           "value": 5,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -281,6 +313,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -291,7 +333,7 @@
           "unit": "seconds",
           "stacking": "additive",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
@@ -300,6 +342,16 @@
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "provisional",
+            "confidence": "low",
+            "method": "Per-effect evidence: Combined the displayed flat modifier with public reports that numerical effects amplify when repeated.",
+            "tolerance": "Pending a controlled two-copy observation.",
+            "sources": [
+              "wiki-all-cards",
+              "stacking-discussion"
             ]
           }
         }
@@ -357,6 +409,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -365,14 +427,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -433,6 +505,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -453,6 +535,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -461,14 +553,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -519,7 +621,7 @@
           "unit": "count",
           "stacking": "count",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
@@ -528,6 +630,17 @@
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "confirmed",
+            "confidence": "medium",
+            "method": "Per-effect evidence: Cross-checked the displayed count and repeated-card reports.",
+            "tolerance": "Exact integer count; mixed-card cap ordering remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "atwiki-card-index",
+              "stacking-discussion"
             ]
           }
         },
@@ -549,6 +662,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -557,14 +680,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -625,6 +758,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -645,6 +788,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -653,7 +806,7 @@
           "operation": "add-flat",
           "value": 3,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
@@ -661,6 +814,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -709,14 +872,24 @@
           "operation": "add-count",
           "value": 4,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -729,14 +902,24 @@
           "operation": "add-count",
           "value": 5,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -761,6 +944,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -769,14 +962,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -837,6 +1040,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -845,14 +1058,24 @@
           "operation": "add-count",
           "value": 2,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -865,14 +1088,24 @@
           "operation": "add-count",
           "value": 3,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -897,6 +1130,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -905,14 +1148,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -973,6 +1226,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -994,6 +1257,17 @@
               "atwiki-card-index",
               "patch-105"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "atwiki-card-index",
+              "patch-105"
+            ]
           }
         },
         {
@@ -1002,14 +1276,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1070,6 +1354,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1090,6 +1384,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1106,6 +1410,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1166,6 +1480,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1182,6 +1506,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1242,6 +1576,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1262,6 +1606,15 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "confirmed",
+            "confidence": "high",
+            "method": "Official patch 1.05 confirms that Cold Bullets continues stacking beyond the first two copies but does not publish its formula.",
+            "tolerance": "Beyond-two accumulation is binding; the exact composition and any eventual cap remain unresolved.",
+            "sources": [
+              "patch-105"
+            ]
           }
         },
         {
@@ -1270,9 +1623,9 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
@@ -1282,10 +1635,21 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         }
       ],
       "unknowns": [
+        "Patch 1.05 confirms accumulation beyond two copies; the exact duplicate-copy formula and eventual cap remain unresolved.",
         "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
       ]
     },
@@ -1338,6 +1702,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1346,7 +1720,7 @@
           "operation": "add-count",
           "value": -2,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
@@ -1354,6 +1728,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1366,14 +1750,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1434,6 +1828,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1442,14 +1846,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1510,6 +1924,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1518,7 +1942,7 @@
           "operation": "add-flat",
           "value": 4,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
@@ -1526,6 +1950,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1546,6 +1980,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1606,6 +2050,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1622,6 +2076,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1682,6 +2146,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1690,14 +2164,24 @@
           "operation": "add-flat",
           "value": 10,
           "unit": "hit-points",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "source-defined",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1710,14 +2194,24 @@
           "operation": "add-count",
           "value": 9,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1730,14 +2224,24 @@
           "operation": "add-flat",
           "value": 2,
           "unit": "damage-points",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1750,14 +2254,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1818,6 +2332,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1826,14 +2350,24 @@
           "operation": "add-flat",
           "value": 7,
           "unit": "metres",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1846,14 +2380,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -1904,7 +2448,7 @@
           "unit": "presence",
           "stacking": "hook-per-copy",
           "order": 50,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
@@ -1913,6 +2457,16 @@
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "provisional",
+            "confidence": "low",
+            "method": "Per-effect evidence: Combined delayed-block behavior with reports that numerical hook effects amplify per copy.",
+            "tolerance": "Invocation spacing and recursion safeguards remain unmeasured.",
+            "sources": [
+              "wiki-all-cards",
+              "stacking-discussion"
             ]
           }
         },
@@ -1934,6 +2488,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -1942,14 +2506,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2010,6 +2584,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2030,6 +2614,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2038,14 +2632,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2106,6 +2710,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2114,14 +2728,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2182,6 +2806,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2202,6 +2836,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2210,14 +2854,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2278,6 +2932,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2298,6 +2962,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2306,14 +2980,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2374,6 +3058,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2390,6 +3084,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2451,6 +3155,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2471,6 +3185,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2479,14 +3203,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2547,6 +3281,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2567,6 +3311,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2575,14 +3329,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2643,6 +3407,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2651,14 +3425,23 @@
           "operation": "add-flat",
           "value": 40,
           "unit": "metres",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "source-defined",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "patch-105"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "patch-105"
             ]
@@ -2681,6 +3464,15 @@
             "sources": [
               "patch-105"
             ]
+          },
+          "stackingProvenance": {
+            "status": "confirmed",
+            "confidence": "high",
+            "method": "Official patch 1.05 sets Grow maximum damage to 160%, which defines the current effect cap without establishing a duplicate-copy formula.",
+            "tolerance": "The 160% cap is exact; duplicate-card approach-to-cap ordering remains unresolved.",
+            "sources": [
+              "patch-105"
+            ]
           }
         },
         {
@@ -2689,14 +3481,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2757,6 +3559,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2765,14 +3577,23 @@
           "operation": "add-flat",
           "value": 1.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "source-defined",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "patch-105"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "patch-105"
             ]
@@ -2796,6 +3617,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2804,14 +3635,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2872,6 +3713,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2888,6 +3739,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2912,6 +3773,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -2920,14 +3791,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -2988,6 +3869,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         }
       ],
@@ -3044,6 +3935,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3064,6 +3965,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3072,14 +3983,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3140,6 +4061,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3156,6 +4087,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3216,6 +4157,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3223,8 +4174,8 @@
           "target": "ability.lifestealer-drain",
           "operation": "add-flat",
           "value": 4,
-          "unit": "damage-points",
-          "stacking": "additive",
+          "unit": "hit-points",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
@@ -3232,6 +4183,15 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "patch-105"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "patch-105"
             ]
@@ -3251,6 +4211,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3299,14 +4269,24 @@
           "operation": "add-count",
           "value": 5,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3331,6 +4311,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3339,14 +4329,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3407,6 +4407,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3423,6 +4433,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3447,6 +4467,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3455,14 +4485,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3523,6 +4563,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3531,7 +4581,7 @@
           "operation": "add-flat",
           "value": 5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
@@ -3539,6 +4589,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3563,6 +4623,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3577,8 +4647,18 @@
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
-            "method": "Cross-checked public card metadata for the bound post-1.05 build.",
-            "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "method": "Bound the current value from the official 1.05 change note and the current English public table; the contradictory GameFAQs value is historical.",
+            "tolerance": "Exact post-1.05 displayed modifier; the older GameFAQs value is not current-build corroboration.",
+            "sources": [
+              "wiki-all-cards",
+              "patch-105"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list",
@@ -3604,6 +4684,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3612,9 +4702,9 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
@@ -3624,10 +4714,21 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         }
       ],
       "unknowns": [
+        "GameFAQs reports the pre-1.05 +30% health value while the official patch and current English table support +25%; the older value is retained only as a historical conflict.",
         "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
       ]
     },
@@ -3670,12 +4771,22 @@
           "unit": "presence",
           "stacking": "unresolved",
           "order": 50,
-          "cap": "source-defined",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3696,6 +4807,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3756,6 +4877,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3764,7 +4895,7 @@
           "operation": "add-flat",
           "value": 3,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
@@ -3772,6 +4903,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3790,8 +4931,18 @@
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
-            "method": "Cross-checked public card metadata for the bound post-1.05 build.",
-            "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "method": "Bound the current value from the official 1.05 change note and the current English public table; the contradictory GameFAQs value is historical.",
+            "tolerance": "Exact post-1.05 displayed modifier; the older GameFAQs value is not current-build corroboration.",
+            "sources": [
+              "wiki-all-cards",
+              "patch-105"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list",
@@ -3817,6 +4968,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3825,14 +4986,24 @@
           "operation": "add-count",
           "value": -1,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
-            "method": "Cross-checked public card metadata for the bound post-1.05 build.",
-            "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "method": "Bound the current value from the official 1.05 change note and the current English public table; the contradictory GameFAQs value is historical.",
+            "tolerance": "Exact post-1.05 displayed modifier; the older GameFAQs value is not current-build corroboration.",
+            "sources": [
+              "wiki-all-cards",
+              "patch-105"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list",
@@ -3842,6 +5013,7 @@
         }
       ],
       "unknowns": [
+        "GameFAQs reports Poison before patch 1.05 (+60% damage and no ammunition penalty); the official patch and current English table support +70% damage and -1 ammunition.",
         "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
       ]
     },
@@ -3894,6 +5066,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -3902,14 +5084,24 @@
           "operation": "add-percent",
           "value": 90,
           "unit": "percent",
-          "stacking": "max-wins",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "source-defined",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3930,6 +5122,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -3977,15 +5179,25 @@
           "target": "weapon.reload-time",
           "operation": "multiply",
           "value": 0.3,
-          "unit": "percent",
+          "unit": "factor",
           "stacking": "multiplicative",
           "order": 30,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "provisional",
             "confidence": "low",
             "method": "Two public indexes display a 70% reload-time reduction; the per-copy composition is retained as a provisional multiplicative hypothesis.",
             "tolerance": "Must be replaced if controlled observation shows additive percentage points.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "provisional",
+            "confidence": "low",
+            "method": "Per-effect evidence: Interpreted the displayed 70% reduction as a per-copy retention factor.",
+            "tolerance": "Replace if direct observation shows additive percentage points.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4049,6 +5261,17 @@
               "gamefaqs-card-list",
               "korean-card-guide"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list",
+              "korean-card-guide"
+            ]
           }
         },
         {
@@ -4057,14 +5280,25 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list",
+              "korean-card-guide"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list",
@@ -4127,6 +5361,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4147,6 +5391,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4155,14 +5409,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4223,6 +5487,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4239,6 +5513,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4287,14 +5571,24 @@
           "operation": "register-hook",
           "value": 1,
           "unit": "presence",
-          "stacking": "max-wins",
+          "stacking": "unresolved",
           "order": 50,
-          "cap": "source-defined",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4346,7 +5640,7 @@
           "unit": "presence",
           "stacking": "max-wins",
           "order": 50,
-          "cap": "source-defined",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
@@ -4355,6 +5649,15 @@
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "provisional",
+            "confidence": "low",
+            "method": "Per-effect evidence: Used repeated-card discussion and the single-controller visible behavior.",
+            "tolerance": "Direct two-copy confirmation is required.",
+            "sources": [
+              "stacking-discussion"
             ]
           }
         },
@@ -4376,6 +5679,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4384,14 +5697,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4453,6 +5776,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4461,14 +5794,24 @@
           "operation": "add-count",
           "value": 2,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4493,6 +5836,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4501,14 +5854,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4569,6 +5932,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4589,6 +5962,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4597,14 +5980,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4665,6 +6058,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4673,14 +6076,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4709,7 +6122,7 @@
         ]
       },
       "behavior": {
-        "summary": "Blocking launches the player and produces an automatic block when the charge ends.",
+        "summary": "Blocking launches the player through a range that no longer varies with health and produces an automatic block when the charge ends.",
         "hook": "on-block",
         "provenance": {
           "status": "confirmed",
@@ -4718,7 +6131,8 @@
           "tolerance": "Qualitative behavior only; exact radii, timing, and ordering are unresolved unless listed as effects.",
           "sources": [
             "wiki-all-cards",
-            "gamefaqs-card-list"
+            "gamefaqs-card-list",
+            "patch-105"
           ]
         }
       },
@@ -4741,6 +6155,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4749,9 +6173,9 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
@@ -4761,10 +6185,21 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         }
       ],
       "unknowns": [
+        "Patch 1.05 makes charge range independent of health; the current exact distance remains unresolved.",
         "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
       ]
     },
@@ -4817,6 +6252,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4825,14 +6270,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4845,14 +6300,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -4913,6 +6378,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4933,6 +6408,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -4941,14 +6426,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5009,6 +6504,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5029,6 +6534,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5037,14 +6552,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5105,6 +6630,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5113,14 +6648,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5181,6 +6726,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5189,14 +6744,24 @@
           "operation": "add-count",
           "value": 12,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5221,6 +6786,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5229,14 +6804,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5298,6 +6883,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5306,14 +6901,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5374,6 +6979,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5394,6 +7009,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5402,14 +7027,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5470,6 +7105,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5490,6 +7135,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5498,14 +7153,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5566,6 +7231,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5574,14 +7249,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5642,6 +7327,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5662,6 +7357,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5670,14 +7375,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5738,6 +7453,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5746,14 +7471,24 @@
           "operation": "add-count",
           "value": 1,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5778,6 +7513,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5786,14 +7531,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5855,6 +7610,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5875,6 +7640,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5883,7 +7658,7 @@
           "operation": "add-flat",
           "value": 3,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
@@ -5891,6 +7666,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5911,6 +7696,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -5971,6 +7766,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -5987,6 +7792,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6047,6 +7862,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6055,14 +7880,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6123,6 +7958,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6131,7 +7976,7 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
           "cap": "unknown",
           "provenance": {
@@ -6139,6 +7984,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6163,6 +8018,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6171,14 +8036,24 @@
           "operation": "add-flat",
           "value": 0.25,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6239,6 +8114,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6259,6 +8144,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6267,14 +8162,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6336,6 +8241,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6346,12 +8261,22 @@
           "unit": "percent",
           "stacking": "unresolved",
           "order": 20,
-          "cap": "source-defined",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6364,14 +8289,24 @@
           "operation": "add-count",
           "value": 2,
           "unit": "count",
-          "stacking": "count",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6396,6 +8331,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6404,14 +8349,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6473,6 +8428,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6489,6 +8454,16 @@
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6513,6 +8488,16 @@
               "wiki-all-cards",
               "gamefaqs-card-list"
             ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
           }
         },
         {
@@ -6521,14 +8506,24 @@
           "operation": "add-flat",
           "value": 0.5,
           "unit": "seconds",
-          "stacking": "additive",
+          "stacking": "unresolved",
           "order": 20,
-          "cap": "none-observed",
+          "cap": "unknown",
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
             "method": "Cross-checked public card metadata for the bound post-1.05 build.",
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "sources": [
+              "wiki-all-cards",
+              "gamefaqs-card-list"
+            ]
+          },
+          "stackingProvenance": {
+            "status": "unknown",
+            "confidence": "low",
+            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
+            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
               "gamefaqs-card-list"
@@ -6539,6 +8534,23 @@
       "unknowns": [
         "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
       ]
+    }
+  ],
+  "evaluationOrder": [
+    {
+      "order": 20,
+      "phase": "direct-modifiers",
+      "rule": "Project normalization phase for flat, percentage, count, and threshold modifiers; it does not claim the original engine evaluates every mixed effect in this order."
+    },
+    {
+      "order": 30,
+      "phase": "retention-factors",
+      "rule": "Project normalization phase for dimensionless retention factors after direct modifiers; mixed-card engine ordering remains unresolved."
+    },
+    {
+      "order": 50,
+      "phase": "behavior-hooks",
+      "rule": "Project normalization phase for registering behavior hooks after numeric modifiers; hook invocation ordering remains effect-specific and unresolved unless separately sourced."
     }
   ]
 }

@@ -21,7 +21,8 @@ All 67 are recorded as available in the vanilla draft pool with medium confidenc
 `spec/cards.json` separates display modifiers, visible behavior, runtime hooks, and cross-copy stacking.
 The 199 effect records therefore do not pretend that a displayed percentage proves an internal formula.
 Every numeric effect cites an official note or at least two independent public references.
-Every effect also records a supported target, operation, order, cap state, confidence, method, and tolerance.
+Every effect also records a supported target, operation, project normalization phase, cap state, numeric provenance, and separate stacking-and-cap provenance.
+The three declared phases distinguish direct modifiers, retention factors, and behavior-hook registration without claiming that this project vocabulary reproduces an unobserved internal evaluation order.
 
 Most percentage composition remains `unresolved` until controlled multi-copy observation can distinguish additive percentage points from per-copy multiplication.
 The catalog still gives explicit representative rules for flat addition, multiplication, integer counts, max-wins capabilities, and per-copy hooks so later simulation work has named hypotheses to test.
@@ -32,7 +33,11 @@ Bouncy's two-bounce count per copy has the strongest public corroboration of the
 
 Patch 1.05 is the binding source for Careful Planning's `-150%` attack speed, Poison's `+70%` damage and `-1` ammunition, Parasite's `+25%` health, Toxic Cloud's removed damage penalty, Healing Field's 1.5-second activation, and Grow's 40-metre and 160% limits.
 The same patch changes Lifestealer's drain from 8 to 4 and clarifies that Leech applies life steal generally rather than defining a separate Lifestealer behavior.
-The 2021 Korean guide preserves the older values and is used as history, never as the sole current-value authority.
+The 2021 Korean guide preserves several older values and is used as history, never as the sole current-value authority.
+The June 2024 GameFAQs list also preserves pre-1.05 values for Parasite health and Poison damage while omitting Poison's ammunition penalty, so those entries remain explicit historical conflicts rather than current corroboration.
+
+Patch 1.05 also confirms that Abyssal Countdown triggers sooner and lasts longer, Cold Bullets stacks beyond two copies, and Shield Charge range no longer varies with health.
+Those relative constraints are binding, while their unpublished exact timings, duplicate-copy formula, cap, and charge distance remain unresolved.
 
 The current indexes report Spray at `+1000%` attack speed while the older guide reports `+100%`.
 The current indexes report Target Bounce at one added bounce while the older guide reports two.
