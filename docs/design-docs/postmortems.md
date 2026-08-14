@@ -323,3 +323,15 @@ The fixture now supplies one correctly typed effect for each family, and all 21 
 
 The first full correction gate rejected GameFAQs in the stacking provenance for current Parasite health and Poison damage and ammunition even though their numeric provenance had already removed it.
 Those unresolved stacking records now cite only the same current sources as their corrected numeric facts, and the exclusion remains as a regression against reintroduction.
+
+## 2026-08-14 — Ticket 003's third review rejected two source-unit conflicts
+
+Fresh reviewer `codex:019fff5e-83ba-7fe3-9033-67c3ae45f4b8` rejected exact candidate `d50f8a391592fbbbeadc6a11093763911b54e60b`.
+Brawler's 200-percent health effect and Pristine Perseverence's 400-percent health effect cited GameFAQs even though that guide states flat HP, a materially different operation once other health modifiers exist.
+The current English table and independent Korean guide support the percentage units, so the correction cites those sources and records GameFAQs as an executable unit conflict for both facts.
+During review, `jq` was unavailable and the JSON audit used PowerShell, while Fandom's ordinary reader returned HTTP 402 before the approved read-only fallback recovered the page.
+
+## 2026-08-14 — A broad card-source patch touched the first matching effects
+
+The first correction patch lacked card-specific context and replaced GameFAQs on Abyssal Countdown's hook and Barrage's projectile count instead of the intended Brawler and Pristine Perseverence health effects.
+An immediate semantic inspection exposed the two wrong targets before verification, and an ID-anchored patch restored them while changing only the intended effects.

@@ -136,6 +136,18 @@
       "cardId": "poison",
       "fact": "effect:ammo",
       "reason": "The GameFAQs Poison entry predates the ammunition penalty."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "brawler",
+      "fact": "effect:health-bonus",
+      "reason": "The GameFAQs Brawler entry reports +200 flat HP rather than the percentage modifier supported by the current English table and Korean guide."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "pristine-perseverence",
+      "fact": "effect:health",
+      "reason": "The GameFAQs Pristine Perseverence entry reports +400 flat HP rather than the percentage modifier supported by the current English table and Korean guide."
     }
   ],
   "stackingCases": [
@@ -876,7 +888,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "korean-card-guide"
             ]
           },
           "stackingProvenance": {
@@ -886,7 +898,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "korean-card-guide"
             ]
           }
         },
@@ -5212,7 +5224,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "korean-card-guide"
             ]
           },
           "stackingProvenance": {
@@ -5222,7 +5234,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "korean-card-guide"
             ]
           }
         }

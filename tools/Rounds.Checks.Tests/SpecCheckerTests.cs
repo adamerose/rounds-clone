@@ -307,6 +307,26 @@ public sealed class SpecCheckerTests : IDisposable
         Assert.Contains(failures, failure => failure.StartsWith("SPEC037 cards.json", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void KnownSourceUnitConflictCannotBeUsedAsCorroboration()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["sourceExclusions"]!.AsArray().Add(new JsonObject
+        {
+            ["source"] = "source-one",
+            ["cardId"] = "fixture-card-0",
+            ["fact"] = "effect:fixture-effect",
+            ["reason"] = "Fixture source reports flat points rather than the catalog's percentage unit.",
+        });
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC037 cards.json", StringComparison.Ordinal));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_repository))
