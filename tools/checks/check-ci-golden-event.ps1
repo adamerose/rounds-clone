@@ -2,13 +2,15 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$EventName,
     [Parameter(Mandatory = $true)]
-    [string]$EventPath
+    [string]$EventPath,
+    [string]$TrustedRoot = 'b9073b6a9c110b5fbca5e242d49bd03a8cecef12',
+    [string]$Repository = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 )
 
 $ErrorActionPreference = 'Stop'
-$repository = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$repository = [IO.Path]::GetFullPath($Repository)
 $eventScript = Join-Path $PSScriptRoot 'check-golden-event.ps1'
-$trustedRoot = 'b9073b6a9c110b5fbca5e242d49bd03a8cecef12'
+$trustedRoot = $TrustedRoot
 $zeroSha = '0000000000000000000000000000000000000000'
 
 function Invoke-Git {
@@ -43,7 +45,7 @@ try {
         $base = Fetch-ExactCommit ([string]$event.pull_request.base.sha) 'pull-request-base'
         $head = Fetch-ExactCommit ([string]$event.pull_request.head.sha) 'pull-request-head'
         $historyBase = Merge-Base $base $head
-        & $eventScript -HistoryBase $historyBase -Established $base -Candidate $head -ProspectiveMerge
+        & $eventScript -HistoryBase $historyBase -Established $base -Candidate $head -ProspectiveMerge -TrustedRoot $root -Repository $repository
         if ($LASTEXITCODE -ne 0) { throw 'Pull-request golden event check failed.' }
         exit 0
     }
@@ -67,7 +69,7 @@ try {
         $defaultHead = (@(Invoke-Git rev-parse --verify "$defaultRef`^{commit}"))[0].Trim()
         & git merge-base --is-ancestor $candidate $defaultHead
         if ($LASTEXITCODE -ne 0) { throw 'New tag candidate is not contained in default-branch history.' }
-        & $eventScript -HistoryBase $root -Established $root -Candidate $candidate
+        & $eventScript -HistoryBase $root -Established $root -Candidate $candidate -TrustedRoot $root -Repository $repository
         if ($LASTEXITCODE -ne 0) { throw 'Tag golden event check failed.' }
         exit 0
     }
@@ -78,7 +80,7 @@ try {
         $defaultRef = "refs/remotes/origin/$([string]$event.repository.default_branch)"
         $defaultHead = (@(Invoke-Git rev-parse --verify "$defaultRef`^{commit}"))[0].Trim()
         $historyBase = Merge-Base $defaultHead $candidateHead
-        & $eventScript -HistoryBase $historyBase -Established $defaultHead -Candidate $candidateHead -ProspectiveMerge
+        & $eventScript -HistoryBase $historyBase -Established $defaultHead -Candidate $candidateHead -ProspectiveMerge -TrustedRoot $root -Repository $repository
         if ($LASTEXITCODE -ne 0) { throw 'New-branch golden event check failed.' }
         exit 0
     }
@@ -86,7 +88,7 @@ try {
     $before = Fetch-ExactCommit ([string]$event.before) 'branch-before'
     & git merge-base --is-ancestor $before $candidateHead
     if ($LASTEXITCODE -ne 0) { throw 'Non-fast-forward branch updates are not permitted by replay history policy.' }
-    & $eventScript -HistoryBase $before -Established $before -Candidate $candidateHead
+    & $eventScript -HistoryBase $before -Established $before -Candidate $candidateHead -TrustedRoot $root -Repository $repository
     if ($LASTEXITCODE -ne 0) { throw 'Branch golden event check failed.' }
 } finally {
     Pop-Location

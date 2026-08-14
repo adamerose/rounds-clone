@@ -59,7 +59,10 @@ function Read-Ledger([string]$Revision) {
     if ($lines.Count -lt 4 -or $lines[0] -cne $ledgerHeader -or $lines[1] -cne '' -or $lines[-1] -cne '') {
         throw "Replay break ledger at $Revision has a noncanonical heading or newline layout."
     }
-    $entryLines = @($lines[2..($lines.Count - 2)] | Where-Object { $_.Length -gt 0 })
+    $entryLines = @($lines[2..($lines.Count - 2)])
+    if ($entryLines | Where-Object { $_.Length -eq 0 }) {
+        throw "Replay break ledger at $Revision contains a blank entry line."
+    }
     $entries = @()
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($line in $entryLines) {

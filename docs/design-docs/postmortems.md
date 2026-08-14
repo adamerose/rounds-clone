@@ -806,3 +806,30 @@ No file, process, fixture, or review residue remained; the reviewer correctly no
 After re-admission, the aligned history parser rejected implementation commit `c94540d0a9eda95936d782653ad8fae9a74048cd` because that commit contains the superseded heading-plus-blank empty ledger; the later byte correction would also violate append-only prefix history.
 Grandfathering the bad commit would weaken the exact policy the ticket exists to enforce.
 The safe recovery is a new isolated worktree from `main` with the complete reviewed design and implementation tree applied as one squash, introducing the golden and corrected empty ledger together without rewriting or destroying the original worktree.
+
+## 2026-08-14 — Clean-history recovery briefly staged the squash in root
+
+The first `git merge --squash` for the replacement candidate inherited the shell tool's static root working directory instead of the requested replacement worktree and staged the squash on root `main`.
+No root commit was made. The exact staged and working changes moved into the named recoverable stash `ticket-007-squash-transfer`, root was verified clean, and that stash was applied and committed only in the replacement worktree.
+The stash remains until reviewed integration so the transfer is still recoverable; cleanup must remove it after the integrated tree is proven.
+
+The replacement worktree's first `--no-restore` build also failed because seven fresh projects had no generated asset files. A locked restore created only the expected ignored build state, after which the zero-warning build passed.
+
+## 2026-08-14 — Replay-history fixtures exposed repository and workflow assumptions
+
+The first four CI-wrapper fixtures all failed before their intended assertions because `check-ci-golden-event.ps1` always switched to the script's real repository, ignoring each fixture's working directory and remote.
+The wrapper now accepts an explicit repository path and passes it through to endpoint validation; the four original cases and the later PR, branch, tag, and orphan fixtures pass.
+The same inspection found that CI invoked effective-corpus playback before provisioning the pinned SDK needed by that playback, so provisioning now precedes the event guard.
+
+An earlier history-parser run treated a one-line Git result as a scalar character and called `.Trim()` on that character; wrapping Git output before selecting its first line removed the shape ambiguity.
+The replacement worktree's first history-test run had four expected CI cases fail from the repository bug; no fixture survived disposal and no live process remained.
+
+## 2026-08-14 — Ledger and endpoint regressions found two narrow test defects
+
+A new malformed-ledger regression correctly failed, but its first assertion expected the innermost `blank entry line` text while PowerShell's surfaced exception retained only the broader ledger diagnostic in captured process output. The stable assertion now checks the owned ledger boundary and still requires nonzero exit.
+The parser itself was tightened because it had filtered blank entry lines rather than rejecting them, contrary to the canonical grammar.
+
+The first endpoint deletion-chain fixture removed the corpus's only replay, so complete-corpus validation correctly failed before the chain assertion. The fixture now retains a separate baseline golden and proves `A→B→deleted` while keeping the public corpus nonempty.
+The focused correction and complete 23-case history suite then passed, and every temporary Git repository and bare remote was removed by fixture cleanup.
+
+The ticket checker was run in the brief interval after changing status to `closed` but before moving the file from `open/`, so it correctly reported the directory mismatch. The immediate `git mv` and rerun passed; no stale ticket copy remains.

@@ -18,12 +18,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      - name: Verify replay history event
-        shell: pwsh
-        run: ./tools/checks/check-ci-golden-event.ps1 -EventName '${{ github.event_name }}' -EventPath '${{ github.event_path }}'
       - name: Provision pinned SDK
         shell: pwsh
         run: ./tools/bootstrap.ps1 -IncludeGodot
+      - name: Verify replay history event
+        shell: pwsh
+        run: ./tools/checks/check-ci-golden-event.ps1 -EventName '${{ github.event_name }}' -EventPath '${{ github.event_path }}'
       - name: Run all checks
         shell: pwsh
         run: ./tools/checks/run.ps1

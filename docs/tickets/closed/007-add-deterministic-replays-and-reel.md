@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-14T13:00:41Z
 origin: agent-proposed
 tags: [implementation, replay, determinism, harness, rendering]
@@ -176,3 +176,4 @@ A small exact replay boundary now turns every later failure into a reproducible 
 - 2026-08-14T14:30:51Z stage admission start session codex:01a000ac-dd36-7902-81e2-5b2c75826c5d — Re-audited exact candidate 228e55a5dfb32ea10be0568ca7d672ba311cfda5 for empty-ledger bytes, append-only first entry, scope, risk, dependency, and unresolved choices.
 - 2026-08-14T14:30:51Z stage admission end session codex:01a000ac-dd36-7902-81e2-5b2c75826c5d — Re-admitted ticket 007 with no findings after exact bytes, ticket format, full and amendment diffs, dependency 006, and risk 4 all passed.
 - 2026-08-14T14:30:51Z stage implement start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Resuming implementation by aligning the ledger parser, exercising Git fixtures, completing the supported gate, and hardening host and movie evidence.
+- 2026-08-14T14:53:13Z stage implement end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Completed canonical recording and playback, one protected 600-tick golden, 23 Git-history fixtures, public Godot replay mode, pinned CI and nightly workflows, and the ignored 600-frame reel; the zero-warning gate passed 111 simulation/replay tests, 37 checker tests, golden hash b91f86b6f1dc6b10, deterministic smoke, and Godot editor/runtime smoke with spec unchanged.

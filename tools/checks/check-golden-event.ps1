@@ -6,13 +6,14 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Candidate,
     [switch]$ProspectiveMerge,
-    [string]$Repository = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+    [string]$Repository = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
+    [string]$TrustedRoot = 'b9073b6a9c110b5fbca5e242d49bd03a8cecef12'
 )
 
 $ErrorActionPreference = 'Stop'
 $repository = [IO.Path]::GetFullPath($Repository)
 $historyScript = Join-Path $PSScriptRoot 'check-golden-history.ps1'
-$trustedRoot = 'b9073b6a9c110b5fbca5e242d49bd03a8cecef12'
+$trustedRoot = $TrustedRoot
 $goldenPrefix = 'replays/golden/'
 $goldenSuffix = '.rounds-replay.json'
 
