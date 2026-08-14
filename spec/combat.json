@@ -94,12 +94,12 @@
     },
     {
       "id": "combat-recoil-speed",
-      "statement": "Each base shot gives the shooter roughly 0.06 player diameters per tick of opposite velocity.",
+      "statement": "Each base shot gives the shooter roughly 0.10 player diameters per tick of opposite velocity.",
       "status": "estimate",
-      "value": 0.06,
+      "value": 0.10,
       "unit": "player diameters per tick",
       "confidence": "low",
-      "tolerance": { "kind": "absolute", "value": 0.03, "unit": "player diameters per tick" },
+      "tolerance": { "kind": "absolute", "value": 0.06, "unit": "player diameters per tick" },
       "method": "Measured immediate shooter velocity changes after early-match shots whose visible starting cards do not alter recoil.",
       "sources": ["footage-wcg", "footage-ssag"]
     },

@@ -39,13 +39,13 @@
     },
     {
       "id": "player-run-speed",
-      "statement": "Base sustained horizontal speed is about 0.09 player diameters per simulation tick.",
+      "statement": "Base sustained horizontal speed is about 0.10 player diameters per simulation tick.",
       "status": "estimate",
-      "value": 0.09,
+      "value": 0.10,
       "unit": "player diameters per tick",
       "confidence": "medium",
       "tolerance": { "kind": "absolute", "value": 0.04, "unit": "player diameters per tick" },
-      "method": "Normalized two early-match trajectories whose visible starting cards do not alter movement; the slower observation is a lower bound because the sample may include acceleration.",
+      "method": "Normalized one collision-free 33-frame floor run; a second early-match trajectory is retained but excluded because its overlapping shot prevents recoil from being separated.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -83,9 +83,9 @@
     },
     {
       "id": "player-jump-speed",
-      "statement": "A base jump begins near 0.21 player diameters per tick upward.",
+      "statement": "A base jump begins near 0.19 player diameters per tick upward.",
       "status": "estimate",
-      "value": 0.21,
+      "value": 0.19,
       "unit": "player diameters per tick",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 0.04, "unit": "player diameters per tick" },
@@ -94,9 +94,9 @@
     },
     {
       "id": "player-gravity",
-      "statement": "Base airborne gravity is near 0.009 player diameters per tick squared.",
+      "statement": "Base airborne gravity is near 0.0065 player diameters per tick squared.",
       "status": "estimate",
-      "value": 0.009,
+      "value": 0.0065,
       "unit": "player diameters per tick squared",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 0.0025, "unit": "player diameters per tick squared" },
@@ -105,24 +105,24 @@
     },
     {
       "id": "player-jump-apex-height",
-      "statement": "A base jump rises roughly 2.6 player diameters above takeoff.",
+      "statement": "A base jump rises roughly 2.9 player diameters above takeoff.",
       "status": "estimate",
-      "value": 2.6,
+      "value": 2.9,
       "unit": "player diameters",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 0.8, "unit": "player diameters" },
-      "method": "Compared visible rise intervals and apex body centers against the measured player diameter in two early-match samples; one bound starts after takeoff and one arc includes a shot.",
+      "method": "Normalized one collision-free visible rise against body diameter; a second arc is retained but excluded because it contains a shot.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
       "id": "player-jump-apex-time",
-      "statement": "A base jump reaches its apex in about 28 ticks.",
+      "statement": "A base jump reaches its apex in about 30 ticks.",
       "status": "estimate",
-      "value": 28,
+      "value": 30,
       "unit": "ticks",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 8, "unit": "ticks" },
-      "method": "Counted 30 fps frames across visible rise intervals and converted each frame to approximately two simulation ticks; the two rows preserve lower and upper bounds.",
+      "method": "Counted one collision-free 30 fps rise interval and converted each frame to approximately two simulation ticks; a shot-contaminated comparison is excluded.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {

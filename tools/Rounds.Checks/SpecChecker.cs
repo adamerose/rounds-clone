@@ -170,7 +170,31 @@ public static class SpecChecker
 
             var derivation = measurement.GetProperty("derivation");
             var operation = derivation.GetProperty("operation").GetString()!;
-            var operands = derivation.GetProperty("operands").EnumerateArray().Select(item => item.GetDouble()).ToArray();
+            var operands = new List<double>();
+            foreach (var operandElement in derivation.GetProperty("operands").EnumerateArray())
+            {
+                var operand = operandElement.GetString()!;
+                if (operand == "observedFrameIntervalTicks")
+                {
+                    operands.Add(measurement.GetProperty(operand).GetDouble());
+                    continue;
+                }
+
+                var field = operand["pixelMeasurements.".Length..];
+                if (measurement.GetProperty("pixelMeasurements").TryGetProperty(field, out var value))
+                {
+                    operands.Add(value.GetDouble());
+                    continue;
+                }
+
+                failures.Add($"SPEC016 measurements.json measurement `{measurementId}` derivation cites missing raw field `{operand}`.");
+            }
+
+            if (operands.Count != derivation.GetProperty("operands").GetArrayLength())
+            {
+                continue;
+            }
+
             var recomputed = operation switch
             {
                 "identity" => operands[0],

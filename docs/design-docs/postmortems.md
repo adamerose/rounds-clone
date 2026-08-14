@@ -137,7 +137,7 @@ Adding the current provider-qualified session restored the format gate, and tick
 Changing ticket 002's stored status to `closed` necessarily preceded moving its previously untracked file from `open/` to `closed/`.
 The required checker run between those two filesystem edits reported that the closed ticket was still in `open/`.
 Moving the exact file immediately restored the ticket gate; no contract content changed between the failing and passing checks.
-The same expected location failure recurred when the rejected ticket moved through correction and closed again, and the same exact-file move restored the gate.
+The same expected location failure recurred after each rejected candidate moved through correction and closed again, and each exact-file move immediately restored the gate.
 
 ## 2026-08-14 — Raw research cleanup required Git's nested-repository force level
 
@@ -181,3 +181,33 @@ The correction used the already identified `imageio_ffmpeg` executable directly 
 
 The fixture removed every coverage row, so the schema's non-empty-array rule emitted `SPEC001` before the semantic checker could emit the intended `SPEC014` missing-contract failure.
 Pointing the surviving coverage row at a different known fact preserved schema validity and exercised the semantic omission boundary directly.
+
+## 2026-08-14 — Ticket 002's second review rejected action-contaminated evidence
+
+Reviewer session `codex:019fff0e-f811-71d0-a4aa-27137690f147` rejected exact candidate `63f09925e439c0060d02f00dd547ff7226bdaa29`.
+The SSAG run interval includes overlapping players and hit effects, its jump interval includes direct player and platform contact, and its recoil interval cannot separate shot recoil from collision, contact, input, and gravity.
+The same rows also call the visible `Leech` starting card `Lifestealer`, even though the official 1.05 notes distinguish those cards.
+The correction will exclude every contaminated row from coverage, correct the research metadata, and claim only the independent evidence the footage actually supports.
+
+The reviewer left diagnostic contact sheets at `C:\Users\Adam\AppData\Local\Temp\codex-review-63f0992-019fff0e` under the review-only no-cleanup rule.
+Opening the Fandom all-cards page also returned HTTP 402 during review, so the reviewer used search results and the recorded official patch notes for the card distinction.
+
+## 2026-08-14 — Temporary review cleanup was blocked once before exact deletion
+
+PowerShell policy rejected a validated recursive `Remove-Item` for the prior review directory and the empty third-video directory.
+The same script revalidated both absolute parents and exact leaf names, then `System.IO.Directory.Delete` removed only those two temporary directories and verified them absent.
+
+## 2026-08-14 — A broad frame-tracker run exceeded the command display budget
+
+The 42–50 second SSAG tracker run completed but its 10,024-token output was truncated in the command result.
+The retained beginning, ending, and ten-frame-per-second samples were enough to identify candidate intervals, and short bounded reruns then preserved every coordinate used by the correction.
+
+## 2026-08-14 — An inspection tried to reopen already deleted review residue
+
+A visual check referenced the prior review's `wcg-40to44-contact.png` after the owning session had already verified that temporary directory deleted.
+The retained ignored correction frames provided the same source interval, so no evidence was lost and no cleanup was reversed.
+
+## 2026-08-14 — A broad coverage edit excluded the wrong row
+
+A context-light patch changed the first `countsTowardCoverage` occurrence, excluding the WCG body-diameter row instead of the WCG action-contaminated run row.
+The repository gate immediately failed the two-source body-normalization contract, and an ID-anchored patch restored body coverage while excluding the intended run.

@@ -64,7 +64,10 @@
             "operands": {
               "type": "array",
               "minItems": 1,
-              "items": { "type": "number" }
+              "items": {
+                "type": "string",
+                "pattern": "^(observedFrameIntervalTicks|pixelMeasurements[.][A-Za-z][A-Za-z0-9]*)$"
+              }
             }
           }
         },

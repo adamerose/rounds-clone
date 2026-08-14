@@ -9,6 +9,7 @@ risk: 6
 depends-on: [1]
 sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
+  - codex:019fff0e-f811-71d0-a4aa-27137690f147
 ---
 
 # Research core rules and footage measurements
@@ -63,3 +64,9 @@ Locking sourced values and tolerances now prevents implementation intuition from
 - 2026-08-14T06:53:25Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Rechecking source coverage, derivation arithmetic, schema failures, the deterministic simulation boundary, and both headless Godot entry points.
 - 2026-08-14T06:53:25Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Full repository gate passed with zero build warnings, 18 tests, repeated smoke hash f250d549cfb52a8b, Godot editor/runtime smoke, unchanged formatting, and passing ticket format before closure.
 - 2026-08-14T06:53:25Z stage review start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Preparing the corrected completed candidate for a fresh non-author review against ticket 002 and the prior rejection findings.
+- 2026-08-14T07:03:20Z stage review end session codex:019fff0e-f811-71d0-a4aa-27137690f147 — Rejected candidate 63f09925e439c0060d02f00dd547ff7226bdaa29: SSAG movement, jump, and recoil intervals contain collisions or impacts, and the visible Leech card was recorded as Lifestealer.
+- 2026-08-14T07:03:20Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening the admitted contract to exclude action-contaminated rows, correct card identity, and replace them only with isolated evidence or explicit single-source limitations.
+- 2026-08-14T07:12:06Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Replaced the contaminated SSAG run, jump, and recoil rows with isolated second-duel intervals, corrected Leech identity, excluded every shot-contaminated movement or jump comparison, and linked derivations directly to named raw fields.
+- 2026-08-14T07:12:06Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Rechecking frame arithmetic, action and card controls, explicit one-source limitations, coverage omissions, the full build, deterministic smoke, and both Godot entry points.
+- 2026-08-14T07:12:06Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Full repository gate passed with zero build warnings, 19 tests, repeated smoke hash f250d549cfb52a8b, Godot editor/runtime smoke, unchanged formatting, passing ticket format, and a clean diff check.
+- 2026-08-14T07:12:06Z stage review start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Preparing the second corrected candidate for a fresh non-author review against ticket 002 and both prior rejection reports.

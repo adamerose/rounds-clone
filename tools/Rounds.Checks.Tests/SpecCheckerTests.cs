@@ -69,17 +69,31 @@ public sealed class SpecCheckerTests : IDisposable
     }
 
     [Fact]
-    public void NormalizedValueMustRecomputeFromRecordedOperands()
+    public void NormalizedValueMustRecomputeFromRecordedRawFields()
     {
         CreateValidRepository();
         var path = Path.Combine(_repository, "spec", "measurements.json");
         var document = JsonNode.Parse(File.ReadAllText(path))!;
-        document["measurements"]![0]!["normalizedValue"] = 2;
+        document["measurements"]![0]!["pixelMeasurements"]!["distance"] = 2;
         File.WriteAllText(path, document.ToJsonString());
 
         var failures = SpecChecker.CheckRepository(_repository);
 
         Assert.Contains(failures, failure => failure.StartsWith("SPEC009 measurements.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DerivationOperandMustNameARecordedRawField()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "measurements.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["measurements"]![0]!["derivation"]!["operands"]![0] = "pixelMeasurements.missing";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC016 measurements.json", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -222,7 +236,7 @@ public sealed class SpecCheckerTests : IDisposable
                 "modifierControl": "No modifiers in the fixture.",
                 "countsTowardCoverage": true,
                 "pixelMeasurements": { "distance": 1 },
-                "derivation": { "operation": "identity", "operands": [1] },
+                "derivation": { "operation": "identity", "operands": ["pixelMeasurements.distance"] },
                 "normalizedValue": 1,
                 "unit": "fixture units",
                 "tolerance": 0,

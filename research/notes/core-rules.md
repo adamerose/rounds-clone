@@ -20,6 +20,9 @@ Official store copy and announcements establish product scope and version histor
 The running public build and its Steam manifest establish current build identity.
 Two unedited public matches provide independent behavior samples.
 Community references fill gaps only when footage corroborates them or when the resulting fact remains low-confidence and provisional.
+The opening drafts visibly select `Thruster` and `Fast Forward` in WCG, then `Tank` and `Leech` in SSAG.
+The 1.05 patch notes distinguish `Leech` from `Life stealer`, so the similar names are not treated as aliases.
+Each measurement's `activeCards` field lists every card visible in that duel, while `modifierControl` explains whether the measured player's relevant behavior can be isolated from them.
 
 The selected YouTube uploads expose native 60 fps formats, but the current media service rejected every complete and partial 60 fps download with HTTP 403.
 Frame analysis therefore used 640×360 previews at 29.97 fps and 30 fps, which resolve time at approximately two simulation ticks per frame.
@@ -51,20 +54,20 @@ Speeds use player diameters per tick.
 | Metric | Target | Tolerance | Confidence | Accepted observations |
 |---|---:|---:|---|---|
 | Base body diameter | 1.0 diameter | ±0.08 | high as a normalization choice | 18×18 px and 18×17 px torso samples |
-| Sustained horizontal speed | 0.09 diameters/tick | ±0.04 | low | 0.0666 lower bound and 0.1082 trajectory |
-| Jump apex height | 2.6 diameters | ±0.8 | low | 3.1433 upper bound and 2.1433 lower bound |
-| Jump apex time | 28 ticks | ±8 | low | 32.032 upper bound and 24-tick lower bound |
+| Sustained horizontal speed | 0.10 diameters/tick | ±0.04 | low | 0.0965 collision-free trajectory; a shot-contaminated 0.0666 comparison is excluded |
+| Jump apex height | 2.9 diameters | ±0.8 | low | 2.8989 collision-free lower bound; a shot-contaminated 3.1433 comparison is excluded |
+| Jump apex time | 30 ticks | ±8 | low | 30-tick collision-free lower bound; a shot-contaminated 32.032 comparison is excluded |
 | Projectile speed | 2.4 diameters/tick | ±0.7 | low | 2.3333 from one controlled loadout; the second source is excluded |
 | Projectile radius | 0.08 diameters | ±0.03 | low | 0.0833 bright-core radius from one controlled loadout |
-| Shot recoil | 0.06 diameters/tick | ±0.03 | low | 0.0500 and 0.0672 velocity changes |
+| Shot recoil | 0.10 diameters/tick | ±0.06 | low | 0.0500 and 0.1422 isolated velocity changes |
 | Active block window | 12 ticks | ±4 | medium | 10.01 and 14-tick shield samples |
 | Camera horizontal span | 35 diameters | ±5 | medium | 35.5556 and 36.5714 diameter frame spans |
 | Out-of-bounds result delay | 6 ticks | ±4 | low | 6.006 ticks from the one clean loss transition |
 
-`spec/measurements.json` preserves each source timestamp, observed interval, raw operands, normalized result, visible active cards, modifier control, tolerance, confidence, and method.
-Every accepted result carries a machine-readable arithmetic derivation, and the repository gate recomputes it.
-The coverage contract requires two independent sources for body scale, movement, jumping, recoil, blocking, and camera framing.
-Projectile speed, projectile radius, and out-of-bounds timing retain explicit single-source limitations because the WCG projectile had a visible trajectory card and only one clean out-of-bounds transition was available.
+`spec/measurements.json` preserves each source timestamp, observed interval, named raw fields, normalized result, visible active cards, modifier control, tolerance, confidence, and method.
+Every result carries a machine-readable arithmetic derivation that references those raw fields by name, and the repository gate rejects missing operands or a false recomputation.
+The coverage contract requires two independent sources for body scale, recoil, blocking, and camera framing.
+Movement, jumping, projectile speed, projectile radius, and out-of-bounds timing retain explicit single-source limitations because the independent WCG movement and jump comparisons contain shots, the WCG projectile has visible trajectory cards, and only one clean out-of-bounds transition was available.
 Broad tolerances reflect motion-streak ambiguity, partial jump arcs, possible acceleration, and approximately two-tick temporal sampling rather than expected gameplay variability.
 
 ## Provisional tuning hypotheses
@@ -76,8 +79,8 @@ They remain low-confidence until the clone can generate controlled captures for 
 |---|---:|---|
 | Ground acceleration | 0.014 diameters/tick² | reaches the measured run-speed band in roughly eight ticks |
 | Air-control ratio | 0.80 | preserves the strong visible airborne correction authority |
-| Jump speed | 0.21 diameters/tick | algebraically fits the measured height and apex-time bands |
-| Gravity | 0.009 diameters/tick² | algebraically fits the measured height and apex-time bands |
+| Jump speed | 0.19 diameters/tick | algebraically fits the measured height and apex-time bands |
+| Gravity | 0.0065 diameters/tick² | algebraically fits the measured height and apex-time bands |
 | Ground friction | 0.72 retained/tick | produces quick but non-instant settling |
 | Base bullet damage | 0.55 health | matches the community estimate and repeated two-hit kills |
 | Fire interval | 18 ticks | remains within visible muzzle-event cadence |
@@ -109,4 +112,4 @@ The current build is still the binding target, and any later direct runtime obse
 The repository checker validates every required `spec/*.json` document against the committed JSON Schema vocabulary subset.
 It rejects unsupported schema keywords so future schemas cannot appear enforced while relying on silently ignored features.
 It also rejects duplicate identifiers, unknown provenance references, measurements that target unknown facts, normalized results that do not reproduce from their operands, missing coverage, insufficient independent sources, and a mechanics filename whose `kind` does not match.
-Regression tests prove that missing provenance, an unknown source, an unknown measurement target, unsupported schema vocabulary, and false measurement arithmetic all fail.
+Regression tests prove that missing provenance, an unknown source, an unknown measurement target, unsupported schema vocabulary, a missing raw operand, and false measurement arithmetic all fail.
