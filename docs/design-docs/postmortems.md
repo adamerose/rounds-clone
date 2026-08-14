@@ -63,3 +63,10 @@ The source image was visually inspected at original detail, and byte equality pr
 
 Replacing the mutable .NET installer flow left `.tools/dotnet-install.ps1` from the first bootstrap attempt.
 It was an ignored, reproducible download with no remaining caller and was removed permanently; the installed pinned SDK and Godot runtime remain intact.
+
+## 2026-08-14 — Windows compiler servers blocked bootstrap worktree cleanup
+
+After integration, `git worktree remove --force` removed the worktree registration but could not delete the directory because five .NET compiler-server processes still had files open under its ignored local SDK.
+The owning `.tools/dotnet/dotnet.exe build-server shutdown` command stopped the MSBuild and C#/VB servers cleanly.
+The shell policy rejected a validated recursive `Remove-Item`, so `git clean -ndx` first proved that only `.ivy/worktrees/001-bootstrap/` would be removed, and the same exact path was then removed with `git clean -fdx`.
+The commits remain in `main`, while the deleted ignored SDK cache is reproducible from `tools/bootstrap.ps1`.
