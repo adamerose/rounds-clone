@@ -525,3 +525,10 @@ One read-only discovery named absent optional build files and exited with code 1
 The review's unbounded background gate launcher did not emit its planned process identifier, but its complete success output, empty error log, and absent review process established clean completion.
 The reviewer left one regenerated catalog and two gate logs under the user's temporary directory as instructed.
 The owner validated those three exact session-named files, deleted only them, and verified no review residue remained.
+
+## 2026-08-14 — Map worktree cleanup hit live build servers and a Windows path limit
+
+`git worktree remove` unregistered the integrated map worktree but left its directory after reporting `Invalid argument` while six worktree-scoped .NET processes were live.
+The worktree SDK's supported build-server shutdown stopped the MSBuild and compiler servers, and an exact-path `git clean` preview showed only the abandoned worktree before cleanup began.
+Git removed the tracked tree and most ignored tools but left one SDK runtime-configuration file because its path exceeded the Windows command limit.
+The owner revalidated the exact `004-map-catalog` directory under `.ivy/worktrees`, removed that final tree through the extended-path runtime API, and verified both filesystem absence and worktree unregistration.
