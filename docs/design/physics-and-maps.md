@@ -156,15 +156,15 @@ The renderer reads exactly the same file the simulation does, so there is one so
 }
 ```
 
-Oriented boxes are the only static primitive.
+Oriented boxes are the only level-geometry primitive.
 Rounds' levels are rectangles, some of them rotated, and adding a second primitive would double the collision surface area for very little gain.
 Anything curved is approximated with boxes.
-The research catalog's `hazard-visual` boxes participate in silhouette verification but do not become ordinary static collision; their owning behavior module decides contact semantics after runtime evidence exists.
+The research catalog's `hazard-visual` and `dynamic-visual` boxes participate in silhouette verification but do not become ordinary static collision; their owning behavior module decides contact semantics after runtime evidence exists.
 
-`movers` covers moving platforms, which the official patch history confirms exist in the base game.
+`movers` covers moving platforms, including the mirrored pair measured for `arena-026`.
 A mover is a box plus a motion defined as a pure function of the tick — a period, a phase, and an offset — never a simulated body.
 That keeps a moving platform deterministic and rewindable for free.
-The arena rows, paths, periods, phases, and wrecking-ball constraints remain unbound until controlled runtime observation identifies them.
+The `arena-026` samples bind its broad U-shaped path and one approximately 840-tick endpoint-to-reversal interval, while exact interpolation, dwell, full period, other mover rows, phases, and wrecking-ball constraints remain unbound.
 
 `outOfBounds` is a per-map policy, either a solid wall or a kill volume.
 Which one Rounds uses is a research question and the format supports both.
@@ -177,7 +177,8 @@ Same collision code, different lifetime.
 
 ### Broadphase
 
-Level geometry never moves, so the spatial grid is built once at map load and never rebuilt.
+Static level geometry never moves, so its spatial grid is built once at map load and never rebuilt.
+A small stable-id mover list is evaluated from the tick and queried alongside static candidates without rebuilding the grid.
 A uniform grid sized to roughly two units per cell is plenty.
 Queries return candidate boxes in cell order, then by box index, so iteration order is stable.
 
@@ -220,6 +221,6 @@ These change constants, not structure, so they don't block implementation — bu
 - Is out-of-bounds a wall or a kill volume, and is there a bottom pit?
 - Explosion falloff: linear or quadratic, and over what radius?
 - Exact block Active window, recovery, and cooldown in frames.
-- Which catalog rows contain the confirmed moving platforms and wrecking ball, and what are their paths, periods, constraints, and break thresholds?
+- Which additional catalog rows contain moving platforms or the wrecking ball, and what are their paths, periods, constraints, and break thresholds beyond the partial `arena-026` measurement?
 - Does the camera's zoom-to-fit ever constrain movement, or is it purely presentation?
   It must be purely presentation here; if the original disagrees, that's a decision to record.

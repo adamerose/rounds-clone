@@ -53,9 +53,31 @@ SAWS = {
 # A still preview can identify a visual assembly, but cannot prove its runtime
 # behavior.  These remain explicit candidates until controlled footage binds it.
 BREAKABLE_CANDIDATES = {16}
-MOVING_CANDIDATES = {26}
 PHYSICS_CANDIDATES = {30}
 RING_OUT_FOCUSED = {6}
+
+# Arena 026's two brown squares are measured moving parts rather than static
+# silhouette geometry.  Source rectangles preserve the workbook's displayed
+# phase, while the motion samples come from footage-wcg at 00:00:34-00:00:52.
+MOVING_PARTS = {
+    26: [
+        {"id": "moving-part-left", "xMin": 206, "xMax": 253, "yMin": 55, "yMax": 102},
+        {"id": "moving-part-right", "xMin": 386, "xMax": 433, "yMin": 55, "yMax": 102},
+    ],
+}
+
+MOVING_SAMPLES = [
+    {"elapsedTicks": 0, "leftX": -5.028, "leftY": 5.667, "rightX": 5.189, "rightY": 5.678},
+    {"elapsedTicks": 120, "leftX": -8.678, "leftY": 5.578, "rightX": 8.611, "rightY": 5.611},
+    {"elapsedTicks": 240, "leftX": -10.639, "leftY": 5.644, "rightX": 10.528, "rightY": 5.617},
+    {"elapsedTicks": 360, "leftX": -10.550, "leftY": 2.606, "rightX": 10.517, "rightY": 2.633},
+    {"elapsedTicks": 480, "leftX": -10.567, "leftY": -3.300, "rightX": 10.494, "rightY": -3.294},
+    {"elapsedTicks": 600, "leftX": -10.550, "leftY": -5.578, "rightX": 10.472, "rightY": -5.556},
+    {"elapsedTicks": 720, "leftX": -8.000, "leftY": -5.539, "rightX": 7.933, "rightY": -5.522},
+    {"elapsedTicks": 840, "leftX": -5.078, "leftY": -5.561, "rightX": 5.022, "rightY": -5.567},
+    {"elapsedTicks": 960, "leftX": -8.456, "leftY": -5.594, "rightX": 8.383, "rightY": -5.556},
+    {"elapsedTicks": 1080, "leftX": -10.478, "leftY": -5.028, "rightX": 10.494, "rightY": -5.028},
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -266,6 +288,23 @@ def primitive_from_node(node: dict, primitive_id: str, saws: list[tuple[int, int
     }
 
 
+def primitive_from_rectangle(rectangle: dict) -> dict:
+    width = rectangle["xMax"] - rectangle["xMin"]
+    height = rectangle["yMax"] - rectangle["yMin"]
+    center_x = (rectangle["xMin"] + rectangle["xMax"]) / 2
+    center_y = (rectangle["yMin"] + rectangle["yMax"]) / 2
+    return {
+        "id": rectangle["id"],
+        "primitive": "oriented-box",
+        "role": "dynamic-visual",
+        "x": round((center_x - WIDTH / 2) / PLAYER_DIAMETER_PIXELS, 6),
+        "y": round((HEIGHT / 2 - center_y) / PLAYER_DIAMETER_PIXELS, 6),
+        "width": round(width / PLAYER_DIAMETER_PIXELS, 6),
+        "height": round(height / PLAYER_DIAMETER_PIXELS, 6),
+        "rotationDegrees": 0.0,
+    }
+
+
 def render(primitives: list[dict]) -> np.ndarray:
     rendered = np.zeros((HEIGHT, WIDTH), dtype=bool)
     for primitive in primitives:
@@ -446,9 +485,33 @@ def behavior_modules(arena: int, saws: list[tuple[int, int, int]]) -> list[dict]
             "y": round((HEIGHT / 2 - y) / PLAYER_DIAMETER_PIXELS, 6),
             "radius": round(radius / PLAYER_DIAMETER_PIXELS, 6),
         })
+    if arena == 26:
+        modules.append({
+            "id": "moving-measured-01",
+            "kind": "moving-assembly",
+            "evidenceStatus": "measured",
+            "timingStatus": "partial",
+            "bounds": {"xMin": -12.0, "xMax": 12.0, "yMin": -6.95, "yMax": 7.05},
+            "motionEvidence": {
+                "source": "footage-wcg",
+                "sourceTimestampStart": "00:00:34.000",
+                "sourceTimestampEnd": "00:00:52.000",
+                "arenaMatchMethod": "Eight-pixel occupancy comparison between workbook row 27 and the opening unobscured gameplay frame.",
+                "arenaMatchCoarseIntersectionOverUnion": 0.897384,
+                "arenaMatchSourceCoverage": 0.972384,
+                "sourceFrameIntervalTicks": 2.002,
+                "sampleIntervalTicks": 120,
+                "positionToleranceDiameters": 0.25,
+                "timingToleranceTicks": 120,
+                "partSize": {"width": 2.5, "height": 2.5, "tolerance": 0.15},
+                "primitiveIds": ["moving-part-left", "moving-part-right"],
+                "samples": MOVING_SAMPLES,
+                "observedEndpointToReversalTicks": 840,
+                "fullPeriodStatus": "unobserved",
+            },
+        })
     for candidates, kind, prefix in (
         (BREAKABLE_CANDIDATES, "breakable-field", "breakable"),
-        (MOVING_CANDIDATES, "moving-assembly", "moving"),
         (PHYSICS_CANDIDATES, "physics-assembly", "physics"),
     ):
         if arena in candidates:
@@ -471,7 +534,7 @@ def classify(arena: int, mask: np.ndarray, modules: list[dict]) -> tuple[str, st
     elif "breakable-field" in kinds:
         archetype = "breakable-candidate"
     elif "moving-assembly" in kinds:
-        archetype = "moving-candidate"
+        archetype = "moving-measured"
     elif "physics-assembly" in kinds:
         archetype = "physics-candidate"
     elif arena in RING_OUT_FOCUSED:
@@ -495,7 +558,14 @@ def main() -> None:
             media_bytes = archive.read(media_path)
             mask = source_mask(archive.open(media_path))
             saws = SAWS.get(arena, [])
-            primitives, rendered, source_component_count = decompose(mask, saws)
+            source_component_count = len(connected_components(mask))
+            static_mask = mask.copy()
+            moving_parts = MOVING_PARTS.get(arena, [])
+            for part in moving_parts:
+                static_mask[part["yMin"] : part["yMax"], part["xMin"] : part["xMax"]] = False
+            primitives, _, _ = decompose(static_mask, saws)
+            primitives.extend(primitive_from_rectangle(part) for part in moving_parts)
+            rendered = render(primitives)
             source_coarse = coarse_occupancy(mask)
             rendered_coarse = coarse_occupancy(rendered)
             intersection = int(np.logical_and(source_coarse, rendered_coarse).sum())
@@ -506,6 +576,14 @@ def main() -> None:
             modules = behavior_modules(arena, saws)
             archetype, symmetry = classify(arena, mask, modules)
             collision_bounds = bounds_for(primitives)
+            for module in modules:
+                if module["evidenceStatus"] == "measured" and "bounds" in module:
+                    collision_bounds = {
+                        "xMin": min(collision_bounds["xMin"], module["bounds"]["xMin"]),
+                        "xMax": max(collision_bounds["xMax"], module["bounds"]["xMax"]),
+                        "yMin": min(collision_bounds["yMin"], module["bounds"]["yMin"]),
+                        "yMax": max(collision_bounds["yMax"], module["bounds"]["yMax"]),
+                    }
             camera_bounds = {
                 "xMin": round(min(-18.0, collision_bounds["xMin"] - 0.01), 6),
                 "xMax": round(max(18.0, collision_bounds["xMax"] + 0.01), 6),
@@ -552,7 +630,11 @@ def main() -> None:
                 "unknowns": [
                     "Visible silhouette does not establish hidden or one-way colliders.",
                     "Exact spawn position, facing, and alternate spawn choices remain unmeasured.",
-                    "Behavior timing and physics remain unknown unless separately measured.",
+                    (
+                        "Moving-platform interpolation, dwell time, full period, phase, and contact transfer remain unmeasured."
+                        if arena == 26
+                        else "Behavior timing and physics remain unknown unless separately measured."
+                    ),
                 ],
             })
             print(f"arena-{arena:03d}: {len(primitives)} boxes, coarse IoU {coarse_iou:.6f}")
@@ -573,7 +655,7 @@ def main() -> None:
             {"id": "oriented-box", "purpose": "Raster-verified visible silhouette box; role distinguishes collision hypotheses from hazard visuals."},
             {"id": "radial-saw", "purpose": "Visible lethal saw region with unmeasured contact and timing behavior."},
             {"id": "breakable-field", "purpose": "Visual breakable candidate pending controlled runtime confirmation."},
-            {"id": "moving-assembly", "purpose": "Visual moving candidate pending controlled runtime confirmation."},
+            {"id": "moving-assembly", "purpose": "Measured dynamic oriented boxes with frame-addressable path samples and explicitly partial timing."},
             {"id": "physics-assembly", "purpose": "Visual physics candidate pending controlled runtime confirmation."},
         ],
         "reconciliation": [
@@ -584,7 +666,7 @@ def main() -> None:
         ],
         "representativeExamples": {
             "static": "arena-006",
-            "movingCandidate": "arena-026",
+            "moving": "arena-026",
             "breakableCandidate": "arena-016",
             "hazard": "arena-015",
             "asymmetric": "arena-024",

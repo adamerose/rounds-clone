@@ -504,6 +504,7 @@ public static class SpecChecker
             foreach (var module in map.GetProperty("behaviorModules").EnumerateArray())
             {
                 var kind = module.GetProperty("kind").GetString()!;
+                var evidenceStatus = module.GetProperty("evidenceStatus").GetString()!;
                 if (!vocabulary.Contains(kind))
                 {
                     failures.Add($"SPEC051 maps.json arena `{mapId}` uses undeclared behavior module `{kind}`.");
@@ -525,6 +526,57 @@ public static class SpecChecker
                 {
                     failures.Add($"SPEC056 maps.json arena `{mapId}` behavior module `{module.GetProperty("id").GetString()}` exceeds supported coordinates.");
                 }
+
+                if (evidenceStatus == "measured")
+                {
+                    if (kind != "moving-assembly" ||
+                        module.GetProperty("timingStatus").GetString() != "partial" ||
+                        !module.TryGetProperty("motionEvidence", out var motionEvidence) ||
+                        !module.TryGetProperty("bounds", out var measuredBounds))
+                    {
+                        failures.Add($"SPEC062 maps.json arena `{mapId}` has incomplete measured motion evidence.");
+                        continue;
+                    }
+
+                    ValidateMapSource(motionEvidence.GetProperty("source").GetString()!, sourceIds, $"arena `{mapId}` motion evidence", failures);
+                    var movingPrimitiveIds = motionEvidence.GetProperty("primitiveIds").EnumerateArray()
+                        .Select(item => item.GetString()!)
+                        .ToHashSet(StringComparer.Ordinal);
+                    if (movingPrimitiveIds.Count < 2 || movingPrimitiveIds.Any(id => !primitives.Any(primitive =>
+                            primitive.GetProperty("id").GetString() == id &&
+                            primitive.GetProperty("role").GetString() == "dynamic-visual")))
+                    {
+                        failures.Add($"SPEC062 maps.json arena `{mapId}` measured motion does not own two dynamic primitives.");
+                    }
+
+                    var partSize = motionEvidence.GetProperty("partSize");
+                    var halfWidth = (partSize.GetProperty("width").GetDouble() + partSize.GetProperty("tolerance").GetDouble()) / 2;
+                    var halfHeight = (partSize.GetProperty("height").GetDouble() + partSize.GetProperty("tolerance").GetDouble()) / 2;
+                    var samples = motionEvidence.GetProperty("samples").EnumerateArray().ToArray();
+                    var elapsedTicks = samples.Select(sample => sample.GetProperty("elapsedTicks").GetInt32()).ToArray();
+                    var orderedSamples = elapsedTicks.Zip(elapsedTicks.Skip(1), (left, right) => right > left).All(value => value);
+                    var samplesInsideBounds = samples.All(sample =>
+                        sample.GetProperty("leftX").GetDouble() - halfWidth >= measuredBounds.GetProperty("xMin").GetDouble() &&
+                        sample.GetProperty("leftX").GetDouble() + halfWidth <= measuredBounds.GetProperty("xMax").GetDouble() &&
+                        sample.GetProperty("rightX").GetDouble() - halfWidth >= measuredBounds.GetProperty("xMin").GetDouble() &&
+                        sample.GetProperty("rightX").GetDouble() + halfWidth <= measuredBounds.GetProperty("xMax").GetDouble() &&
+                        sample.GetProperty("leftY").GetDouble() - halfHeight >= measuredBounds.GetProperty("yMin").GetDouble() &&
+                        sample.GetProperty("leftY").GetDouble() + halfHeight <= measuredBounds.GetProperty("yMax").GetDouble() &&
+                        sample.GetProperty("rightY").GetDouble() - halfHeight >= measuredBounds.GetProperty("yMin").GetDouble() &&
+                        sample.GetProperty("rightY").GetDouble() + halfHeight <= measuredBounds.GetProperty("yMax").GetDouble());
+                    if (!orderedSamples || !samplesInsideBounds ||
+                        motionEvidence.GetProperty("observedEndpointToReversalTicks").GetInt32() > elapsedTicks[^1] ||
+                        motionEvidence.GetProperty("arenaMatchCoarseIntersectionOverUnion").GetDouble() > 1 ||
+                        motionEvidence.GetProperty("arenaMatchSourceCoverage").GetDouble() > 1 ||
+                        !Contains(collision, measuredBounds))
+                    {
+                        failures.Add($"SPEC062 maps.json arena `{mapId}` has invalid measured motion samples.");
+                    }
+                }
+                else if (module.TryGetProperty("motionEvidence", out _))
+                {
+                    failures.Add($"SPEC062 maps.json arena `{mapId}` attaches motion measurements to unmeasured behavior.");
+                }
             }
 
             var killBoundary = map.GetProperty("killBoundaryY").GetDouble();
@@ -540,7 +592,12 @@ public static class SpecChecker
             var unionCells = evidence.GetProperty("unionCells").GetInt32();
             var recordedIou = evidence.GetProperty("coarseIntersectionOverUnion").GetDouble();
             var computedIou = intersectionCells / (double)unionCells;
-            if (intersectionCells > Math.Min(sourceCells, renderedCells) ||
+            const int coarseGridCells = 80 * 45;
+            if (sourceCells > coarseGridCells ||
+                renderedCells > coarseGridCells ||
+                intersectionCells > coarseGridCells ||
+                unionCells > coarseGridCells ||
+                intersectionCells > Math.Min(sourceCells, renderedCells) ||
                 unionCells < Math.Max(sourceCells, renderedCells) ||
                 unionCells != sourceCells + renderedCells - intersectionCells ||
                 computedIou < 0.75 ||
@@ -591,7 +648,7 @@ public static class SpecChecker
             var matchesCategory = example.Name switch
             {
                 "static" => modules.Length == 0 && map.GetProperty("primitives").EnumerateArray().Any(primitive => primitive.GetProperty("role").GetString() == "static"),
-                "movingCandidate" => modules.Any(module => module.GetProperty("kind").GetString() == "moving-assembly" && module.GetProperty("evidenceStatus").GetString() == "visual-candidate"),
+                "moving" => modules.Any(module => module.GetProperty("kind").GetString() == "moving-assembly" && module.GetProperty("evidenceStatus").GetString() == "measured"),
                 "breakableCandidate" => modules.Any(module => module.GetProperty("kind").GetString() == "breakable-field" && module.GetProperty("evidenceStatus").GetString() == "visual-candidate"),
                 "hazard" => modules.Any(module => module.GetProperty("kind").GetString() == "radial-saw"),
                 "asymmetric" => map.GetProperty("symmetry").GetString() == "asymmetric",

@@ -13,6 +13,7 @@ sessions:
   - codex:019fff73-e68d-79d0-bca4-5da80964846a
   - codex:019fffa0-7ad0-7a30-8b5e-bf4bfa70ab8d
   - codex:019fffb3-110f-7762-a73c-f7941d144fc9
+  - codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73
 ---
 
 # Catalog and classify every vanilla arena
@@ -84,3 +85,9 @@ Arena geometry controls sightlines, recoil recovery, wall blocks, ring-outs, and
 - 2026-08-14T10:17:37Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Byte-identical catalog hash `1968dae64c6fac43e2b426d7254693c524f0932a21a42912ce670f57122db00a`, zero-warning build, 44 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, clean diff formatting, and cache cleanup all passed.
 - 2026-08-14T10:18:25Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the full gate after aligning the design and research prose exactly with the bounded fitted-area refinement algorithm.
 - 2026-08-14T10:18:49Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Zero-warning build, all 44 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, and diff formatting passed on the corrected candidate.
+- 2026-08-14T10:43:29Z stage review start session codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73 — Reviewing exact candidate `f96782394ea9a5ad26da3f508a0aa2c97bc3c0ff` against the frozen ticket, public source evidence, binding architecture, schema, semantic checker, and full repository gate.
+- 2026-08-14T10:43:29Z stage review end session codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73 — Rejected the unmeasured moving representative, static-AABB architecture contradiction, and an occupancy-evidence gate that accepted counts larger than its 3,600-cell grid.
+- 2026-08-14T10:43:29Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Binding arena 026 to measured current-build motion, aligning architecture with oriented boxes, bounding coarse-grid evidence, and preserving every research and review failure in the ledger.
+- 2026-08-14T10:56:16Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Bound arena 026 with a 0.897384 row-footage match, ten paired motion samples, two behavior-owned boxes, partial 840-tick reversal timing, oriented-box architecture, and a 3,600-cell evidence ceiling.
+- 2026-08-14T10:56:16Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Running byte-identical generation, measured-motion and impossible-grid regressions, schema and semantic checks, tickets, build, all tests, deterministic simulation, Godot, formatting, and residue checks.
+- 2026-08-14T10:56:51Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Byte-identical catalog hash `39976c83d62b00476964a74c1cd27971ebf443a78855f3b1e379cb3fc8aad4ce`, zero-warning build, 46 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, diff formatting, and exact research-residue cleanup all passed.

@@ -488,3 +488,32 @@ The search still found the supported `tools/checks/run.ps1` entry point, so veri
 
 The first final reproducibility command tried `.tools/python/python.exe`, but this worktree bundles .NET and Godot only, so PowerShell rejected the missing executable.
 The command's `finally` block removed its empty temporary output, and the retry used the installed `python` command that had built the catalog correction.
+
+## 2026-08-14 — Ticket 004's fourth review rejected missing motion evidence and two contract holes
+
+Fresh reviewer `codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73` rejected exact candidate `f96782394ea9a5ad26da3f508a0aa2c97bc3c0ff`.
+The frozen ticket requires a measured moving-map example when that category exists, but `arena-026` remained only a visual candidate with unknown timing despite official evidence that vanilla Rounds includes moving platforms.
+The locked architecture still named static AABB level geometry while the map design, schema, and 70-row catalog require oriented boxes.
+The coarse-evidence checker also accepted internally consistent occupied-cell counts larger than the fixed 80-by-45 grid's 3,600 cells.
+Correction binds `arena-026` to frame-addressable current-build footage, records its mirrored U-shaped platform sweep with partial timing, aligns the architecture, and caps every occupancy count at the grid size with a regression.
+During review, searches over nonexistent optional glob paths exited with code 1, an empty PowerShell pipeline caused a parser error before correction, importing the generator created a Python cache, and two direct cache cleanup attempts were rejected before a scoped runtime deletion left no residue.
+
+## 2026-08-14 — Direct game observation and motion-analysis tools had recoverable failures
+
+A read-only repository discovery included absent optional files and exited with code 1 after returning the useful paths.
+The installed computer-control package exposed no documented `documentation` function, rejected one launch argument, and then lost its Node execution context for window inspection, although the visible shell successfully launched the installed ROUNDS build.
+The existing frame-addressable gameplay cache therefore supplied the controlled observation instead of an inaccessible live window.
+One generator import used its hyphenated filename as a Python module name and failed before an explicit file loader succeeded, while a planned SciPy analysis was unavailable and the retained NumPy and Pillow path produced the measurements.
+An initial `imageio_ffmpeg` call placed the `fps` filter among input options and failed before moving it to output options, one openpyxl read-only sheet reported no maximum column before the reader bounded itself to six columns, and one tool-orchestration script had a JavaScript syntax error before correction.
+A native-frame tracking result exceeded the tool output budget and was truncated, so the durable measurement uses a concise set of exact two-second source frames with explicit positional and timing tolerance rather than pretending the oversized trace was reviewed.
+
+## 2026-08-14 — The measured-motion correction exposed four small validation mistakes
+
+The first concise native tracker indexed a four-column array as though it had five columns and failed before the corrected read-only run summarized the available high-confidence samples.
+The first measured bounds used the visual centers without enough room for the declared part-size tolerance, and the real repository checker rejected them at `SPEC062` before the bounds expanded by at most 0.1 player diameter.
+One multi-document prose patch assumed the catalog note's headings also existed in the physics design and atomically changed nothing before separate exact-context edits succeeded.
+The first focused test command used the system `dotnet`, which had no SDK compatible with pinned 8.0.423, before the worktree's verified `.tools/dotnet/dotnet.exe` ran all tests successfully.
+After the owning session stopped the exact installed ROUNDS process, an immediate presence probe reported it still running, while a two-second follow-up returned no process and confirmed the launched research session had exited.
+The first measured-motion fixture used module bounds taller than its collision envelope, so the new containment rule correctly failed the otherwise-valid repository fixture before the fixture adopted its existing half-unit collision height.
+A cleanup inventory piped directly from a completed `foreach` block and reproduced PowerShell's empty-pipeline parser error before a collected-row retry listed both exact targets.
+The owner then validated the UUID-named evidence directory and generator cache by absolute path, deleted only those two directories through the runtime filesystem API, and verified both absent after all derived measurements were committed.

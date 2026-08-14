@@ -30,17 +30,17 @@ The global scale remains provisional with a ±20 percent tolerance because the p
 The generator finds eight-connected visible components and decomposes them into oriented boxes using axis, diagonal, and principal-component candidates.
 It starts with one fitted box for every component, then splits the worst-fitting boxes until total fitted area is no more than source foreground area divided by 0.75 or the arena reaches its 96-box cap.
 The separate acceptance oracle requires the resulting 8-pixel occupancy grid to reach 0.75 intersection over union.
-The catalog contains 1,790 oriented boxes, no arena exceeds 96, and the 70 accepted coarse scores range from 0.787459 to 1.0.
+The catalog contains 1,792 oriented boxes, including the two behavior-owned mover boxes, no arena exceeds 96, and the 70 accepted coarse scores range from 0.787459 to 1.0.
 This topology-scale limit preserves disconnected islands and broad play spaces without optimizing full-resolution pixel overlap or tracing a source silhouette.
 These boxes abstract visible structures; they remain collision hypotheses because a still cannot reveal hidden, one-way, decorative, or selectively collidable regions.
 
 ## Executable evidence
 
 Every map stores its source-component count, coarse source and rendered occupancy, intersection and union cell counts, coarse intersection-over-union result, and the SHA-256 digest of the full positioned render mask.
-The repository checker rasterizes the committed oriented boxes at 640 by 360, recomputes 8-by-8-pixel occupancy, verifies the arithmetic, requires at least one box per source component, enforces the 96-box cap, and requires the positioned-render digest to match.
+The repository checker rasterizes the committed oriented boxes at 640 by 360, recomputes 8-by-8-pixel occupancy, verifies the arithmetic within the grid's 3,600-cell capacity, requires at least one box per source component, enforces the 96-box cap, and requires the positioned-render digest to match.
 The ignored workbook and generator are still required to reproduce the source-mask hash and source-side coarse occupancy because original images cannot enter Git history.
 The source-mask hash anchors the measurement input; it is not an acceptance target for a shipped full-resolution reconstruction.
-Regressions reject a sub-0.75 coarse score, inconsistent overlap arithmetic, unsupported geometry, omitted components, excess primitives, and any geometry change that alters the recorded positioned render.
+Regressions reject a sub-0.75 coarse score, inconsistent or impossible overlap arithmetic, unsupported geometry, omitted components, excess primitives, missing measured motion, and any geometry change that alters the recorded positioned render.
 
 ## Bounds and spawns
 
@@ -53,22 +53,25 @@ Exact positions, facing, and randomized alternatives remain unmeasured.
 
 ## Behavior vocabulary
 
-`oriented-box` is the only visible geometry primitive, with `static` and `hazard-visual` roles preventing a saw silhouette from silently becoming an ordinary collider.
+`oriented-box` is the only visible geometry primitive, with `static`, `hazard-visual`, and `dynamic-visual` roles preventing a saw or moving part from silently becoming an ordinary collider.
 `radial-saw` records a visible lethal region while leaving contact response, rotation, translation, and timing unknown.
-`breakable-field`, `moving-assembly`, and `physics-assembly` are visual candidates rather than confirmed runtime behavior.
-The official patch history confirms that vanilla Rounds contains moving platforms and a wrecking ball, but neither that note nor a still preview binds those behaviors to a catalog row.
-Controlled current-build footage must confirm candidate rows and measure their behavior before implementation enables them.
+`breakable-field` and `physics-assembly` remain visual candidates rather than confirmed runtime behavior.
+The layout in workbook row 27 matches the unobscured `00:00:34.000` frame from `footage-wcg` at 0.897384 coarse occupancy intersection over union and 0.972384 source coverage, which binds project arena `arena-026` to a mirrored pair of moving squares without retaining the workbook's proposed or internal names.
+At two-second intervals, the left square center moves from about `(-5.028, 5.667)` to `(-10.639, 5.644)`, down through `(-10.567, -3.300)` to `(-10.550, -5.578)`, inward to `(-5.078, -5.561)`, and then back to `(-10.478, -5.028)` in player-diameter coordinates, while the right square mirrors the path within the declared tolerance.
+The approximately 2.5-by-2.5-diameter squares have ±0.25-diameter positional tolerance, the 29.97 fps preview resolves source frames to 2.002 simulation ticks, and the sparse endpoint estimate has ±120-tick tolerance.
+The observed endpoint-to-reversal interval is about 840 ticks, but the duel ends before a full uninterrupted cycle proves exact interpolation, dwell time, speed changes, or period.
 
 ## Representative implementation order
 
 1. Implement `arena-006` to bind static oriented collision, disconnected islands, camera framing, supported spawns, and ring-out bounds.
 2. Add asymmetric `arena-024` without introducing a behavior module.
 3. Add `arena-015` with visible radial-saw contact while leaving unmeasured motion disabled.
-4. Observe `arena-016`, `arena-026`, and `arena-030` in the current build before deciding whether their visual assemblies are breakable, moving, or physics-driven.
-5. Implement each confirmed behavior once as a reusable module, then expand across the remaining catalog by evidence status rather than appearance alone.
+4. Add measured `arena-026` as the first behavior-owned moving assembly while retaining its partial timing tolerance.
+5. Observe `arena-016` and `arena-030` in the current build before deciding whether their visual assemblies are breakable or physics-driven.
+6. Implement each confirmed behavior once as a reusable module, then expand across the remaining catalog by evidence status rather than appearance alone.
 
 ## Unresolved work
 
 Still previews cannot establish exact colliders, friction, restitution, layer ownership, spawn facing, camera margins, or decorative edges.
-They also cannot establish break thresholds, movement paths, saw timing, rigid-body constraints, masses, damping, or reset sequencing.
+They also cannot establish break thresholds, unmeasured movement paths, saw timing, rigid-body constraints, masses, damping, or reset sequencing.
 Implementation must preserve those unknowns and retune scale from controlled current-build captures instead of treating the structural oracle as gameplay proof.

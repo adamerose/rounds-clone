@@ -45,7 +45,7 @@ Every structural decision below exists to keep those three cheap and reliable.
 | Engine | Godot 4 | Text `.tscn` project files that merge, headless CLI, real 2D tooling | Cheap, given the boundary below |
 | Language | C# (.NET 8) | Static types act as a reviewer that never tires; ~10–50× faster than GDScript, which matters at self-play volume | No |
 | Where the rules live | A pure C# library, `Rounds.Sim`, with zero Godot references | Headless testing, fast self-play, determinism we control | No |
-| Physics | Written by us: kinematic character controller, swept-circle bullets, static AABB level geometry | Solver-driven player movement feels mushy; engine physics is neither deterministic nor version-stable | No — all tuning is downstream of it |
+| Physics | Written by us: kinematic character controller, swept-circle bullets, and static or behavior-owned oriented-box level geometry | Solver-driven player movement feels mushy; engine physics is neither deterministic nor version-stable, while one box vocabulary covers visible slopes and movers | No — all tuning is downstream of it |
 | Numbers | `double`, our own `Vec2` | Godot's `Vector2` is `float` and would weld the core to the engine | No |
 | Tick | Fixed 60 Hz, decoupled from render rate; no wall-clock in the sim | Every duration constant is expressed in ticks | No |
 | Players | `List<Player>` with a `TeamId` from the first commit | Vanilla Rounds is 1v1, but explicit team ownership keeps targeting and friendly-fire rules from assuming that the opponent is always the other list index | No |

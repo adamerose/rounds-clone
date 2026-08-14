@@ -40,10 +40,10 @@
     "representativeExamples": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["static", "movingCandidate", "breakableCandidate", "hazard", "asymmetric", "ringOut"],
+      "required": ["static", "moving", "breakableCandidate", "hazard", "asymmetric", "ringOut"],
       "properties": {
         "static": { "$ref": "#/$defs/id" },
-        "movingCandidate": { "$ref": "#/$defs/id" },
+        "moving": { "$ref": "#/$defs/id" },
         "breakableCandidate": { "$ref": "#/$defs/id" },
         "hazard": { "$ref": "#/$defs/id" },
         "asymmetric": { "$ref": "#/$defs/id" },
@@ -157,12 +157,56 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "primitive": { "const": "oriented-box" },
-        "role": { "enum": ["static", "hazard-visual"] },
+        "role": { "enum": ["static", "hazard-visual", "dynamic-visual"] },
         "x": { "type": "number", "minimum": -40 },
         "y": { "type": "number", "minimum": -40 },
         "width": { "type": "number", "minimum": 0.001 },
         "height": { "type": "number", "minimum": 0.001 },
         "rotationDegrees": { "type": "number", "minimum": -45 }
+      }
+    },
+    "motionPartSize": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "tolerance"],
+      "properties": {
+        "width": { "type": "number", "minimum": 0.001 },
+        "height": { "type": "number", "minimum": 0.001 },
+        "tolerance": { "type": "number", "minimum": 0 }
+      }
+    },
+    "motionSample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["elapsedTicks", "leftX", "leftY", "rightX", "rightY"],
+      "properties": {
+        "elapsedTicks": { "type": "integer", "minimum": 0 },
+        "leftX": { "type": "number", "minimum": -40 },
+        "leftY": { "type": "number", "minimum": -40 },
+        "rightX": { "type": "number", "minimum": -40 },
+        "rightY": { "type": "number", "minimum": -40 }
+      }
+    },
+    "motionEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "sourceTimestampStart", "sourceTimestampEnd", "arenaMatchMethod", "arenaMatchCoarseIntersectionOverUnion", "arenaMatchSourceCoverage", "sourceFrameIntervalTicks", "sampleIntervalTicks", "positionToleranceDiameters", "timingToleranceTicks", "partSize", "primitiveIds", "samples", "observedEndpointToReversalTicks", "fullPeriodStatus"],
+      "properties": {
+        "source": { "$ref": "#/$defs/id" },
+        "sourceTimestampStart": { "type": "string", "minLength": 1 },
+        "sourceTimestampEnd": { "type": "string", "minLength": 1 },
+        "arenaMatchMethod": { "type": "string", "minLength": 1 },
+        "arenaMatchCoarseIntersectionOverUnion": { "type": "number", "minimum": 0.75 },
+        "arenaMatchSourceCoverage": { "type": "number", "minimum": 0.75 },
+        "sourceFrameIntervalTicks": { "type": "number", "minimum": 0.001 },
+        "sampleIntervalTicks": { "type": "integer", "minimum": 1 },
+        "positionToleranceDiameters": { "type": "number", "minimum": 0 },
+        "timingToleranceTicks": { "type": "integer", "minimum": 0 },
+        "partSize": { "$ref": "#/$defs/motionPartSize" },
+        "primitiveIds": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "samples": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/motionSample" } },
+        "observedEndpointToReversalTicks": { "type": "integer", "minimum": 1 },
+        "fullPeriodStatus": { "const": "unobserved" }
       }
     },
     "behaviorModule": {
@@ -172,12 +216,13 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "kind": { "enum": ["breakable-field", "moving-assembly", "physics-assembly", "radial-saw"] },
-        "evidenceStatus": { "enum": ["visible", "visual-candidate"] },
-        "timingStatus": { "enum": ["known", "unknown"] },
+        "evidenceStatus": { "enum": ["visible", "visual-candidate", "measured"] },
+        "timingStatus": { "enum": ["known", "partial", "unknown"] },
         "bounds": { "$ref": "#/$defs/bounds" },
         "x": { "type": "number", "minimum": -40 },
         "y": { "type": "number", "minimum": -40 },
-        "radius": { "type": "number", "minimum": 0.001 }
+        "radius": { "type": "number", "minimum": 0.001 },
+        "motionEvidence": { "$ref": "#/$defs/motionEvidence" }
       }
     },
     "map": {
@@ -189,7 +234,7 @@
         "sourceRow": { "type": "integer", "minimum": 2 },
         "visualEvidence": { "$ref": "#/$defs/visualEvidence" },
         "layoutEvidence": { "$ref": "#/$defs/layoutEvidence" },
-        "archetype": { "enum": ["visible-platform-layout", "ring-out-islands", "breakable-candidate", "moving-candidate", "physics-candidate", "hazard-course"] },
+        "archetype": { "enum": ["visible-platform-layout", "ring-out-islands", "breakable-candidate", "moving-measured", "physics-candidate", "hazard-course"] },
         "symmetry": { "enum": ["mirror", "near-mirror", "asymmetric"] },
         "ringOutFocused": { "type": "boolean" },
         "cameraBounds": { "$ref": "#/$defs/bounds" },

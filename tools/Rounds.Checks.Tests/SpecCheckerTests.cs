@@ -441,6 +441,20 @@ public sealed class SpecCheckerTests : IDisposable
     }
 
     [Fact]
+    public void MeasuredMovingRepresentativeRequiresMotionEvidence()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![1]!["behaviorModules"]![0]!.AsObject().Remove("motionEvidence");
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC062 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void SubThresholdMapLayoutEvidenceIsRejected()
     {
         CreateValidRepository();
@@ -465,6 +479,25 @@ public sealed class SpecCheckerTests : IDisposable
         document["maps"]![0]!["layoutEvidence"]!["intersectionCells"] = 200;
         document["maps"]![0]!["layoutEvidence"]!["unionCells"] = 208;
         document["maps"]![0]!["layoutEvidence"]!["coarseIntersectionOverUnion"] = 0.99;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC058 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ImpossibleMapLayoutOccupancyIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        var evidence = document["maps"]![0]!["layoutEvidence"]!;
+        evidence["sourceOccupiedCells"] = 4252;
+        evidence["renderedOccupiedCells"] = 3189;
+        evidence["intersectionCells"] = 3189;
+        evidence["unionCells"] = 4252;
+        evidence["coarseIntersectionOverUnion"] = 0.75;
         File.WriteAllText(path, document.ToJsonString());
 
         var failures = SpecChecker.CheckRepository(_repository);
@@ -813,8 +846,41 @@ public sealed class SpecCheckerTests : IDisposable
             });
         }
 
+        maps[1]!["primitives"]!.AsArray().Add(
+            new JsonObject { ["id"] = "moving-left", ["primitive"] = "oriented-box", ["role"] = "dynamic-visual", ["x"] = -1, ["y"] = 0, ["width"] = 1, ["height"] = 1, ["rotationDegrees"] = 0 });
+        maps[1]!["primitives"]!.AsArray().Add(
+            new JsonObject { ["id"] = "moving-right", ["primitive"] = "oriented-box", ["role"] = "dynamic-visual", ["x"] = 1, ["y"] = 0, ["width"] = 1, ["height"] = 1, ["rotationDegrees"] = 0 });
         maps[1]!["behaviorModules"] = new JsonArray(
-            new JsonObject { ["id"] = "moving-001", ["kind"] = "moving-assembly", ["bounds"] = Bounds(-2, 2, -1, 1), ["evidenceStatus"] = "visual-candidate", ["timingStatus"] = "unknown" });
+            new JsonObject
+            {
+                ["id"] = "moving-001",
+                ["kind"] = "moving-assembly",
+                ["bounds"] = Bounds(-2, 2, -0.5, 0.5),
+                ["evidenceStatus"] = "measured",
+                ["timingStatus"] = "partial",
+                ["motionEvidence"] = new JsonObject
+                {
+                    ["source"] = "source-two",
+                    ["sourceTimestampStart"] = "00:00:00.000",
+                    ["sourceTimestampEnd"] = "00:00:03.000",
+                    ["arenaMatchMethod"] = "Fixture occupancy comparison.",
+                    ["arenaMatchCoarseIntersectionOverUnion"] = 1,
+                    ["arenaMatchSourceCoverage"] = 1,
+                    ["sourceFrameIntervalTicks"] = 2,
+                    ["sampleIntervalTicks"] = 60,
+                    ["positionToleranceDiameters"] = 0.1,
+                    ["timingToleranceTicks"] = 2,
+                    ["partSize"] = new JsonObject { ["width"] = 1, ["height"] = 1, ["tolerance"] = 0 },
+                    ["primitiveIds"] = new JsonArray("moving-left", "moving-right"),
+                    ["samples"] = new JsonArray(
+                        new JsonObject { ["elapsedTicks"] = 0, ["leftX"] = -1, ["leftY"] = 0, ["rightX"] = 1, ["rightY"] = 0 },
+                        new JsonObject { ["elapsedTicks"] = 60, ["leftX"] = -0.8, ["leftY"] = 0, ["rightX"] = 0.8, ["rightY"] = 0 },
+                        new JsonObject { ["elapsedTicks"] = 120, ["leftX"] = -0.6, ["leftY"] = 0, ["rightX"] = 0.6, ["rightY"] = 0 },
+                        new JsonObject { ["elapsedTicks"] = 180, ["leftX"] = -0.8, ["leftY"] = 0, ["rightX"] = 0.8, ["rightY"] = 0 }),
+                    ["observedEndpointToReversalTicks"] = 120,
+                    ["fullPeriodStatus"] = "unobserved",
+                },
+            });
         maps[2]!["behaviorModules"] = new JsonArray(
             new JsonObject { ["id"] = "breakable-001", ["kind"] = "breakable-field", ["bounds"] = Bounds(-2, 2, -1, 1), ["evidenceStatus"] = "visual-candidate", ["timingStatus"] = "unknown" });
         maps[3]!["behaviorModules"] = new JsonArray(
@@ -845,7 +911,7 @@ public sealed class SpecCheckerTests : IDisposable
             ["representativeExamples"] = new JsonObject
             {
                 ["static"] = "fixture-map-0",
-                ["movingCandidate"] = "fixture-map-1",
+                ["moving"] = "fixture-map-1",
                 ["breakableCandidate"] = "fixture-map-2",
                 ["hazard"] = "fixture-map-3",
                 ["asymmetric"] = "fixture-map-4",

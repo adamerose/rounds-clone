@@ -28,7 +28,7 @@
     },
     {
       "id": "moving-assembly",
-      "purpose": "Visual moving candidate pending controlled runtime confirmation."
+      "purpose": "Measured dynamic oriented boxes with frame-addressable path samples and explicitly partial timing."
     },
     {
       "id": "physics-assembly",
@@ -63,7 +63,7 @@
   ],
   "representativeExamples": {
     "static": "arena-006",
-    "movingCandidate": "arena-026",
+    "moving": "arena-026",
     "breakableCandidate": "arena-016",
     "hazard": "arena-015",
     "asymmetric": "arena-024",
@@ -9431,13 +9431,13 @@
           "height": 8
         },
         "sourceOccupiedCells": 1376,
-        "renderedOccupiedCells": 1490,
-        "renderedMaskSha256": "c16fd988d1472df238d7877e118a7152e34934360f779a1721ae1f82a82ab520",
+        "renderedOccupiedCells": 1406,
+        "renderedMaskSha256": "f81da0434c82b255df1e3b7ee4c1facfe3d9ca3158db5e60862ff5a4caeefad3",
         "intersectionCells": 1376,
-        "unionCells": 1490,
-        "coarseIntersectionOverUnion": 0.92349
+        "unionCells": 1406,
+        "coarseIntersectionOverUnion": 0.978663
       },
-      "archetype": "moving-candidate",
+      "archetype": "moving-measured",
       "symmetry": "mirror",
       "ringOutFocused": false,
       "cameraBounds": {
@@ -9450,7 +9450,7 @@
         "xMin": -16.833889,
         "xMax": 16.833889,
         "yMin": -10.000556,
-        "yMax": 6.945
+        "yMax": 7.05
       },
       "killBoundaryY": -12.0,
       "spawnRegions": [
@@ -9479,9 +9479,9 @@
           "primitive": "oriented-box",
           "role": "static",
           "x": -6.166667,
-          "y": 4.888889,
+          "y": 3.583333,
           "width": 6.112222,
-          "height": 4.112222,
+          "height": 1.501111,
           "rotationDegrees": -0.0
         },
         {
@@ -9489,9 +9489,9 @@
           "primitive": "oriented-box",
           "role": "static",
           "x": 6.166667,
-          "y": 4.888889,
+          "y": 3.583333,
           "width": 6.112222,
-          "height": 4.112222,
+          "height": 1.501111,
           "rotationDegrees": -0.0
         },
         {
@@ -9593,19 +9593,134 @@
           "width": 25.223333,
           "height": 3.223333,
           "rotationDegrees": -0.0
+        },
+        {
+          "id": "moving-part-left",
+          "primitive": "oriented-box",
+          "role": "dynamic-visual",
+          "x": -5.027778,
+          "y": 5.638889,
+          "width": 2.611111,
+          "height": 2.611111,
+          "rotationDegrees": 0.0
+        },
+        {
+          "id": "moving-part-right",
+          "primitive": "oriented-box",
+          "role": "dynamic-visual",
+          "x": 4.972222,
+          "y": 5.638889,
+          "width": 2.611111,
+          "height": 2.611111,
+          "rotationDegrees": 0.0
         }
       ],
       "behaviorModules": [
         {
-          "id": "moving-candidate-01",
+          "id": "moving-measured-01",
           "kind": "moving-assembly",
-          "evidenceStatus": "visual-candidate",
-          "timingStatus": "unknown",
+          "evidenceStatus": "measured",
+          "timingStatus": "partial",
           "bounds": {
-            "xMin": -18.0,
-            "xMax": 18.0,
-            "yMin": -10.1,
-            "yMax": 10.1
+            "xMin": -12.0,
+            "xMax": 12.0,
+            "yMin": -6.95,
+            "yMax": 7.05
+          },
+          "motionEvidence": {
+            "source": "footage-wcg",
+            "sourceTimestampStart": "00:00:34.000",
+            "sourceTimestampEnd": "00:00:52.000",
+            "arenaMatchMethod": "Eight-pixel occupancy comparison between workbook row 27 and the opening unobscured gameplay frame.",
+            "arenaMatchCoarseIntersectionOverUnion": 0.897384,
+            "arenaMatchSourceCoverage": 0.972384,
+            "sourceFrameIntervalTicks": 2.002,
+            "sampleIntervalTicks": 120,
+            "positionToleranceDiameters": 0.25,
+            "timingToleranceTicks": 120,
+            "partSize": {
+              "width": 2.5,
+              "height": 2.5,
+              "tolerance": 0.15
+            },
+            "primitiveIds": [
+              "moving-part-left",
+              "moving-part-right"
+            ],
+            "samples": [
+              {
+                "elapsedTicks": 0,
+                "leftX": -5.028,
+                "leftY": 5.667,
+                "rightX": 5.189,
+                "rightY": 5.678
+              },
+              {
+                "elapsedTicks": 120,
+                "leftX": -8.678,
+                "leftY": 5.578,
+                "rightX": 8.611,
+                "rightY": 5.611
+              },
+              {
+                "elapsedTicks": 240,
+                "leftX": -10.639,
+                "leftY": 5.644,
+                "rightX": 10.528,
+                "rightY": 5.617
+              },
+              {
+                "elapsedTicks": 360,
+                "leftX": -10.55,
+                "leftY": 2.606,
+                "rightX": 10.517,
+                "rightY": 2.633
+              },
+              {
+                "elapsedTicks": 480,
+                "leftX": -10.567,
+                "leftY": -3.3,
+                "rightX": 10.494,
+                "rightY": -3.294
+              },
+              {
+                "elapsedTicks": 600,
+                "leftX": -10.55,
+                "leftY": -5.578,
+                "rightX": 10.472,
+                "rightY": -5.556
+              },
+              {
+                "elapsedTicks": 720,
+                "leftX": -8.0,
+                "leftY": -5.539,
+                "rightX": 7.933,
+                "rightY": -5.522
+              },
+              {
+                "elapsedTicks": 840,
+                "leftX": -5.078,
+                "leftY": -5.561,
+                "rightX": 5.022,
+                "rightY": -5.567
+              },
+              {
+                "elapsedTicks": 960,
+                "leftX": -8.456,
+                "leftY": -5.594,
+                "rightX": 8.383,
+                "rightY": -5.556
+              },
+              {
+                "elapsedTicks": 1080,
+                "leftX": -10.478,
+                "leftY": -5.028,
+                "rightX": 10.494,
+                "rightY": -5.028
+              }
+            ],
+            "observedEndpointToReversalTicks": 840,
+            "fullPeriodStatus": "unobserved"
           }
         }
       ],
@@ -9622,7 +9737,7 @@
       "unknowns": [
         "Visible silhouette does not establish hidden or one-way colliders.",
         "Exact spawn position, facing, and alternate spawn choices remain unmeasured.",
-        "Behavior timing and physics remain unknown unless separately measured."
+        "Moving-platform interpolation, dwell time, full period, phase, and contact transfer remain unmeasured."
       ]
     },
     {
