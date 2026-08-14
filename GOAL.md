@@ -11,7 +11,7 @@ Decide, record the decision, and keep going.
 - `docs/design/physics-and-maps.md` — how movement, collision, bullets, blocking, and level geometry are meant to work, and the unit system everything is expressed in.
 - `docs/decisions.md` — append-only log.
   Every judgment call you make under ambiguity goes here.
-- `docs/postmortems.md` — every failure, stall, broken tool, or surprising friction, recorded the same session it happens, even when it didn't block you.
+- `docs/design-docs/postmortems.md` — every failure, stall, broken tool, or surprising friction, recorded the same session it happens, even when it didn't block you.
 
 If implementation proves something in `docs/architecture.md` is wrong, that is allowed and expected.
 Stop, write the change and its reasoning into `docs/decisions.md`, update `docs/architecture.md`, then continue.
@@ -86,7 +86,7 @@ Do the earliest thing that isn't done.
 - **Sources disagree:** implement the higher-confidence source, record the conflict, move on.
   If self-play statistics later look wrong, revisit it first.
 - **Same failure three times:** stop repeating it.
-  Write what you tried in `docs/postmortems.md`, take a different approach, and if the second approach also fails, park the item, record it, and work on something else.
+  Write what you tried in `docs/design-docs/postmortems.md`, take a different approach, and if the second approach also fails, park the item, record it, and work on something else.
 - **A check is in your way:** the check is right and the code is wrong.
   That's the default assumption, and overriding it requires a `docs/decisions.md` entry justifying the change.
 - **Backlog looks empty:** it isn't.

@@ -177,7 +177,7 @@ replays/                golden corpus + expected hashes + intentional-breaks.md
 research/
   raw/                  GITIGNORED — screenshots, video frames, downloads
   notes/                committed prose with provenance
-docs/                   architecture.md, decisions.md, postmortems.md, design/
+docs/                   architecture.md, decisions.md, design-docs/postmortems.md, design/
 tools/checks/           the mechanical checks CI runs
 ```
 

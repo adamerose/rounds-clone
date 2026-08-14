@@ -42,3 +42,31 @@ All Markdown in this repository breaks lines at sentence boundaries rather than 
 Renderers ignore single newlines, so nothing looks different.
 The reason is that these files are edited by agents for weeks: hard column wrapping means every edit has to reproduce the wrapping exactly, which drifts over hundreds of edits, and changing one word reflows a whole paragraph into a large diff.
 One sentence per line makes a diff show the sentence that actually changed.
+
+## 2026-08-14 — Preserve the design seed as the Git baseline
+
+The workspace arrived without Git metadata even though `GOAL.md` makes `git init` the first bootstrap action.
+The existing five files were committed unchanged on `main` as `b9073b6a9c110b5fbca5e242d49bd03a8cecef12` before any implementation work.
+This root commit is the only unavoidable pre-worktree change: Git cannot create a detached task worktree until a repository and base commit exist.
+
+## 2026-08-14 — The bootstrap ticket is human-admitted
+
+Ticket 001 starts at `ready` because Adam explicitly directed the complete build, named the repository the sole autonomous workspace, and the binding `GOAL.md` says bootstrap is the earliest dependency.
+The ticket narrows that admitted work without adding a product choice, so a separate admission round would add no information.
+
+## 2026-08-14 — Pin the first supported desktop toolchain
+
+Bootstrap pins Godot 4.7.1 .NET, the current stable engine release, and .NET SDK 8.0.423, the current .NET 8 servicing SDK.
+The target framework remains `net8.0` because Godot supports it and the founding architecture chose it; newer SDKs installed on a contributor machine must not silently change compilation.
+Project-local bootstrap scripts provision missing tools under `.tools/` so a clean machine does not depend on global editor state.
+The release pins were checked against the official [Godot 4.7.1 archive](https://godotengine.org/download/archive/4.7.1-stable/) and [.NET 8 download page](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) on 2026-08-14.
+
+## 2026-08-14 — Use an original minimalist identity for the clone
+
+The implementation will match the original game's readable arena silhouette, procedural motion, bright player colors, and chunky physical feedback without copying its logo, card art, audio, or exact UI text.
+The visible working title is `RICOCHET`, which communicates the core combat loop while keeping the shipped presentation distinct from Landfall's assets.
+
+## 2026-08-14 — Use the playbook's canonical postmortem ledger path
+
+The founding `GOAL.md` named `docs/postmortems.md`, while the active Ivy playbook requires `docs/design-docs/postmortems.md`.
+The goal and architecture now point to the playbook path so failures have one append-only home instead of two diverging copies.

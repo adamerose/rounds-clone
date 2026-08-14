@@ -1,0 +1,27 @@
+; Engine configuration file.
+; Edit through the Godot editor where possible.
+
+config_version=5
+
+[application]
+
+config/name="RICOCHET"
+run/main_scene="res://Main.tscn"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+
+[dotnet]
+
+project/assembly_name="Rounds.Game"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.0627451, 0.0745098, 0.109804, 1)

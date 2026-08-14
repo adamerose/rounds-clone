@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Provision pinned SDK
+        shell: pwsh
+        run: ./tools/bootstrap.ps1 -IncludeGodot
+      - name: Run all checks
+        shell: pwsh
+        run: ./tools/checks/run.ps1

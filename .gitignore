@@ -7,6 +7,7 @@ research/raw/
 # Rendered output
 out/
 reels/
+.tools/
 
 # Godot
 .godot/
