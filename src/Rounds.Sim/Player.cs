@@ -12,6 +12,16 @@ public sealed class Player
 
     public Vec2 Velocity { get; set; }
 
+    public bool IsGrounded { get; set; }
+
+    public int JumpsRemaining { get; set; }
+
+    public int JumpBufferTicksRemaining { get; set; }
+
+    public bool JumpCutAvailable { get; set; }
+
+    public bool WasJumpHeld { get; set; }
+
     public byte LastInputBits { get; set; }
 
     public ulong InputChecksum { get; set; }

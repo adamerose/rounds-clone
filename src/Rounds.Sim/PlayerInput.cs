@@ -2,7 +2,7 @@ namespace Rounds.Sim;
 
 public readonly record struct PlayerInput(
     sbyte MoveAxis,
-    bool JumpPressed,
+    bool JumpHeld,
     bool FirePressed,
     bool BlockPressed)
 {
@@ -10,7 +10,7 @@ public readonly record struct PlayerInput(
     {
         var axis = MoveAxis < 0 ? 1 : MoveAxis > 0 ? 2 : 0;
         return (byte)(axis
-            | (JumpPressed ? 1 << 2 : 0)
+            | (JumpHeld ? 1 << 2 : 0)
             | (FirePressed ? 1 << 3 : 0)
             | (BlockPressed ? 1 << 4 : 0));
     }

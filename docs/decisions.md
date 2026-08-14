@@ -250,3 +250,21 @@ Hazard and dynamic visual roles keep unimplemented behavior from silently enteri
 Fresh reviewer session `codex:019fffeb-75c7-7c30-82d5-ac46c0ec51a3` approved exact candidate `67369534652c9aac6e2fb278e6afdc09eab213a9` with no actionable findings.
 The review independently reproduced all ten arena-026 mover samples, identified workbook row 27 as the clear footage match, regenerated the 70-map catalog byte-for-byte, and passed the zero-warning 46-test gate plus Godot smoke.
 The candidate was fast-forwarded to `main` unchanged before this integration record was appended.
+
+## 2026-08-14 — Keep gameplay data embedded behind stream-loadable simulation APIs
+
+The simplest new design would give the pure simulation immutable arena and tuning values directly, with loading owned at an outer application boundary.
+The existing repository already treats committed JSON as the binding cross-tool artifact, so `Rounds.Sim` embeds those exact files for its supported default while exposing stream-based catalog loading for tests and future hosts.
+This avoids repository-relative runtime paths, keeps Godot types out of the simulation, and prevents the shell from duplicating map geometry or movement constants.
+
+## 2026-08-14 — Use rounded-box sweep as the single static collision vocabulary
+
+Circle movement against an oriented box is equivalent to sweeping a point against the box expanded by the player radius, with quarter-circle corners.
+The simulation tests face and corner candidates in box-local coordinates, resolves initial overlap explicitly, selects exact-time ties by source order, and removes inward velocity for four deterministic slide iterations.
+This one path handles floors, walls, slopes, corners, thin geometry, and later behavior-owned oriented boxes without parallel AABB and OBB solvers.
+
+## 2026-08-14 — Name provisional movement feel without claiming source fidelity
+
+The research binds run speed, acceleration, air control, gravity, jump speed, jump capacity, friction retention, and a four-tick jump buffer, but not jump release, contact threshold, ground probe, or collision skin.
+The first playable slice uses a `0.5` jump-release multiplier, `0.65` ground-normal threshold, `0.04`-diameter ground probe, `0.000001`-diameter collision skin, and four slide iterations.
+Boundary tests make their observable effect explicit so later controlled comparison can retune them without mistaking provisional feel for measured vanilla behavior.

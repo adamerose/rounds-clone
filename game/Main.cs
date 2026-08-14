@@ -1,11 +1,14 @@
 using Godot;
 using Rounds.Sim;
+using Rounds.Sim.Maps;
+using SimVector = Rounds.Sim.Math.Vec2;
 
 namespace Rounds.Game;
 
 public partial class Main : Node2D
 {
     private static readonly Color Paper = Color.FromHtml("f2f0e8");
+    private static readonly Color Ink = Color.FromHtml("10131c");
     private static readonly Color Red = Color.FromHtml("ff625f");
     private static readonly Color Blue = Color.FromHtml("48a9ff");
     private readonly PlayerInput[] _inputs = new PlayerInput[2];
@@ -29,13 +32,32 @@ public partial class Main : Node2D
 
     public override void _Draw()
     {
-        DrawRect(new Rect2(0.0f, 790.0f, 620.0f, 54.0f), Paper);
-        DrawRect(new Rect2(1300.0f, 790.0f, 620.0f, 54.0f), Paper);
-        DrawSetTransform(new Vector2(960.0f, 760.0f), -0.35f);
-        DrawRect(new Rect2(-34.0f, -150.0f, 68.0f, 300.0f), Paper);
+        var camera = CameraTransform.For(_world.Arena.CameraBounds);
+        foreach (var box in _world.Arena.StaticBoxes)
+        {
+            var center = camera.ToScreen(box.Center);
+            DrawSetTransform(center, Mathf.DegToRad((float)-box.RotationDegrees));
+            DrawRect(
+                new Rect2(
+                    (float)(-box.HalfExtents.X * camera.Scale),
+                    (float)(-box.HalfExtents.Y * camera.Scale),
+                    (float)(box.Width * camera.Scale),
+                    (float)(box.Height * camera.Scale)),
+                Paper);
+        }
+
         DrawSetTransform(Vector2.Zero, 0.0f);
-        DrawFighter(new Vector2(360.0f, 720.0f), Red, facing: 1.0f);
-        DrawFighter(new Vector2(1560.0f, 720.0f), Blue, facing: -1.0f);
+        for (var index = 0; index < _world.Players.Count; index++)
+        {
+            var player = _world.Players[index];
+            var color = index == 0 ? Red : Blue;
+            var facing = player.Velocity.X < 0.0 ? -1.0f : 1.0f;
+            DrawFighter(
+                camera.ToScreen(player.Position),
+                color,
+                facing,
+                (float)(_world.Tuning.Radius * camera.Scale));
+        }
     }
 
     private static PlayerInput ReadKeyboard(Key left, Key right, Key jump, Key fire, Key block)
@@ -48,12 +70,40 @@ public partial class Main : Node2D
             Godot.Input.IsKeyPressed(block));
     }
 
-    private void DrawFighter(Vector2 center, Color color, float facing)
+    private void DrawFighter(Vector2 center, Color color, float facing, float radius)
     {
-        DrawCircle(center, 58.0f, Colors.Black);
-        DrawCircle(center, 51.0f, color);
-        DrawCircle(center + new Vector2(15.0f * facing, -8.0f), 7.0f, Colors.Black);
-        DrawLine(center + new Vector2(37.0f * facing, 5.0f), center + new Vector2(82.0f * facing, -8.0f), Colors.Black, 14.0f);
-        DrawCircle(center + new Vector2(87.0f * facing, -10.0f), 13.0f, Colors.Black);
+        var outline = Mathf.Max(2.0f, radius * 0.12f);
+        DrawCircle(center, radius, Ink);
+        DrawCircle(center, radius - outline, color);
+        DrawCircle(center + new Vector2(radius * 0.25f * facing, -radius * 0.14f), radius * 0.12f, Ink);
+        DrawLine(
+            center + new Vector2(radius * 0.64f * facing, radius * 0.08f),
+            center + new Vector2(radius * 1.40f * facing, -radius * 0.14f),
+            Ink,
+            radius * 0.24f);
+        DrawCircle(center + new Vector2(radius * 1.48f * facing, -radius * 0.17f), radius * 0.22f, Ink);
+    }
+
+    private readonly record struct CameraTransform(double Scale, double CenterX, double CenterY)
+    {
+        private const double ViewportWidth = 1920.0;
+        private const double ViewportHeight = 1080.0;
+        private const double Margin = 80.0;
+
+        public static CameraTransform For(ArenaBounds bounds)
+        {
+            var scale = System.Math.Min(
+                (ViewportWidth - (2.0 * Margin)) / bounds.Width,
+                (ViewportHeight - (2.0 * Margin)) / bounds.Height);
+            return new CameraTransform(
+                scale,
+                (bounds.XMin + bounds.XMax) / 2.0,
+                (bounds.YMin + bounds.YMax) / 2.0);
+        }
+
+        public Vector2 ToScreen(SimVector world) =>
+            new(
+                (float)(ViewportWidth / 2.0 + ((world.X - CenterX) * Scale)),
+                (float)(ViewportHeight / 2.0 - ((world.Y - CenterY) * Scale)));
     }
 }

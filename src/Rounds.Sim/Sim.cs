@@ -19,6 +19,7 @@ public static class Sim
                 (player.InputChecksum * 1099511628211UL)
                 ^ inputBits
                 ^ (ulong)player.Id);
+            Physics.KinematicController.Step(player, inputs[index], world.Arena.StaticBoxes, world.Tuning);
         }
 
         world.Rng.NextUInt();
@@ -33,6 +34,7 @@ public static class Sim
         hash.Add(world.Tick);
         hash.Add(world.Rng.State);
         hash.Add(world.Rng.Increment);
+        hash.Add(world.Arena.Id);
         hash.Add(world.Players.Count);
         foreach (var player in world.Players)
         {
@@ -42,6 +44,11 @@ public static class Sim
             hash.Add(player.Position.Y);
             hash.Add(player.Velocity.X);
             hash.Add(player.Velocity.Y);
+            hash.Add(player.IsGrounded ? (byte)1 : (byte)0);
+            hash.Add(player.JumpsRemaining);
+            hash.Add(player.JumpBufferTicksRemaining);
+            hash.Add(player.JumpCutAvailable ? (byte)1 : (byte)0);
+            hash.Add(player.WasJumpHeld ? (byte)1 : (byte)0);
             hash.Add(player.LastInputBits);
             hash.Add(player.InputChecksum);
         }

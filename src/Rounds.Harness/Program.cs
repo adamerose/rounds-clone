@@ -65,7 +65,7 @@ internal static class SmokeInput
         var move = phase < 40 ? (sbyte)1 : phase < 80 ? (sbyte)-1 : (sbyte)0;
         return new PlayerInput(
             move,
-            JumpPressed: phase == 8,
+            JumpHeld: phase == 8,
             FirePressed: phase % 23 == 0,
             BlockPressed: phase == 61);
     }

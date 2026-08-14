@@ -21,6 +21,19 @@ public sealed class DeterminismTests
     }
 
     [Fact]
+    public void OneMovementInputChangesCompleteArenaStateHash()
+    {
+        var idle = World.CreateSmoke(42UL);
+        var moving = World.CreateSmoke(42UL);
+
+        Sim.Step(idle, [default, default]);
+        Sim.Step(moving, [new PlayerInput(1, false, false, false), default]);
+
+        Assert.NotEqual(Sim.Hash(idle), Sim.Hash(moving));
+        Assert.NotEqual(idle.Players[0].Velocity.X, moving.Players[0].Velocity.X);
+    }
+
+    [Fact]
     public void SeedChangeProducesDifferentHash()
     {
         Assert.NotEqual(

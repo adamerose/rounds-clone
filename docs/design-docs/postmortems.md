@@ -546,3 +546,10 @@ Reviewer `codex:019ffff9-3be5-7da2-8811-5df376ffc9a4` admitted exact amended can
 One read-only catalog query initially used incorrect property names and returned empty counts before the corrected query confirmed 15 static arena-006 primitives and two spawns.
 One combined inspection exceeded the display budget, so focused rereads recovered the relevant ticket and design evidence.
 Neither retry changed files or left residue.
+
+## 2026-08-14 — Movement implementation discovery made four harmless path and shell mistakes
+
+The first build command assumed another worktree contained a usable `.tools/dotnet/dotnet.exe`, but SDK tools are intentionally ignored and worktree-local; the verified bootstrap installed the pinned SDK in the movement worktree and the zero-warning build passed.
+One read-only arena inventory piped directly from a completed PowerShell `foreach` block and hit the known empty-pipeline parser error before a collected-array retry returned the intended roles.
+One frontend inspection guessed `game/Rounds.Godot/Main.cs` and `game/Rounds.Godot/project.godot`, and the same command guessed `tools/Rounds.Harness/Program.cs`; `rg --files` immediately located the actual `game/Main.cs`, `game/project.godot`, and `src/Rounds.Harness/Program.cs` paths.
+These failures changed no tracked files and left no residue.

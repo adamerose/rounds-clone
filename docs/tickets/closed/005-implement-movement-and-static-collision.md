@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-14T11:08:00Z
 origin: agent-proposed
 tags: [implementation, simulation, movement, physics, maps]
@@ -63,3 +63,7 @@ Movement against real level geometry is the foundation for shooting, recoil, rin
 - 2026-08-14T11:14:17Z stage admission start session codex:019ffff9-3be5-7da2-8811-5df376ffc9a4 — Cold-reading amended exact candidate `b09b9fd1814443f3dfeaea76c80541bc116ede55` against the self-admission bar, coyote correction, jump-state boundaries, closed dependencies, and risk.
 - 2026-08-14T11:14:17Z stage admission end session codex:019ffff9-3be5-7da2-8811-5df376ffc9a4 — Admitted at risk 4 with no findings: the bounded static-arena slice, deterministic interfaces, exclusions, provisional constants, and public evidence leave no unresolved human decision.
 - 2026-08-14T11:14:17Z stage implement start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Implementing immutable arena loading, deterministic oriented-box collision, researched player movement, stored-jump state, live arena rendering, and boundary regressions without changing spec.
+- 2026-08-14T11:27:31Z stage implement end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Delivered the embedded stream-loadable catalog, rounded oriented-box sweep and slide, sourced movement and stored-jump state, complete hashing, and live arena rendering with two local control sets.
+- 2026-08-14T11:27:31Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Running focused boundaries, the complete release gate, deterministic replay, spec immutability, Godot editor/runtime smoke, and GPU-rendered visual inspection before candidate review.
+- 2026-08-14T11:28:29Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Passed 39 simulation and 37 checker tests, repository checks, zero-warning release build, repeated 600-tick hash `28bca5e37a7a3255`, unchanged spec, Godot editor/runtime smoke, and a clean GPU frame of the live arena.
+- 2026-08-14T11:28:29Z stage review start session codex:019fffc8-8b3b-75a1-ae5d-f4b8ad895a73 — Sending the complete detached candidate to a fresh non-author review against ticket 005 and the supported public evidence.

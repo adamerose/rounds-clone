@@ -27,4 +27,13 @@ internal sealed class StableHash64
     }
 
     public void Add(double value) => Add(BitConverter.DoubleToUInt64Bits(value));
+
+    public void Add(string value)
+    {
+        Add(value.Length);
+        foreach (var character in value)
+        {
+            Add((int)character);
+        }
+    }
 }
