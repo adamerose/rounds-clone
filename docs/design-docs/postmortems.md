@@ -539,3 +539,10 @@ Reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` rejected exact ticket cand
 The correction removes coyote machinery from the ticket and physics design, retains the sourced four-tick landing buffer, and requires direct tests for ledge departure, jump consumption, and refill-after-landing behavior.
 During review, one search included a nonexistent root `tests` path and produced oversized truncated output after useful results, one inspection guessed nonexistent `src/Rounds.Sim/Input.cs`, and one arena query guessed root property `arenas` before using `maps`.
 All three mistakes were read-only and left no residue.
+
+## 2026-08-14 — Ticket 005's amended admission review used two focused retries
+
+Reviewer `codex:019ffff9-3be5-7da2-8811-5df376ffc9a4` admitted exact amended candidate `b09b9fd1814443f3dfeaea76c80541bc116ede55` with no findings.
+One read-only catalog query initially used incorrect property names and returned empty counts before the corrected query confirmed 15 static arena-006 primitives and two spawns.
+One combined inspection exceeded the display budget, so focused rereads recovered the relevant ticket and design evidence.
+Neither retry changed files or left residue.

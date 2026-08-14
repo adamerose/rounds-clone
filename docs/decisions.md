@@ -162,6 +162,12 @@ The binding movement rule gives each player one stored jump that remains usable 
 A conventional coyote window therefore changes nothing while the jump remains stored, or incorrectly creates a second jump if recent ground contact grants eligibility after that stored jump was consumed.
 Movement keeps the sourced provisional four-tick landing buffer and tests the actual state boundaries instead of adding redundant coyote machinery.
 
+## 2026-08-14 — Admit the static movement slice
+
+Reviewer session `codex:019ffff9-3be5-7da2-8811-5df376ffc9a4` admitted ticket 005 at risk 4 after tickets 002 and 004 closed.
+The contract binds one static arena, one deterministic circle-versus-oriented-box collision path, researched movement constants, an explicit stored-jump state machine, live shell rendering, and negative boundaries without mixing in combat or lifecycle work.
+No human choice remains because unmeasured feel constants are named provisional values with direct behavioral tests rather than hidden claims about the original game.
+
 ## 2026-08-14 — Admit ticket 004 as bounded arena research
 
 Reviewer session `codex:019fff46-e63b-7911-8124-12c0d8fe0b12` admitted ticket 004 at risk 4 after ticket 002 closed.

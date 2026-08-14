@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-08-14T11:08:00Z
 origin: agent-proposed
 tags: [implementation, simulation, movement, physics, maps]
@@ -10,6 +10,7 @@ depends-on: [2, 4]
 sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
   - codex:019ffff6-6034-76b1-96a2-b080ac183346
+  - codex:019ffff9-3be5-7da2-8811-5df376ffc9a4
 ---
 
 # Implement deterministic movement and static arena collision
@@ -59,3 +60,6 @@ Movement against real level geometry is the foundation for shooting, recoil, rin
 - 2026-08-14T11:11:44Z stage admission end session codex:019ffff6-6034-76b1-96a2-b080ac183346 — Rejected conventional coyote time because the indefinitely stored air jump makes it redundant or turns it into an incorrect second-jump grant; the rest of the risk-4 contract passed.
 - 2026-08-14T11:11:44Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Removing coyote machinery from the ticket and owning design, then replacing it with observable stored-jump and landing-buffer boundary tests.
 - 2026-08-14T11:11:44Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Bound one persistent stored jump after ledge departure, no recent-ground bonus after consumption, and a sourced four-tick buffer that can fire only after landing refills the jump.
+- 2026-08-14T11:14:17Z stage admission start session codex:019ffff9-3be5-7da2-8811-5df376ffc9a4 — Cold-reading amended exact candidate `b09b9fd1814443f3dfeaea76c80541bc116ede55` against the self-admission bar, coyote correction, jump-state boundaries, closed dependencies, and risk.
+- 2026-08-14T11:14:17Z stage admission end session codex:019ffff9-3be5-7da2-8811-5df376ffc9a4 — Admitted at risk 4 with no findings: the bounded static-arena slice, deterministic interfaces, exclusions, provisional constants, and public evidence leave no unresolved human decision.
+- 2026-08-14T11:14:17Z stage implement start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Implementing immutable arena loading, deterministic oriented-box collision, researched player movement, stored-jump state, live arena rendering, and boundary regressions without changing spec.
