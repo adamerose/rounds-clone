@@ -49,6 +49,12 @@
       "notes": "The public workbook has exactly one anchored preview in each sheet row 2-71."
     },
     {
+      "source": "removed-vanilla-map-index",
+      "reportedCount": 6,
+      "relationship": "historical-removed-subset",
+      "notes": "An independent public index lists six release-era arenas absent from all 70 workbook internal-name rows."
+    },
+    {
       "source": "runtime-build-21020021",
       "reportedCount": 0,
       "relationship": "observed-subset",
@@ -81,6 +87,7 @@
         "maskSha256": "6116388f4cd8785882e90a721f4562ad1ec0a32d85396be38eee9848e9f6f628",
         "sourceForegroundPixels": 55685,
         "renderedForegroundPixels": 57950,
+        "renderedMaskSha256": "fe37b3ff22a9d08f13e5077ea5cf3422673d9c26972c1cf8027232846367ffa0",
         "intersectionPixels": 55685,
         "unionPixels": 57950,
         "intersectionOverUnion": 0.960915
@@ -106,8 +113,8 @@
           "id": "spawn-left",
           "xMin": -15.372222,
           "xMax": -14.572222,
-          "yMin": -6.149445,
-          "yMax": -5.749445,
+          "yMin": -5.999445,
+          "yMax": -5.799445,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0029"
         },
@@ -115,8 +122,8 @@
           "id": "spawn-right",
           "xMin": 14.572222,
           "xMax": 15.372222,
-          "yMin": -2.760556,
-          "yMax": -2.360556,
+          "yMin": -2.610556,
+          "yMax": -2.410556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0014"
         }
@@ -487,6 +494,7 @@
         "maskSha256": "039b1a3db6ca2f20b96853cd7d7c84ea922198f76c226f1940a3ab967cdeb1a6",
         "sourceForegroundPixels": 68059,
         "renderedForegroundPixels": 70317,
+        "renderedMaskSha256": "c727bfe9ba5176f92e08b00f72e814b4978355e8e14c4c9e4944c348c154becd",
         "intersectionPixels": 68059,
         "unionPixels": 70317,
         "intersectionOverUnion": 0.967888
@@ -512,8 +520,8 @@
           "id": "spawn-left",
           "xMin": -15.4,
           "xMax": -14.6,
-          "yMin": -2.593889,
-          "yMax": -2.193888,
+          "yMin": -2.443889,
+          "yMax": -2.243889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0025"
         },
@@ -521,8 +529,8 @@
           "id": "spawn-right",
           "xMin": 14.572222,
           "xMax": 15.372222,
-          "yMin": -2.593889,
-          "yMax": -2.193888,
+          "yMin": -2.443889,
+          "yMax": -2.243889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0024"
         }
@@ -843,6 +851,7 @@
         "maskSha256": "380cfee3f71fe905be6959c222d4a17bc7466a151892207d9475e67f75854ce4",
         "sourceForegroundPixels": 155989,
         "renderedForegroundPixels": 162244,
+        "renderedMaskSha256": "e706e3d1867bea2399adf2ac038eb4c7637132da8aa1d091ea3edee1772e7143",
         "intersectionPixels": 155989,
         "unionPixels": 162244,
         "intersectionOverUnion": 0.961447
@@ -868,8 +877,8 @@
           "id": "spawn-left",
           "xMin": -16.4,
           "xMax": -15.6,
-          "yMin": 2.961667,
-          "yMax": 3.361667,
+          "yMin": 3.111667,
+          "yMax": 3.311667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0048"
         },
@@ -877,8 +886,8 @@
           "id": "spawn-right",
           "xMin": 13.322222,
           "xMax": 14.122222,
-          "yMin": 0.683889,
-          "yMax": 1.083889,
+          "yMin": 0.833889,
+          "yMax": 1.033889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0043"
         }
@@ -1988,6 +1997,7 @@
         "maskSha256": "c58dbcfcb204ce601dcce108bae76929a04f15b08ea748f6b5aa0127048c4a55",
         "sourceForegroundPixels": 48511,
         "renderedForegroundPixels": 49365,
+        "renderedMaskSha256": "d9c9339871e3b66a94a1d72c263c8719a5e90f40b779057097ca7c73b903c2ef",
         "intersectionPixels": 48511,
         "unionPixels": 49365,
         "intersectionOverUnion": 0.9827
@@ -2013,8 +2023,8 @@
           "id": "spawn-left",
           "xMin": -14.594444,
           "xMax": -13.794444,
-          "yMin": -0.982778,
-          "yMax": -0.582778,
+          "yMin": -0.832778,
+          "yMax": -0.632778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0011"
         },
@@ -2022,8 +2032,8 @@
           "id": "spawn-right",
           "xMin": 13.766667,
           "xMax": 14.566667,
-          "yMin": -0.982778,
-          "yMax": -0.582778,
+          "yMin": -0.832778,
+          "yMax": -0.632778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         }
@@ -2294,6 +2304,7 @@
         "maskSha256": "034f83a89612fde004d7fb0f5bb4f0e0af01088c4655d26d19055abeb83a20c7",
         "sourceForegroundPixels": 46490,
         "renderedForegroundPixels": 48527,
+        "renderedMaskSha256": "ec1ce2ff44ed07c07502c873bdbd72c2d95b25e6bc99c7d75d5a94742c902b4e",
         "intersectionPixels": 46490,
         "unionPixels": 48527,
         "intersectionOverUnion": 0.958023
@@ -2317,19 +2328,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.816667,
-          "xMax": -17.016667,
-          "yMin": -2.427223,
-          "yMax": -2.027222,
+          "xMin": -17.778333,
+          "xMax": -17.055001,
+          "yMin": -2.277223,
+          "yMax": -2.077222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         },
         {
           "id": "spawn-right",
-          "xMin": 17.016667,
-          "xMax": 17.816667,
-          "yMin": -2.427223,
-          "yMax": -2.027222,
+          "xMin": 17.055001,
+          "xMax": 17.778333,
+          "yMin": -2.277223,
+          "yMax": -2.077222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0013"
         }
@@ -2670,6 +2681,7 @@
         "maskSha256": "8ad1f1757e4b5d351fd9cd5e345f99644bb024d198895b642444bb622fe72f42",
         "sourceForegroundPixels": 45367,
         "renderedForegroundPixels": 45550,
+        "renderedMaskSha256": "88c1125add6a23aae934950206883a650f95c1d2796e83f3c4df49aa1137b901",
         "intersectionPixels": 45367,
         "unionPixels": 45550,
         "intersectionOverUnion": 0.995982
@@ -2695,8 +2707,8 @@
           "id": "spawn-left",
           "xMin": -13.372222,
           "xMax": -12.572222,
-          "yMin": 2.739444,
-          "yMax": 3.139444,
+          "yMin": 2.889444,
+          "yMax": 3.089444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0003"
         },
@@ -2704,8 +2716,8 @@
           "id": "spawn-right",
           "xMin": 12.544444,
           "xMax": 13.344444,
-          "yMin": -6.371666,
-          "yMax": -5.971666,
+          "yMin": -6.221666,
+          "yMax": -6.021667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0013"
         }
@@ -2896,6 +2908,7 @@
         "maskSha256": "bcc83b6feb6707dae6d4faab45344b0808ddcc102dd5fa209b014c08c2c4f124",
         "sourceForegroundPixels": 24704,
         "renderedForegroundPixels": 25773,
+        "renderedMaskSha256": "edf30248f490ddeca6651fd1db7b39c697113d3b6e6c7304c50fa473d4197a13",
         "intersectionPixels": 24704,
         "unionPixels": 25773,
         "intersectionOverUnion": 0.958522
@@ -2921,17 +2934,17 @@
           "id": "spawn-left",
           "xMin": -12.9,
           "xMax": -12.1,
-          "yMin": -4.593889,
-          "yMax": -4.193889,
+          "yMin": -4.443889,
+          "yMax": -4.243889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0135"
         },
         {
           "id": "spawn-right",
-          "xMin": 10.85,
-          "xMax": 11.65,
-          "yMin": 4.961666,
-          "yMax": 5.361666,
+          "xMin": 10.999446,
+          "xMax": 11.500554,
+          "yMin": 5.111666,
+          "yMax": 5.311666,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0009"
         }
@@ -4422,6 +4435,7 @@
         "maskSha256": "c62b3bdc612aba2818758ddc14d1da1ef5c2a572f0d5b6fbce4834ac880ef5dc",
         "sourceForegroundPixels": 64710,
         "renderedForegroundPixels": 67520,
+        "renderedMaskSha256": "f0a63c85c0b9e196434500d36980c436db0aa1b8813a17c011ee26e1dc63d0a3",
         "intersectionPixels": 64710,
         "unionPixels": 67520,
         "intersectionOverUnion": 0.958383
@@ -4445,19 +4459,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -15.566667,
-          "xMax": -14.766667,
-          "yMin": -6.371667,
-          "yMax": -5.971667,
+          "xMin": -15.333888,
+          "xMax": -14.999446,
+          "yMin": -6.221667,
+          "yMax": -6.021667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0065"
         },
         {
           "id": "spawn-right",
-          "xMin": 14.6,
-          "xMax": 15.4,
-          "yMin": 7.017222,
-          "yMax": 7.417222,
+          "xMin": 14.610556,
+          "xMax": 15.389444,
+          "yMin": 7.167222,
+          "yMax": 7.367222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0001"
         }
@@ -5158,6 +5172,7 @@
         "maskSha256": "539817ff0bd8c1c30a23a3b5b00efcd3f841f2e07b6355dd71e078b564b1ec69",
         "sourceForegroundPixels": 21147,
         "renderedForegroundPixels": 22055,
+        "renderedMaskSha256": "d188911a1a664e827446b54d839984ec128e09cb8a44c2aaa5cd2e52047a2361",
         "intersectionPixels": 21147,
         "unionPixels": 22055,
         "intersectionOverUnion": 0.95883
@@ -5183,17 +5198,17 @@
           "id": "spawn-left",
           "xMin": -16.844444,
           "xMax": -16.044444,
-          "yMin": -3.093889,
-          "yMax": -2.693889,
+          "yMin": -2.943889,
+          "yMax": -2.743889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0099"
         },
         {
           "id": "spawn-right",
-          "xMin": 16.1,
-          "xMax": 16.9,
-          "yMin": 0.239445,
-          "yMax": 0.639444,
+          "xMin": 16.221667,
+          "xMax": 16.778333,
+          "yMin": 0.389444,
+          "yMax": 0.589444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0037"
         }
@@ -6374,6 +6389,7 @@
         "maskSha256": "3de4200b6189a8ae21a02d2750f5cab59c4bee4f0f66ac37cc83e5de29a62eaf",
         "sourceForegroundPixels": 15954,
         "renderedForegroundPixels": 16613,
+        "renderedMaskSha256": "32c1c8067260073f7c2f17c7930e5697af34d3185584389ae51e9abff10e201e",
         "intersectionPixels": 15954,
         "unionPixels": 16613,
         "intersectionOverUnion": 0.960332
@@ -6399,17 +6415,17 @@
           "id": "spawn-left",
           "xMin": -15.4,
           "xMax": -14.6,
-          "yMin": -0.705,
-          "yMax": -0.305,
+          "yMin": -0.555,
+          "yMax": -0.355,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0117"
         },
         {
           "id": "spawn-right",
-          "xMin": 14.655556,
-          "xMax": 15.455556,
-          "yMin": 1.128334,
-          "yMax": 1.528334,
+          "xMin": 14.832779,
+          "xMax": 15.278333,
+          "yMin": 1.278334,
+          "yMax": 1.478334,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0056"
         }
@@ -8520,6 +8536,7 @@
         "maskSha256": "de8644a86d0d86c4612400150514570e56b0d53f21d46da7e576a7358430a05c",
         "sourceForegroundPixels": 18536,
         "renderedForegroundPixels": 19282,
+        "renderedMaskSha256": "d7228e9b5ebeb770fad9d0e3e3b1958ce3756eb55cc525108bb4b2e1f97ec7aa",
         "intersectionPixels": 18536,
         "unionPixels": 19282,
         "intersectionOverUnion": 0.961311
@@ -8545,17 +8562,17 @@
           "id": "spawn-left",
           "xMin": -16.816667,
           "xMax": -16.016667,
-          "yMin": -5.649444,
-          "yMax": -5.249444,
+          "yMin": -5.499444,
+          "yMax": -5.299444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0416"
         },
         {
           "id": "spawn-right",
-          "xMin": 16.1,
-          "xMax": 16.9,
-          "yMin": 5.295,
-          "yMax": 5.695,
+          "xMin": 16.221667,
+          "xMax": 16.778333,
+          "yMin": 5.445,
+          "yMax": 5.645,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0165"
         }
@@ -12786,6 +12803,7 @@
         "maskSha256": "8abad1eaf600ed71250ffd9c65460c53a9808e91d289b0f95b847158c0a6f243",
         "sourceForegroundPixels": 44470,
         "renderedForegroundPixels": 46429,
+        "renderedMaskSha256": "89573d0099dbcc9a3f79db9716b852a1cc2b90c2ae83de86b1435845b2e5058b",
         "intersectionPixels": 44470,
         "unionPixels": 46429,
         "intersectionOverUnion": 0.957807
@@ -12809,19 +12827,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -16.15,
-          "xMax": -15.35,
-          "yMin": 3.572778,
-          "yMax": 3.972778,
+          "xMin": -16.000554,
+          "xMax": -15.499446,
+          "yMin": 3.722778,
+          "yMax": 3.922778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0127"
         },
         {
           "id": "spawn-right",
-          "xMin": 15.266667,
-          "xMax": 16.066667,
-          "yMin": -5.760556,
-          "yMax": -5.360556,
+          "xMin": 15.388335,
+          "xMax": 15.944999,
+          "yMin": -5.610556,
+          "yMax": -5.410556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0344"
         }
@@ -16422,6 +16440,7 @@
         "maskSha256": "5becd376258fa5e3f1d3a87376c565a8f72b83b58eebdae55fa8a345e4634293",
         "sourceForegroundPixels": 15122,
         "renderedForegroundPixels": 15751,
+        "renderedMaskSha256": "dd5f5b5e6c3ad3ee60ba3c4fb3da86e158e9b72a29ea232bcedcd931f5cda7b5",
         "intersectionPixels": 15122,
         "unionPixels": 15751,
         "intersectionOverUnion": 0.960066
@@ -16445,19 +16464,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -15.65,
-          "xMax": -14.85,
-          "yMin": -3.816111,
-          "yMax": -3.416111,
+          "xMin": -15.500554,
+          "xMax": -14.999446,
+          "yMin": -3.666111,
+          "yMax": -3.466111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0168"
         },
         {
           "id": "spawn-right",
-          "xMin": 14.961111,
-          "xMax": 15.761111,
-          "yMin": 1.406112,
-          "yMax": 1.806112,
+          "xMin": 15.110556,
+          "xMax": 15.611665,
+          "yMin": 1.556112,
+          "yMax": 1.756112,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0037"
         }
@@ -18818,6 +18837,7 @@
         "maskSha256": "9fb32818916c028b037391df6819adf7374b82120690c25d5b4828a7861fb35a",
         "sourceForegroundPixels": 36807,
         "renderedForegroundPixels": 38365,
+        "renderedMaskSha256": "d1dc8eacd750d317ffd7982ce98ee149aceba63b4d858cf2ef2155a82adc8885",
         "intersectionPixels": 36807,
         "unionPixels": 38365,
         "intersectionOverUnion": 0.95939
@@ -18843,8 +18863,8 @@
           "id": "spawn-left",
           "xMin": -16.733333,
           "xMax": -15.933333,
-          "yMin": 1.572778,
-          "yMax": 1.972778,
+          "yMin": 1.722778,
+          "yMax": 1.922778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0090"
         },
@@ -18852,8 +18872,8 @@
           "id": "spawn-right",
           "xMin": 15.933333,
           "xMax": 16.733333,
-          "yMin": 1.572778,
-          "yMax": 1.972778,
+          "yMin": 1.722778,
+          "yMax": 1.922778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0091"
         }
@@ -19944,6 +19964,7 @@
         "maskSha256": "388a7b15cbd7aaa292a248fdd0989775267a5ce0ffcbd473059bce24cd258be8",
         "sourceForegroundPixels": 92879,
         "renderedForegroundPixels": 96298,
+        "renderedMaskSha256": "500faf7a565feef312570d53ee111e0ac21c7e842a101586f92468d6e2153ce7",
         "intersectionPixels": 92879,
         "unionPixels": 96298,
         "intersectionOverUnion": 0.964496
@@ -19967,10 +19988,10 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.927778,
-          "xMax": -17.127778,
-          "yMin": -5.260556,
-          "yMax": -4.860556,
+          "xMin": -17.778333,
+          "xMax": -17.277224,
+          "yMin": -5.110556,
+          "yMax": -4.910556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0231"
         },
@@ -19978,8 +19999,8 @@
           "id": "spawn-right",
           "xMin": 16.35,
           "xMax": 17.15,
-          "yMin": -5.093889,
-          "yMax": -4.693888,
+          "yMin": -4.943888,
+          "yMax": -4.743889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0230"
         }
@@ -22358,6 +22379,7 @@
         "maskSha256": "908935d475c38ea6b53283d229d182a0883756c8a92590c24a2a17aa2a5c93a0",
         "sourceForegroundPixels": 43889,
         "renderedForegroundPixels": 45641,
+        "renderedMaskSha256": "da4a7c78ee82349497b08662c2f135f5491010e7d6dcec49a4b0ec0e44fcec60",
         "intersectionPixels": 43889,
         "unionPixels": 45641,
         "intersectionOverUnion": 0.961613
@@ -22383,8 +22405,8 @@
           "id": "spawn-left",
           "xMin": -15.4,
           "xMax": -14.6,
-          "yMin": -7.871666,
-          "yMax": -7.471666,
+          "yMin": -7.721666,
+          "yMax": -7.521667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0074"
         },
@@ -22392,8 +22414,8 @@
           "id": "spawn-right",
           "xMin": 15.1,
           "xMax": 15.9,
-          "yMin": -7.871666,
-          "yMax": -7.471666,
+          "yMin": -7.721666,
+          "yMax": -7.521667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0073"
         }
@@ -23217,6 +23239,7 @@
         "maskSha256": "31889cb3dd89d724dadddb17f01e62becabb4766adebdc093775981f5358288f",
         "sourceForegroundPixels": 38301,
         "renderedForegroundPixels": 39865,
+        "renderedMaskSha256": "117301dfe9e3936c2c6f0b6e43ad9a68e841095d476e1ddcd28445f8e2c9b26b",
         "intersectionPixels": 38301,
         "unionPixels": 39865,
         "intersectionOverUnion": 0.960768
@@ -23240,19 +23263,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -16.844444,
-          "xMax": -16.044444,
-          "yMin": 6.461666,
-          "yMax": 6.861666,
+          "xMin": -16.722777,
+          "xMax": -16.166111,
+          "yMin": 6.611666,
+          "yMax": 6.811666,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0017"
         },
         {
           "id": "spawn-right",
-          "xMin": 16.183333,
-          "xMax": 16.983333,
-          "yMin": 6.461666,
-          "yMax": 6.861667,
+          "xMin": 16.388334,
+          "xMax": 16.778332,
+          "yMin": 6.611667,
+          "yMax": 6.811666,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0031"
         }
@@ -25773,6 +25796,7 @@
         "maskSha256": "f3d81f12c19e365eb8414c6918a2cb45e9b25897296b9508cb1b0e76d9e12c10",
         "sourceForegroundPixels": 12834,
         "renderedForegroundPixels": 13372,
+        "renderedMaskSha256": "a97f68725b0208d815bc46a0f630bdff95672ecb69913181ba968adbe47c52ad",
         "intersectionPixels": 12834,
         "unionPixels": 13372,
         "intersectionOverUnion": 0.959767
@@ -25796,19 +25820,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -15.344444,
-          "xMax": -14.544444,
-          "yMin": -8.649444,
-          "yMax": -8.249444,
+          "xMin": -15.222777,
+          "xMax": -14.666112,
+          "yMin": -8.499444,
+          "yMax": -8.299444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0640"
         },
         {
           "id": "spawn-right",
-          "xMin": 14.738889,
-          "xMax": 15.538889,
-          "yMin": 5.406111,
-          "yMax": 5.806111,
+          "xMin": 14.999446,
+          "xMax": 15.278333,
+          "yMin": 5.556111,
+          "yMax": 5.756111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0011"
         }
@@ -32279,6 +32303,7 @@
         "maskSha256": "a8f6174a3c0b707e684c7763b0e7a5f920931f2b28cedbeafab0f0b861da9762",
         "sourceForegroundPixels": 33690,
         "renderedForegroundPixels": 34994,
+        "renderedMaskSha256": "4776ff9c726488c41553733f76839526dd76db4cef508db195c5342bd8ad92f5",
         "intersectionPixels": 33690,
         "unionPixels": 34994,
         "intersectionOverUnion": 0.962736
@@ -32304,17 +32329,17 @@
           "id": "spawn-left",
           "xMin": -11.733333,
           "xMax": -10.933333,
-          "yMin": -5.927222,
-          "yMax": -5.527222,
+          "yMin": -5.777222,
+          "yMax": -5.577222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0368"
         },
         {
           "id": "spawn-right",
-          "xMin": 7.405556,
-          "xMax": 8.205556,
-          "yMin": 6.350555,
-          "yMax": 6.750555,
+          "xMin": 7.555002,
+          "xMax": 8.056111,
+          "yMin": 6.500555,
+          "yMax": 6.700555,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0046"
         }
@@ -36435,6 +36460,7 @@
         "maskSha256": "345ab4773def13092f5085871e8894f3e1039550d8bc9ea9cd14f3bba6e6578f",
         "sourceForegroundPixels": 60920,
         "renderedForegroundPixels": 63163,
+        "renderedMaskSha256": "f1a380debe5be0bdf43383148bafce044e45d822e78e6c05f17ceb7a642f8965",
         "intersectionPixels": 60920,
         "unionPixels": 63163,
         "intersectionOverUnion": 0.964489
@@ -36460,8 +36486,8 @@
           "id": "spawn-left",
           "xMin": -11.483333,
           "xMax": -10.683333,
-          "yMin": 2.906111,
-          "yMax": 3.306112,
+          "yMin": 3.056112,
+          "yMax": 3.256112,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0004"
         },
@@ -36469,8 +36495,8 @@
           "id": "spawn-right",
           "xMin": 10.683333,
           "xMax": 11.483333,
-          "yMin": 2.906111,
-          "yMax": 3.306112,
+          "yMin": 3.056112,
+          "yMax": 3.256112,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0005"
         }
@@ -36611,6 +36637,7 @@
         "maskSha256": "55dd3ac9e7f298320bebd4e4cc9b88cbc042d16b43fd90737cd2e4f393cd5892",
         "sourceForegroundPixels": 42071,
         "renderedForegroundPixels": 43598,
+        "renderedMaskSha256": "6ad0244e0d7668be14f67fe4ce9a4d9944b84f75986aa5e46bdf7f3a7123f2b4",
         "intersectionPixels": 42071,
         "unionPixels": 43598,
         "intersectionOverUnion": 0.964975
@@ -36634,19 +36661,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -15.319715,
-          "xMax": -14.519715,
-          "yMin": -2.880627,
-          "yMax": -2.480627,
+          "xMin": -15.344491,
+          "xMax": -14.544491,
+          "yMin": -2.737197,
+          "yMax": -2.537197,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0028"
         },
         {
           "id": "spawn-right",
-          "xMin": 14.482752,
-          "xMax": 15.282752,
-          "yMin": -2.856062,
-          "yMax": -2.456062,
+          "xMin": 14.507045,
+          "xMax": 15.307045,
+          "yMin": -2.71236,
+          "yMax": -2.51236,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0029"
         }
@@ -37187,6 +37214,7 @@
         "maskSha256": "80d49d7eedb9ac65a464a74ef4b15ba1797877c31b9b964f37fbe0903681d5c5",
         "sourceForegroundPixels": 34034,
         "renderedForegroundPixels": 35162,
+        "renderedMaskSha256": "295b208d8e75168f1ad204303227754b818bfb728c358e695f777e289d1eafdf",
         "intersectionPixels": 34034,
         "unionPixels": 35162,
         "intersectionOverUnion": 0.96792
@@ -37212,8 +37240,8 @@
           "id": "spawn-left",
           "xMin": -16.955556,
           "xMax": -16.155556,
-          "yMin": 1.239445,
-          "yMax": 1.639444,
+          "yMin": 1.389444,
+          "yMax": 1.589444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0043"
         },
@@ -37221,8 +37249,8 @@
           "id": "spawn-right",
           "xMin": 16.211111,
           "xMax": 17.011111,
-          "yMin": 1.183889,
-          "yMax": 1.583889,
+          "yMin": 1.333889,
+          "yMax": 1.533889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0045"
         }
@@ -38253,6 +38281,7 @@
         "maskSha256": "cf7a5a2ddbeba7cb40e29b9f911cc2b2038af76c88f6784455993a7b7174dc81",
         "sourceForegroundPixels": 21110,
         "renderedForegroundPixels": 21900,
+        "renderedMaskSha256": "1b5ddd5cffb2d7b7f705aa87f372470516f51f2f30d36b8ff166e43ed3736db7",
         "intersectionPixels": 21110,
         "unionPixels": 21900,
         "intersectionOverUnion": 0.963927
@@ -38276,19 +38305,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.197832,
-          "xMax": -16.397832,
-          "yMin": 1.097832,
-          "yMax": 1.497832,
+          "xMin": -17.233188,
+          "xMax": -16.433188,
+          "yMin": 1.233188,
+          "yMax": 1.433188,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0022"
         },
         {
           "id": "spawn-right",
-          "xMin": 13.802168,
-          "xMax": 14.602168,
-          "yMin": 1.097832,
-          "yMax": 1.497832,
+          "xMin": 13.766812,
+          "xMax": 14.566812,
+          "yMin": 1.233188,
+          "yMax": 1.433188,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0027"
         }
@@ -38849,6 +38878,7 @@
         "maskSha256": "49faa4d272a01f6f5cdb12a46b6a8f831f67f1b1e0b0bd51a3b407a1569bca02",
         "sourceForegroundPixels": 20085,
         "renderedForegroundPixels": 20385,
+        "renderedMaskSha256": "d3101e21b888f2964fc9bc7bdac461a5f5c42af206501fcb60044c93c60a6d52",
         "intersectionPixels": 20085,
         "unionPixels": 20385,
         "intersectionOverUnion": 0.985283
@@ -38872,19 +38902,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -16.412454,
-          "xMax": -15.612454,
-          "yMin": 0.479547,
-          "yMax": 0.879547,
+          "xMin": -16.182847,
+          "xMax": -15.881879,
+          "yMin": 0.625413,
+          "yMax": 0.825413,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0418"
         },
         {
           "id": "spawn-right",
-          "xMin": 15.6,
-          "xMax": 16.4,
-          "yMin": 0.850556,
-          "yMax": 1.250556,
+          "xMin": 15.832779,
+          "xMax": 16.167221,
+          "yMin": 1.000556,
+          "yMax": 1.200556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0305"
         }
@@ -48705,6 +48735,7 @@
         "maskSha256": "42f5ada0f32ae98cdb83c5dc119224c9f05cad98b91df263c8f93ce6a05eca53",
         "sourceForegroundPixels": 76352,
         "renderedForegroundPixels": 79076,
+        "renderedMaskSha256": "69cce36c7082011af831ed1252c0e4535e7724a9b1c96285a1ee0443d9810ae6",
         "intersectionPixels": 76352,
         "unionPixels": 79076,
         "intersectionOverUnion": 0.965552
@@ -48730,8 +48761,8 @@
           "id": "spawn-left",
           "xMin": -16.622222,
           "xMax": -15.822222,
-          "yMin": -1.371666,
-          "yMax": -0.971666,
+          "yMin": -1.221666,
+          "yMax": -1.021666,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0032"
         },
@@ -48739,8 +48770,8 @@
           "id": "spawn-right",
           "xMin": 16.072222,
           "xMax": 16.872222,
-          "yMin": -5.705,
-          "yMax": -5.305,
+          "yMin": -5.555,
+          "yMax": -5.355,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0093"
         }
@@ -49781,6 +49812,7 @@
         "maskSha256": "e851e87cecc3443ec058171437ba474c184831a1318a6bc8026bcccb988537fc",
         "sourceForegroundPixels": 72904,
         "renderedForegroundPixels": 75558,
+        "renderedMaskSha256": "5d071a434b47d7e63b4bf42aab4476815dd2d90958e6fd321e5f3ed5b5be5688",
         "intersectionPixels": 72904,
         "unionPixels": 75558,
         "intersectionOverUnion": 0.964875
@@ -49806,8 +49838,8 @@
           "id": "spawn-left",
           "xMin": -15.427778,
           "xMax": -14.627778,
-          "yMin": -2.649445,
-          "yMax": -2.249445,
+          "yMin": -2.499445,
+          "yMax": -2.299444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0013"
         },
@@ -49815,8 +49847,8 @@
           "id": "spawn-right",
           "xMin": 14.627778,
           "xMax": 15.427778,
-          "yMin": -2.649445,
-          "yMax": -2.249445,
+          "yMin": -2.499445,
+          "yMax": -2.299444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         }
@@ -50010,6 +50042,7 @@
         "maskSha256": "2d8e0beb3a2d937e7afc8cb089ae11d361408fabe8731b54911c71cf6d725223",
         "sourceForegroundPixels": 45833,
         "renderedForegroundPixels": 47634,
+        "renderedMaskSha256": "39399029a79366bc15830ff58a12c88ec2c73f3759adf286b481f0489a7b8f7f",
         "intersectionPixels": 45833,
         "unionPixels": 47634,
         "intersectionOverUnion": 0.962191
@@ -50035,8 +50068,8 @@
           "id": "spawn-left",
           "xMin": -14.677778,
           "xMax": -13.877778,
-          "yMin": -5.482778,
-          "yMax": -5.082778,
+          "yMin": -5.332778,
+          "yMax": -5.132778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0015"
         },
@@ -50044,8 +50077,8 @@
           "id": "spawn-right",
           "xMin": 13.877778,
           "xMax": 14.677778,
-          "yMin": -5.482778,
-          "yMax": -5.082778,
+          "yMin": -5.332778,
+          "yMax": -5.132778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0014"
         }
@@ -50256,6 +50289,7 @@
         "maskSha256": "ed01d6273792687186803e885e3e29d9dc0892d0a74ff7f421529e1e2fee95db",
         "sourceForegroundPixels": 48622,
         "renderedForegroundPixels": 50313,
+        "renderedMaskSha256": "30b9a7a87ccf75d616ecd813b989c775db43eaba2ec46e9d066c6fdf39360371",
         "intersectionPixels": 48622,
         "unionPixels": 50313,
         "intersectionOverUnion": 0.96639
@@ -50279,19 +50313,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.844444,
-          "xMax": -17.044444,
-          "yMin": -2.038333,
-          "yMax": -1.638333,
+          "xMin": -17.778332,
+          "xMax": -17.110556,
+          "yMin": -1.888333,
+          "yMax": -1.688333,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0018"
         },
         {
           "id": "spawn-right",
-          "xMin": 17.127778,
-          "xMax": 17.927778,
-          "yMin": -2.205001,
-          "yMax": -1.805001,
+          "xMin": 17.277224,
+          "xMax": 17.778333,
+          "yMin": -2.055001,
+          "yMax": -1.855001,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0019"
         }
@@ -50732,6 +50766,7 @@
         "maskSha256": "31207d7d536ca62c1a535a842195251ffe925913630f7c5ae412f640086f530d",
         "sourceForegroundPixels": 66764,
         "renderedForegroundPixels": 69277,
+        "renderedMaskSha256": "0fdddb4c5cbe4efc53a21fd880c97fea8b84a2b37173981d7fb8c434628ab47b",
         "intersectionPixels": 66764,
         "unionPixels": 69277,
         "intersectionOverUnion": 0.963725
@@ -50755,10 +50790,10 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -14.4,
-          "xMax": -13.6,
-          "yMin": 6.628333,
-          "yMax": 7.028333,
+          "xMin": -14.389444,
+          "xMax": -13.610556,
+          "yMin": 6.778333,
+          "yMax": 6.978333,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0003"
         },
@@ -50766,8 +50801,8 @@
           "id": "spawn-right",
           "xMin": 13.433333,
           "xMax": 14.233333,
-          "yMin": -8.593888,
-          "yMax": -8.193888,
+          "yMin": -8.443888,
+          "yMax": -8.243889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0064"
         }
@@ -51448,6 +51483,7 @@
         "maskSha256": "249375be05c7ea45cc8e085ba240ca31e32f76aeebd0a176f3ca7cf232e4c8bf",
         "sourceForegroundPixels": 60437,
         "renderedForegroundPixels": 62814,
+        "renderedMaskSha256": "4b11454dc8b27d710e07b06367ff4c3d5b8077020b9ca2971cff435a6a7e4433",
         "intersectionPixels": 60437,
         "unionPixels": 62814,
         "intersectionOverUnion": 0.962158
@@ -51473,8 +51509,8 @@
           "id": "spawn-left",
           "xMin": -14.927778,
           "xMax": -14.127778,
-          "yMin": -0.427222,
-          "yMax": -0.027222,
+          "yMin": -0.277222,
+          "yMax": -0.077222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0087"
         },
@@ -51482,8 +51518,8 @@
           "id": "spawn-right",
           "xMin": 13.794444,
           "xMax": 14.594444,
-          "yMin": -6.427223,
-          "yMax": -6.027223,
+          "yMin": -6.277223,
+          "yMax": -6.077223,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0138"
         }
@@ -52927,6 +52963,7 @@
         "maskSha256": "a79c68d7f8139b927b89022e19b2ec260b76ef5a650c74046966a607c2f2549d",
         "sourceForegroundPixels": 94722,
         "renderedForegroundPixels": 98692,
+        "renderedMaskSha256": "82aebb784fe1391e24d18ac5f813d06deeca2c79c5f6f8a8a723aa0cd366aad2",
         "intersectionPixels": 94722,
         "unionPixels": 98692,
         "intersectionOverUnion": 0.959774
@@ -52952,8 +52989,8 @@
           "id": "spawn-left",
           "xMin": -16.955556,
           "xMax": -16.155556,
-          "yMin": 3.906111,
-          "yMax": 4.306112,
+          "yMin": 4.056112,
+          "yMax": 4.256111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0024"
         },
@@ -52961,8 +52998,8 @@
           "id": "spawn-right",
           "xMin": 16.155556,
           "xMax": 16.955556,
-          "yMin": -3.649445,
-          "yMax": -3.249445,
+          "yMin": -3.499445,
+          "yMax": -3.299444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0068"
         }
@@ -53933,6 +53970,7 @@
         "maskSha256": "0b1104ac90b49a8250aef9812732ec739e63118100532061853b4e31e96134f4",
         "sourceForegroundPixels": 41106,
         "renderedForegroundPixels": 42891,
+        "renderedMaskSha256": "ac7901c08a9b3074653aea87dac60ca65c3246dca0373f6bf415f80bd7f33a12",
         "intersectionPixels": 41106,
         "unionPixels": 42891,
         "intersectionOverUnion": 0.958383
@@ -53956,10 +53994,10 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -15.816667,
-          "xMax": -15.016667,
-          "yMin": -5.593889,
-          "yMax": -5.193888,
+          "xMin": -15.556111,
+          "xMax": -15.277223,
+          "yMin": -5.443888,
+          "yMax": -5.243889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0062"
         },
@@ -53967,8 +54005,8 @@
           "id": "spawn-right",
           "xMin": 14.516667,
           "xMax": 15.316667,
-          "yMin": -8.705,
-          "yMax": -8.305,
+          "yMin": -8.555,
+          "yMax": -8.355,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0071"
         }
@@ -54759,6 +54797,7 @@
         "maskSha256": "a72937236094bbe747ff8534922a84b3d3bb9615bcb5e71f8dd875c6f80d06ca",
         "sourceForegroundPixels": 22574,
         "renderedForegroundPixels": 22776,
+        "renderedMaskSha256": "f89331b48b3b41202219ecd2214b4a28ece8e35590f59484c1577e67b16322cb",
         "intersectionPixels": 22574,
         "unionPixels": 22776,
         "intersectionOverUnion": 0.991131
@@ -54784,8 +54823,8 @@
           "id": "spawn-left",
           "xMin": -14.483333,
           "xMax": -13.683333,
-          "yMin": -2.316111,
-          "yMax": -1.916111,
+          "yMin": -2.166111,
+          "yMax": -1.966111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0016"
         },
@@ -54793,8 +54832,8 @@
           "id": "spawn-right",
           "xMin": 13.683333,
           "xMax": 14.483333,
-          "yMin": -2.316111,
-          "yMax": -1.916111,
+          "yMin": -2.166111,
+          "yMax": -1.966111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0017"
         }
@@ -55005,6 +55044,7 @@
         "maskSha256": "13b943f008a9dc5e4713d5f54e03d6209f3440307ef671c1c79826514f8ec1de",
         "sourceForegroundPixels": 23481,
         "renderedForegroundPixels": 24164,
+        "renderedMaskSha256": "3a1d7da4ca24a6cc456f22a5e5cef82e40793811fd4b0345f796c6089f1a7573",
         "intersectionPixels": 23481,
         "unionPixels": 24164,
         "intersectionOverUnion": 0.971735
@@ -55030,8 +55070,8 @@
           "id": "spawn-left",
           "xMin": -14.483333,
           "xMax": -13.683333,
-          "yMin": -2.316111,
-          "yMax": -1.916111,
+          "yMin": -2.166111,
+          "yMax": -1.966111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         },
@@ -55039,8 +55079,8 @@
           "id": "spawn-right",
           "xMin": 13.683333,
           "xMax": 14.483333,
-          "yMin": -2.316111,
-          "yMax": -1.916111,
+          "yMin": -2.166111,
+          "yMax": -1.966111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0013"
         }
@@ -55241,6 +55281,7 @@
         "maskSha256": "5c70491ac1be16ae8c0b065206af0065f3dda2a83717cc61eb1e021b4bc0e985",
         "sourceForegroundPixels": 13479,
         "renderedForegroundPixels": 13894,
+        "renderedMaskSha256": "d488528ebaef6d1f53f5b5c9d3a32b8c61b4eb9e12af3ed37a5c12f00a06f76e",
         "intersectionPixels": 13479,
         "unionPixels": 13894,
         "intersectionOverUnion": 0.970131
@@ -55264,19 +55305,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.336721,
-          "xMax": -16.536721,
-          "yMin": 5.736721,
-          "yMax": 6.136721,
+          "xMin": -17.372077,
+          "xMax": -16.572077,
+          "yMin": 5.872077,
+          "yMax": 6.072077,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0002"
         },
         {
           "id": "spawn-right",
-          "xMin": 14.996613,
-          "xMax": 15.796613,
-          "yMin": 5.736721,
-          "yMax": 6.136721,
+          "xMin": 14.961257,
+          "xMax": 15.761257,
+          "yMin": 5.872077,
+          "yMax": 6.072077,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0001"
         }
@@ -55457,6 +55498,7 @@
         "maskSha256": "d61ba0fe06e1b3aa27f2342520ad674982f49ef5e49382923075f46c7e35a09d",
         "sourceForegroundPixels": 22362,
         "renderedForegroundPixels": 22839,
+        "renderedMaskSha256": "893cd152faabccf3912fb8169df5c6be5f4413461523a241361a2da188b6e7d7",
         "intersectionPixels": 22362,
         "unionPixels": 22839,
         "intersectionOverUnion": 0.979115
@@ -55482,8 +55524,8 @@
           "id": "spawn-left",
           "xMin": -15.4,
           "xMax": -14.6,
-          "yMin": -4.093889,
-          "yMax": -3.693889,
+          "yMin": -3.943889,
+          "yMax": -3.743889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0013"
         },
@@ -55491,8 +55533,8 @@
           "id": "spawn-right",
           "xMin": 14.627778,
           "xMax": 15.427778,
-          "yMin": -4.093889,
-          "yMax": -3.693889,
+          "yMin": -3.943889,
+          "yMax": -3.743889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         }
@@ -55723,6 +55765,7 @@
         "maskSha256": "91c555d2599e53d5135de15db5ee3537a61a6105199acbf064faf3a96af47742",
         "sourceForegroundPixels": 9525,
         "renderedForegroundPixels": 9825,
+        "renderedMaskSha256": "ce4b4ae27f576696349b9941516bb5fd5debf69b3eff9dfcd504ad20c9e2155b",
         "intersectionPixels": 9525,
         "unionPixels": 9825,
         "intersectionOverUnion": 0.969466
@@ -55746,10 +55789,10 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -16.392276,
-          "xMax": -15.592276,
-          "yMin": 0.570054,
-          "yMax": 0.970054,
+          "xMin": -16.427632,
+          "xMax": -15.627632,
+          "yMin": 0.70541,
+          "yMax": 0.90541,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0007"
         },
@@ -55757,8 +55800,8 @@
           "id": "spawn-right",
           "xMin": 13.683333,
           "xMax": 14.483333,
-          "yMin": -5.427223,
-          "yMax": -5.027223,
+          "yMin": -5.277223,
+          "yMax": -5.077223,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0020"
         }
@@ -56019,6 +56062,7 @@
         "maskSha256": "9379933b3f2008b690421c79d022328953ea1018fa62d161f1881ea8d521d7b8",
         "sourceForegroundPixels": 30985,
         "renderedForegroundPixels": 32066,
+        "renderedMaskSha256": "f9b5275382f87ff3bb55d326ccf6367ef6d3906caf5d635b3de4cda5d715362a",
         "intersectionPixels": 30985,
         "unionPixels": 32066,
         "intersectionOverUnion": 0.966288
@@ -56044,8 +56088,8 @@
           "id": "spawn-left",
           "xMin": -15.316667,
           "xMax": -14.516667,
-          "yMin": -2.316111,
-          "yMax": -1.916111,
+          "yMin": -2.166111,
+          "yMax": -1.966111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0014"
         },
@@ -56053,8 +56097,8 @@
           "id": "spawn-right",
           "xMin": 14.461111,
           "xMax": 15.261111,
-          "yMin": 3.017222,
-          "yMax": 3.417222,
+          "yMin": 3.167222,
+          "yMax": 3.367222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0006"
         }
@@ -56345,6 +56389,7 @@
         "maskSha256": "0cca21da764eb2948eaddda29d25eef77a8f5e83c4e3c16ec499a0bad1b0a37b",
         "sourceForegroundPixels": 46625,
         "renderedForegroundPixels": 48558,
+        "renderedMaskSha256": "b488f478a5ff051d68c7c9be49697ca62e78cb42611a7d54347dad1e7190edfb",
         "intersectionPixels": 46625,
         "unionPixels": 48558,
         "intersectionOverUnion": 0.960192
@@ -56370,8 +56415,8 @@
           "id": "spawn-left",
           "xMin": -16.372222,
           "xMax": -15.572222,
-          "yMin": 1.183889,
-          "yMax": 1.583889,
+          "yMin": 1.333889,
+          "yMax": 1.533889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0020"
         },
@@ -56379,8 +56424,8 @@
           "id": "spawn-right",
           "xMin": 15.655556,
           "xMax": 16.455556,
-          "yMin": -6.371666,
-          "yMax": -5.971666,
+          "yMin": -6.221666,
+          "yMax": -6.021667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0080"
         }
@@ -57221,6 +57266,7 @@
         "maskSha256": "7b81b3aa6b1e50ca4722a02b296ff88b0124909ec4cc972b0c24e6b11157ea98",
         "sourceForegroundPixels": 8884,
         "renderedForegroundPixels": 9200,
+        "renderedMaskSha256": "edf0afa81dcb91579201c3c31e1813d455f4f20198c6111e9fa44fabed253a3b",
         "intersectionPixels": 8884,
         "unionPixels": 9200,
         "intersectionOverUnion": 0.965652
@@ -57246,8 +57292,8 @@
           "id": "spawn-left",
           "xMin": -14.455556,
           "xMax": -13.655556,
-          "yMin": -4.705,
-          "yMax": -4.305,
+          "yMin": -4.555,
+          "yMax": -4.355,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0021"
         },
@@ -57255,8 +57301,8 @@
           "id": "spawn-right",
           "xMin": 13.655556,
           "xMax": 14.455556,
-          "yMin": -4.705,
-          "yMax": -4.305,
+          "yMin": -4.555,
+          "yMax": -4.355,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0020"
         }
@@ -57527,6 +57573,7 @@
         "maskSha256": "ab2a550c994c03fade142599102b2d0e38617b79b03737ae3a36227494d0aeca",
         "sourceForegroundPixels": 8256,
         "renderedForegroundPixels": 8400,
+        "renderedMaskSha256": "9410947915348686c95351c23fb942a46fb91a366e68f3e84f516a4516c3c3b3",
         "intersectionPixels": 8256,
         "unionPixels": 8400,
         "intersectionOverUnion": 0.982857
@@ -57552,8 +57599,8 @@
           "id": "spawn-left",
           "xMin": -12.011111,
           "xMax": -11.211111,
-          "yMin": -5.816111,
-          "yMax": -5.416111,
+          "yMin": -5.666111,
+          "yMax": -5.466111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0021"
         },
@@ -57561,8 +57608,8 @@
           "id": "spawn-right",
           "xMin": 11.211111,
           "xMax": 12.011111,
-          "yMin": -1.649445,
-          "yMax": -1.249445,
+          "yMin": -1.499445,
+          "yMax": -1.299445,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0011"
         }
@@ -57813,6 +57860,7 @@
         "maskSha256": "1d21205817a6b3242003b21205ae61a399bf78e94467f36c2ea759f79e8551aa",
         "sourceForegroundPixels": 14881,
         "renderedForegroundPixels": 15140,
+        "renderedMaskSha256": "204fb0693e7fc162d08c525cbba071219b8f12b0457e8b364f74f7df69a2b9ff",
         "intersectionPixels": 14881,
         "unionPixels": 15140,
         "intersectionOverUnion": 0.982893
@@ -57838,8 +57886,8 @@
           "id": "spawn-left",
           "xMin": -11.177778,
           "xMax": -10.377778,
-          "yMin": 4.739444,
-          "yMax": 5.139444,
+          "yMin": 4.889444,
+          "yMax": 5.089444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0005"
         },
@@ -57847,8 +57895,8 @@
           "id": "spawn-right",
           "xMin": 10.377778,
           "xMax": 11.177778,
-          "yMin": 1.017222,
-          "yMax": 1.417222,
+          "yMin": 1.167222,
+          "yMax": 1.367222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0015"
         }
@@ -58089,6 +58137,7 @@
         "maskSha256": "cc04649101eaa53ebd9ac7c868a2793d5530e51d0e2a2e8b7100f4f1c5f564c9",
         "sourceForegroundPixels": 26490,
         "renderedForegroundPixels": 27515,
+        "renderedMaskSha256": "64f03641817abcd401a4e1e9c8f4595b3c54da77be6fa061f7f9e3881663e8af",
         "intersectionPixels": 26490,
         "unionPixels": 27515,
         "intersectionOverUnion": 0.962748
@@ -58114,8 +58163,8 @@
           "id": "spawn-left",
           "xMin": -14.455556,
           "xMax": -13.655556,
-          "yMin": -4.149445,
-          "yMax": -3.749445,
+          "yMin": -3.999445,
+          "yMax": -3.799445,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0017"
         },
@@ -58123,8 +58172,8 @@
           "id": "spawn-right",
           "xMin": 13.655556,
           "xMax": 14.455556,
-          "yMin": -4.149445,
-          "yMax": -3.749445,
+          "yMin": -3.999445,
+          "yMax": -3.799445,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0018"
         }
@@ -58475,6 +58524,7 @@
         "maskSha256": "66265ef28b564add9e2487bf9e81a0ede12f1269364ccfa03bc56d3f2a5e46b7",
         "sourceForegroundPixels": 69119,
         "renderedForegroundPixels": 71527,
+        "renderedMaskSha256": "83dc8858109cd6341e27f1f7e02da33018be521a3de0fe7701b77e2c2c1cef81",
         "intersectionPixels": 69119,
         "unionPixels": 71527,
         "intersectionOverUnion": 0.966334
@@ -58498,19 +58548,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.927778,
-          "xMax": -17.127778,
-          "yMin": -2.982778,
-          "yMax": -2.582777,
+          "xMin": -17.778333,
+          "xMax": -17.277224,
+          "yMin": -2.832778,
+          "yMax": -2.632777,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0037"
         },
         {
           "id": "spawn-right",
-          "xMin": 16.988889,
-          "xMax": 17.788889,
-          "yMin": -2.982778,
-          "yMax": -2.582778,
+          "xMin": 16.999446,
+          "xMax": 17.778332,
+          "yMin": -2.832778,
+          "yMax": -2.632778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0046"
         }
@@ -59311,6 +59361,7 @@
         "maskSha256": "efa6d06082ee550ec761326c3c2e80ca52d09600c3abcb72ff97fda2702ef9ad",
         "sourceForegroundPixels": 40919,
         "renderedForegroundPixels": 42459,
+        "renderedMaskSha256": "0d533913f3a8d41341a99f6289b54bc2e50719d6fbdef46133039ae845b3bc0a",
         "intersectionPixels": 40919,
         "unionPixels": 42459,
         "intersectionOverUnion": 0.96373
@@ -59336,17 +59387,17 @@
           "id": "spawn-left",
           "xMin": -16.427778,
           "xMax": -15.627778,
-          "yMin": -3.760556,
-          "yMax": -3.360556,
+          "yMin": -3.610556,
+          "yMax": -3.410556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0103"
         },
         {
           "id": "spawn-right",
-          "xMin": 15.988889,
-          "xMax": 16.788889,
-          "yMin": -5.427223,
-          "yMax": -5.027223,
+          "xMin": 16.221668,
+          "xMax": 16.55611,
+          "yMin": -5.277223,
+          "yMax": -5.077223,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0089"
         }
@@ -60647,6 +60698,7 @@
         "maskSha256": "bc8b96e78f1c23e8a9840e81693e5d6c9b51e76282921f02e2d74ac1dcc15e53",
         "sourceForegroundPixels": 17886,
         "renderedForegroundPixels": 18500,
+        "renderedMaskSha256": "dfaf4e0998c38292d4d59e6dcfdd68bf5c9b291de880fc130481bc2814e16c2d",
         "intersectionPixels": 17886,
         "unionPixels": 18500,
         "intersectionOverUnion": 0.966811
@@ -60672,8 +60724,8 @@
           "id": "spawn-left",
           "xMin": -14.4,
           "xMax": -13.6,
-          "yMin": 1.183889,
-          "yMax": 1.583889,
+          "yMin": 1.333889,
+          "yMax": 1.533889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0100"
         },
@@ -60681,8 +60733,8 @@
           "id": "spawn-right",
           "xMin": 13.6,
           "xMax": 14.4,
-          "yMin": 1.183889,
-          "yMax": 1.583889,
+          "yMin": 1.333889,
+          "yMax": 1.533889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0101"
         }
@@ -62292,6 +62344,7 @@
         "maskSha256": "c282276c6bee2e180c73f84c21bed156d92f4f619a6fc8331b4c46d7a540943a",
         "sourceForegroundPixels": 41041,
         "renderedForegroundPixels": 42725,
+        "renderedMaskSha256": "5496503c5b7555abf706769b7abfe92b8ca795a2a0a4849c0d87a33cc2cc5d32",
         "intersectionPixels": 41041,
         "unionPixels": 42725,
         "intersectionOverUnion": 0.960585
@@ -62317,8 +62370,8 @@
           "id": "spawn-left",
           "xMin": -16.594444,
           "xMax": -15.794444,
-          "yMin": 0.850556,
-          "yMax": 1.250555,
+          "yMin": 1.000555,
+          "yMax": 1.200556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0014"
         },
@@ -62326,8 +62379,8 @@
           "id": "spawn-right",
           "xMin": 15.85,
           "xMax": 16.65,
-          "yMin": -5.427223,
-          "yMax": -5.027223,
+          "yMin": -5.277223,
+          "yMax": -5.077223,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0037"
         }
@@ -62808,6 +62861,7 @@
         "maskSha256": "fb140f8451c999bae128e8f080213bcc83a58da55af48a3ad88eaa4bf6398e6b",
         "sourceForegroundPixels": 57975,
         "renderedForegroundPixels": 60173,
+        "renderedMaskSha256": "0bd0db64482d27b781dbc024422f166aaaf22bb095ebb7688ba677eff536cf87",
         "intersectionPixels": 57975,
         "unionPixels": 60173,
         "intersectionOverUnion": 0.963472
@@ -62831,10 +62885,10 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -16.927778,
-          "xMax": -16.127778,
-          "yMin": -3.371667,
-          "yMax": -2.971667,
+          "xMin": -16.889444,
+          "xMax": -16.166113,
+          "yMin": -3.221667,
+          "yMax": -3.021667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0105"
         },
@@ -62842,8 +62896,8 @@
           "id": "spawn-right",
           "xMin": 15.988889,
           "xMax": 16.788889,
-          "yMin": -7.593889,
-          "yMax": -7.193888,
+          "yMin": -7.443888,
+          "yMax": -7.243889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0144"
         }
@@ -64414,6 +64468,7 @@
         "maskSha256": "5405e7280d4189ea81d5abc95018a0ad3223a4abc040948dce6b056fd5a44d05",
         "sourceForegroundPixels": 42572,
         "renderedForegroundPixels": 44275,
+        "renderedMaskSha256": "05e0920e50eaa8d90c110e1f26eeda437a41e87e04ce1e4f944de30ee672f61c",
         "intersectionPixels": 42572,
         "unionPixels": 44275,
         "intersectionOverUnion": 0.961536
@@ -64439,8 +64494,8 @@
           "id": "spawn-left",
           "xMin": -16.483333,
           "xMax": -15.683333,
-          "yMin": -2.538334,
-          "yMax": -2.138333,
+          "yMin": -2.388333,
+          "yMax": -2.188333,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0039"
         },
@@ -64448,8 +64503,8 @@
           "id": "spawn-right",
           "xMin": 15.683333,
           "xMax": 16.483333,
-          "yMin": -2.538333,
-          "yMax": -2.138333,
+          "yMin": -2.388333,
+          "yMax": -2.188333,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0041"
         }
@@ -65440,6 +65495,7 @@
         "maskSha256": "41d85f5207d7e9e067042e2e919be397d6daae79802598ffa3659342ea985927",
         "sourceForegroundPixels": 42969,
         "renderedForegroundPixels": 44836,
+        "renderedMaskSha256": "c9213e3b99858358f4da21c75e0998ba20b5a4a64c6a5fa71bb37c9a81dce0bb",
         "intersectionPixels": 42969,
         "unionPixels": 44836,
         "intersectionOverUnion": 0.958359
@@ -65465,17 +65521,17 @@
           "id": "spawn-left",
           "xMin": -13.9,
           "xMax": -13.1,
-          "yMin": -8.538333,
-          "yMax": -8.138333,
+          "yMin": -8.388333,
+          "yMax": -8.188333,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0056"
         },
         {
           "id": "spawn-right",
-          "xMin": 13.988889,
-          "xMax": 14.788889,
-          "yMin": 6.350556,
-          "yMax": 6.750556,
+          "xMin": 13.999446,
+          "xMax": 14.778333,
+          "yMin": 6.500556,
+          "yMax": 6.700556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0003"
         }
@@ -66106,6 +66162,7 @@
         "maskSha256": "d2b3874fe53c02dd9c600f197535ef74e1a98283453c779eb753abb71f9ac1e9",
         "sourceForegroundPixels": 59318,
         "renderedForegroundPixels": 61749,
+        "renderedMaskSha256": "b2a2fd4034dee3282780c5a8752b0f7711e9978a73026315fc8f3db66d85505d",
         "intersectionPixels": 59318,
         "unionPixels": 61749,
         "intersectionOverUnion": 0.960631
@@ -66131,8 +66188,8 @@
           "id": "spawn-left",
           "xMin": -15.427778,
           "xMax": -14.627778,
-          "yMin": -4.205,
-          "yMax": -3.805,
+          "yMin": -4.055,
+          "yMax": -3.855,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0025"
         },
@@ -66140,8 +66197,8 @@
           "id": "spawn-right",
           "xMin": 14.544444,
           "xMax": 15.344444,
-          "yMin": 0.628333,
-          "yMax": 1.028333,
+          "yMin": 0.778333,
+          "yMax": 0.978333,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         }
@@ -66452,6 +66509,7 @@
         "maskSha256": "4ebea3eb6242f2ea0cc78bd265c0dc58e46e827ccfe20f62a8767356abf94039",
         "sourceForegroundPixels": 40099,
         "renderedForegroundPixels": 41822,
+        "renderedMaskSha256": "462474c4ecba82f5bbbfee2a12b757122e0d59727f90e50b48a7cf44f29fb9ae",
         "intersectionPixels": 40099,
         "unionPixels": 41822,
         "intersectionOverUnion": 0.958802
@@ -66477,8 +66535,8 @@
           "id": "spawn-left",
           "xMin": -11.038889,
           "xMax": -10.238889,
-          "yMin": -3.538334,
-          "yMax": -3.138333,
+          "yMin": -3.388333,
+          "yMax": -3.188333,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0052"
         },
@@ -66486,8 +66544,8 @@
           "id": "spawn-right",
           "xMin": 10.238889,
           "xMax": 11.038889,
-          "yMin": 2.183889,
-          "yMax": 2.583889,
+          "yMin": 2.333889,
+          "yMax": 2.533889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0035"
         }
@@ -67088,6 +67146,7 @@
         "maskSha256": "e33f50ea868c3fe51934c097e15827b546a788c47ff1cc05b4978231bdf18462",
         "sourceForegroundPixels": 78064,
         "renderedForegroundPixels": 81380,
+        "renderedMaskSha256": "90fafcd8a7043f15b8a00ef704b49c8cc1e3854e5e9d0287ee3561a615b05782",
         "intersectionPixels": 78064,
         "unionPixels": 81380,
         "intersectionOverUnion": 0.959253
@@ -67113,8 +67172,8 @@
           "id": "spawn-left",
           "xMin": -9.705556,
           "xMax": -8.905556,
-          "yMin": 3.295,
-          "yMax": 3.695,
+          "yMin": 3.445,
+          "yMax": 3.645,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0005"
         },
@@ -67122,8 +67181,8 @@
           "id": "spawn-right",
           "xMin": 8.822222,
           "xMax": 9.622222,
-          "yMin": -0.371666,
-          "yMax": 0.028334,
+          "yMin": -0.221667,
+          "yMax": -0.021667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0058"
         }
@@ -68575,6 +68634,7 @@
         "maskSha256": "32b5f9269166277f32a9cbdf55aa49a3a4339c430533f5483f8bf16ccbd04422",
         "sourceForegroundPixels": 47641,
         "renderedForegroundPixels": 49539,
+        "renderedMaskSha256": "e825ab45a1caf03daa057ef382bb332bdb666e53a4ada5fb277df29e25d74de3",
         "intersectionPixels": 47641,
         "unionPixels": 49539,
         "intersectionOverUnion": 0.961687
@@ -68600,17 +68660,17 @@
           "id": "spawn-left",
           "xMin": -12.233333,
           "xMax": -11.433333,
-          "yMin": -1.593889,
-          "yMax": -1.193889,
+          "yMin": -1.443889,
+          "yMax": -1.243889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0071"
         },
         {
           "id": "spawn-right",
-          "xMin": 13.35,
-          "xMax": 14.15,
-          "yMin": -4.538333,
-          "yMax": -4.138333,
+          "xMin": 13.44389,
+          "xMax": 14.05611,
+          "yMin": -4.388333,
+          "yMax": -4.188333,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0092"
         }
@@ -69600,6 +69660,7 @@
         "maskSha256": "2fcf25304bcfb14f995470c1d634000d7597d21d47d829d8a0c3e47747c639f6",
         "sourceForegroundPixels": 62492,
         "renderedForegroundPixels": 65089,
+        "renderedMaskSha256": "cb965b33ee5c00b44d8a1d483ff73b3a76ee1ba80f7567b96b233f0eaa62c7df",
         "intersectionPixels": 62492,
         "unionPixels": 65089,
         "intersectionOverUnion": 0.960101
@@ -69625,8 +69686,8 @@
           "id": "spawn-left",
           "xMin": -16.011111,
           "xMax": -15.211111,
-          "yMin": 6.183888,
-          "yMax": 6.583888,
+          "yMin": 6.333888,
+          "yMax": 6.533888,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0026"
         },
@@ -69634,8 +69695,8 @@
           "id": "spawn-right",
           "xMin": 15.294444,
           "xMax": 16.094444,
-          "yMin": -9.427222,
-          "yMax": -9.027223,
+          "yMin": -9.277223,
+          "yMax": -9.077223,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0201"
         }
@@ -71706,6 +71767,7 @@
         "maskSha256": "91e04e200d8bef4477242c92c10e2bbdc3bccf3061e36fbdf3fa7d1aba6f7dbd",
         "sourceForegroundPixels": 40429,
         "renderedForegroundPixels": 41959,
+        "renderedMaskSha256": "bef60264d4fe5da4f4f5ab7219ab8c6089dc54d8db5db9aeee071c2855e55f4c",
         "intersectionPixels": 40429,
         "unionPixels": 41959,
         "intersectionOverUnion": 0.963536
@@ -71731,8 +71793,8 @@
           "id": "spawn-left",
           "xMin": -13.511111,
           "xMax": -12.711111,
-          "yMin": -1.482778,
-          "yMax": -1.082778,
+          "yMin": -1.332778,
+          "yMax": -1.132778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0023"
         },
@@ -71740,8 +71802,8 @@
           "id": "spawn-right",
           "xMin": 13.266667,
           "xMax": 14.066667,
-          "yMin": -1.482778,
-          "yMax": -1.082778,
+          "yMin": -1.332778,
+          "yMax": -1.132778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0022"
         }
@@ -72142,6 +72204,7 @@
         "maskSha256": "55048e25b0092b6d33dddb359389180001674b9950d65ac7eb61da6f6fc5ab63",
         "sourceForegroundPixels": 12666,
         "renderedForegroundPixels": 13065,
+        "renderedMaskSha256": "5a3ba46b7afcd057f64246766ff2fa4685e97fb2823b7520f8e941c860d5c3e6",
         "intersectionPixels": 12666,
         "unionPixels": 13065,
         "intersectionOverUnion": 0.96946
@@ -72167,8 +72230,8 @@
           "id": "spawn-left",
           "xMin": -13.622222,
           "xMax": -12.822222,
-          "yMin": 0.795,
-          "yMax": 1.195,
+          "yMin": 0.945,
+          "yMax": 1.145,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0007"
         },
@@ -72176,8 +72239,8 @@
           "id": "spawn-right",
           "xMin": 12.822222,
           "xMax": 13.622222,
-          "yMin": 0.795,
-          "yMax": 1.195,
+          "yMin": 0.945,
+          "yMax": 1.145,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0008"
         }
@@ -72368,6 +72431,7 @@
         "maskSha256": "4b9af9a4181fd25d92d0c2da716e8fc59b91aa29f6998558eb40e1d1ca7b3848",
         "sourceForegroundPixels": 34086,
         "renderedForegroundPixels": 35349,
+        "renderedMaskSha256": "653a3433dd5bb0c4e6fd04e6e5c552f9d9abd2117183608e96e015e48bf5dcad",
         "intersectionPixels": 34086,
         "unionPixels": 35349,
         "intersectionOverUnion": 0.964271
@@ -72391,10 +72455,10 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -16.844444,
-          "xMax": -16.044444,
-          "yMin": 0.295,
-          "yMax": 0.694999,
+          "xMin": -16.667221,
+          "xMax": -16.221667,
+          "yMin": 0.444999,
+          "yMax": 0.644999,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0033"
         },
@@ -72402,8 +72466,8 @@
           "id": "spawn-right",
           "xMin": 15.766667,
           "xMax": 16.566667,
-          "yMin": -7.593889,
-          "yMax": -7.193889,
+          "yMin": -7.443889,
+          "yMax": -7.243889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0073"
         }
@@ -73244,6 +73308,7 @@
         "maskSha256": "a3e5e35b28a2b17631e14f30bf6881f3aef6785254ebfe257666f9bf7a33b80a",
         "sourceForegroundPixels": 53633,
         "renderedForegroundPixels": 55460,
+        "renderedMaskSha256": "45716052d2c3f36dee3c6e7cf0b46c2b4eca36ca640bcf52f96970777287d3d3",
         "intersectionPixels": 53633,
         "unionPixels": 55460,
         "intersectionOverUnion": 0.967057
@@ -73269,8 +73334,8 @@
           "id": "spawn-left",
           "xMin": -14.427778,
           "xMax": -13.627778,
-          "yMin": -3.260556,
-          "yMax": -2.860556,
+          "yMin": -3.110556,
+          "yMax": -2.910556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0061"
         },
@@ -73278,8 +73343,8 @@
           "id": "spawn-right",
           "xMin": 13.6,
           "xMax": 14.4,
-          "yMin": -1.871667,
-          "yMax": -1.471667,
+          "yMin": -1.721667,
+          "yMax": -1.521667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0056"
         }
@@ -74210,6 +74275,7 @@
         "maskSha256": "4f279773159feb376942f903093db9b068528ce3a3a5fdeb0ccc0d8172889622",
         "sourceForegroundPixels": 61973,
         "renderedForegroundPixels": 64712,
+        "renderedMaskSha256": "6c4c641e5e0f1fdcab923dfdf23332b185059d614417bb47e37adec60e09c635",
         "intersectionPixels": 61973,
         "unionPixels": 64712,
         "intersectionOverUnion": 0.957674
@@ -74233,19 +74299,19 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.844444,
-          "xMax": -17.044444,
-          "yMin": 3.350556,
-          "yMax": 3.750556,
+          "xMin": -17.778332,
+          "xMax": -17.110556,
+          "yMin": 3.500556,
+          "yMax": 3.700556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         },
         {
           "id": "spawn-right",
-          "xMin": 17.072222,
-          "xMax": 17.872222,
-          "yMin": 3.350556,
-          "yMax": 3.750556,
+          "xMin": 17.166112,
+          "xMax": 17.778332,
+          "yMin": 3.500556,
+          "yMax": 3.700556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0013"
         }
@@ -74616,6 +74682,7 @@
         "maskSha256": "fa980de8cda3f226ff9fd3db17df839d05656c5727e7c193b75804de6424a854",
         "sourceForegroundPixels": 72224,
         "renderedForegroundPixels": 74948,
+        "renderedMaskSha256": "737370442abf4deea7b923fa6a0f8934ef4aca8e507ac806a82e3a7d743cbeb9",
         "intersectionPixels": 72224,
         "unionPixels": 74948,
         "intersectionOverUnion": 0.963655
@@ -74641,8 +74708,8 @@
           "id": "spawn-left",
           "xMin": -16.761111,
           "xMax": -15.961111,
-          "yMin": -3.427222,
-          "yMax": -3.027222,
+          "yMin": -3.277222,
+          "yMax": -3.077222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0031"
         },
@@ -74650,8 +74717,8 @@
           "id": "spawn-right",
           "xMin": 16.655556,
           "xMax": 17.455556,
-          "yMin": 4.183889,
-          "yMax": 4.583889,
+          "yMin": 4.333889,
+          "yMax": 4.533889,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0020"
         }
@@ -75342,6 +75409,7 @@
         "maskSha256": "bbcdecb68f98d2d69741b61fedd321a7ef839906a3dbfda917eec0162bdd1a48",
         "sourceForegroundPixels": 67267,
         "renderedForegroundPixels": 69608,
+        "renderedMaskSha256": "8d32ff24f207eefda558d4de98d8db3f7414012100f0255ed50fd2f7423c42f8",
         "intersectionPixels": 67267,
         "unionPixels": 69608,
         "intersectionOverUnion": 0.966369
@@ -75367,8 +75435,8 @@
           "id": "spawn-left",
           "xMin": -17.261111,
           "xMax": -16.461111,
-          "yMin": 3.739444,
-          "yMax": 4.139444,
+          "yMin": 3.889444,
+          "yMax": 4.089444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0021"
         },
@@ -75376,8 +75444,8 @@
           "id": "spawn-right",
           "xMin": 16.6,
           "xMax": 17.4,
-          "yMin": 3.739444,
-          "yMax": 4.139444,
+          "yMin": 3.889444,
+          "yMax": 4.089444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0020"
         }
@@ -75738,6 +75806,7 @@
         "maskSha256": "c2225f9d7c6cf8a582de87e12fe8d8558d3b467388f5bfa3581bd48fd1321b18",
         "sourceForegroundPixels": 56258,
         "renderedForegroundPixels": 58672,
+        "renderedMaskSha256": "ba7aa86f6a9b1908e10600585900f694bdba2599152496e6f4c9f4aa95e77773",
         "intersectionPixels": 56258,
         "unionPixels": 58672,
         "intersectionOverUnion": 0.958856
@@ -75761,10 +75830,10 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.844444,
-          "xMax": -17.044444,
-          "yMin": -2.316111,
-          "yMax": -1.916111,
+          "xMin": -17.778332,
+          "xMax": -17.110556,
+          "yMin": -2.166111,
+          "yMax": -1.966111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0084"
         },
@@ -75772,8 +75841,8 @@
           "id": "spawn-right",
           "xMin": 16.961111,
           "xMax": 17.761111,
-          "yMin": -2.316111,
-          "yMax": -1.916111,
+          "yMin": -2.166111,
+          "yMax": -1.966111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0082"
         }
@@ -77564,6 +77633,7 @@
         "maskSha256": "dca512425ebc55014063326ee309c994f59b7a971ad84f694978d0b91803e3e0",
         "sourceForegroundPixels": 44361,
         "renderedForegroundPixels": 46366,
+        "renderedMaskSha256": "667aebf6cfe78af4af09671aafe36ba6c9d6df0157558281ebcdc76a751e1db5",
         "intersectionPixels": 44361,
         "unionPixels": 46366,
         "intersectionOverUnion": 0.956757
@@ -77589,8 +77659,8 @@
           "id": "spawn-left",
           "xMin": -15.233333,
           "xMax": -14.433333,
-          "yMin": -3.482778,
-          "yMax": -3.082778,
+          "yMin": -3.332778,
+          "yMax": -3.132778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         },
@@ -77598,8 +77668,8 @@
           "id": "spawn-right",
           "xMin": 14.766667,
           "xMax": 15.566667,
-          "yMin": -3.482778,
-          "yMax": -3.082778,
+          "yMin": -3.332778,
+          "yMax": -3.132778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0011"
         }
@@ -77840,6 +77910,7 @@
         "maskSha256": "ad47f122ab69590f33b36a9691cd7dd619b17977a20e2f97b089746d6474a4c9",
         "sourceForegroundPixels": 51820,
         "renderedForegroundPixels": 54060,
+        "renderedMaskSha256": "8689187c503876cd24d7e2d8f7eb3e1ee723bb0050ffda7f562a1467dccf9108",
         "intersectionPixels": 51820,
         "unionPixels": 54060,
         "intersectionOverUnion": 0.958565
@@ -77865,8 +77936,8 @@
           "id": "spawn-left",
           "xMin": -15.038889,
           "xMax": -14.238889,
-          "yMin": -5.816111,
-          "yMax": -5.416111,
+          "yMin": -5.666111,
+          "yMax": -5.466111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0016"
         },
@@ -77874,8 +77945,8 @@
           "id": "spawn-right",
           "xMin": 14.238889,
           "xMax": 15.038889,
-          "yMin": -5.816111,
-          "yMax": -5.416111,
+          "yMin": -5.666111,
+          "yMax": -5.466111,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0017"
         }
@@ -78136,6 +78207,7 @@
         "maskSha256": "8c42fba8f8453d5196b2f8caa85469e6dcbd75340759bf25611195e9bbc151d8",
         "sourceForegroundPixels": 82171,
         "renderedForegroundPixels": 85219,
+        "renderedMaskSha256": "03d2fa5a34da19e5817253f81cfa0e5c7eb7d7bf7118e923c66716e1f6648de7",
         "intersectionPixels": 82171,
         "unionPixels": 85219,
         "intersectionOverUnion": 0.964233
@@ -78159,10 +78231,10 @@
       "spawnRegions": [
         {
           "id": "spawn-left",
-          "xMin": -17.816667,
-          "xMax": -17.016667,
-          "yMin": 5.239444,
-          "yMax": 5.639444,
+          "xMin": -17.778333,
+          "xMax": -17.055001,
+          "yMin": 5.389444,
+          "yMax": 5.589444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         },
@@ -78170,8 +78242,8 @@
           "id": "spawn-right",
           "xMin": 16.877778,
           "xMax": 17.677778,
-          "yMin": 5.295,
-          "yMax": 5.695,
+          "yMin": 5.445,
+          "yMax": 5.645,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0013"
         }
@@ -78732,6 +78804,7 @@
         "maskSha256": "1e32e09576e22c73a39422de2eda5d08a88f5cf13f6758c6e343f7b60c8c11a9",
         "sourceForegroundPixels": 36994,
         "renderedForegroundPixels": 37078,
+        "renderedMaskSha256": "bcca580344df14d87b2f920ed6003915b3557581fe965b779d5a1dc4aaa46991",
         "intersectionPixels": 36994,
         "unionPixels": 37078,
         "intersectionOverUnion": 0.997735
@@ -78757,8 +78830,8 @@
           "id": "spawn-left",
           "xMin": -15.4,
           "xMax": -14.6,
-          "yMin": -5.260556,
-          "yMax": -4.860556,
+          "yMin": -5.110556,
+          "yMax": -4.910556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0014"
         },
@@ -78766,8 +78839,8 @@
           "id": "spawn-right",
           "xMin": 15.544444,
           "xMax": 16.344444,
-          "yMin": 2.961666,
-          "yMax": 3.361667,
+          "yMin": 3.111667,
+          "yMax": 3.311667,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0007"
         }
@@ -78998,6 +79071,7 @@
         "maskSha256": "083d4c61ae2eed402b5807b5ab14e3b84437da3df4b159b38c910a6fac69629d",
         "sourceForegroundPixels": 68396,
         "renderedForegroundPixels": 70936,
+        "renderedMaskSha256": "15a5e9c0a4517e03b15bdf7ead00df07d640f70c8b29791b490afb21a9e874c2",
         "intersectionPixels": 68396,
         "unionPixels": 70936,
         "intersectionOverUnion": 0.964193
@@ -79023,8 +79097,8 @@
           "id": "spawn-left",
           "xMin": -16.538889,
           "xMax": -15.738889,
-          "yMin": 2.350555,
-          "yMax": 2.750555,
+          "yMin": 2.500555,
+          "yMax": 2.700556,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0124"
         },
@@ -79032,8 +79106,8 @@
           "id": "spawn-right",
           "xMin": 15.738889,
           "xMax": 16.538889,
-          "yMin": 2.239444,
-          "yMax": 2.639444,
+          "yMin": 2.389444,
+          "yMax": 2.589444,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0125"
         }
@@ -80374,6 +80448,7 @@
         "maskSha256": "aec310f52b61ef497f3ef61609b11fe8f391cf0060953dbfcf7d7ecb6b671a72",
         "sourceForegroundPixels": 59112,
         "renderedForegroundPixels": 61008,
+        "renderedMaskSha256": "eb070851292d9b2e7140cbb6982f188c863039de64ec1432b67d32630a93bb6c",
         "intersectionPixels": 59112,
         "unionPixels": 61008,
         "intersectionOverUnion": 0.968922
@@ -80399,8 +80474,8 @@
           "id": "spawn-left",
           "xMin": -13.955556,
           "xMax": -13.155556,
-          "yMin": 4.572778,
-          "yMax": 4.972778,
+          "yMin": 4.722778,
+          "yMax": 4.922778,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0011"
         },
@@ -80408,8 +80483,8 @@
           "id": "spawn-right",
           "xMin": 13.155556,
           "xMax": 13.955556,
-          "yMin": -1.927222,
-          "yMax": -1.527222,
+          "yMin": -1.777222,
+          "yMax": -1.577222,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0032"
         }
@@ -80880,6 +80955,7 @@
         "maskSha256": "d9ee481342e71eab2caccbe8cc6743e8d8be7e1302b6cba775dc9c42e25c92e0",
         "sourceForegroundPixels": 39494,
         "renderedForegroundPixels": 39962,
+        "renderedMaskSha256": "2faaed942c373bc7e68daf28114e38b070a16f9e8fd7551d1ae71566ee175ec3",
         "intersectionPixels": 39494,
         "unionPixels": 39962,
         "intersectionOverUnion": 0.988289
@@ -80905,8 +80981,8 @@
           "id": "spawn-left",
           "xMin": -14.9,
           "xMax": -14.1,
-          "yMin": 0.795,
-          "yMax": 1.195,
+          "yMin": 0.945,
+          "yMax": 1.145,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0012"
         },
@@ -80914,8 +80990,8 @@
           "id": "spawn-right",
           "xMin": 14.1,
           "xMax": 14.9,
-          "yMin": 0.795,
-          "yMax": 1.195,
+          "yMin": 0.945,
+          "yMax": 1.145,
           "clearanceDiameters": 1.0,
           "supportPrimitiveId": "silhouette-0013"
         }

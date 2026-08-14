@@ -94,7 +94,7 @@
       "properties": {
         "source": { "$ref": "#/$defs/id" },
         "reportedCount": { "type": "integer", "minimum": 0 },
-        "relationship": { "enum": ["lower-bound", "exact-preview-index", "observed-subset"] },
+        "relationship": { "enum": ["lower-bound", "exact-preview-index", "historical-removed-subset", "observed-subset"] },
         "notes": { "type": "string", "minLength": 1 }
       }
     },
@@ -117,12 +117,13 @@
     "maskEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["threshold", "maskSha256", "sourceForegroundPixels", "renderedForegroundPixels", "intersectionPixels", "unionPixels", "intersectionOverUnion"],
+      "required": ["threshold", "maskSha256", "sourceForegroundPixels", "renderedForegroundPixels", "renderedMaskSha256", "intersectionPixels", "unionPixels", "intersectionOverUnion"],
       "properties": {
         "threshold": { "const": "max-rgb-greater-than-or-equal-to-24" },
         "maskSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "sourceForegroundPixels": { "type": "integer", "minimum": 1 },
         "renderedForegroundPixels": { "type": "integer", "minimum": 1 },
+        "renderedMaskSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "intersectionPixels": { "type": "integer", "minimum": 1 },
         "unionPixels": { "type": "integer", "minimum": 1 },
         "intersectionOverUnion": { "type": "number", "minimum": 0.95 }

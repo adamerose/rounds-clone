@@ -448,3 +448,13 @@ Repository discovery identified the actual `tools/Rounds.Checks.Tests` project b
 Removing the reviewed ticket 003 worktree unregistered it but failed to delete the directory with an `Invalid argument` error.
 Two exact-directory deletion attempts then failed on `.tools/dotnet/dotnet.exe`; stopping five processes whose executable path was scoped to that worktree did not release the handle.
 Renaming only that verified executable to `dotnet.cleanup.exe` succeeded, after which exact-directory deletion succeeded and both filesystem absence and worktree unregistration were verified.
+
+## 2026-08-14 — Ticket 004's second review rejected three evidence boundaries
+
+Fresh reviewer `codex:019fffa0-7ad0-7a30-8b5e-bf4bfa70ab8d` rejected exact candidate `a6dc1a2ae85ee9b4bf377f956837c7d1003606d0`.
+The checker rerendered geometry but compared only total foreground pixels, so moving one non-support box preserved its pixel count and the stored overlap arithmetic while actual source IoU fell from 0.960915 to 0.876249.
+Fixed 0.8-by-0.4 spawn regions also validated only their centers, leaving unsupported points in 40 of 140 regions, and the reconciliation record supplied only one complete public arena index.
+Correction adds a positional rendered-mask digest and position-preserving regression, derives each whole spawn region from its support box, and reconciles the sheet with an independent public index of six removed release-era arenas.
+The review policy rejected a combined generator-and-cleanup command before execution and then rejected its fixed temp-file deletion, while one read-only search named nonexistent `research/notes/sources.md` before finding `spec/sources.json`.
+The owner later validated the exact 2,189,951-byte temp file at `C:\Users\Adam\AppData\Local\Temp\rounds-map-review-019fffa0.json`, deleted only that file, and verified it absent.
+The first multi-file checker correction expected the pre-digest `SPEC059` diagnostic and atomically wrote nothing; a targeted retry used the current text and applied cleanly.

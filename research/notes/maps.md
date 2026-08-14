@@ -5,6 +5,7 @@
 The catalog targets public Windows build `21020021`, identified in-game as `v1.1.2.a75ee335a`.
 The official Steam listing advertises “70+ maps,” which remains a lower bound rather than an exact active-pool count.
 The public community workbook contains exactly one preview anchored in each worksheet row 2 through 71, so project IDs `arena-001` through `arena-070` bind to those rows.
+An independent Thunderstore index lists six arenas removed after the 7 April release-era build, and none of those six entries appears among the workbook's 70 internal-name rows.
 The current build randomizes arenas and exposes no clean-room catalog browser, so exhaustive runtime reconciliation remains unresolved.
 
 ## Clean-room boundary
@@ -33,8 +34,8 @@ These boxes reproduce visible silhouettes; they remain collision hypotheses beca
 
 ## Executable evidence
 
-Every map stores source, rendered, intersection, and union pixel counts plus their intersection-over-union result.
-The repository checker recomputes the result and arithmetic, rasterizes the committed oriented boxes at 640 by 360, and requires the rendered foreground count to match.
+Every map stores source, rendered, intersection, and union pixel counts plus their intersection-over-union result and the SHA-256 digest of the full positioned render mask.
+The repository checker recomputes the result and arithmetic, rasterizes the committed oriented boxes at 640 by 360, and requires both the foreground count and positioned-mask digest to match.
 The ignored workbook and generator are still required to reproduce the source mask hash and intersection because original images cannot enter Git history.
 Regressions reject a sub-0.95 score, inconsistent overlap arithmetic, unsupported geometry, and any geometry change that drifts from the recorded render count.
 
@@ -43,7 +44,8 @@ Regressions reject a sub-0.95 score, inconsistent overlap arithmetic, unsupporte
 Every preview uses camera bounds of 18 player diameters horizontally and 10.1 vertically, while the provisional kill boundary sits at `-12`.
 Collision bounds enclose the rounded oriented boxes.
 Two provisional spawn regions are placed above named static support boxes and maximize Euclidean separation, which supports horizontal and vertical arena layouts.
-The checker requires at least eight player diameters between centers, validates support in each box's local coordinates, keeps regions inside the camera, and applies a one-diameter visible-saw clearance.
+Each region's width is derived from the support's usable oriented top surface rather than from a fixed rectangle.
+The checker requires at least eight player diameters between centers, validates all four region corners in each box's local coordinates, keeps regions inside the camera, and applies a one-diameter visible-saw clearance.
 Exact positions, facing, and randomized alternatives remain unmeasured.
 
 ## Behavior vocabulary

@@ -191,7 +191,7 @@ The harness renders our JSON map to the same resolution as a mask and compares t
 A map is accepted at 0.95 or better.
 
 The public workbook's embedded media filenames are shuffled, so catalog identity comes from each drawing object's worksheet-row anchor and relationship target rather than from filename or ZIP order.
-The committed evidence includes source-mask and preview hashes, pixel-count arithmetic, and the score, while the repository gate rerenders the rounded oriented boxes and rejects render-count drift.
+The committed evidence includes source-mask, preview, and positioned-render hashes, pixel-count arithmetic, and the score, while the repository gate rerenders the rounded oriented boxes and rejects count or position drift.
 Source images stay under ignored `research/raw/`, and the supported generator reproduces their hashes and overlap evidence from a fresh public XLSX export.
 
 That gives map building a real oracle rather than an agent's judgment: build the JSON, render it, score it against the screenshot, adjust, repeat until it passes.

@@ -11,6 +11,7 @@ sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
   - codex:019fff46-e63b-7911-8124-12c0d8fe0b12
   - codex:019fff73-e68d-79d0-bca4-5da80964846a
+  - codex:019fffa0-7ad0-7a30-8b5e-bf4bfa70ab8d
 ---
 
 # Catalog and classify every vanilla arena
@@ -68,3 +69,9 @@ Arena geometry controls sightlines, recoil recovery, wall blocks, ring-outs, and
 - 2026-08-14T09:34:09Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Replaced the rejected catalog with 70 row-anchored previews, 7,557 oriented silhouette boxes, explicit visual behavior candidates, source-supported two-dimensional spawns, and exact mask IoU scores from 0.956757 to 0.997735.
 - 2026-08-14T09:34:09Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the generator reproducibility, schema, semantic evidence, ticket, build, test, deterministic simulation, Godot, formatting, and residue gates on the complete correction.
 - 2026-08-14T09:34:48Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Byte-identical regeneration hash `83f4f7224b2be8ee2a94115b6586096db3c6698d0d7552467e2e714a573bbc34`, zero-warning build, 40 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, and diff formatting all passed.
+- 2026-08-14T09:48:13Z stage review start session codex:019fffa0-7ad0-7a30-8b5e-bf4bfa70ab8d — Reviewing exact candidate `a6dc1a2ae85ee9b4bf377f956837c7d1003606d0` against the admitted contract, public workbook, generator, mask oracle, spawn regions, independent indexes, clean-room boundary, and full gate.
+- 2026-08-14T09:48:13Z stage review end session codex:019fffa0-7ad0-7a30-8b5e-bf4bfa70ab8d — Rejected a count-only rerender gate that allowed position drift, 40 spawn regions that extended beyond their named supports, and reconciliation against only one complete arena index.
+- 2026-08-14T09:48:13Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Adding a positional rendered-mask digest, deriving full support-contained spawn regions, and reconciling the 70-row catalog with an independent public removed-map index.
+- 2026-08-14T09:54:45Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Position-locked all 70 renders, made every spawn-region corner support-valid, added an independent six-map removal index, and added regressions for position-preserving drift, partial support, and missing index independence.
+- 2026-08-14T09:54:45Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running byte-identical generation, source and rendered-mask evidence, 70-map spawn sampling, schema, semantic checks, tickets, build, tests, deterministic simulation, Godot, formatting, and residue checks.
+- 2026-08-14T09:55:20Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Byte-identical catalog hash `162f694f0f821c597fdcffd4664d6d22143c47c386df0818cbf9c61983cd312f`, 6,300 supported spawn samples, zero-warning build, 42 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot smoke, and diff formatting all passed.

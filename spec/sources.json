@@ -163,6 +163,17 @@
       "notes": "Reports disagree on several hook-heavy cards, so all inferred formulas except the integer bounce-count case remain provisional."
     },
     {
+      "id": "removed-vanilla-map-index",
+      "title": "Vanilla Maps",
+      "publisher": "Root via Thunderstore",
+      "url": "https://thunderstore.io/c/rounds/p/Root/Vanilla_Maps/",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "Independent public index of six arenas present in the 7 April release-era build and removed from later ROUNDS builds.",
+      "reliability": "low",
+      "notes": "Used only to verify that the 70-row community workbook excludes all six removed entries; the project does not retain their original identifiers or the mod payload."
+    },
+    {
       "id": "community-map-sheet",
       "title": "ROUNDS maps community names",
       "publisher": "ROUNDS community contributors",

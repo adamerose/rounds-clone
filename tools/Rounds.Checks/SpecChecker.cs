@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Rounds.Checks;
@@ -460,13 +461,23 @@ public static class SpecChecker
                     }
 
                     var angle = primitive.GetProperty("rotationDegrees").GetDouble() * Math.PI / 180;
-                    var deltaX = centerX - primitive.GetProperty("x").GetDouble();
-                    var deltaY = centerY - primitive.GetProperty("y").GetDouble();
-                    var localX = deltaX * Math.Cos(angle) + deltaY * Math.Sin(angle);
-                    var localY = -deltaX * Math.Sin(angle) + deltaY * Math.Cos(angle);
                     var halfWidth = primitive.GetProperty("width").GetDouble() / 2;
                     var top = primitive.GetProperty("height").GetDouble() / 2;
-                    return Math.Abs(localX) <= halfWidth + 1e-6 && localY - top >= 0.2 && localY - top <= 1.3;
+                    var corners = new[]
+                    {
+                        (X: spawn.GetProperty("xMin").GetDouble(), Y: spawn.GetProperty("yMin").GetDouble()),
+                        (X: spawn.GetProperty("xMin").GetDouble(), Y: spawn.GetProperty("yMax").GetDouble()),
+                        (X: spawn.GetProperty("xMax").GetDouble(), Y: spawn.GetProperty("yMin").GetDouble()),
+                        (X: spawn.GetProperty("xMax").GetDouble(), Y: spawn.GetProperty("yMax").GetDouble()),
+                    };
+                    return corners.All(corner =>
+                    {
+                        var deltaX = corner.X - primitive.GetProperty("x").GetDouble();
+                        var deltaY = corner.Y - primitive.GetProperty("y").GetDouble();
+                        var localX = deltaX * Math.Cos(angle) + deltaY * Math.Sin(angle);
+                        var localY = -deltaX * Math.Sin(angle) + deltaY * Math.Cos(angle);
+                        return Math.Abs(localX) <= halfWidth + 1e-6 && localY - top >= 0.2 && localY - top <= 1.3;
+                    });
                 });
                 if (!supported || spawn.GetProperty("yMin").GetDouble() <= map.GetProperty("killBoundaryY").GetDouble() + 1)
                 {
@@ -538,15 +549,28 @@ public static class SpecChecker
                 failures.Add($"SPEC058 maps.json arena `{mapId}` has inconsistent or sub-threshold mask IoU evidence.");
             }
 
-            if (RenderMapMask(primitives) != renderedPixels)
+            var renderedMask = RenderMapMask(primitives);
+            if (renderedMask.Count != renderedPixels ||
+                renderedMask.Sha256 != evidence.GetProperty("renderedMaskSha256").GetString())
             {
-                failures.Add($"SPEC059 maps.json arena `{mapId}` rendered mask count does not match its committed geometry.");
+                failures.Add($"SPEC059 maps.json arena `{mapId}` rendered mask digest or count does not match its committed geometry.");
             }
         }
 
+        var arenaIndexSources = new HashSet<string>(StringComparer.Ordinal);
         foreach (var reconciliation in root.GetProperty("reconciliation").EnumerateArray())
         {
             ValidateMapSource(reconciliation.GetProperty("source").GetString()!, sourceIds, "arena reconciliation", failures);
+            var relationship = reconciliation.GetProperty("relationship").GetString();
+            if (relationship is "exact-preview-index" or "historical-removed-subset")
+            {
+                arenaIndexSources.Add(reconciliation.GetProperty("source").GetString()!);
+            }
+        }
+
+        if (arenaIndexSources.Count < 2)
+        {
+            failures.Add("SPEC060 maps.json does not reconcile two independent public arena indexes.");
         }
 
         foreach (var example in root.GetProperty("representativeExamples").EnumerateObject())
@@ -592,7 +616,7 @@ public static class SpecChecker
         inner.GetProperty("yMin").GetDouble() >= outer.GetProperty("yMin").GetDouble() &&
         inner.GetProperty("yMax").GetDouble() <= outer.GetProperty("yMax").GetDouble();
 
-    private static int RenderMapMask(JsonElement[] primitives)
+    private static (int Count, string Sha256) RenderMapMask(JsonElement[] primitives)
     {
         const int width = 640;
         const int height = 360;
@@ -629,7 +653,13 @@ public static class SpecChecker
             }
         }
 
-        return pixels.Count(pixel => pixel);
+        var bytes = new byte[pixels.Length];
+        for (var index = 0; index < pixels.Length; index++)
+        {
+            bytes[index] = pixels[index] ? (byte)1 : (byte)0;
+        }
+
+        return (pixels.Count(pixel => pixel), Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
     }
 
     private static void ValidateMapSource(string sourceId, HashSet<string> sourceIds, string subject, List<string> failures)

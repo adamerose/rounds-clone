@@ -197,3 +197,19 @@ Hazard silhouette boxes use a distinct non-static role so later collision work c
 
 The eight-diameter spawn rule measures Euclidean center separation rather than horizontal distance because vanilla layouts include vertical arenas such as `arena-018`.
 Each provisional spawn names an oriented support box, and the gate checks support in that box's local coordinates, camera containment, kill-bound clearance, and visible-saw clearance.
+
+## 2026-08-14 — Position-lock accepted arena renders
+
+Total foreground pixels do not identify where geometry appears, so a count-only rerender gate can miss a moved box.
+Each accepted arena now records a digest of the entire positioned 640 by 360 render mask, and the checker rejects count or digest drift before trusting the source-overlap evidence produced by the reproducible generator.
+
+## 2026-08-14 — Reconcile removed release-era arenas separately
+
+An independent public mod index lists six arenas from the 7 April release-era build that were removed later.
+None of those entries appears in the community workbook's 70 internal-name rows, so the removed subset corroborates the workbook boundary without being counted as current-build geometry.
+The exact active pool remains a runtime gap because randomized current matches cannot exhaustively enumerate it.
+
+## 2026-08-14 — Make every declared spawn point source-supported
+
+Spawn-region width now derives from the named oriented support surface, and the checker validates all four rectangle corners in support-local coordinates.
+This replaces center-only validation, which allowed a plausible center while portions of 40 declared regions hung beyond narrow platforms.

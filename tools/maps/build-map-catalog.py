@@ -395,18 +395,31 @@ def spawn_regions(primitives: list[dict], saws: list[tuple[int, int, int]]) -> l
         if primitive["role"] != "static" or primitive["width"] < 0.25:
             continue
         angle = math.radians(primitive["rotationDegrees"])
+        cosine = math.cos(angle)
+        sine = math.sin(angle)
         axis_y = (-math.sin(angle), math.cos(angle))
         top_x = primitive["x"] + axis_y[0] * primitive["height"] / 2
         top_y = primitive["y"] + axis_y[1] * primitive["height"] / 2
-        center_x = top_x + axis_y[0] * 0.55
-        center_y = top_y + axis_y[1] * 0.55
-        if not (-17.6 <= center_x <= 17.6 and -9.85 <= center_y <= 9.85):
+        center_x = top_x + axis_y[0] * 0.6
+        center_y = top_y + axis_y[1] * 0.6
+        half_height = 0.1
+        available_half_width = primitive["width"] / 2 - abs(sine) * half_height - 0.000001
+        half_width = min(0.4, available_half_width / max(abs(cosine), 0.000001))
+        if half_width < 0.025:
+            continue
+        if not (
+            -18.0 <= center_x - half_width
+            and center_x + half_width <= 18.0
+            and -10.1 <= center_y - half_height
+            and center_y + half_height <= 10.1
+        ):
             continue
         pixel_x = center_x * PLAYER_DIAMETER_PIXELS + WIDTH / 2
         pixel_y = HEIGHT / 2 - center_y * PLAYER_DIAMETER_PIXELS
-        if any(math.hypot(pixel_x - x, pixel_y - y) < radius + PLAYER_DIAMETER_PIXELS for x, y, radius in saws):
+        region_radius_pixels = math.hypot(half_width, half_height) * PLAYER_DIAMETER_PIXELS
+        if any(math.hypot(pixel_x - x, pixel_y - y) < radius + PLAYER_DIAMETER_PIXELS + region_radius_pixels for x, y, radius in saws):
             continue
-        candidates.append((center_x, center_y, primitive["id"]))
+        candidates.append((center_x, center_y, primitive["id"], half_width, half_height))
     if len(candidates) < 2:
         raise ValueError("Map has fewer than two source-supported spawn candidates.")
     first, second = max(
@@ -425,13 +438,13 @@ def spawn_regions(primitives: list[dict], saws: list[tuple[int, int, int]]) -> l
         raise ValueError("Map cannot provide eight diameters of spawn separation.")
     left, right = sorted((first, second), key=lambda item: (item[0], item[1], item[2]))
     result = []
-    for spawn_id, (x, y, support_id) in (("spawn-left", left), ("spawn-right", right)):
+    for spawn_id, (x, y, support_id, half_width, half_height) in (("spawn-left", left), ("spawn-right", right)):
         result.append({
             "id": spawn_id,
-            "xMin": round(x - 0.4, 6),
-            "xMax": round(x + 0.4, 6),
-            "yMin": round(y - 0.2, 6),
-            "yMax": round(y + 0.2, 6),
+            "xMin": round(x - half_width, 6),
+            "xMax": round(x + half_width, 6),
+            "yMin": round(y - half_height, 6),
+            "yMax": round(y + half_height, 6),
             "clearanceDiameters": 1.0,
             "supportPrimitiveId": support_id,
         })
@@ -513,11 +526,12 @@ def main() -> None:
                     "previewPixels": {"width": WIDTH, "height": HEIGHT},
                     "rowAnchorMethod": "xlsx-drawing-one-cell-anchor",
                 },
-                "maskEvidence": {
+        "maskEvidence": {
                     "threshold": "max-rgb-greater-than-or-equal-to-24",
                     "maskSha256": hashlib.sha256(mask.astype(np.uint8).tobytes()).hexdigest(),
                     "sourceForegroundPixels": int(mask.sum()),
                     "renderedForegroundPixels": int(rendered.sum()),
+                    "renderedMaskSha256": hashlib.sha256(rendered.astype(np.uint8).tobytes()).hexdigest(),
                     "intersectionPixels": intersection,
                     "unionPixels": union,
                     "intersectionOverUnion": round(intersection / union, 6),
@@ -568,6 +582,7 @@ def main() -> None:
         "reconciliation": [
             {"source": "steam-store", "reportedCount": 70, "relationship": "lower-bound", "notes": "The official 70+ claim establishes a lower bound, not an exact active-pool count."},
             {"source": "community-map-sheet", "reportedCount": 70, "relationship": "exact-preview-index", "notes": "The public workbook has exactly one anchored preview in each sheet row 2-71."},
+            {"source": "removed-vanilla-map-index", "reportedCount": 6, "relationship": "historical-removed-subset", "notes": "An independent public index lists six release-era arenas absent from all 70 workbook internal-name rows."},
             {"source": "runtime-build-21020021", "reportedCount": 0, "relationship": "observed-subset", "notes": "The current build randomizes arenas and exposes no clean-room catalog browser."},
         ],
         "representativeExamples": {

@@ -385,6 +385,34 @@ public sealed class SpecCheckerTests : IDisposable
     }
 
     [Fact]
+    public void EntireMapSpawnRegionMustFitItsSupport()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["spawnRegions"]![0]!["xMin"] = -16;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC048 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TwoIndependentMapIndexesAreRequired()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["reconciliation"]![2]!["source"] = "source-one";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC060 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void UnboundedMapCoordinateIsRejected()
     {
         CreateValidRepository();
@@ -450,7 +478,7 @@ public sealed class SpecCheckerTests : IDisposable
         CreateValidRepository();
         var path = Path.Combine(_repository, "spec", "maps.json");
         var document = JsonNode.Parse(File.ReadAllText(path))!;
-        document["maps"]![0]!["primitives"]![0]!["width"] = 29;
+        document["maps"]![0]!["primitives"]![0]!["x"] = 1;
         File.WriteAllText(path, document.ToJsonString());
 
         var failures = SpecChecker.CheckRepository(_repository);
@@ -727,6 +755,7 @@ public sealed class SpecCheckerTests : IDisposable
                     ["maskSha256"] = new string('0', 64),
                     ["sourceForegroundPixels"] = 9720,
                     ["renderedForegroundPixels"] = 9720,
+                    ["renderedMaskSha256"] = "1683a9c57a22db7b23b964fe23ecaa2c1c65a1734ca50485cfdfb927c48cb0b0",
                     ["intersectionPixels"] = 9720,
                     ["unionPixels"] = 9720,
                     ["intersectionOverUnion"] = 1,
@@ -775,6 +804,7 @@ public sealed class SpecCheckerTests : IDisposable
             ["reconciliation"] = new JsonArray(
                 new JsonObject { ["source"] = "source-one", ["reportedCount"] = 70, ["relationship"] = "lower-bound", ["notes"] = "Fixture lower bound." },
                 new JsonObject { ["source"] = "source-one", ["reportedCount"] = 70, ["relationship"] = "exact-preview-index", ["notes"] = "Fixture preview index." },
+                new JsonObject { ["source"] = "source-two", ["reportedCount"] = 6, ["relationship"] = "historical-removed-subset", ["notes"] = "Fixture removed subset." },
                 new JsonObject { ["source"] = "source-one", ["reportedCount"] = 0, ["relationship"] = "observed-subset", ["notes"] = "Fixture subset." }),
             ["representativeExamples"] = new JsonObject
             {
