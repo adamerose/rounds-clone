@@ -532,3 +532,10 @@ The owner validated those three exact session-named files, deleted only them, an
 The worktree SDK's supported build-server shutdown stopped the MSBuild and compiler servers, and an exact-path `git clean` preview showed only the abandoned worktree before cleanup began.
 Git removed the tracked tree and most ignored tools but left one SDK runtime-configuration file because its path exceeded the Windows command limit.
 The owner revalidated the exact `004-map-catalog` directory under `.ivy/worktrees`, removed that final tree through the extended-path runtime API, and verified both filesystem absence and worktree unregistration.
+
+## 2026-08-14 — Ticket 005's first admission review rejected generic coyote time
+
+Reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` rejected exact ticket candidate `9afcb7116bccd324c6c2449cee41bee38c5f6968` because its coyote-time requirement conflicted with the binding persistent stored-air-jump rule.
+The correction removes coyote machinery from the ticket and physics design, retains the sourced four-tick landing buffer, and requires direct tests for ledge departure, jump consumption, and refill-after-landing behavior.
+During review, one search included a nonexistent root `tests` path and produced oversized truncated output after useful results, one inspection guessed nonexistent `src/Rounds.Sim/Input.cs`, and one arena query guessed root property `arenas` before using `maps`.
+All three mistakes were read-only and left no residue.

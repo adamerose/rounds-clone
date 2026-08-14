@@ -9,6 +9,7 @@ risk: 4
 depends-on: [2, 4]
 sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
+  - codex:019ffff6-6034-76b1-96a2-b080ac183346
 ---
 
 # Implement deterministic movement and static arena collision
@@ -21,7 +22,7 @@ Two local players can run, jump, fall, land, and slide against the real static o
 - Load only `static` primitives into ordinary collision and preserve source order as the deterministic tie-break order; `hazard-visual` and `dynamic-visual` primitives never silently become static colliders.
 - Implement deterministic circle-versus-oriented-box overlap, sweep, earliest-hit selection, and four-iteration move-and-slide behavior without tunnelling through thin or rotated platforms.
 - Implement base horizontal acceleration, sustained speed, air control, gravity, ground friction, jump storage, landing refill, grounded state, and edge-triggered jumping from the binding player facts.
-- Add named provisional constants for coyote time, jump buffering, jump release, grounding threshold, probe distance, and collision skin where the research does not bind exact values.
+- Add named provisional constants for the sourced four-tick jump buffer, jump release, grounding threshold, probe distance, and collision skin where the research does not bind exact values.
 - Spawn a two-player world from `arena-006`'s two catalog regions and include the arena identity plus all movement state in the deterministic hash.
 - Replace the fixed Godot concept-stage fighters and platforms with a world-space rendering of the loaded arena and the live simulation positions, retaining an original presentation and two local keyboard control sets.
 
@@ -43,7 +44,8 @@ Movement against real level geometry is the foundation for shooting, recoil, rin
 ## Evidence required
 
 - Unit tests cover axis-aligned and rotated hits, corner contact, initial overlap, zero motion, exact-time tie order, stable normals, sliding, and high-speed passage against a thin platform.
-- Movement tests prove acceleration and sustained speed agree with the binding targets, an unmodified jump reaches its specified height and apex-time tolerance, landing restores the one stored jump, release shortens the jump, and coyote plus buffer windows are deterministic at their boundaries.
+- Movement tests prove acceleration and sustained speed agree with the binding targets, an unmodified jump reaches its specified height and apex-time tolerance, landing restores the one stored jump, and release shortens the jump.
+- Jump-state tests prove walking off preserves the stored jump beyond any short grace window, a ground jump consumes it without recent ground contact granting another, and a buffered press while empty executes only after landing refills the jump.
 - Catalog tests prove `arena-006` loads 15 source-ordered static boxes and two supported spawn regions, rejects unknown or malformed arenas, and never loads hazard or dynamic visual boxes as static collision.
 - A deterministic regression runs the same arena, seed, and input stream twice to the same complete state hash and changes that hash when one movement input changes.
 - The Godot shell loads the same arena data, advances both keyboard-controlled players through `Rounds.Sim`, and passes editor plus runtime smoke without duplicating map geometry in a scene.
@@ -53,3 +55,7 @@ Movement against real level geometry is the foundation for shooting, recoil, rin
 
 - 2026-08-14T11:08:00Z stage design start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Comparing the simplest immutable arena and kinematic-controller design with the existing deterministic smoke world and the binding movement, map, and architecture records.
 - 2026-08-14T11:08:00Z stage design end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Bounded the first playable slice to static arena 006, one circle-versus-oriented-box sweep, researched movement constants, explicit provisional feel constants, live Godot rendering, and public-interface verification.
+- 2026-08-14T11:11:44Z stage admission start session codex:019ffff6-6034-76b1-96a2-b080ac183346 — Cold-reading exact ticket candidate `9afcb7116bccd324c6c2449cee41bee38c5f6968` against the self-admission bar, closed dependencies, binding jump rules, arena facts, risk, and evidence.
+- 2026-08-14T11:11:44Z stage admission end session codex:019ffff6-6034-76b1-96a2-b080ac183346 — Rejected conventional coyote time because the indefinitely stored air jump makes it redundant or turns it into an incorrect second-jump grant; the rest of the risk-4 contract passed.
+- 2026-08-14T11:11:44Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Removing coyote machinery from the ticket and owning design, then replacing it with observable stored-jump and landing-buffer boundary tests.
+- 2026-08-14T11:11:44Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Bound one persistent stored jump after ledge departure, no recent-ground bonus after consumption, and a sourced four-tick buffer that can fire only after landing refills the jump.

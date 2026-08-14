@@ -156,6 +156,12 @@ Fresh reviewer session `codex:019fff67-9eba-7042-8e81-fc16c3885b45` approved exa
 The review independently confirmed the 67-card reconciliation, the corrected Brawler and Pristine Perseverence percentage sources, every prior stacking and patch correction, 31 passing tests, deterministic hash `f250d549cfb52a8b`, and Godot editor and runtime smoke.
 The candidate was fast-forwarded to `main` unchanged before this integration record was appended.
 
+## 2026-08-14 — Do not add coyote time to a stored-air-jump system
+
+The binding movement rule gives each player one stored jump that remains usable after leaving the ground and refills on landing.
+A conventional coyote window therefore changes nothing while the jump remains stored, or incorrectly creates a second jump if recent ground contact grants eligibility after that stored jump was consumed.
+Movement keeps the sourced provisional four-tick landing buffer and tests the actual state boundaries instead of adding redundant coyote machinery.
+
 ## 2026-08-14 — Admit ticket 004 as bounded arena research
 
 Reviewer session `codex:019fff46-e63b-7911-8124-12c0d8fe0b12` admitted ticket 004 at risk 4 after ticket 002 closed.

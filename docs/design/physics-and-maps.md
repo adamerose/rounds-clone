@@ -68,14 +68,15 @@ Each tick, per player, in index order:
 3. **Jump.**
    If jump was pressed and a jump is available, set upward velocity.
    Cards add jumps; the counter refills on landing.
-   Include coyote time and input buffering, both in ticks, both tunable — they're invisible when right and awful when missing.
+   Walking off a ledge preserves the stored jump until it is used, so a separate coyote window would be redundant or could incorrectly grant a second jump.
+   Buffer a rising-edge jump input for the sourced provisional four ticks so a press just before landing can execute only after contact refills the counter.
 4. **Variable height.**
    Releasing jump while still rising cuts upward velocity by a factor.
 5. **Move and slide.**
    The loop below.
 6. **Ground state.**
    Grounded if the last resolution produced a contact whose normal points up past a threshold, or a short downward probe finds one.
-   Grounded is sticky for a few ticks so that running over a seam doesn't cancel a jump.
+   A short downward probe makes grounded state stable across platform seams without changing stored-jump eligibility.
 
 Move and slide:
 
