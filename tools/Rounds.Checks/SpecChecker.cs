@@ -168,6 +168,10 @@ public static class SpecChecker
                 sources.Add(sourceId);
             }
 
+            var pixelMeasurements = measurement.GetProperty("pixelMeasurements");
+            ValidateRecordedSpan(pixelMeasurements, "startCenterX", "endCenterX", "distancePixels", measurementId, failures);
+            ValidateRecordedSpan(pixelMeasurements, "startCenterY", "apexCenterY", "verticalRisePixels", measurementId, failures);
+
             var derivation = measurement.GetProperty("derivation");
             var operation = derivation.GetProperty("operation").GetString()!;
             var operands = new List<double>();
@@ -250,6 +254,29 @@ public static class SpecChecker
             {
                 failures.Add($"SPEC015 measurements.json omits required coverage for fact `{factId}`.");
             }
+        }
+    }
+
+    private static void ValidateRecordedSpan(
+        JsonElement pixelMeasurements,
+        string startField,
+        string endField,
+        string spanField,
+        string measurementId,
+        List<string> failures)
+    {
+        if (!pixelMeasurements.TryGetProperty(startField, out var start) ||
+            !pixelMeasurements.TryGetProperty(endField, out var end) ||
+            !pixelMeasurements.TryGetProperty(spanField, out var span))
+        {
+            return;
+        }
+
+        var recomputed = Math.Abs(end.GetDouble() - start.GetDouble());
+        var recorded = span.GetDouble();
+        if (Math.Abs(recomputed - recorded) > 0.0001)
+        {
+            failures.Add($"SPEC017 measurements.json measurement `{measurementId}` records {spanField} as {recorded} but its endpoints recompute to {recomputed:F6}.");
         }
     }
 }

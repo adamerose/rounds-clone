@@ -55,8 +55,8 @@ Speeds use player diameters per tick.
 |---|---:|---:|---|---|
 | Base body diameter | 1.0 diameter | ±0.08 | high as a normalization choice | 18×18 px and 18×17 px torso samples |
 | Sustained horizontal speed | 0.10 diameters/tick | ±0.04 | low | 0.0965 collision-free trajectory; a shot-contaminated 0.0666 comparison is excluded |
-| Jump apex height | 2.9 diameters | ±0.8 | low | 2.8989 collision-free lower bound; a shot-contaminated 3.1433 comparison is excluded |
-| Jump apex time | 30 ticks | ±8 | low | 30-tick collision-free lower bound; a shot-contaminated 32.032 comparison is excluded |
+| Jump apex height | 4.5 diameters | ±1.0 | low | 4.5078 collision-free grounded-to-apex rise; a shot-contaminated comparison is excluded |
+| Jump apex time | 36 ticks | ±8 | low | 36-tick collision-free grounded-to-apex rise; a shot-contaminated comparison is excluded |
 | Projectile speed | 2.4 diameters/tick | ±0.7 | low | 2.3333 from one controlled loadout; the second source is excluded |
 | Projectile radius | 0.08 diameters | ±0.03 | low | 0.0833 bright-core radius from one controlled loadout |
 | Shot recoil | 0.10 diameters/tick | ±0.06 | low | 0.0500 and 0.1422 isolated velocity changes |
@@ -79,8 +79,8 @@ They remain low-confidence until the clone can generate controlled captures for 
 |---|---:|---|
 | Ground acceleration | 0.014 diameters/tick² | reaches the measured run-speed band in roughly eight ticks |
 | Air-control ratio | 0.80 | preserves the strong visible airborne correction authority |
-| Jump speed | 0.19 diameters/tick | algebraically fits the measured height and apex-time bands |
-| Gravity | 0.0065 diameters/tick² | algebraically fits the measured height and apex-time bands |
+| Jump speed | 0.25 diameters/tick | algebraically fits the measured height and apex-time bands |
+| Gravity | 0.007 diameters/tick² | algebraically fits the measured height and apex-time bands |
 | Ground friction | 0.72 retained/tick | produces quick but non-instant settling |
 | Base bullet damage | 0.55 health | matches the community estimate and repeated two-hit kills |
 | Fire interval | 18 ticks | remains within visible muzzle-event cadence |
@@ -111,5 +111,5 @@ The current build is still the binding target, and any later direct runtime obse
 
 The repository checker validates every required `spec/*.json` document against the committed JSON Schema vocabulary subset.
 It rejects unsupported schema keywords so future schemas cannot appear enforced while relying on silently ignored features.
-It also rejects duplicate identifiers, unknown provenance references, measurements that target unknown facts, normalized results that do not reproduce from their operands, missing coverage, insufficient independent sources, and a mechanics filename whose `kind` does not match.
-Regression tests prove that missing provenance, an unknown source, an unknown measurement target, unsupported schema vocabulary, a missing raw operand, and false measurement arithmetic all fail.
+It also rejects duplicate identifiers, unknown provenance references, measurements that target unknown facts, raw spans that disagree with their endpoints, normalized results that do not reproduce, missing coverage, insufficient independent sources, and a mechanics filename whose `kind` does not match.
+Regression tests prove that missing provenance, an unknown source, an unknown measurement target, unsupported schema vocabulary, a missing raw operand, an inconsistent endpoint span, and false measurement arithmetic all fail.

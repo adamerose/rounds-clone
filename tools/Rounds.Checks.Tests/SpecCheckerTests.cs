@@ -74,7 +74,7 @@ public sealed class SpecCheckerTests : IDisposable
         CreateValidRepository();
         var path = Path.Combine(_repository, "spec", "measurements.json");
         var document = JsonNode.Parse(File.ReadAllText(path))!;
-        document["measurements"]![0]!["pixelMeasurements"]!["distance"] = 2;
+        document["measurements"]![0]!["pixelMeasurements"]!["distancePixels"] = 2;
         File.WriteAllText(path, document.ToJsonString());
 
         var failures = SpecChecker.CheckRepository(_repository);
@@ -94,6 +94,20 @@ public sealed class SpecCheckerTests : IDisposable
         var failures = SpecChecker.CheckRepository(_repository);
 
         Assert.Contains(failures, failure => failure.StartsWith("SPEC016 measurements.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RecordedSpanMustMatchItsEndpoints()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "measurements.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["measurements"]![0]!["pixelMeasurements"]!["endCenterX"] = 2;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC017 measurements.json", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -235,8 +249,8 @@ public sealed class SpecCheckerTests : IDisposable
                 "activeCards": [],
                 "modifierControl": "No modifiers in the fixture.",
                 "countsTowardCoverage": true,
-                "pixelMeasurements": { "distance": 1 },
-                "derivation": { "operation": "identity", "operands": ["pixelMeasurements.distance"] },
+                "pixelMeasurements": { "startCenterX": 0, "endCenterX": 1, "distancePixels": 1 },
+                "derivation": { "operation": "identity", "operands": ["pixelMeasurements.distancePixels"] },
                 "normalizedValue": 1,
                 "unit": "fixture units",
                 "tolerance": 0,

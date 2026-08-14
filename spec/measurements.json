@@ -28,7 +28,7 @@
       "category": "jumping",
       "minimumIndependentSources": 1,
       "rationale": "The accepted SSAG arc supplies the visible rise time at the source's two-tick frame resolution.",
-      "limitation": "The WCG comparison contains a shot during the arc, so it is retained but excluded; the accepted SSAG interval begins after takeoff and is a lower bound."
+      "limitation": "The WCG comparison contains a shot during the arc, so it is retained but excluded; no second action-isolated full arc was found in the selected recordings."
     },
     {
       "metricFactId": "combat-projectile-speed",
@@ -162,19 +162,18 @@
       "id": "m-jump-apex-height-ssag",
       "metricFactId": "player-jump-apex-height",
       "source": "footage-ssag",
-      "sourceTimestamp": "00:00:43.900",
+      "sourceTimestamp": "00:00:43.800",
       "observedFrameIntervalTicks": 2.0,
       "activeCards": ["Tank", "Leech"],
       "modifierControl": "Tank and Leech list no jump or player-movement modifier, and both players remain separated through the measured apex.",
       "countsTowardCoverage": true,
-      "pixelMeasurements": { "startCenterY": 248.2318, "apexCenterY": 196.0513, "verticalRisePixels": 52.1805, "bodyDiameterPixels": 18, "elapsedFrames": 15 },
+      "pixelMeasurements": { "startCenterY": 277.1916, "apexCenterY": 196.0513, "verticalRisePixels": 81.1403, "bodyDiameterPixels": 18, "elapsedFrames": 18 },
       "derivation": { "operation": "divide", "operands": ["pixelMeasurements.verticalRisePixels", "pixelMeasurements.bodyDiameterPixels"] },
-      "normalizedValue": 2.8989,
+      "normalizedValue": 4.5078,
       "unit": "player diameters",
       "tolerance": 0.8,
       "confidence": "low",
-      "method": "Measured the orange torso's collision-free rise in the second duel before it approached the right platform; no shot, hit, block, or player contact occurs through the apex.",
-      "notes": "The source interval begins after takeoff, so this remains a lower bound on the full jump."
+      "method": "Measured the orange torso from the last grounded floor frame through its collision-free second-duel apex; no shot, hit, block, platform contact, or player contact occurs during the rise."
     },
     {
       "id": "m-jump-apex-time-wcg",
@@ -197,18 +196,18 @@
       "id": "m-jump-apex-time-ssag",
       "metricFactId": "player-jump-apex-time",
       "source": "footage-ssag",
-      "sourceTimestamp": "00:00:43.900",
+      "sourceTimestamp": "00:00:43.800",
       "observedFrameIntervalTicks": 2.0,
       "activeCards": ["Tank", "Leech"],
       "modifierControl": "Tank and Leech list no jump or player-movement modifier, and both players remain separated through the measured apex.",
       "countsTowardCoverage": true,
-      "pixelMeasurements": { "elapsedFrames": 15 },
+      "pixelMeasurements": { "elapsedFrames": 18 },
       "derivation": { "operation": "multiply", "operands": ["pixelMeasurements.elapsedFrames", "observedFrameIntervalTicks"] },
-      "normalizedValue": 30.0,
+      "normalizedValue": 36.0,
       "unit": "ticks",
       "tolerance": 6,
       "confidence": "low",
-      "method": "Counted source frames across the collision-free SSAG rising segment."
+      "method": "Counted source frames from the last grounded floor frame through the collision-free SSAG apex."
     },
     {
       "id": "m-projectile-speed-wcg-contaminated",

@@ -211,3 +211,12 @@ The retained ignored correction frames provided the same source interval, so no 
 
 A context-light patch changed the first `countsTowardCoverage` occurrence, excluding the WCG body-diameter row instead of the WCG action-contaminated run row.
 The repository gate immediately failed the two-source body-normalization contract, and an ID-anchored patch restored body coverage while excluding the intended run.
+
+## 2026-08-14 — Ticket 002's third review rejected a partial jump promoted as full height
+
+Reviewer session `codex:019fff1d-fe99-7af1-a895-91bf4b242796` rejected exact candidate `f50acf6b83b37fdfd46f5f4ae78fa25a90500768`.
+The accepted SSAG jump began at center Y 248.2318 after takeoff even though the immediately preceding grounded frame is center Y 277.1916, so the claimed 2.8989-diameter full rise excluded 1.6089 visible diameters.
+The correction will start at the grounded frame, record the full 4.5078-diameter and 36-tick arc, and recompute every algebraic jump hypothesis from it.
+
+The review refreshed ignored `bin/`, `obj/`, and `game/.godot/` outputs but changed no tracked file.
+Two read-only PowerShell formatting commands also failed with an `empty pipe element` parser error before corrected commands succeeded without creating files.

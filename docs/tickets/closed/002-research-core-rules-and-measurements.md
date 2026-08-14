@@ -10,6 +10,7 @@ depends-on: [1]
 sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
   - codex:019fff0e-f811-71d0-a4aa-27137690f147
+  - codex:019fff1d-fe99-7af1-a895-91bf4b242796
 ---
 
 # Research core rules and footage measurements
@@ -70,3 +71,9 @@ Locking sourced values and tolerances now prevents implementation intuition from
 - 2026-08-14T07:12:06Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Rechecking frame arithmetic, action and card controls, explicit one-source limitations, coverage omissions, the full build, deterministic smoke, and both Godot entry points.
 - 2026-08-14T07:12:06Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Full repository gate passed with zero build warnings, 19 tests, repeated smoke hash f250d549cfb52a8b, Godot editor/runtime smoke, unchanged formatting, passing ticket format, and a clean diff check.
 - 2026-08-14T07:12:06Z stage review start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Preparing the second corrected candidate for a fresh non-author review against ticket 002 and both prior rejection reports.
+- 2026-08-14T07:19:43Z stage review end session codex:019fff1d-fe99-7af1-a895-91bf4b242796 — Rejected candidate f50acf6b83b37fdfd46f5f4ae78fa25a90500768 because the accepted jump row started after takeoff but was incorrectly promoted to the full above-takeoff height.
+- 2026-08-14T07:19:43Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening the admitted contract to include the immediately preceding grounded frame and recompute jump height, apex time, jump speed, and gravity from the full visible arc.
+- 2026-08-14T07:21:39Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Extended the SSAG jump to the last grounded frame, recorded the full 4.5078-diameter and 36-tick rise, recomputed jump speed and gravity, and added a regression that rejects raw spans inconsistent with their endpoints.
+- 2026-08-14T07:21:39Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Rechecking the full grounded-to-apex arithmetic, endpoint-span failure, source coverage, build, deterministic smoke, and Godot boundaries.
+- 2026-08-14T07:21:39Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Full repository gate passed with zero build warnings, 20 tests, repeated smoke hash f250d549cfb52a8b, Godot editor/runtime smoke, unchanged formatting, passing ticket format, and a clean diff check.
+- 2026-08-14T07:21:39Z stage review start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Preparing the third corrected candidate for a fresh non-author review against ticket 002 and all prior rejection findings.
