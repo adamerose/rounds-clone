@@ -44,7 +44,21 @@ try {
         throw 'Hash-mismatching replay did not return a useful nonzero diagnostic.'
     }
 
-    Write-Output 'replay CLI record, replay, corruption, and mismatch checks passed'
+    $corpus = Join-Path $temporary 'corpus'
+    [IO.Directory]::CreateDirectory($corpus) | Out-Null
+    foreach ($item in @(@{ Id = 'zeta'; Seed = '9' }, @{ Id = 'alpha'; Seed = '8' })) {
+        $path = Join-Path $corpus ($item.Id + '.rounds-replay.json')
+        $corpusRecord = Invoke-Harness -Arguments @('record', '--profile', 'base-combat', '--id', $item.Id, '--seed', $item.Seed, '--ticks', '1', '--output', $path)
+        if ($corpusRecord.ExitCode -ne 0) { throw "Could not create ordinal corpus replay $($item.Id)." }
+    }
+    $corpusResult = Invoke-Harness -Arguments @('verify-replays', '--directory', $corpus)
+    $verifiedIds = @($corpusResult.Output | ForEach-Object { if ($_ -match '^verified id=(?<id>[a-z0-9-]+) ') { $Matches.id } })
+    if ($corpusResult.ExitCode -ne 0 -or ($verifiedIds -join ',') -cne 'alpha,zeta' -or
+        -not ($corpusResult.Output | Where-Object { $_ -ceq 'verified replay corpus count=2' })) {
+        throw "Multi-file process verification was not ordinal and complete:`n$($corpusResult.Output -join [Environment]::NewLine)"
+    }
+
+    Write-Output 'replay CLI record, replay, corruption, mismatch, and ordinal multi-file checks passed'
 } finally {
     if ([IO.Directory]::Exists($temporary)) {
         Get-ChildItem -LiteralPath $temporary -Force -Recurse | ForEach-Object { $_.Attributes = [IO.FileAttributes]::Normal }

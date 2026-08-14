@@ -649,6 +649,37 @@ public sealed class GoldenHistoryScriptTests
         Assert.Contains("No unique merge base", result.Output, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void EffectiveEventBuildsMissingHarnessBeforePlayback()
+    {
+        using var fixture = GitFixture.WithInitialReplay("baseline", 1);
+        var harness = Path.Combine(fixture.Root, "clean-harness", "Rounds.Harness.csproj");
+        var assembly = Path.Combine(fixture.Root, "clean-harness", "bin", "Release", "net8.0", "Rounds.Harness.dll");
+        var log = Path.Combine(fixture.Root, "fake-dotnet.log");
+        var fakeDotnet = Path.Combine(fixture.Root, "fake-dotnet.ps1");
+        fixture.WriteText("clean-harness/Rounds.Harness.csproj", "<Project />\n");
+        fixture.WriteText(
+            "fake-dotnet.ps1",
+            $$"""
+            param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Remaining)
+            [IO.File]::AppendAllText('{{log.Replace("'", "''")}}', ($Remaining -join ' ') + "`n")
+            if ($Remaining[0] -ceq 'build') {
+                [IO.Directory]::CreateDirectory('{{Path.GetDirectoryName(assembly)!.Replace("'", "''")}}') | Out-Null
+                [IO.File]::WriteAllBytes('{{assembly.Replace("'", "''")}}', [byte[]]@(1))
+            }
+            $global:LASTEXITCODE = 0
+            """);
+
+        var result = fixture.Event(fixture.Head, fixture.Head, fixture.Head, dotnet: fakeDotnet, harness: harness);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Collection(
+            File.ReadAllLines(log),
+            line => Assert.StartsWith("restore ", line, StringComparison.Ordinal),
+            line => Assert.StartsWith("build ", line, StringComparison.Ordinal),
+            line => Assert.Contains("run --project", line, StringComparison.Ordinal));
+    }
+
     private static string FindRepository()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -774,7 +805,13 @@ public sealed class GoldenHistoryScriptTests
         public ProcessResult PowerShell(string script, params string[] arguments) =>
             RunProcess(Root, "pwsh", ["-NoProfile", "-File", script, .. arguments]);
 
-        public ProcessResult Event(string historyBase, string established, string candidate, bool prospective = false)
+        public ProcessResult Event(
+            string historyBase,
+            string established,
+            string candidate,
+            bool prospective = false,
+            string? dotnet = null,
+            string? harness = null)
         {
             var arguments = new List<string>
             {
@@ -792,8 +829,8 @@ public sealed class GoldenHistoryScriptTests
                 arguments,
                 new Dictionary<string, string>
                 {
-                    ["ROUNDS_DOTNET"] = Path.Combine(Repository, ".tools", "dotnet", "dotnet.exe"),
-                    ["ROUNDS_HARNESS_PROJECT"] = Path.Combine(Repository, "src", "Rounds.Harness", "Rounds.Harness.csproj"),
+                    ["ROUNDS_DOTNET"] = dotnet ?? Path.Combine(Repository, ".tools", "dotnet", "dotnet.exe"),
+                    ["ROUNDS_HARNESS_PROJECT"] = harness ?? Path.Combine(Repository, "src", "Rounds.Harness", "Rounds.Harness.csproj"),
                 });
         }
 

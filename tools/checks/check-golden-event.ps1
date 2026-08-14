@@ -67,6 +67,15 @@ function Test-EffectiveCorpus([string]$Treeish) {
         }
         $dotnet = if ($env:ROUNDS_DOTNET) { $env:ROUNDS_DOTNET } else { Join-Path $repository '.tools/dotnet/dotnet.exe' }
         $harness = if ($env:ROUNDS_HARNESS_PROJECT) { $env:ROUNDS_HARNESS_PROJECT } else { Join-Path $repository 'src/Rounds.Harness/Rounds.Harness.csproj' }
+        $harnessAssembly = Join-Path (Split-Path -Parent $harness) 'bin/Release/net8.0/Rounds.Harness.dll'
+        if (-not [IO.File]::Exists($harnessAssembly)) {
+            & $dotnet restore $harness --locked-mode
+            if ($LASTEXITCODE -ne 0) { throw 'Could not restore the replay verifier before effective-corpus playback.' }
+            & $dotnet build $harness --configuration Release --no-restore
+            if ($LASTEXITCODE -ne 0 -or -not [IO.File]::Exists($harnessAssembly)) {
+                throw 'Could not build the replay verifier before effective-corpus playback.'
+            }
+        }
         $verification = & $dotnet run --project $harness --configuration Release --no-build --no-restore -- verify-replays --directory $goldenDirectory 2>&1
         if ($LASTEXITCODE -ne 0) { throw "Effective replay corpus failed canonical playback:`n$($verification -join [Environment]::NewLine)" }
     } finally {

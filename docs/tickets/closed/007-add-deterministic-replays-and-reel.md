@@ -20,6 +20,7 @@ sessions:
   - codex:01a00096-742f-71f1-b5fc-80f5772e2046
   - codex:01a000ac-dd36-7902-81e2-5b2c75826c5d
   - codex:01a000c5-7def-76c1-94ad-1f2c895696c6
+  - codex:01a000eb-212e-7640-82f7-a7b11c745b87
 ---
 
 # Add deterministic replays and a rendered reel
@@ -182,3 +183,7 @@ A small exact replay boundary now turns every later failure into a reproducible 
 - 2026-08-14T15:11:08Z stage review end session codex:01a000c5-7def-76c1-94ad-1f2c895696c6 — Rejected incomplete AVI frames, successful early replay termination, non-byte-exact effective ledger validation, unreachable non-commit-tag skip, world construction before validation, and missing negative/process/corpus fixtures.
 - 2026-08-14T15:11:08Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening implementation to fix every rejected public boundary, regenerate independently decoded render evidence, and complete the frozen evidence matrix before a new exact review.
 - 2026-08-14T15:34:15Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Validated replay headers before allocation or world creation; made interrupted Godot playback fail; shared one raw-byte ledger parser across history and effective trees; made blob-tag CI checkout-safe; expanded canonical, corpus, history, and process evidence to 147 simulation tests; and regenerated a 600-frame reel whose six representative frames independently decode with expected visual state.
+- 2026-08-14T15:46:20Z stage review start session codex:01a000eb-212e-7640-82f7-a7b11c745b87 — Independently reviewed exact candidate dc4dd45a6e1dc623fa99fe44d673349301ee2d8d in a clean archive and at its public recorder, renderer, process, Godot, ledger, workflow, and movie boundaries.
+- 2026-08-14T15:46:20Z stage review end session codex:01a000eb-212e-7640-82f7-a7b11c745b87 — Rejected clean CI verification before build, invalid recorder input mutating before rejection, corrupted absolute render paths, and remaining hash, run-shape, and ordinal multi-file process evidence gaps.
+- 2026-08-14T15:46:20Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening implementation to make the event guard self-sufficient on a clean runner, validate frames before stepping, preserve absolute paths, and complete the remaining public evidence rows.
+- 2026-08-14T15:53:31Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Built a missing verifier before effective-corpus playback, rejected malformed movement and aim before changing tick or hash, supported absolute renderer paths in the nightly workflow, added every named hash and run-type mutation, and verified an ordinal two-file corpus through the public process; the zero-warning gate passed 163 simulation tests and 37 checker tests.

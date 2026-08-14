@@ -871,3 +871,14 @@ The script now resets native process status only after all assertions and exact 
 
 The first final `spec/` tree comparison left `^{tree}` unquoted in PowerShell, which misparsed the revision and printed a fatal ambiguity instead of a usable baseline hash.
 Quoting the exact revision proved both baseline and corrected candidate use the identical `065d80874b6d21dcc6e1f2f9550bcf43c52b5db8` spec tree.
+
+## 2026-08-14 — Ticket 007's correction review found warm-worktree blind spots
+
+Reviewer `codex:01a000eb-212e-7640-82f7-a7b11c745b87` rejected exact candidate `dc4dd45a6e1dc623fa99fe44d673349301ee2d8d` after a clean archive proved that the CI event guard runs the harness with `--no-build --no-restore` before the workflow builds it.
+The same review proved invalid recorder movement mutates simulation state before `Finish()` rejects it, absolute renderer paths are incorrectly prefixed with the repository path, and the promised malformed-hash, exact player/button run shape, and ordinal multi-file process evidence remains incomplete.
+The previously rejected movie decode, interrupted playback, raw-byte ledger, tag checkout, and scalar-header boundaries all passed independently.
+
+The review's first gate launch used an accidental one-second timeout, one ignored-file inventory was truncated, and one `rg` pattern beginning with `--` needed the explicit end-of-options marker.
+The reviewer removed every generated AVI, PNG, clean archive, and temporary directory after exact validation and left no tracked change, process, branch, or Git ref.
+
+While preparing the later match slice, one combined source read guessed absent `src/Rounds.Sim/CombatState.cs`; the useful `World.cs` read completed first, and the actual combat state is distributed across `World`, `Player`, `CombatTuning`, and `CombatController`.

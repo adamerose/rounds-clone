@@ -21,7 +21,9 @@ jobs:
         run: ./tools/checks/run.ps1
       - name: Render and validate canonical replay
         shell: pwsh
-        run: ./tools/render-replay.ps1 -Replay replays/golden/base-combat-006-seed-1.rounds-replay.json -Output reels/2026-08-14-base-combat.avi
+        run: |
+          $repository = [IO.Path]::GetFullPath('.')
+          ./tools/render-replay.ps1 -Replay (Join-Path $repository 'replays/golden/base-combat-006-seed-1.rounds-replay.json') -Output (Join-Path $repository 'reels/2026-08-14-base-combat.avi')
       - name: Upload validated replay reel
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

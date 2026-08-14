@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Nodes;
 using Rounds.Replay;
 using Rounds.Sim;
 using Rounds.Sim.Math;
@@ -47,6 +48,12 @@ public sealed class ReplayTests
     [InlineData("missing-newline")]
     [InlineData("extra-newline")]
     [InlineData("invalid-utf8")]
+    [InlineData("bad-checkpoint-hash-character")]
+    [InlineData("short-checkpoint-hash")]
+    [InlineData("long-checkpoint-hash")]
+    [InlineData("bad-final-hash-character")]
+    [InlineData("short-final-hash")]
+    [InlineData("long-final-hash")]
     public void NonCanonicalOrMalformedBytesFail(string mutation)
     {
         var bytes = CreateReplayBytes(1);
@@ -67,6 +74,12 @@ public sealed class ReplayTests
             "missing-newline" => bytes[..^1],
             "extra-newline" => [.. bytes, (byte)'\n'],
             "invalid-utf8" => [0xff, .. bytes[1..]],
+            "bad-checkpoint-hash-character" => Encoding.UTF8.GetBytes(ReplaceHexField(text, "\"hash\":\"", value => "A" + value[1..])),
+            "short-checkpoint-hash" => Encoding.UTF8.GetBytes(ReplaceHexField(text, "\"hash\":\"", value => value[..^1])),
+            "long-checkpoint-hash" => Encoding.UTF8.GetBytes(ReplaceHexField(text, "\"hash\":\"", value => value + "0")),
+            "bad-final-hash-character" => Encoding.UTF8.GetBytes(ReplaceHexField(text, "\"finalHash\":\"", value => "A" + value[1..])),
+            "short-final-hash" => Encoding.UTF8.GetBytes(ReplaceHexField(text, "\"finalHash\":\"", value => value[..^1])),
+            "long-final-hash" => Encoding.UTF8.GetBytes(ReplaceHexField(text, "\"finalHash\":\"", value => value + "0")),
             _ => throw new InvalidOperationException(),
         };
 
@@ -197,6 +210,26 @@ public sealed class ReplayTests
         Assert.NotNull(new ReplayRecorder(new string('a', 64), 1, "arena-006", ReplayFormat.MaximumTicks).World);
     }
 
+    [Fact]
+    public void RecorderRejectsInvalidFrameBeforeMutatingWorld()
+    {
+        var recorder = new ReplayRecorder("invalid-frame", 1, "arena-006", 1);
+        var initialHash = Rounds.Sim.Sim.Hash(recorder.World);
+        var invalidMovement = Inputs(new Vec2(1, 0));
+        invalidMovement[0] = invalidMovement[0] with { MoveAxis = 2 };
+
+        Assert.Throws<InvalidDataException>(() => recorder.Step(invalidMovement));
+        Assert.Equal(0, recorder.RecordedTicks);
+        Assert.Equal(0, recorder.World.Tick);
+        Assert.Equal(initialHash, Rounds.Sim.Sim.Hash(recorder.World));
+
+        var invalidAim = Inputs(new Vec2(double.PositiveInfinity, 0));
+        Assert.Throws<InvalidDataException>(() => recorder.Step(invalidAim));
+        Assert.Equal(0, recorder.RecordedTicks);
+        Assert.Equal(0, recorder.World.Tick);
+        Assert.Equal(initialHash, Rounds.Sim.Sim.Hash(recorder.World));
+    }
+
     [Theory]
     [InlineData("format")]
     [InlineData("empty-id")]
@@ -268,6 +301,55 @@ public sealed class ReplayTests
         };
 
         Assert.Throws<InvalidDataException>(() => ReplayCodec.ToCanonicalBytes(invalid));
+    }
+
+    [Theory]
+    [InlineData("one-player")]
+    [InlineData("three-players")]
+    [InlineData("length-string")]
+    [InlineData("move-string")]
+    [InlineData("aim-number")]
+    [InlineData("jump-number")]
+    [InlineData("fire-string")]
+    [InlineData("block-null")]
+    public void EveryRunJsonShapeAndTypeBoundaryFails(string mutation)
+    {
+        var root = JsonNode.Parse(CreateReplayBytes(1))!.AsObject();
+        var run = root["runs"]!.AsArray()[0]!.AsObject();
+        var players = run["players"]!.AsArray();
+        var first = players[0]!.AsObject();
+        switch (mutation)
+        {
+            case "one-player":
+                players.RemoveAt(1);
+                break;
+            case "three-players":
+                players.Add(players[1]!.DeepClone());
+                break;
+            case "length-string":
+                run["length"] = "1";
+                break;
+            case "move-string":
+                first["move"] = "0";
+                break;
+            case "aim-number":
+                first["aimXBits"] = 0;
+                break;
+            case "jump-number":
+                first["jump"] = 0;
+                break;
+            case "fire-string":
+                first["fire"] = "false";
+                break;
+            case "block-null":
+                first["block"] = null;
+                break;
+            default:
+                throw new InvalidOperationException();
+        }
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(root.ToJsonString() + "\n"));
+        Assert.Throws<InvalidDataException>(() => ReplayCodec.Load(stream));
     }
 
     [Theory]
@@ -391,6 +473,15 @@ public sealed class ReplayTests
     }
 
     private static byte[] CreateReplayBytes(int ticks) => ReplayCodec.ToCanonicalBytes(CreateReplay(ticks));
+
+    private static string ReplaceHexField(string source, string prefix, Func<string, string> transform)
+    {
+        var start = source.IndexOf(prefix, StringComparison.Ordinal);
+        if (start < 0) { throw new InvalidOperationException($"Missing replay field prefix {prefix}."); }
+        start += prefix.Length;
+        var value = source.Substring(start, 16);
+        return source[..start] + transform(value) + source[(start + 16)..];
+    }
 
     private static void WriteReplay(string directory, ReplayDocument replay, string? filename = null)
     {

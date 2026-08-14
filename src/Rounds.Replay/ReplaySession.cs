@@ -35,6 +35,7 @@ public sealed class ReplayRecorder
         }
 
         var frame = RecordedFrame.FromInputs(inputs);
+        ReplayValidator.ValidateFrame(frame);
         Rounds.Sim.Sim.Step(World, inputs);
         if (_runs.Count > 0 && _runs[^1].Frame == frame)
         {

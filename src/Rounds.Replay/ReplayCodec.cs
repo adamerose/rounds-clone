@@ -289,8 +289,7 @@ internal static class ReplayValidator
                 throw new InvalidDataException("Replay run lengths must be positive.");
             }
 
-            ValidatePlayer(run.Frame.Player0);
-            ValidatePlayer(run.Frame.Player1);
+            ValidateFrame(run.Frame);
             if (previous is not null && previous.Frame == run.Frame)
             {
                 throw new InvalidDataException("Adjacent identical replay runs must be coalesced.");
@@ -363,6 +362,13 @@ internal static class ReplayValidator
         }
 
         return arena;
+    }
+
+    public static void ValidateFrame(RecordedFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        ValidatePlayer(frame.Player0);
+        ValidatePlayer(frame.Player1);
     }
 
     private static void ValidatePlayer(RecordedPlayerInput input)

@@ -7,8 +7,16 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
-$replayPath = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Replay))
-$outputPath = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Output))
+$replayPath = if ([System.IO.Path]::IsPathFullyQualified($Replay)) {
+    [System.IO.Path]::GetFullPath($Replay)
+} else {
+    [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Replay))
+}
+$outputPath = if ([System.IO.Path]::IsPathFullyQualified($Output)) {
+    [System.IO.Path]::GetFullPath($Output)
+} else {
+    [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Output))
+}
 if (-not [System.IO.File]::Exists($replayPath)) {
     throw "Replay file does not exist: $replayPath"
 }
