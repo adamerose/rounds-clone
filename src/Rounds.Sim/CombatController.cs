@@ -87,7 +87,7 @@ internal static class CombatController
                 continue;
             }
 
-            if (input.AimDirection.LengthSquared > 0.0)
+            if (input.AimDirection.X != 0.0 || input.AimDirection.Y != 0.0)
             {
                 player.AimDirection = input.AimDirection.Normalized();
             }
@@ -166,7 +166,7 @@ internal static class CombatController
             blocker.Velocity -= impulse;
         }
 
-        foreach (var box in world.Arena.StaticBoxes)
+        foreach (var box in world.Arena.StaticBoxes.OrderBy(static box => box.SourceOrder))
         {
             var overlap = Collision.SweepCircle(
                 blocker.Position,

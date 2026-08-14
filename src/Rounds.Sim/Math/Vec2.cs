@@ -25,5 +25,15 @@ public readonly record struct Vec2(double X, double Y)
     public static double Dot(Vec2 left, Vec2 right) =>
         (left.X * right.X) + (left.Y * right.Y);
 
-    public Vec2 Normalized() => LengthSquared == 0.0 ? Zero : this / Length;
+    public Vec2 Normalized()
+    {
+        var scale = System.Math.Max(System.Math.Abs(X), System.Math.Abs(Y));
+        if (scale == 0.0)
+        {
+            return Zero;
+        }
+
+        var scaled = this / scale;
+        return scaled / System.Math.Sqrt(scaled.LengthSquared);
+    }
 }

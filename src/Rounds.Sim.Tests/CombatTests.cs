@@ -59,6 +59,20 @@ public sealed class CombatTests
     }
 
     [Fact]
+    public void AimNormalizationHandlesLargestAndSubnormalFiniteVectors()
+    {
+        var world = CreateActiveWorld();
+
+        Step(world, new PlayerInput(0, false, false, false, new Vec2(double.MaxValue, double.MaxValue)));
+        var diagonal = 1.0 / System.Math.Sqrt(2.0);
+        Assert.Equal(diagonal, world.Players[0].AimDirection.X, precision: 12);
+        Assert.Equal(diagonal, world.Players[0].AimDirection.Y, precision: 12);
+
+        Step(world, new PlayerInput(0, false, false, false, new Vec2(1e-320, 0.0)));
+        Assert.Equal(new Vec2(1.0, 0.0), world.Players[0].AimDirection);
+    }
+
+    [Fact]
     public void HeldFireUsesExactCadenceAmmoAndFullMagazineReload()
     {
         var world = CreateActiveWorld();
@@ -180,17 +194,56 @@ public sealed class CombatTests
     }
 
     [Fact]
-    public void BlockPushSeparatesPlayersAndLaunchesFromFloor()
+    public void BlockPushIsConstantEqualAndOppositeBetweenPlayers()
     {
         var world = CreateActiveWorld();
-        world.Players[0].Position = Vec2.Zero;
-        world.Players[1].Position = new Vec2(1.0, 0.0);
+        world.Players[0].Position = new Vec2(0.0, 2.0);
+        world.Players[1].Position = new Vec2(1.0, 2.0);
 
         Step(world, new PlayerInput(0, false, false, true));
 
-        Assert.True(world.Players[0].Velocity.X < 0.0);
-        Assert.True(world.Players[1].Velocity.X > 0.0);
-        Assert.True(world.Players[0].Velocity.Y > 0.0);
+        Assert.Equal(-world.Combat.BlockPushSpeed, world.Players[0].Velocity.X, precision: 12);
+        Assert.Equal(world.Combat.BlockPushSpeed, world.Players[1].Velocity.X, precision: 12);
+        Assert.Equal(0.0, world.Players[0].Velocity.X + world.Players[1].Velocity.X, precision: 12);
+    }
+
+    [Fact]
+    public void BlockLaunchCombinesSourceOrderedFloorAndWallContacts()
+    {
+        var world = CreateActiveWorld(includeWall: true);
+        world.Players[0].Position = new Vec2(0.6, 0.3);
+        world.Players[1].Position = new Vec2(5.0, 3.0);
+
+        Step(world, new PlayerInput(0, false, false, true));
+
+        Assert.Equal(world.Combat.BlockPushSpeed, world.Players[0].Velocity.X, precision: 12);
+        Assert.Equal(
+            world.Combat.BlockPushSpeed - world.Tuning.Gravity,
+            world.Players[0].Velocity.Y,
+            precision: 12);
+    }
+
+    [Fact]
+    public void BlockStaticContactAccumulationUsesSourceOrderNotStorageOrder()
+    {
+        var tuning = CombatTuning.Vanilla with { BlockPushSpeed = 1e-12 };
+        var ordered = World.CreateMatch(1, CreateContactOrderArena(reverseStorage: false), combatTuning: tuning);
+        var reversed = World.CreateMatch(1, CreateContactOrderArena(reverseStorage: true), combatTuning: tuning);
+        while (ordered.Phase == DuelPhase.Spawning)
+        {
+            Step(ordered);
+            Step(reversed);
+        }
+        foreach (var world in new[] { ordered, reversed })
+        {
+            world.Players[0].Position = Vec2.Zero;
+            world.Players[1].Position = new Vec2(10.0, 10.0);
+            Step(world, new PlayerInput(0, false, false, true));
+        }
+
+        Assert.NotEqual(Vec2.Zero, ordered.Players[0].Velocity);
+        Assert.Equal(ordered.Players[0].Velocity, reversed.Players[0].Velocity);
+        Assert.Equal(Sim.Hash(ordered), Sim.Hash(reversed));
     }
 
     [Fact]
@@ -303,9 +356,20 @@ public sealed class CombatTests
         Assert.Equal(new long[] { 1, 2, 3 }, world.Bullets.Select(bullet => bullet.Id));
         Assert.Equal(1, world.DroppedBulletCount);
         Assert.Equal(4, world.NextBulletId);
-        var hashWithOverflow = Sim.Hash(world);
-        world.Bullets.RemoveAt(0);
-        Assert.NotEqual(hashWithOverflow, Sim.Hash(world));
+
+        var isolatedTuning = CombatTuning.Vanilla with { LiveBulletCap = 1 };
+        var withOverflow = CreateActiveWorld(isolatedTuning);
+        var withoutOverflow = CreateActiveWorld(isolatedTuning);
+        withOverflow.Bullets.Add(NewBullet(99, 1, new Vec2(10.0, 10.0), Vec2.Zero));
+        var isolatedFire = new PlayerInput(0, false, true, false, new Vec2(0.0, 1.0));
+        Step(withOverflow, isolatedFire);
+        Step(withoutOverflow, isolatedFire);
+
+        Assert.Equal(1, withOverflow.DroppedBulletCount);
+        Assert.Equal(0, withoutOverflow.DroppedBulletCount);
+        Assert.Equal(withoutOverflow.Bullets[0].Id, withOverflow.Bullets[0].Id);
+        Assert.Equal(withoutOverflow.Bullets[0].Position, withOverflow.Bullets[0].Position);
+        Assert.NotEqual(Sim.Hash(withOverflow), Sim.Hash(withoutOverflow));
     }
 
     [Fact]
@@ -507,6 +571,34 @@ public sealed class CombatTests
             {
                 new SpawnRegion("left", new ArenaBounds(-5.1, -4.9, -0.1, 0.1), "floor"),
                 new SpawnRegion("right", new ArenaBounds(4.9, 5.1, -0.1, 0.1), "floor"),
+            });
+    }
+
+    private static ArenaDefinition CreateContactOrderArena(bool reverseStorage)
+    {
+        var boxes = new[]
+        {
+            Obb.Create("support", 0, new Vec2(0.0, -10.0), 20.0, 1.0, 0.0),
+            Obb.Create("a", 1, new Vec2(-0.65, 0.11), 0.1, 0.1, 0.0),
+            Obb.Create("b", 2, new Vec2(0.23, -0.70), 0.1, 0.1, 0.0),
+            Obb.Create("c", 3, new Vec2(0.68, 0.31), 0.1, 0.1, 0.0),
+            Obb.Create("d", 4, new Vec2(-0.41, -0.61), 0.1, 0.1, 0.0),
+        };
+        if (reverseStorage)
+        {
+            Array.Reverse(boxes);
+        }
+
+        return new ArenaDefinition(
+            "contact-order",
+            new ArenaBounds(-20.0, 20.0, -15.0, 15.0),
+            new ArenaBounds(-20.0, 20.0, -15.0, 15.0),
+            -12.0,
+            boxes,
+            new[]
+            {
+                new SpawnRegion("left", new ArenaBounds(-5.1, -4.9, -0.1, 0.1), "support"),
+                new SpawnRegion("right", new ArenaBounds(4.9, 5.1, -0.1, 0.1), "support"),
             });
     }
 

@@ -649,3 +649,27 @@ Attaching the existing foreground thread to that process's window thread establi
 
 A combined README and gate-discovery command passed nonexistent `playbook` and `scripts` paths to `rg`, so the useful README output was followed by exit 1.
 The supported command was already documented as `tools/checks/run.ps1`; no files, processes, or artifacts were created by the failed search.
+
+## 2026-08-14 — Ticket 006 implementation review found scale-unsafe aim and weak evidence isolation
+
+Reviewer `codex:01a00048-2aa0-7b33-87a8-edfba30eae67` rejected exact candidate `7d79215413ae022d8707d38491fdd181cc8dfa7b` because the naïve squared norm overflowed for maximum finite aim and underflowed for subnormal aim.
+The same review found that the block test proved only signs and floor launch, the overflow-hash assertion also changed the bullet collection, and the work log overstated the 26-test increase.
+Correction uses a scale-safe norm and direct nonzero check, isolates constant equal-and-opposite player push plus combined floor/wall launch and overflow hashing, and records the exact 21 combat, four collision, and one determinism additions.
+The focused regression first failed exactly at maximum finite aim, producing zero instead of the normalized diagonal before the implementation changed.
+The reviewer recovered truncated broad reads with focused reads, guessed one obsolete controller path, hit a PowerShell .NET 10 versus candidate .NET 8 `Add-Type` conflict before direct assembly invocation reproduced the defect, and saw one Windows Git-glob count return zero.
+No tracked file, review-specific temporary, or live process remained; only ordinary ignored build output was refreshed.
+
+## 2026-08-14 — Post-candidate orientation repeated avoidable Windows search errors
+
+One catalog read passed the now-absent `docs/tickets/open` directory to `rg`, one aggregate fact count used a Windows-incompatible source glob, and one combined arena/gravity read searched for the wrong case-sensitive term; each produced exit 1 after its useful focused output.
+Direct existing paths and per-file counts recovered the needed facts, and none of the three read-only commands created files, processes, or residue.
+
+## 2026-08-14 — First overflow-hash correction tried to assign an internal setter
+
+The first isolated overflow regression tried to assign `World.DroppedBulletCount`, but the test assembly correctly cannot access its internal setter and compilation stopped before any test ran.
+The corrected public-boundary fixture runs the same shot in two otherwise identical one-bullet-cap worlds, preloads only the world that must evict, and compares the identical surviving bullet state with overflow counts one and zero.
+
+## 2026-08-14 — A PowerShell vector-order search failed noisily
+
+A bounded read-only PowerShell search for floating-point addition orders accidentally constructed nested arrays inside arithmetic, repeated `op_Division` and null-index errors until the ten-second command timeout, and overflowed the display budget.
+The attempt created no file or process; correction instead makes source-order sorting explicit in the simulation and retains a public-boundary comparison across opposite arena storage orders.
