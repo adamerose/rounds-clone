@@ -48,28 +48,41 @@ Distances use one visible circular torso diameter as one player diameter.
 Time uses 60 Hz simulation ticks.
 Speeds use player diameters per tick.
 
-| Metric | Target | Tolerance | Confidence | Evidence |
+| Metric | Target | Tolerance | Confidence | Accepted observations |
 |---|---:|---:|---|---|
 | Base body diameter | 1.0 diameter | ±0.08 | high as a normalization choice | 18×18 px and 18×17 px torso samples |
-| Sustained horizontal speed | 0.11 diameters/tick | ±0.02 | medium | 0.1193 and 0.1082 independent trajectories |
-| Ground acceleration | 0.014 diameters/tick² | ±0.006 | low | short direction-change ramps at 30 fps |
-| Air-control ratio | 0.80 | 0.65–1.00 | medium | long lateral corrections while airborne |
-| Jump speed | 0.21 diameters/tick | ±0.04 | low | ballistic fit to ordinary-looking arcs |
-| Gravity | 0.009 diameters/tick² | ±0.0025 | low | derived from jump height and apex time |
-| Jump apex | 2.5 diameters | ±0.6 | low | ordinary arcs plus a 3.87-diameter contaminated upper bound |
-| Base bullet damage | 0.55 health | ±0.05 | medium | community estimate and repeated two-hit kills |
-| Fire interval | 18 ticks | ±5 | low | consecutive unmodified-looking muzzle events |
-| Reload time | 120 ticks | ±24 | low | empty-magazine to restored-ammo intervals |
-| Projectile speed | 2.4 diameters/tick | ±0.7 | low | 2.44 and 2.33 two-tick samples |
-| Shot recoil | 0.10 diameters/tick | ±0.04 | low | isolated shooter displacement after firing |
-| Active block window | 15 ticks | ±5 | medium | 16.016 and 14.0 tick shield samples |
-| Block cooldown | 240 ticks | ±30 | medium | intervals between unmodified-looking blocks |
-| Camera horizontal span | 35 diameters | ±5 | medium | 35.56 and 36.57 diameter frame spans |
-| Out-of-bounds result delay | 6 ticks | ±4 | low | last visible body to first result fade |
+| Sustained horizontal speed | 0.09 diameters/tick | ±0.04 | low | 0.0666 lower bound and 0.1082 trajectory |
+| Jump apex height | 2.6 diameters | ±0.8 | low | 3.1433 upper bound and 2.1433 lower bound |
+| Jump apex time | 28 ticks | ±8 | low | 32.032 upper bound and 24-tick lower bound |
+| Projectile speed | 2.4 diameters/tick | ±0.7 | low | 2.3333 from one controlled loadout; the second source is excluded |
+| Projectile radius | 0.08 diameters | ±0.03 | low | 0.0833 bright-core radius from one controlled loadout |
+| Shot recoil | 0.06 diameters/tick | ±0.03 | low | 0.0500 and 0.0672 velocity changes |
+| Active block window | 12 ticks | ±4 | medium | 10.01 and 14-tick shield samples |
+| Camera horizontal span | 35 diameters | ±5 | medium | 35.5556 and 36.5714 diameter frame spans |
+| Out-of-bounds result delay | 6 ticks | ±4 | low | 6.006 ticks from the one clean loss transition |
 
-`spec/measurements.json` preserves each source timestamp, observed frame interval, raw pixel values, normalization, tolerance, confidence, and method.
-The broad projectile tolerance reflects motion streak ambiguity and two-tick temporal sampling rather than expected gameplay variability.
-The measured 3.87-diameter jump arc is an upper bound because recoil, block impulse, or map contact could not be excluded.
+`spec/measurements.json` preserves each source timestamp, observed interval, raw operands, normalized result, visible active cards, modifier control, tolerance, confidence, and method.
+Every accepted result carries a machine-readable arithmetic derivation, and the repository gate recomputes it.
+The coverage contract requires two independent sources for body scale, movement, jumping, recoil, blocking, and camera framing.
+Projectile speed, projectile radius, and out-of-bounds timing retain explicit single-source limitations because the WCG projectile had a visible trajectory card and only one clean out-of-bounds transition was available.
+Broad tolerances reflect motion-streak ambiguity, partial jump arcs, possible acceleration, and approximately two-tick temporal sampling rather than expected gameplay variability.
+
+## Provisional tuning hypotheses
+
+The following values are implementation starting points, not frame-addressable measurements.
+They remain low-confidence until the clone can generate controlled captures for comparison.
+
+| Metric | Starting point | Constraint |
+|---|---:|---|
+| Ground acceleration | 0.014 diameters/tick² | reaches the measured run-speed band in roughly eight ticks |
+| Air-control ratio | 0.80 | preserves the strong visible airborne correction authority |
+| Jump speed | 0.21 diameters/tick | algebraically fits the measured height and apex-time bands |
+| Gravity | 0.009 diameters/tick² | algebraically fits the measured height and apex-time bands |
+| Ground friction | 0.72 retained/tick | produces quick but non-instant settling |
+| Base bullet damage | 0.55 health | matches the community estimate and repeated two-hit kills |
+| Fire interval | 18 ticks | remains within visible muzzle-event cadence |
+| Reload time | 120 ticks | remains within visible ammunition-HUD cycles |
+| Block cooldown | 240 ticks | remains consistent with visible availability and card wording |
 
 ## Confirmed qualitative behavior
 
@@ -85,8 +98,8 @@ Aim remains independent of body roll and horizontal movement.
 The controller button labels remain open because the selected footage uses keyboard and mouse and synthetic input could not reach the live options menu.
 The four-tick jump buffer is a provisional feel target because footage cannot distinguish buffering from precise player input.
 The simultaneous-death rule remains open because neither recording contains a clean sample.
-Exact base reload, fire interval, projectile radius, recoil, gravity, and friction remain low-confidence implementation starting points.
-These values must be retuned against clone-generated measurement captures instead of being promoted to exact facts.
+Ground acceleration, air control, jump speed, gravity, friction, bullet damage, fire interval, reload time, and block cooldown remain low-confidence implementation hypotheses rather than direct footage measurements.
+They must be retuned against clone-generated controlled captures instead of being promoted to exact facts.
 
 The 2021 and 2022 footage predates the current build, but official later updates describe cross-play, rendering, options, bullet scaling, and platform fixes rather than a wholesale base-movement retune.
 The current build is still the binding target, and any later direct runtime observation overrides the older recordings.
@@ -95,5 +108,5 @@ The current build is still the binding target, and any later direct runtime obse
 
 The repository checker validates every required `spec/*.json` document against the committed JSON Schema vocabulary subset.
 It rejects unsupported schema keywords so future schemas cannot appear enforced while relying on silently ignored features.
-It also rejects duplicate fact identifiers, duplicate source identifiers, unknown provenance references, measurements that target unknown facts, and a mechanics filename whose `kind` does not match.
-Regression tests prove that a fact without `sources`, an unknown source, and an unknown measurement target all fail.
+It also rejects duplicate identifiers, unknown provenance references, measurements that target unknown facts, normalized results that do not reproduce from their operands, missing coverage, insufficient independent sources, and a mechanics filename whose `kind` does not match.
+Regression tests prove that missing provenance, an unknown source, an unknown measurement target, unsupported schema vocabulary, and false measurement arithmetic all fail.

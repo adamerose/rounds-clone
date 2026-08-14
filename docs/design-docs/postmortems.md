@@ -137,6 +137,7 @@ Adding the current provider-qualified session restored the format gate, and tick
 Changing ticket 002's stored status to `closed` necessarily preceded moving its previously untracked file from `open/` to `closed/`.
 The required checker run between those two filesystem edits reported that the closed ticket was still in `open/`.
 Moving the exact file immediately restored the ticket gate; no contract content changed between the failing and passing checks.
+The same expected location failure recurred when the rejected ticket moved through correction and closed again, and the same exact-file move restored the gate.
 
 ## 2026-08-14 — Raw research cleanup required Git's nested-repository force level
 
@@ -150,3 +151,33 @@ The raw inputs are not recoverable from Git but can be regenerated from the sour
 Staging `tools/Rounds.Checks.Tests/packages.lock.json` warned that its CRLF working copy would become LF when Git next touched it.
 The repository's `* text=auto eol=lf` rule normalized the staged content, and `git diff --cached --check` passed.
 This is generation-format noise rather than a package change or invalid lock file.
+
+## 2026-08-14 — Ticket 002's first review rejected incomplete and contaminated measurements
+
+Reviewer session `codex:019ffef0-fa87-7a50-960e-5b747abd5c3b` rejected exact candidate `a572aef332c2c39166cb6168da75cee0c88f7f7c`.
+The raw WCG run coordinates recomputed to 0.099345 rather than 0.1193 player diameters per tick, and the same late-match interval contained several active cards whose effects were not ruled out.
+The narrative also presented sixteen numeric measurement targets while the measurement log covered only seven distinct metrics, including no frame-addressable recoil row even though the ticket requires recoil measurement.
+The correction will use loadout-controlled samples, make normalized values mechanically recomputable, and require measurement coverage for every footage-derived numeric fact named by the contract.
+
+The reviewer also reported nine generated PNGs under `C:\Users\Adam\AppData\Local\Temp\codex-review-019ffef0` after command policy blocked their cleanup.
+They are outside the repository and contain only temporary source-video inspection frames; the owning session will remove that exact directory after the correction no longer needs the diagnostic evidence.
+
+## 2026-08-14 — A third gameplay recording could not be acquired
+
+The YouTube research skill found metadata for `-Yek-qXg_HA` but its complete 480p-or-lower download failed with HTTP 403 before it could produce a transcript or frame set.
+The correction therefore keeps the two existing independent recordings, requires two-source coverage for the highest-impact metrics, and marks projectile size, projectile speed, and out-of-bounds timing as single-source limitations.
+
+## 2026-08-14 — A diagnostic command guessed the checker filenames
+
+A correction inspection tried `tools/Rounds.Checks/DeterminismGuard.cs` and `tools/Rounds.Checks.Tests/DeterminismGuardTests.cs`, which do not exist.
+Repository file discovery located the actual boundary checker at `tools/Rounds.Checks/DeterminismBoundaryChecker.cs` and its tests under `src/Rounds.Sim.Tests`.
+
+## 2026-08-14 — A broad FFmpeg search crossed inaccessible user directories
+
+An `rg --files` search from the user profile found candidate FFmpeg paths but exited with code 1 after encountering directories it could not enumerate.
+The correction used the already identified `imageio_ffmpeg` executable directly and did not depend on the incomplete broad search.
+
+## 2026-08-14 — The first missing-coverage regression failed at the schema boundary
+
+The fixture removed every coverage row, so the schema's non-empty-array rule emitted `SPEC001` before the semantic checker could emit the intended `SPEC014` missing-contract failure.
+Pointing the surviving coverage row at a different known fact preserved schema validity and exercised the semantic omission boundary directly.

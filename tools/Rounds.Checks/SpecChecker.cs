@@ -4,6 +4,20 @@ namespace Rounds.Checks;
 
 public static class SpecChecker
 {
+    private static readonly string[] RequiredMeasuredFacts =
+    [
+        "player-diameter",
+        "player-run-speed",
+        "player-jump-apex-height",
+        "player-jump-apex-time",
+        "combat-projectile-speed",
+        "combat-projectile-radius",
+        "combat-recoil-speed",
+        "combat-block-window",
+        "camera-horizontal-span",
+        "camera-out-of-bounds-result-delay",
+    ];
+
     private static readonly IReadOnlyDictionary<string, string> RequiredDocuments = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["sources.json"] = "source-index.schema.json",
@@ -120,11 +134,19 @@ public static class SpecChecker
             }
         }
 
-        foreach (var measurement in documents["measurements.json"].RootElement.GetProperty("measurements").EnumerateArray())
+        var measurementRoot = documents["measurements.json"].RootElement;
+        var measurementIds = new HashSet<string>(StringComparer.Ordinal);
+        var measuredSources = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var measurement in measurementRoot.GetProperty("measurements").EnumerateArray())
         {
             var measurementId = measurement.GetProperty("id").GetString()!;
             var factId = measurement.GetProperty("metricFactId").GetString()!;
             var sourceId = measurement.GetProperty("source").GetString()!;
+            if (!measurementIds.Add(measurementId))
+            {
+                failures.Add($"SPEC008 measurements.json duplicates measurement id `{measurementId}`.");
+            }
+
             if (!factIds.Contains(factId))
             {
                 failures.Add($"SPEC006 measurements.json measurement `{measurementId}` targets unknown fact `{factId}`.");
@@ -133,6 +155,76 @@ public static class SpecChecker
             if (!sourceIds.Contains(sourceId))
             {
                 failures.Add($"SPEC007 measurements.json measurement `{measurementId}` cites unknown source `{sourceId}`.");
+            }
+
+            if (measurement.GetProperty("countsTowardCoverage").GetBoolean())
+            {
+                if (!measuredSources.TryGetValue(factId, out var sources))
+                {
+                    sources = new HashSet<string>(StringComparer.Ordinal);
+                    measuredSources[factId] = sources;
+                }
+
+                sources.Add(sourceId);
+            }
+
+            var derivation = measurement.GetProperty("derivation");
+            var operation = derivation.GetProperty("operation").GetString()!;
+            var operands = derivation.GetProperty("operands").EnumerateArray().Select(item => item.GetDouble()).ToArray();
+            var recomputed = operation switch
+            {
+                "identity" => operands[0],
+                "divide" => operands.Skip(1).Aggregate(operands[0], (result, operand) => result / operand),
+                "multiply" => operands.Aggregate(1.0, (result, operand) => result * operand),
+                _ => double.NaN,
+            };
+            var recorded = measurement.GetProperty("normalizedValue").GetDouble();
+            if (!double.IsFinite(recomputed) || Math.Abs(recomputed - recorded) > 0.0001)
+            {
+                failures.Add($"SPEC009 measurements.json measurement `{measurementId}` records {recorded} but its derivation recomputes to {recomputed:F6}.");
+            }
+        }
+
+        var coveredFacts = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var coverage in measurementRoot.GetProperty("coverage").EnumerateArray())
+        {
+            var factId = coverage.GetProperty("metricFactId").GetString()!;
+            if (!coveredFacts.Add(factId))
+            {
+                failures.Add($"SPEC010 measurements.json duplicates coverage for fact `{factId}`.");
+            }
+
+            if (!factIds.Contains(factId))
+            {
+                failures.Add($"SPEC011 measurements.json covers unknown fact `{factId}`.");
+            }
+
+            var minimum = coverage.GetProperty("minimumIndependentSources").GetInt32();
+            var actual = measuredSources.TryGetValue(factId, out var sources) ? sources.Count : 0;
+            if (actual < minimum)
+            {
+                failures.Add($"SPEC012 measurements.json fact `{factId}` requires {minimum} independent sources but has {actual}.");
+            }
+
+            if (minimum < 2 && !coverage.TryGetProperty("limitation", out _))
+            {
+                failures.Add($"SPEC013 measurements.json fact `{factId}` allows fewer than two sources without documenting the limitation.");
+            }
+        }
+
+        foreach (var factId in measuredSources.Keys)
+        {
+            if (!coveredFacts.Contains(factId))
+            {
+                failures.Add($"SPEC014 measurements.json fact `{factId}` has accepted measurements but no coverage contract.");
+            }
+        }
+
+        if (RequiredMeasuredFacts.Any(factIds.Contains))
+        {
+            foreach (var factId in RequiredMeasuredFacts.Where(factId => !coveredFacts.Contains(factId)))
+            {
+                failures.Add($"SPEC015 measurements.json omits required coverage for fact `{factId}`.");
             }
         }
     }

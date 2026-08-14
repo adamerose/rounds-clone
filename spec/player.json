@@ -39,13 +39,13 @@
     },
     {
       "id": "player-run-speed",
-      "statement": "Base sustained horizontal speed is about 0.11 player diameters per simulation tick.",
+      "statement": "Base sustained horizontal speed is about 0.09 player diameters per simulation tick.",
       "status": "estimate",
-      "value": 0.11,
+      "value": 0.09,
       "unit": "player diameters per tick",
       "confidence": "medium",
-      "tolerance": { "kind": "absolute", "value": 0.02, "unit": "player diameters per tick" },
-      "method": "Normalized unobstructed and airborne horizontal trajectories against 17-19 pixel body diameters in two recordings.",
+      "tolerance": { "kind": "absolute", "value": 0.04, "unit": "player diameters per tick" },
+      "method": "Normalized two early-match trajectories whose visible starting cards do not alter movement; the slower observation is a lower bound because the sample may include acceleration.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -56,7 +56,7 @@
       "unit": "player diameters per tick squared",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 0.006, "unit": "player diameters per tick squared" },
-      "method": "Estimated the short velocity ramp after direction changes visible at 30 fps.",
+      "method": "Provisional tuning hypothesis derived by dividing the sustained-speed target by an eight-tick response target; the selected footage does not isolate the full acceleration ramp.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -67,7 +67,7 @@
       "unit": "ground acceleration ratio",
       "confidence": "medium",
       "tolerance": { "kind": "range", "value": [0.65, 1.0], "unit": "ground acceleration ratio" },
-      "method": "Compared long airborne lateral corrections with ground starts.",
+      "method": "Provisional tuning hypothesis constrained by visible airborne corrections; the selected footage does not isolate equal-duration ground and air input.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -89,7 +89,7 @@
       "unit": "player diameters per tick",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 0.04, "unit": "player diameters per tick" },
-      "method": "Fit a ballistic arc to unmodified-looking jumps after normalizing player diameter.",
+      "method": "Algebraic implementation hypothesis derived from the measured jump-height and time-to-apex bands rather than a direct frame-to-frame launch-velocity observation.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -100,29 +100,29 @@
       "unit": "player diameters per tick squared",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 0.0025, "unit": "player diameters per tick squared" },
-      "method": "Derived gravity from measured jump height and time-to-apex ranges.",
+      "method": "Algebraic implementation hypothesis derived from the measured jump-height and time-to-apex bands rather than a direct acceleration observation.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
       "id": "player-jump-apex-height",
-      "statement": "A base jump rises roughly 2.5 player diameters above takeoff.",
+      "statement": "A base jump rises roughly 2.6 player diameters above takeoff.",
       "status": "estimate",
-      "value": 2.5,
+      "value": 2.6,
       "unit": "player diameters",
       "confidence": "low",
-      "tolerance": { "kind": "absolute", "value": 0.6, "unit": "player diameters" },
-      "method": "Compared takeoff and apex body centers against the measured player diameter.",
+      "tolerance": { "kind": "absolute", "value": 0.8, "unit": "player diameters" },
+      "method": "Compared visible rise intervals and apex body centers against the measured player diameter in two early-match samples; one bound starts after takeoff and one arc includes a shot.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
       "id": "player-jump-apex-time",
-      "statement": "A base jump reaches its apex in about 23 ticks.",
+      "statement": "A base jump reaches its apex in about 28 ticks.",
       "status": "estimate",
-      "value": 23,
+      "value": 28,
       "unit": "ticks",
       "confidence": "low",
-      "tolerance": { "kind": "absolute", "value": 5, "unit": "ticks" },
-      "method": "Counted 30 fps frames from takeoff to apex and converted each frame to two simulation ticks.",
+      "tolerance": { "kind": "absolute", "value": 8, "unit": "ticks" },
+      "method": "Counted 30 fps frames across visible rise intervals and converted each frame to approximately two simulation ticks; the two rows preserve lower and upper bounds.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -133,7 +133,7 @@
       "unit": "velocity retained per tick",
       "confidence": "low",
       "tolerance": { "kind": "range", "value": [0.55, 0.85], "unit": "velocity retained per tick" },
-      "method": "Estimated deceleration from short settling motions on flat platforms.",
+      "method": "Provisional tuning hypothesis constrained by short settling motions; the selected footage does not expose a clean input-release timestamp.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {

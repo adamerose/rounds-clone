@@ -4,11 +4,16 @@
   "title": "RICOCHET frame measurement log",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "targetBuild", "measurements"],
+  "required": ["schemaVersion", "targetBuild", "coverage", "measurements"],
   "properties": {
     "$schema": { "const": "./schema/measurements.schema.json" },
     "schemaVersion": { "const": 1 },
     "targetBuild": { "const": "21020021" },
+    "coverage": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/coverage" }
+    },
     "measurements": {
       "type": "array",
       "minItems": 1,
@@ -16,20 +21,52 @@
     }
   },
   "$defs": {
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metricFactId", "category", "minimumIndependentSources", "rationale"],
+      "properties": {
+        "metricFactId": { "type": "string", "pattern": "^[a-z][a-z0-9-]+$" },
+        "category": { "enum": ["normalization", "movement", "jumping", "bullets", "recoil", "blocking", "camera", "out-of-bounds"] },
+        "minimumIndependentSources": { "type": "integer", "minimum": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "limitation": { "type": "string", "minLength": 1 }
+      }
+    },
     "measurement": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "metricFactId", "source", "sourceTimestamp", "observedFrameIntervalTicks", "pixelMeasurements", "normalizedValue", "unit", "tolerance", "confidence", "method"],
+      "required": ["id", "metricFactId", "source", "sourceTimestamp", "observedFrameIntervalTicks", "activeCards", "modifierControl", "countsTowardCoverage", "pixelMeasurements", "derivation", "normalizedValue", "unit", "tolerance", "confidence", "method"],
       "properties": {
         "id": { "type": "string", "pattern": "^m-[a-z0-9-]+$" },
         "metricFactId": { "type": "string", "pattern": "^[a-z][a-z0-9-]+$" },
         "source": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" },
         "sourceTimestamp": { "type": "string", "pattern": "^[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]{3})?$" },
         "observedFrameIntervalTicks": { "type": "number", "exclusiveMinimum": 0 },
+        "activeCards": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "modifierControl": { "type": "string", "minLength": 1 },
+        "countsTowardCoverage": { "type": "boolean" },
         "pixelMeasurements": {
           "type": "object",
           "minProperties": 1,
           "additionalProperties": { "type": "number" }
+        },
+        "derivation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operation", "operands"],
+          "properties": {
+            "operation": { "enum": ["identity", "divide", "multiply"] },
+            "operands": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "number" }
+            }
+          }
         },
         "normalizedValue": { "type": "number" },
         "unit": { "type": "string", "minLength": 1 },

@@ -34,7 +34,7 @@
       "unit": "ticks",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 5, "unit": "ticks" },
-      "method": "Counted visible muzzle events in card loadouts without attack-speed modifiers.",
+      "method": "Provisional implementation hypothesis constrained by visible muzzle events; the selected footage does not isolate a minimum-rate sequence with a fully controlled loadout.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -45,7 +45,7 @@
       "unit": "ticks",
       "confidence": "low",
       "tolerance": { "kind": "absolute", "value": 24, "unit": "ticks" },
-      "method": "Measured last-shot to restored-ammo intervals and excluded visible reload modifiers.",
+      "method": "Provisional implementation hypothesis constrained by ammunition-HUD cycles; the selected footage does not isolate an empty-magazine cycle with a fully controlled reload loadout.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -94,13 +94,13 @@
     },
     {
       "id": "combat-recoil-speed",
-      "statement": "Each base shot gives the shooter roughly 0.10 player diameters per tick of opposite velocity.",
+      "statement": "Each base shot gives the shooter roughly 0.06 player diameters per tick of opposite velocity.",
       "status": "estimate",
-      "value": 0.10,
+      "value": 0.06,
       "unit": "player diameters per tick",
       "confidence": "low",
-      "tolerance": { "kind": "absolute", "value": 0.04, "unit": "player diameters per tick" },
-      "method": "Measured immediate shooter displacement after isolated airborne and grounded shots.",
+      "tolerance": { "kind": "absolute", "value": 0.03, "unit": "player diameters per tick" },
+      "method": "Measured immediate shooter velocity changes after early-match shots whose visible starting cards do not alter recoil.",
       "sources": ["footage-wcg", "footage-ssag"]
     },
     {
@@ -116,13 +116,13 @@
     },
     {
       "id": "combat-block-window",
-      "statement": "Base block protects for about 15 ticks.",
+      "statement": "Base block protects for about 12 ticks.",
       "status": "estimate",
-      "value": 15,
+      "value": 12,
       "unit": "ticks",
       "confidence": "medium",
-      "tolerance": { "kind": "absolute", "value": 5, "unit": "ticks" },
-      "method": "Counted the visible circular shield from appearance through collapse at 30 fps.",
+      "tolerance": { "kind": "absolute", "value": 4, "unit": "ticks" },
+      "method": "Counted the visible circular shield from appearance through collapse at 30 fps in two early-match samples whose visible cards do not alter block duration.",
       "sources": ["footage-wcg", "footage-ssag", "wiki-moveset"]
     },
     {
@@ -133,7 +133,7 @@
       "unit": "ticks",
       "confidence": "medium",
       "tolerance": { "kind": "absolute", "value": 30, "unit": "ticks" },
-      "method": "Measured intervals between unmodified-looking blocks and cross-checked card text that adds whole seconds to cooldown.",
+      "method": "Provisional implementation hypothesis constrained by block availability and card wording; the selected footage does not isolate two cooldown-limited inputs with a fully controlled loadout.",
       "sources": ["footage-wcg", "footage-ssag", "wiki-moveset"]
     },
     {
