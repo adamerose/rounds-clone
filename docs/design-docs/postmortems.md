@@ -591,3 +591,9 @@ Fresh reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` approved exact candi
 The computer-control package again lacked its documented API and rejected its own verified Godot window, so scoped Win32 capture supplied the visual evidence.
 The first Godot discovery guessed nonexistent `.tools/godot` before using the gate's `.tools/godot-4.7.1`, and the first screenshot used DPI-virtualized coordinates before the same exact PNG was overwritten with a correct 120-DPI capture.
 The reviewer stopped the exact game process, deleted the exact temporary PNG, verified both absent, and left only ordinary ignored build outputs.
+
+## 2026-08-14 — Movement worktree cleanup repeated the Windows invalid-argument failure
+
+The first cleanup command assumed the root checkout contained the ignored worktree-local .NET executable, so its build-server shutdown step failed before Git unregistered the movement worktree but again reported `Invalid argument` while leaving the directory.
+The owner resolved and validated the exact `005-movement-collision` path under `.ivy/worktrees`, used its residual SDK to stop the MSBuild and compiler servers, and confirmed Git no longer registered it.
+An extended-path runtime deletion then removed only that validated abandoned directory, and final checks proved both filesystem and worktree-list absence.
