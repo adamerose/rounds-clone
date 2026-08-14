@@ -7,7 +7,7 @@
   "required": ["$schema", "schemaVersion", "targetBuild", "targetVersion", "catalogCount", "units", "geometryVocabulary", "reconciliation", "representativeExamples", "maps"],
   "properties": {
     "$schema": { "const": "./schema/maps.schema.json" },
-    "schemaVersion": { "const": 2 },
+    "schemaVersion": { "const": 3 },
     "targetBuild": { "const": "21020021" },
     "targetVersion": { "const": "v1.1.2.a75ee335a" },
     "catalogCount": { "const": 70 },
@@ -114,19 +114,26 @@
         "rowAnchorMethod": { "const": "xlsx-drawing-one-cell-anchor" }
       }
     },
-    "maskEvidence": {
+    "layoutEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["threshold", "maskSha256", "sourceForegroundPixels", "renderedForegroundPixels", "renderedMaskSha256", "intersectionPixels", "unionPixels", "intersectionOverUnion"],
+      "required": ["threshold", "maskSha256", "sourceComponentCount", "coarseGridPixels", "sourceOccupiedCells", "renderedOccupiedCells", "renderedMaskSha256", "intersectionCells", "unionCells", "coarseIntersectionOverUnion"],
       "properties": {
         "threshold": { "const": "max-rgb-greater-than-or-equal-to-24" },
         "maskSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "sourceForegroundPixels": { "type": "integer", "minimum": 1 },
-        "renderedForegroundPixels": { "type": "integer", "minimum": 1 },
+        "sourceComponentCount": { "type": "integer", "minimum": 1 },
+        "coarseGridPixels": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height"],
+          "properties": { "width": { "const": 8 }, "height": { "const": 8 } }
+        },
+        "sourceOccupiedCells": { "type": "integer", "minimum": 1 },
+        "renderedOccupiedCells": { "type": "integer", "minimum": 1 },
         "renderedMaskSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "intersectionPixels": { "type": "integer", "minimum": 1 },
-        "unionPixels": { "type": "integer", "minimum": 1 },
-        "intersectionOverUnion": { "type": "number", "minimum": 0.95 }
+        "intersectionCells": { "type": "integer", "minimum": 1 },
+        "unionCells": { "type": "integer", "minimum": 1 },
+        "coarseIntersectionOverUnion": { "type": "number", "minimum": 0.75 }
       }
     },
     "spawn": {
@@ -176,12 +183,12 @@
     "map": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "sourceRow", "visualEvidence", "maskEvidence", "archetype", "symmetry", "ringOutFocused", "cameraBounds", "collisionBounds", "killBoundaryY", "spawnRegions", "primitives", "behaviorModules", "provenance", "unknowns"],
+      "required": ["id", "sourceRow", "visualEvidence", "layoutEvidence", "archetype", "symmetry", "ringOutFocused", "cameraBounds", "collisionBounds", "killBoundaryY", "spawnRegions", "primitives", "behaviorModules", "provenance", "unknowns"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "sourceRow": { "type": "integer", "minimum": 2 },
         "visualEvidence": { "$ref": "#/$defs/visualEvidence" },
-        "maskEvidence": { "$ref": "#/$defs/maskEvidence" },
+        "layoutEvidence": { "$ref": "#/$defs/layoutEvidence" },
         "archetype": { "enum": ["visible-platform-layout", "ring-out-islands", "breakable-candidate", "moving-candidate", "physics-candidate", "hazard-course"] },
         "symmetry": { "enum": ["mirror", "near-mirror", "asymmetric"] },
         "ringOutFocused": { "type": "boolean" },

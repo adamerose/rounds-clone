@@ -12,6 +12,7 @@ sessions:
   - codex:019fff46-e63b-7911-8124-12c0d8fe0b12
   - codex:019fff73-e68d-79d0-bca4-5da80964846a
   - codex:019fffa0-7ad0-7a30-8b5e-bf4bfa70ab8d
+  - codex:019fffb3-110f-7762-a73c-f7941d144fc9
 ---
 
 # Catalog and classify every vanilla arena
@@ -75,3 +76,11 @@ Arena geometry controls sightlines, recoil recovery, wall blocks, ring-outs, and
 - 2026-08-14T09:54:45Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Position-locked all 70 renders, made every spawn-region corner support-valid, added an independent six-map removal index, and added regressions for position-preserving drift, partial support, and missing index independence.
 - 2026-08-14T09:54:45Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running byte-identical generation, source and rendered-mask evidence, 70-map spawn sampling, schema, semantic checks, tickets, build, tests, deterministic simulation, Godot, formatting, and residue checks.
 - 2026-08-14T09:55:20Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Byte-identical catalog hash `162f694f0f821c597fdcffd4664d6d22143c47c386df0818cbf9c61983cd312f`, 6,300 supported spawn samples, zero-warning build, 42 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot smoke, and diff formatting all passed.
+- 2026-08-14T10:13:37Z stage review start session codex:019fffb3-110f-7762-a73c-f7941d144fc9 — Reviewing exact candidate `bd730d0966b819da292cded3bd9ff5787944e631` against the admitted clean-room contract, current public evidence, map design, schema, generator, and full repository gate.
+- 2026-08-14T10:13:37Z stage review end session codex:019fffb3-110f-7762-a73c-f7941d144fc9 — Rejected full-resolution silhouette tracing that violated the clean-room vector-geometry constraint and stale map design that treated officially confirmed movers as conditional.
+- 2026-08-14T10:13:37Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Replacing pixel-trace acceptance with capped component-preserving vector geometry, coarse structural evidence, and current mover documentation.
+- 2026-08-14T10:17:08Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Produced 1,790 original oriented boxes across 70 row-anchored arenas, represented every source component, capped each arena at 96 boxes, and achieved coarse structural scores from 0.787459 to 1.0.
+- 2026-08-14T10:17:08Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Running byte-identical generation, component and cap regressions, schema, semantic checks, tickets, build, tests, deterministic simulation, Godot, formatting, and residue checks.
+- 2026-08-14T10:17:37Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Byte-identical catalog hash `1968dae64c6fac43e2b426d7254693c524f0932a21a42912ce670f57122db00a`, zero-warning build, 44 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, clean diff formatting, and cache cleanup all passed.
+- 2026-08-14T10:18:25Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the full gate after aligning the design and research prose exactly with the bounded fitted-area refinement algorithm.
+- 2026-08-14T10:18:49Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Zero-warning build, all 44 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, and diff formatting passed on the corrected candidate.

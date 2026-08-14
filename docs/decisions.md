@@ -180,11 +180,11 @@ Visible saws, breakable groups, moving groups, and physics structures become reu
 Paths, rotation, health, fragments, constraints, masses, damping, contact response, and reset sequencing remain unknown until direct behavior evidence binds them.
 The first playable map work should implement static topology before enabling each behavior family from separately measured evidence.
 
-## 2026-08-14 — Supersede the coarse map grid with anchored oriented geometry
+## 2026-08-14 — Supersede the first coarse map grid with anchored oriented geometry
 
 The first catalog incorrectly associated shuffled workbook media filenames with sequential sheet rows and had no source-render acceptance oracle.
 Arena identity now follows each embedded drawing object's worksheet-row anchor and relationship target, while its 640 by 360 mask is decomposed into oriented boxes in player-diameter units.
-Every rounded catalog render must reach at least 0.95 intersection over union with the row-bound source mask, and the repository gate recomputes both overlap arithmetic and the committed geometry's rendered pixel count.
+The first correction required every rounded catalog render to reach at least 0.95 full-resolution intersection over union with the row-bound source mask, but independent review found that requirement incompatible with the clean-room prohibition on tracing.
 This supersedes the earlier five-pixel axis-grid decision; visible geometry remains provisional collision evidence rather than an assertion about hidden colliders.
 
 ## 2026-08-14 — Treat unobserved arena dynamics as candidates
@@ -213,3 +213,10 @@ The exact active pool remains a runtime gap because randomized current matches c
 
 Spawn-region width now derives from the named oriented support surface, and the checker validates all four rectangle corners in support-local coordinates.
 This replaces center-only validation, which allowed a plausible center while portions of 40 declared regions hung beyond narrow platforms.
+
+## 2026-08-14 — Use topology-scale acceptance instead of pixel tracing
+
+The arena generator now represents every eight-connected source component with at least one oriented box, caps each arena at 96 boxes, and requires at least 0.75 intersection over union on an 80-by-45 occupancy grid.
+The source-mask digest anchors the ignored measurement input, while a full positioned-render digest protects committed geometry from unnoticed drift.
+Full-resolution source overlap is deliberately not optimized or accepted because the prior 0.95 oracle produced 7,557 silhouette boxes and crossed the ticket's boundary from measuring play patterns into tracing source art.
+The resulting 1,790-box catalog preserves topology and broad proportions with coarse scores from 0.787459 to 1.0 while leaving exact collision and scale provisional.

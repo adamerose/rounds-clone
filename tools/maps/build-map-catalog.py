@@ -24,9 +24,10 @@ WIDTH = 640
 HEIGHT = 360
 PLAYER_DIAMETER_PIXELS = 18.0
 MASK_THRESHOLD = 24
-MIN_IOU = 0.95
-APPROXIMATE_TARGET_IOU = 0.955
-MAX_PRIMITIVES_PER_MAP = 2000
+MIN_COARSE_IOU = 0.75
+MIN_APPROXIMATE_FILL = 0.75
+MAX_PRIMITIVES_PER_MAP = 96
+COARSE_CELL_PIXELS = 8
 
 DRAWING_NS = {
     "xdr": "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing",
@@ -293,18 +294,19 @@ def render(primitives: list[dict]) -> np.ndarray:
     return rendered
 
 
-def decompose(mask: np.ndarray, saws: list[tuple[int, int, int]]) -> tuple[list[dict], np.ndarray]:
+def decompose(mask: np.ndarray, saws: list[tuple[int, int, int]]) -> tuple[list[dict], np.ndarray, int]:
     fitter = Fitter()
     leaves: dict[int, dict] = {}
     heap: list[tuple[float, int, dict]] = []
     approximate_area = 0.0
-    for points in connected_components(mask):
+    components = connected_components(mask)
+    for points in components:
         node = fitter.fit(points)
         leaves[node["id"]] = node
         approximate_area += node["box"][0]
         heapq.heappush(heap, (-node["loss"], node["id"], node))
 
-    target_area = int(mask.sum()) / APPROXIMATE_TARGET_IOU
+    target_area = int(mask.sum()) / MIN_APPROXIMATE_FILL
     while approximate_area > target_area and len(leaves) < MAX_PRIMITIVES_PER_MAP:
         _, node_id, node = heapq.heappop(heap)
         if node_id not in leaves:
@@ -335,35 +337,16 @@ def decompose(mask: np.ndarray, saws: list[tuple[int, int, int]]) -> tuple[list[
 
     primitives = materialize()
     rendered = render(primitives)
-    intersection = int(np.logical_and(mask, rendered).sum())
-    union = int(np.logical_or(mask, rendered).sum())
-    while intersection / union < MIN_IOU and len(leaves) < MAX_PRIMITIVES_PER_MAP:
-        _, node_id, node = heapq.heappop(heap)
-        if node_id not in leaves:
-            continue
-        children = fitter.split(node)
-        if children is None:
-            break
-        del leaves[node_id]
-        for child in children:
-            leaves[child["id"]] = child
-            heapq.heappush(heap, (-child["loss"], child["id"], child))
-        if len(leaves) % 20 == 0:
-            primitives = materialize()
-            rendered = render(primitives)
-            intersection = int(np.logical_and(mask, rendered).sum())
-            union = int(np.logical_or(mask, rendered).sum())
+    return primitives, rendered, len(components)
 
-    primitives = materialize()
-    rendered = render(primitives)
-    intersection = int(np.logical_and(mask, rendered).sum())
-    union = int(np.logical_or(mask, rendered).sum())
-    if intersection / union < MIN_IOU:
-        raise ValueError(
-            f"Decomposition stopped at IoU {intersection / union:.6f} with "
-            f"{len(primitives)} primitives."
-        )
-    return primitives, rendered
+
+def coarse_occupancy(mask: np.ndarray) -> np.ndarray:
+    return mask.reshape(
+        HEIGHT // COARSE_CELL_PIXELS,
+        COARSE_CELL_PIXELS,
+        WIDTH // COARSE_CELL_PIXELS,
+        COARSE_CELL_PIXELS,
+    ).any(axis=(1, 3))
 
 
 def bounds_for(primitives: list[dict]) -> dict:
@@ -512,11 +495,23 @@ def main() -> None:
             media_bytes = archive.read(media_path)
             mask = source_mask(archive.open(media_path))
             saws = SAWS.get(arena, [])
-            primitives, rendered = decompose(mask, saws)
-            intersection = int(np.logical_and(mask, rendered).sum())
-            union = int(np.logical_or(mask, rendered).sum())
+            primitives, rendered, source_component_count = decompose(mask, saws)
+            source_coarse = coarse_occupancy(mask)
+            rendered_coarse = coarse_occupancy(rendered)
+            intersection = int(np.logical_and(source_coarse, rendered_coarse).sum())
+            union = int(np.logical_or(source_coarse, rendered_coarse).sum())
+            coarse_iou = intersection / union
+            if coarse_iou < MIN_COARSE_IOU:
+                raise ValueError(f"arena-{arena:03d} coarse layout IoU {coarse_iou:.6f} is below {MIN_COARSE_IOU}.")
             modules = behavior_modules(arena, saws)
             archetype, symmetry = classify(arena, mask, modules)
+            collision_bounds = bounds_for(primitives)
+            camera_bounds = {
+                "xMin": round(min(-18.0, collision_bounds["xMin"] - 0.01), 6),
+                "xMax": round(max(18.0, collision_bounds["xMax"] + 0.01), 6),
+                "yMin": round(min(-10.1, collision_bounds["yMin"] - 0.01), 6),
+                "yMax": round(max(10.1, collision_bounds["yMax"] + 0.01), 6),
+            }
             maps.append({
                 "id": f"arena-{arena:03d}",
                 "sourceRow": source_row,
@@ -526,21 +521,23 @@ def main() -> None:
                     "previewPixels": {"width": WIDTH, "height": HEIGHT},
                     "rowAnchorMethod": "xlsx-drawing-one-cell-anchor",
                 },
-        "maskEvidence": {
+                "layoutEvidence": {
                     "threshold": "max-rgb-greater-than-or-equal-to-24",
                     "maskSha256": hashlib.sha256(mask.astype(np.uint8).tobytes()).hexdigest(),
-                    "sourceForegroundPixels": int(mask.sum()),
-                    "renderedForegroundPixels": int(rendered.sum()),
+                    "sourceComponentCount": source_component_count,
+                    "coarseGridPixels": {"width": COARSE_CELL_PIXELS, "height": COARSE_CELL_PIXELS},
+                    "sourceOccupiedCells": int(source_coarse.sum()),
+                    "renderedOccupiedCells": int(rendered_coarse.sum()),
                     "renderedMaskSha256": hashlib.sha256(rendered.astype(np.uint8).tobytes()).hexdigest(),
-                    "intersectionPixels": intersection,
-                    "unionPixels": union,
-                    "intersectionOverUnion": round(intersection / union, 6),
+                    "intersectionCells": intersection,
+                    "unionCells": union,
+                    "coarseIntersectionOverUnion": round(coarse_iou, 6),
                 },
                 "archetype": archetype,
                 "symmetry": symmetry,
                 "ringOutFocused": arena in RING_OUT_FOCUSED,
-                "cameraBounds": {"xMin": -18.0, "xMax": 18.0, "yMin": -10.1, "yMax": 10.1},
-                "collisionBounds": bounds_for(primitives),
+                "cameraBounds": camera_bounds,
+                "collisionBounds": collision_bounds,
                 "killBoundaryY": -12.0,
                 "spawnRegions": spawn_regions(primitives, saws),
                 "primitives": primitives,
@@ -548,8 +545,8 @@ def main() -> None:
                 "provenance": {
                     "status": "provisional",
                     "confidence": "medium",
-                    "method": "Anchored source mask decomposed into oriented boxes and raster-verified at source resolution.",
-                    "tolerance": "Silhouette IoU >= 0.95; world scale remains provisional at +/-20 percent.",
+                    "method": "Anchored source components abstracted into at most 96 oriented boxes and checked on an 8-pixel occupancy grid.",
+                    "tolerance": "Coarse layout IoU >= 0.75; world scale remains provisional at +/-20 percent.",
                     "sources": ["community-map-sheet", "runtime-build-21020021"],
                 },
                 "unknowns": [
@@ -558,11 +555,11 @@ def main() -> None:
                     "Behavior timing and physics remain unknown unless separately measured.",
                 ],
             })
-            print(f"arena-{arena:03d}: {len(primitives)} boxes, IoU {intersection / union:.6f}")
+            print(f"arena-{arena:03d}: {len(primitives)} boxes, coarse IoU {coarse_iou:.6f}")
 
     catalog = {
         "$schema": "./schema/maps.schema.json",
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "targetBuild": "21020021",
         "targetVersion": "v1.1.2.a75ee335a",
         "catalogCount": 70,

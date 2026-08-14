@@ -161,9 +161,10 @@ Rounds' levels are rectangles, some of them rotated, and adding a second primiti
 Anything curved is approximated with boxes.
 The research catalog's `hazard-visual` boxes participate in silhouette verification but do not become ordinary static collision; their owning behavior module decides contact semantics after runtime evidence exists.
 
-`movers` covers moving platforms, if research shows the base game has them.
+`movers` covers moving platforms, which the official patch history confirms exist in the base game.
 A mover is a box plus a motion defined as a pure function of the tick — a period, a phase, and an offset — never a simulated body.
 That keeps a moving platform deterministic and rewindable for free.
+The arena rows, paths, periods, phases, and wrecking-ball constraints remain unbound until controlled runtime observation identifies them.
 
 `outOfBounds` is a per-map policy, either a solid wall or a kill volume.
 Which one Rounds uses is a research question and the format supports both.
@@ -184,17 +185,18 @@ This matters less for a live match than for self-play, where a few hundred bulle
 
 ### Where maps come from
 
-Reconstructed from screenshots of the original, and then checked automatically.
+Reconstructed as original vector geometry from the topology and broad proportions visible in public preview images, and then checked automatically.
 
-Rounds' levels are light geometry on a dark background, so thresholding a screenshot produces a clean binary mask of the level.
-The harness renders our JSON map to the same resolution as a mask and compares the two by intersection over union.
-A map is accepted at 0.95 or better.
+Rounds' levels are light geometry on a dark background, so thresholding a preview produces a useful measurement mask.
+The generator labels every eight-connected source component, fits at least one oriented box to each component, and bounds refinement by a 0.75 fitted-area ratio.
+It then accepts only arenas whose coarse 80-by-45 occupancy grid reaches 0.75 intersection over union.
+Each arena is capped at 96 boxes so the evidence preserves islands, sightlines, and large structures without becoming a pixel trace of the source image.
 
 The public workbook's embedded media filenames are shuffled, so catalog identity comes from each drawing object's worksheet-row anchor and relationship target rather than from filename or ZIP order.
-The committed evidence includes source-mask, preview, and positioned-render hashes, pixel-count arithmetic, and the score, while the repository gate rerenders the rounded oriented boxes and rejects count or position drift.
-Source images stay under ignored `research/raw/`, and the supported generator reproduces their hashes and overlap evidence from a fresh public XLSX export.
+The committed evidence includes source-mask, preview, and positioned-render hashes, source-component coverage, coarse-cell arithmetic, and the score, while the repository gate rerenders the rounded oriented boxes and rejects count or position drift.
+Source images stay under ignored `research/raw/`, and the supported generator reproduces their hashes and structural evidence from a fresh public XLSX export.
 
-That gives map building a real oracle rather than an agent's judgment: build the JSON, render it, score it against the screenshot, adjust, repeat until it passes.
+That gives map building a bounded structural oracle rather than an agent's judgment: preserve every connected island, render the JSON, compare coarse occupancy, and stop before refinement becomes tracing.
 It is the same trick as `spec/measurements.json` — comparing against the actual game rather than against a description of it — applied to level geometry.
 
 ## Determinism, specifically here
@@ -218,6 +220,6 @@ These change constants, not structure, so they don't block implementation — bu
 - Is out-of-bounds a wall or a kill volume, and is there a bottom pit?
 - Explosion falloff: linear or quadratic, and over what radius?
 - Exact block Active window, recovery, and cooldown in frames.
-- Do any base-game maps contain moving or destructible parts?
+- Which catalog rows contain the confirmed moving platforms and wrecking ball, and what are their paths, periods, constraints, and break thresholds?
 - Does the camera's zoom-to-fit ever constrain movement, or is it purely presentation?
   It must be purely presentation here; if the original disagrees, that's a decision to record.

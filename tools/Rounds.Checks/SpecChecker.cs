@@ -533,24 +533,29 @@ public static class SpecChecker
                 failures.Add($"SPEC056 maps.json arena `{mapId}` kill boundary exceeds supported coordinates.");
             }
 
-            var evidence = map.GetProperty("maskEvidence");
-            var sourcePixels = evidence.GetProperty("sourceForegroundPixels").GetInt32();
-            var renderedPixels = evidence.GetProperty("renderedForegroundPixels").GetInt32();
-            var intersectionPixels = evidence.GetProperty("intersectionPixels").GetInt32();
-            var unionPixels = evidence.GetProperty("unionPixels").GetInt32();
-            var recordedIou = evidence.GetProperty("intersectionOverUnion").GetDouble();
-            var computedIou = intersectionPixels / (double)unionPixels;
-            if (intersectionPixels > Math.Min(sourcePixels, renderedPixels) ||
-                unionPixels < Math.Max(sourcePixels, renderedPixels) ||
-                unionPixels != sourcePixels + renderedPixels - intersectionPixels ||
-                computedIou < 0.95 ||
+            var evidence = map.GetProperty("layoutEvidence");
+            var sourceCells = evidence.GetProperty("sourceOccupiedCells").GetInt32();
+            var renderedCells = evidence.GetProperty("renderedOccupiedCells").GetInt32();
+            var intersectionCells = evidence.GetProperty("intersectionCells").GetInt32();
+            var unionCells = evidence.GetProperty("unionCells").GetInt32();
+            var recordedIou = evidence.GetProperty("coarseIntersectionOverUnion").GetDouble();
+            var computedIou = intersectionCells / (double)unionCells;
+            if (intersectionCells > Math.Min(sourceCells, renderedCells) ||
+                unionCells < Math.Max(sourceCells, renderedCells) ||
+                unionCells != sourceCells + renderedCells - intersectionCells ||
+                computedIou < 0.75 ||
                 Math.Abs(recordedIou - computedIou) > 0.000001)
             {
-                failures.Add($"SPEC058 maps.json arena `{mapId}` has inconsistent or sub-threshold mask IoU evidence.");
+                failures.Add($"SPEC058 maps.json arena `{mapId}` has inconsistent or sub-threshold coarse layout evidence.");
+            }
+
+            if (primitives.Length < evidence.GetProperty("sourceComponentCount").GetInt32() || primitives.Length > 96)
+            {
+                failures.Add($"SPEC061 maps.json arena `{mapId}` does not represent each source component within the 96-box clean-room cap.");
             }
 
             var renderedMask = RenderMapMask(primitives);
-            if (renderedMask.Count != renderedPixels ||
+            if (renderedMask.OccupiedCells != renderedCells ||
                 renderedMask.Sha256 != evidence.GetProperty("renderedMaskSha256").GetString())
             {
                 failures.Add($"SPEC059 maps.json arena `{mapId}` rendered mask digest or count does not match its committed geometry.");
@@ -616,7 +621,7 @@ public static class SpecChecker
         inner.GetProperty("yMin").GetDouble() >= outer.GetProperty("yMin").GetDouble() &&
         inner.GetProperty("yMax").GetDouble() <= outer.GetProperty("yMax").GetDouble();
 
-    private static (int Count, string Sha256) RenderMapMask(JsonElement[] primitives)
+    private static (int OccupiedCells, string Sha256) RenderMapMask(JsonElement[] primitives)
     {
         const int width = 640;
         const int height = 360;
@@ -659,7 +664,32 @@ public static class SpecChecker
             bytes[index] = pixels[index] ? (byte)1 : (byte)0;
         }
 
-        return (pixels.Count(pixel => pixel), Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
+        var occupiedCells = 0;
+        for (var coarseY = 0; coarseY < height; coarseY += 8)
+        {
+            for (var coarseX = 0; coarseX < width; coarseX += 8)
+            {
+                var occupied = false;
+                for (var y = coarseY; y < coarseY + 8 && !occupied; y++)
+                {
+                    for (var x = coarseX; x < coarseX + 8; x++)
+                    {
+                        if (pixels[y * width + x])
+                        {
+                            occupied = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (occupied)
+                {
+                    occupiedCells++;
+                }
+            }
+        }
+
+        return (occupiedCells, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
     }
 
     private static void ValidateMapSource(string sourceId, HashSet<string> sourceIds, string subject, List<string> failures)

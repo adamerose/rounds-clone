@@ -28,20 +28,23 @@ Each entry records the embedded preview hash and the row-major binary mask hash.
 Ticket 002 measured a player body diameter of about 18 pixels in a 640 by 360 gameplay frame, so the catalog uses 18 source pixels per player diameter.
 The global scale remains provisional with a ±20 percent tolerance because the public preview framing has not been matched to a controlled current-build capture.
 The generator finds eight-connected visible components and decomposes them into oriented boxes using axis, diagonal, and principal-component candidates.
-It splits the worst-fitting boxes until a deterministic raster of the rounded world coordinates overlaps the source mask by at least 0.95 intersection over union.
-The 70 accepted scores range from 0.956757 to 0.997735.
-These boxes reproduce visible silhouettes; they remain collision hypotheses because a still cannot reveal hidden, one-way, decorative, or selectively collidable regions.
+It starts with one fitted box for every component, then splits the worst-fitting boxes until total fitted area is no more than source foreground area divided by 0.75 or the arena reaches its 96-box cap.
+The separate acceptance oracle requires the resulting 8-pixel occupancy grid to reach 0.75 intersection over union.
+The catalog contains 1,790 oriented boxes, no arena exceeds 96, and the 70 accepted coarse scores range from 0.787459 to 1.0.
+This topology-scale limit preserves disconnected islands and broad play spaces without optimizing full-resolution pixel overlap or tracing a source silhouette.
+These boxes abstract visible structures; they remain collision hypotheses because a still cannot reveal hidden, one-way, decorative, or selectively collidable regions.
 
 ## Executable evidence
 
-Every map stores source, rendered, intersection, and union pixel counts plus their intersection-over-union result and the SHA-256 digest of the full positioned render mask.
-The repository checker recomputes the result and arithmetic, rasterizes the committed oriented boxes at 640 by 360, and requires both the foreground count and positioned-mask digest to match.
-The ignored workbook and generator are still required to reproduce the source mask hash and intersection because original images cannot enter Git history.
-Regressions reject a sub-0.95 score, inconsistent overlap arithmetic, unsupported geometry, and any geometry change that drifts from the recorded render count.
+Every map stores its source-component count, coarse source and rendered occupancy, intersection and union cell counts, coarse intersection-over-union result, and the SHA-256 digest of the full positioned render mask.
+The repository checker rasterizes the committed oriented boxes at 640 by 360, recomputes 8-by-8-pixel occupancy, verifies the arithmetic, requires at least one box per source component, enforces the 96-box cap, and requires the positioned-render digest to match.
+The ignored workbook and generator are still required to reproduce the source-mask hash and source-side coarse occupancy because original images cannot enter Git history.
+The source-mask hash anchors the measurement input; it is not an acceptance target for a shipped full-resolution reconstruction.
+Regressions reject a sub-0.75 coarse score, inconsistent overlap arithmetic, unsupported geometry, omitted components, excess primitives, and any geometry change that alters the recorded positioned render.
 
 ## Bounds and spawns
 
-Every preview uses camera bounds of 18 player diameters horizontally and 10.1 vertically, while the provisional kill boundary sits at `-12`.
+Every preview begins with camera bounds of 18 player diameters horizontally and 10.1 vertically, expanded only when a rounded oriented box extends beyond that envelope, while the provisional kill boundary sits at `-12`.
 Collision bounds enclose the rounded oriented boxes.
 Two provisional spawn regions are placed above named static support boxes and maximize Euclidean separation, which supports horizontal and vertical arena layouts.
 Each region's width is derived from the support's usable oriented top surface rather than from a fixed rectangle.
@@ -68,4 +71,4 @@ Controlled current-build footage must confirm candidate rows and measure their b
 
 Still previews cannot establish exact colliders, friction, restitution, layer ownership, spawn facing, camera margins, or decorative edges.
 They also cannot establish break thresholds, movement paths, saw timing, rigid-body constraints, masses, damping, or reset sequencing.
-Implementation must preserve those unknowns and retune scale from controlled current-build captures instead of treating the silhouette oracle as gameplay proof.
+Implementation must preserve those unknowns and retune scale from controlled current-build captures instead of treating the structural oracle as gameplay proof.

@@ -441,14 +441,14 @@ public sealed class SpecCheckerTests : IDisposable
     }
 
     [Fact]
-    public void SubThresholdMapMaskEvidenceIsRejected()
+    public void SubThresholdMapLayoutEvidenceIsRejected()
     {
         CreateValidRepository();
         var path = Path.Combine(_repository, "spec", "maps.json");
         var document = JsonNode.Parse(File.ReadAllText(path))!;
-        document["maps"]![0]!["maskEvidence"]!["intersectionPixels"] = 9000;
-        document["maps"]![0]!["maskEvidence"]!["unionPixels"] = 10440;
-        document["maps"]![0]!["maskEvidence"]!["intersectionOverUnion"] = 0.862069;
+        document["maps"]![0]!["layoutEvidence"]!["intersectionCells"] = 100;
+        document["maps"]![0]!["layoutEvidence"]!["unionCells"] = 300;
+        document["maps"]![0]!["layoutEvidence"]!["coarseIntersectionOverUnion"] = 0.333333;
         File.WriteAllText(path, document.ToJsonString());
 
         var failures = SpecChecker.CheckRepository(_repository);
@@ -457,14 +457,14 @@ public sealed class SpecCheckerTests : IDisposable
     }
 
     [Fact]
-    public void InconsistentMapMaskEvidenceIsRejected()
+    public void InconsistentMapLayoutEvidenceIsRejected()
     {
         CreateValidRepository();
         var path = Path.Combine(_repository, "spec", "maps.json");
         var document = JsonNode.Parse(File.ReadAllText(path))!;
-        document["maps"]![0]!["maskEvidence"]!["intersectionPixels"] = 9600;
-        document["maps"]![0]!["maskEvidence"]!["unionPixels"] = 9840;
-        document["maps"]![0]!["maskEvidence"]!["intersectionOverUnion"] = 0.99;
+        document["maps"]![0]!["layoutEvidence"]!["intersectionCells"] = 200;
+        document["maps"]![0]!["layoutEvidence"]!["unionCells"] = 208;
+        document["maps"]![0]!["layoutEvidence"]!["coarseIntersectionOverUnion"] = 0.99;
         File.WriteAllText(path, document.ToJsonString());
 
         var failures = SpecChecker.CheckRepository(_repository);
@@ -484,6 +484,40 @@ public sealed class SpecCheckerTests : IDisposable
         var failures = SpecChecker.CheckRepository(_repository);
 
         Assert.Contains(failures, failure => failure.StartsWith("SPEC059 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MissingSourceComponentRepresentationIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["layoutEvidence"]!["sourceComponentCount"] = 2;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC061 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PixelTraceScalePrimitiveCountIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        var primitives = document["maps"]![0]!["primitives"]!.AsArray();
+        for (var index = 2; index <= 97; index++)
+        {
+            var primitive = primitives[0]!.DeepClone();
+            primitive["id"] = $"platform-{index:000}";
+            primitives.Add(primitive);
+        }
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC061 maps.json", StringComparison.Ordinal));
     }
 
     public void Dispose()
@@ -749,16 +783,18 @@ public sealed class SpecCheckerTests : IDisposable
                     ["previewPixels"] = new JsonObject { ["width"] = 640, ["height"] = 360 },
                     ["rowAnchorMethod"] = "xlsx-drawing-one-cell-anchor",
                 },
-                ["maskEvidence"] = new JsonObject
+                ["layoutEvidence"] = new JsonObject
                 {
                     ["threshold"] = "max-rgb-greater-than-or-equal-to-24",
                     ["maskSha256"] = new string('0', 64),
-                    ["sourceForegroundPixels"] = 9720,
-                    ["renderedForegroundPixels"] = 9720,
+                    ["sourceComponentCount"] = 1,
+                    ["coarseGridPixels"] = new JsonObject { ["width"] = 8, ["height"] = 8 },
+                    ["sourceOccupiedCells"] = 204,
+                    ["renderedOccupiedCells"] = 204,
                     ["renderedMaskSha256"] = "1683a9c57a22db7b23b964fe23ecaa2c1c65a1734ca50485cfdfb927c48cb0b0",
-                    ["intersectionPixels"] = 9720,
-                    ["unionPixels"] = 9720,
-                    ["intersectionOverUnion"] = 1,
+                    ["intersectionCells"] = 204,
+                    ["unionCells"] = 204,
+                    ["coarseIntersectionOverUnion"] = 1,
                 },
                 ["archetype"] = "visible-platform-layout",
                 ["symmetry"] = "mirror",
@@ -795,7 +831,7 @@ public sealed class SpecCheckerTests : IDisposable
         var document = new JsonObject
         {
             ["$schema"] = "./schema/maps.schema.json",
-            ["schemaVersion"] = 2,
+            ["schemaVersion"] = 3,
             ["targetBuild"] = "21020021",
             ["targetVersion"] = "v1.1.2.a75ee335a",
             ["catalogCount"] = 70,
