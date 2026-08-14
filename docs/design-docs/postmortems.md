@@ -584,3 +584,10 @@ The supported gate refreshed only ignored build outputs; no review-specific temp
 
 The first owner regression used a raw-string replacement whose indentation did not match the valid fixture, so it accidentally exercised unchanged valid JSON and still reported no exception after the parser correction.
 An explicit insertion at the primitive-array key plus a mutation assertion made the fixture trustworthy before verification resumed.
+
+## 2026-08-14 — Ticket 005's final review approved the corrected movement slice
+
+Fresh reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` approved exact candidate `1fa05e72962f771c5d5ff7fbe0e3266233f3c963` with no findings after independently checking the three earlier correction boundaries, the complete implementation, spec immutability, full gate, and live rendering.
+The computer-control package again lacked its documented API and rejected its own verified Godot window, so scoped Win32 capture supplied the visual evidence.
+The first Godot discovery guessed nonexistent `.tools/godot` before using the gate's `.tools/godot-4.7.1`, and the first screenshot used DPI-virtualized coordinates before the same exact PNG was overwritten with a correct 120-DPI capture.
+The reviewer stopped the exact game process, deleted the exact temporary PNG, verified both absent, and left only ordinary ignored build outputs.

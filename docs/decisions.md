@@ -251,6 +251,13 @@ Fresh reviewer session `codex:019fffeb-75c7-7c30-82d5-ac46c0ec51a3` approved exa
 The review independently reproduced all ten arena-026 mover samples, identified workbook row 27 as the clear footage match, regenerated the 70-map catalog byte-for-byte, and passed the zero-warning 46-test gate plus Godot smoke.
 The candidate was fast-forwarded to `main` unchanged before this integration record was appended.
 
+## 2026-08-14 — Integrate deterministic movement and static collision
+
+Fresh reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` approved exact candidate `1fa05e72962f771c5d5ff7fbe0e3266233f3c963` with no actionable findings after two earlier reviewers exposed three corrected public-boundary defects.
+The approved slice loads immutable embedded arena data through a stream-testable API, moves two players against source-ordered static oriented boxes, preserves one stored air jump, buffers landing input, hashes complete movement state, and renders the same live world in Godot.
+The complete gate passed 42 simulation and 37 checker tests, repeated deterministic hash `28bca5e37a7a3255`, a zero-warning release build, byte-identical spec trees, Godot editor/runtime smoke, and live GPU capture.
+The candidate was fast-forwarded to `main` unchanged before this integration record was appended.
+
 ## 2026-08-14 — Keep gameplay data embedded behind stream-loadable simulation APIs
 
 The simplest new design would give the pure simulation immutable arena and tuning values directly, with loading owned at an outer application boundary.
