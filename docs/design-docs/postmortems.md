@@ -573,3 +573,14 @@ Focused directory reads recovered the design evidence, and neither mistake chang
 A newly isolated reviewer context reported the top-level owner's provider session UUID instead of a distinct durable reviewer ID before inspecting any repository file.
 The owner cancelled that reservation immediately; it ran no commands and made no changes.
 The corrected candidate instead went to the existing isolated admission context whose distinct provider-qualified session had not authored or reviewed the implementation.
+
+## 2026-08-14 — Ticket 005's second implementation review found permissive role parsing
+
+Fresh implementation reviewer `codex:019ffff9-3be5-7da2-8811-5df376ffc9a4` rejected exact candidate `71410dcd2c7ecaf84745de01ae572f58a55b9d84` because the arena loader skipped every primitive role other than `static`.
+Skipping the two known visual-only roles is required, but treating a misspelling such as `statci` the same way can silently remove collision geometry from malformed input.
+Correction replaces the open-ended conditional with an explicit role switch and retains a public malformed-role regression.
+During review, two discovery commands guessed nonexistent checker script names before finding `tools/checks/run.ps1`, two broad outputs were truncated and recovered with focused reads, and the first in-memory probe used invalid JSON shorthand `-.5` before valid JSON reproduced the defect.
+The supported gate refreshed only ignored build outputs; no review-specific temporary or tracked residue remained.
+
+The first owner regression used a raw-string replacement whose indentation did not match the valid fixture, so it accidentally exercised unchanged valid JSON and still reported no exception after the parser correction.
+An explicit insertion at the primitive-array key plus a mutation assertion made the fixture trustworthy before verification resumed.

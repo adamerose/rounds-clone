@@ -90,17 +90,24 @@ public sealed class ArenaCatalog
                 throw new InvalidDataException($"Arena `{id}` has an unsupported primitive.");
             }
 
-            if (primitive.GetProperty("role").GetString() == "static")
+            switch (primitive.GetProperty("role").GetString())
             {
-                boxes.Add(Obb.Create(
-                    primitive.GetProperty("id").GetString()!,
-                    sourceOrder,
-                    new Vec2(
-                        primitive.GetProperty("x").GetDouble(),
-                        primitive.GetProperty("y").GetDouble()),
-                    primitive.GetProperty("width").GetDouble(),
-                    primitive.GetProperty("height").GetDouble(),
-                    primitive.GetProperty("rotationDegrees").GetDouble()));
+                case "static":
+                    boxes.Add(Obb.Create(
+                        primitive.GetProperty("id").GetString()!,
+                        sourceOrder,
+                        new Vec2(
+                            primitive.GetProperty("x").GetDouble(),
+                            primitive.GetProperty("y").GetDouble()),
+                        primitive.GetProperty("width").GetDouble(),
+                        primitive.GetProperty("height").GetDouble(),
+                        primitive.GetProperty("rotationDegrees").GetDouble()));
+                    break;
+                case "hazard-visual":
+                case "dynamic-visual":
+                    break;
+                default:
+                    throw new InvalidDataException($"Arena `{id}` has an unsupported primitive role.");
             }
 
             sourceOrder++;

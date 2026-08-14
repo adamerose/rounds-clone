@@ -76,6 +76,24 @@ public sealed class ArenaCatalogTests
         Assert.Throws<InvalidDataException>(() => ArenaCatalog.Load(stream));
     }
 
+    [Fact]
+    public void UnknownPrimitiveRoleIsRejectedInsteadOfSilentlyDroppingGeometry()
+    {
+        var malformed = ValidCatalog.Replace(
+            "\"primitives\": [{",
+            """
+            "primitives": [{
+              "id": "typo", "primitive": "oriented-box", "role": "statci",
+              "x": 0, "y": 1, "width": 1, "height": 1, "rotationDegrees": 0
+            }, {
+            """,
+            StringComparison.Ordinal);
+        Assert.NotEqual(ValidCatalog, malformed);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(malformed));
+
+        Assert.Throws<InvalidDataException>(() => ArenaCatalog.Load(stream));
+    }
+
     private const string ValidCatalog = """
         {
           "targetBuild": "21020021",
