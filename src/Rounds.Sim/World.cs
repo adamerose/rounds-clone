@@ -31,7 +31,7 @@ public sealed class World
 
     public Pcg32 Rng { get; }
 
-    public ArenaDefinition Arena { get; }
+    public ArenaDefinition Arena { get; internal set; }
 
     public PlayerTuning Tuning { get; }
 
@@ -74,7 +74,8 @@ public sealed class World
         ulong seed,
         ArenaDefinition arena,
         PlayerTuning? tuning = null,
-        CombatTuning? combatTuning = null)
+        CombatTuning? combatTuning = null,
+        IReadOnlyList<PlayerCombatProfile>? playerProfiles = null)
     {
         var resolvedTuning = tuning ?? PlayerTuning.Vanilla;
         var resolvedCombat = combatTuning ?? CombatTuning.Vanilla;
@@ -89,8 +90,52 @@ public sealed class World
             Id = 1,
             TeamId = 1,
         });
+        if (playerProfiles is null)
+        {
+            var baseProfile = PlayerCombatProfile.FromCombat(resolvedCombat);
+            world.Players[0].CombatProfile = baseProfile;
+            world.Players[1].CombatProfile = baseProfile;
+        }
+        else
+        {
+            if (playerProfiles.Count != world.Players.Count)
+            {
+                throw new ArgumentException("One combat profile is required for every player.", nameof(playerProfiles));
+            }
+            for (var index = 0; index < playerProfiles.Count; index++)
+            {
+                ArgumentNullException.ThrowIfNull(playerProfiles[index]);
+                playerProfiles[index].Validate();
+                world.Players[index].CombatProfile = playerProfiles[index];
+            }
+        }
         world.ResetDuel(incrementDuel: false);
         return world;
+    }
+
+    internal void ConfigureDuel(
+        ArenaDefinition arena,
+        IReadOnlyList<PlayerCombatProfile> playerProfiles,
+        bool incrementDuel)
+    {
+        ArgumentNullException.ThrowIfNull(arena);
+        ArgumentNullException.ThrowIfNull(playerProfiles);
+        if (playerProfiles.Count != Players.Count)
+        {
+            throw new ArgumentException("One combat profile is required for every player.", nameof(playerProfiles));
+        }
+        for (var index = 0; index < playerProfiles.Count; index++)
+        {
+            ArgumentNullException.ThrowIfNull(playerProfiles[index]);
+            playerProfiles[index].Validate();
+        }
+
+        Arena = arena;
+        for (var index = 0; index < playerProfiles.Count; index++)
+        {
+            Players[index].CombatProfile = playerProfiles[index];
+        }
+        ResetDuel(incrementDuel);
     }
 
     internal void ResetDuel(bool incrementDuel)
@@ -118,8 +163,8 @@ public sealed class World
             player.JumpCutAvailable = false;
             player.WasJumpHeld = false;
             player.AimDirection = index == 0 ? new Vec2(1.0, 0.0) : new Vec2(-1.0, 0.0);
-            player.Health = Combat.BaseHealth;
-            player.Ammo = Combat.BaseAmmo;
+            player.Health = player.CombatProfile.MaximumHealth;
+            player.Ammo = player.CombatProfile.MaximumAmmunition;
             player.FireCooldownTicksRemaining = 0;
             player.ReloadTicksRemaining = 0;
             player.BlockPhase = BlockPhase.Ready;

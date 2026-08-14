@@ -34,6 +34,12 @@ try {
     $second = & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- smoke --seed 20260814 --ticks 600
     if ($LASTEXITCODE -ne 0 -or $first -ne $second) { throw 'Repeated smoke runs did not match.' }
     Write-Output "deterministic smoke passed: $first"
+    $matchFirst = & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- match-smoke --seed 20260814
+    $matchSecond = & $dotnet run --project 'src/Rounds.Harness/Rounds.Harness.csproj' --configuration Release --no-build --no-restore -- match-smoke --seed 20260814
+    if ($LASTEXITCODE -ne 0 -or $matchFirst -ne $matchSecond -or $matchFirst -notmatch ' winner=0 score=5-0 ') {
+        throw 'Repeated match smoke runs did not terminate identically at 5-0.'
+    }
+    Write-Output "deterministic match smoke passed: $matchFirst"
     $sdkRoot = Join-Path $repository '.tools/dotnet'
     $env:DOTNET_ROOT = $sdkRoot
     $env:PATH = "$sdkRoot;$env:PATH"

@@ -83,6 +83,7 @@ public sealed class ArenaCatalog
             ?? throw new InvalidDataException("Arena id is missing.");
         var boxes = new List<Obb>();
         var sourceOrder = 0;
+        var hasUnsupportedBehavior = false;
         foreach (var primitive in map.GetProperty("primitives").EnumerateArray())
         {
             if (primitive.GetProperty("primitive").GetString() != "oriented-box")
@@ -105,6 +106,7 @@ public sealed class ArenaCatalog
                     break;
                 case "hazard-visual":
                 case "dynamic-visual":
+                    hasUnsupportedBehavior = true;
                     break;
                 default:
                     throw new InvalidDataException($"Arena `{id}` has an unsupported primitive role.");
@@ -125,7 +127,8 @@ public sealed class ArenaCatalog
             ParseBounds(map.GetProperty("collisionBounds")),
             map.GetProperty("killBoundaryY").GetDouble(),
             boxes,
-            spawns);
+            spawns,
+            hasUnsupportedBehavior);
     }
 
     private static ArenaBounds ParseBounds(JsonElement element)

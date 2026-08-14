@@ -14,7 +14,8 @@ public sealed class ArenaDefinition
         ArenaBounds collisionBounds,
         double killBoundaryY,
         IEnumerable<Obb> staticBoxes,
-        IEnumerable<SpawnRegion> spawns)
+        IEnumerable<SpawnRegion> spawns,
+        bool hasUnsupportedBehavior = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentNullException.ThrowIfNull(staticBoxes);
@@ -60,6 +61,7 @@ public sealed class ArenaDefinition
         CameraBounds = cameraBounds;
         CollisionBounds = collisionBounds;
         KillBoundaryY = killBoundaryY;
+        HasUnsupportedBehavior = hasUnsupportedBehavior;
         _staticBoxes = Array.AsReadOnly(boxes);
         _spawns = Array.AsReadOnly(spawnArray);
     }
@@ -71,6 +73,8 @@ public sealed class ArenaDefinition
     public ArenaBounds CollisionBounds { get; }
 
     public double KillBoundaryY { get; }
+
+    public bool HasUnsupportedBehavior { get; }
 
     public IReadOnlyList<Obb> StaticBoxes => _staticBoxes;
 

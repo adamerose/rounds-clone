@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-14T16:54:24Z
 origin: agent-proposed
 tags: [implementation, match, cards, maps, ui]
@@ -121,3 +121,7 @@ Scoring, loser upgrades, persistent builds, and changing arenas create the small
 - 2026-08-14T17:04:41Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Capped drafts now terminate naturally, vanilla hashes remain byte-exact through a custom-profile marker, both opening profiles reset duel zero, and arena choice consumes one bounded selection plus rejection retries.
 - 2026-08-14T17:10:24Z stage admission start session codex:01a0013c-933e-7563-ab82-361e2fc6cb2b — Freshly reviewing exact corrected candidate `8b8952a45315c18e6c054b4bc85fad97eaa517c7` against all earlier findings, dependencies, source catalogs, hash/reset/RNG edges, evidence, exclusions, human choices, and risk.
 - 2026-08-14T17:10:24Z stage admission end session codex:01a0013c-933e-7563-ab82-361e2fc6cb2b — Admitted at risk 4 with no findings: one match owner and one duel world now have exact scoring, draft, stat, arena, compatibility, and verification boundaries with all remaining fidelity choices explicit.
+- 2026-08-14T17:11:04Z stage implement start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Implementing embedded stat cards, immutable per-player profiles, conditional compatible hashing, match scoring/drafts/arena transitions, live match UI, harness smoke, architecture updates, and focused evidence.
+- 2026-08-14T17:50:53Z stage implement end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Completed one deterministic match owner, 12-card stat fold, player-specific combat, scoring and arena transitions, terminating smoke, complete Godot match UI, monitor-4 placement, documentation, and focused regressions without changing specs or replays.
+- 2026-08-14T17:50:53Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Running the complete public gate, exact compatibility comparisons, terminating match smoke, and native fourth-monitor match flow before forming the review candidate.
+- 2026-08-14T17:50:53Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Passed zero-warning build, repository checks, 37 checker tests, 202 simulation/replay/history tests, exact duel and golden hashes, deterministic match hash `f44c5922b519fed8`, replay CLI and corpus, Godot editor/runtime/replay smoke, unchanged `spec/` and `replays/`, and a complete native match wholly on monitor 4.

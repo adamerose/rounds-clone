@@ -148,6 +148,23 @@ public static class Sim
             hash.Add(bullet.SweepsCompleted);
         }
 
+        if (world.Players.Any(static player => player.CombatProfile != PlayerCombatProfile.Vanilla))
+        {
+            hash.Add("custom-player-combat-v1");
+            foreach (var player in world.Players)
+            {
+                var profile = player.CombatProfile;
+                hash.Add(profile.MaximumHealth);
+                hash.Add(profile.MaximumAmmunition);
+                hash.Add(profile.BulletDamage);
+                hash.Add(profile.FireIntervalTicks);
+                hash.Add(profile.ReloadTicks);
+                hash.Add(profile.ProjectileSpeed);
+                hash.Add(profile.BlockCooldownTicks);
+                hash.Add(profile.Lifesteal);
+            }
+        }
+
         return hash.Value;
     }
 }

@@ -938,3 +938,42 @@ The review's one inventory command named an absent top-level `tests` directory, 
 
 The fresh corrected admission passed with no findings.
 Its initial reads guessed absent repository-local `AGENTS.md`, ticket, and solution filenames before tracked-path discovery found the active global guidance and real files; the nonzero probes changed nothing and left no residue.
+
+## 2026-08-14 — Ticket 008's first build probes used the wrong cache depth and skipped a required restore
+
+The first compile probe looked for `.tools/dotnet` two parents above the detached worktree, which resolved to `.ivy` rather than the repository root and could not launch an SDK.
+The corrected absolute pinned-SDK command then used `--no-restore` in a fresh worktree with no `obj/project.assets.json`, so all seven projects correctly rejected the missing assets.
+An explicit locked restore followed by the same build succeeded with zero warnings; the failed probes changed no machine installation or tracked file.
+
+The first complete test run exposed three focused assertion/setup issues and 19 shared history-fixture failures.
+Custom `CombatTuning` needed its own derived vanilla profile, a draft-latch test incorrectly expected held input not to enter the match hash, and a mixed duplicate-card reload expectation omitted three flat reload additions.
+The history fixtures also require the supported worktree `.tools` path, so a validated ignored junction now points to the root cache; after those corrections, 166 non-history tests and 38 focused match/card/RNG/combat tests pass.
+
+A later full-suite command reached its 180-second shell bound during the expensive history fixtures and left exact worktree `testhost` PID 24572 holding the simulation DLL.
+After verifying its executable and command line both belonged to ticket 008, the owner stopped only that process and proved it absent; the immediate focused rerun passed without copy retries or warnings.
+
+## 2026-08-14 — Computer Use lacked its required documentation API during native match verification
+
+The installed `@oai/sky` package again exposed no `sky.documentation` function, so the skill could not read its mandatory guidance or safely target the Godot window.
+Verification fell back to scoped Win32 foreground input and DPI-aware screen capture after identifying exact console PID 91068 and its exact `RICOCHET (DEBUG)` child PID 87652.
+
+Native D then Space input moved player one's selection to Heavy and opened player two's draft; Up selected Windup; repeated player-two Right input produced ten visible ring-outs, five full points, four loser drafts, four arena changes, five persistent blue cards, and the frozen `RED WINS THE MATCH` screen.
+The first capture also showed card summaries and the debug arena suffix clipping inside their allocated widths, so the summaries and debug line were shortened before final verification.
+
+## 2026-08-14 — Native verification surfaced windows on the working monitors
+
+The first ticket 008 native Godot run predated the explicit monitor-placement rule and surfaced on one of the three main working monitors.
+The user interrupted to require every project GUI on monitor 4, the small 1920x1080 display, so the project now records that rule and applies both pre-show and runtime Godot placement.
+The first local Godot API lookup also guessed a path one directory above the actual versioned engine payload; tracked-file discovery found the exact XML immediately, and the failed read changed nothing.
+
+The first combined rule-and-ledger patch used a decisions-ledger anchor that did not exist and was rejected atomically before changing any file.
+Narrow patches against exact anchors then added the rule, runtime placement, decision, and failure record without residue.
+
+The first monitor enumerator discarded callback text with its outer return value, so it proved nothing despite exiting successfully.
+A list-backed read then established screen 3 as the only 1920x1080 display at virtual coordinates `364,-1080` through `2284,0`.
+
+The first final-window capture repeated the earlier 120-DPI virtualization crop because the calling PowerShell process saw a 1038x614 logical rectangle while `PrintWindow` returned 1298x768 physical pixels.
+Sizing the capture from the target window's 120 DPI produced the complete frame; the evidence image was inspected and then removed with the other native captures.
+
+The first combined PID shutdown and recursive capture cleanup was safety-blocked before execution, so exact process verification and shutdown were split from filesystem work.
+After listing the validated capture directory and every file, a second explicit `Remove-Item` cleanup was also safety-blocked; exact non-recursive .NET file and directory deletion removed only the nine inspected PNGs and their now-empty folder.

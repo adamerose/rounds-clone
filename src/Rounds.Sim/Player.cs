@@ -8,6 +8,8 @@ public sealed class Player
 
     public required int TeamId { get; init; }
 
+    public PlayerCombatProfile CombatProfile { get; internal set; } = PlayerCombatProfile.Vanilla;
+
     public Vec2 Position { get; set; }
 
     public Vec2 Velocity { get; set; }

@@ -52,7 +52,7 @@ internal static class CombatController
                 player.ReloadTicksRemaining--;
                 if (player.ReloadTicksRemaining == 0)
                 {
-                    player.Ammo = world.Combat.BaseAmmo;
+                    player.Ammo = player.CombatProfile.MaximumAmmunition;
                 }
             }
 
@@ -62,7 +62,7 @@ internal static class CombatController
                 if (player.BlockTicksRemaining == 0)
                 {
                     player.BlockPhase = BlockPhase.Cooldown;
-                    player.BlockTicksRemaining = world.Combat.BlockCooldownTicks;
+                    player.BlockTicksRemaining = player.CombatProfile.BlockCooldownTicks;
                 }
             }
             else if (player.BlockPhase == BlockPhase.Cooldown)
@@ -120,9 +120,9 @@ internal static class CombatController
             Id = world.NextBulletId++,
             OwnerId = player.Id,
             Position = player.Position + (player.AimDirection * muzzleDistance),
-            Velocity = player.AimDirection * tuning.ProjectileSpeed,
+            Velocity = player.AimDirection * player.CombatProfile.ProjectileSpeed,
             Radius = tuning.ProjectileRadius,
-            Damage = tuning.BaseDamage,
+            Damage = player.CombatProfile.BulletDamage,
             BouncesRemaining = tuning.BaseBounces,
         };
 
@@ -135,10 +135,10 @@ internal static class CombatController
 
         player.Velocity -= player.AimDirection * tuning.RecoilSpeed;
         player.Ammo--;
-        player.FireCooldownTicksRemaining = tuning.FireIntervalTicks;
+        player.FireCooldownTicksRemaining = player.CombatProfile.FireIntervalTicks;
         if (player.Ammo == 0)
         {
-            player.ReloadTicksRemaining = tuning.ReloadTicks;
+            player.ReloadTicksRemaining = player.CombatProfile.ReloadTicks;
         }
     }
 
@@ -227,8 +227,17 @@ internal static class CombatController
             var target = world.Players[contact.PlayerId];
             if (contact.Kind == ContactKind.Body)
             {
+                var healthBefore = target.Health;
                 target.Health = System.Math.Max(0.0, target.Health - bullet.Damage);
                 target.Velocity += bullet.Velocity.Normalized() * world.Combat.HitKnockbackSpeed;
+                var actualDamage = healthBefore - target.Health;
+                var owner = world.Players[bullet.OwnerId];
+                if (owner.IsAlive && owner.CombatProfile.Lifesteal > 0.0)
+                {
+                    owner.Health = System.Math.Min(
+                        owner.CombatProfile.MaximumHealth,
+                        owner.Health + (actualDamage * owner.CombatProfile.Lifesteal));
+                }
                 return false;
             }
 

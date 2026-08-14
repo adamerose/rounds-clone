@@ -345,3 +345,9 @@ The approved gate passed 167 simulation/replay/history tests, 37 repository-chec
 Fresh reviewer `codex:01a0013c-933e-7563-ab82-361e2fc6cb2b` admitted exact ticket candidate `8b8952a45315c18e6c054b4bc85fad97eaa517c7` at risk 4 after an earlier review removed an unreachable capped-loser branch and made profile hashing, the opening reset, and arena RNG exact.
 The admitted slice puts five-point scoring, sequential opening and loser drafts, 12 provisional stat-only card folds, and 62 static arena choices in one deterministic `Match` above the existing duel `World`.
 Vanilla duel hashes and replay files remain exact; behavior cards, rarity weighting, non-static map behavior, match replays, bots, controllers, audio, camera work, and production presentation remain separate work.
+
+## 2026-08-14 — Keep project windows on the small fourth monitor
+
+Every visible window launched for this project belongs on monitor 4, the 1920x1080 display at zero-based screen index 3, so development does not interrupt work on the three main monitors.
+Godot selects that screen before showing command-line or exported runs and repeats the selection when the scene starts to cover editor launches.
+Agent-launched GUI tools must choose that monitor before showing; tools without startup placement support must launch hidden or minimized, move there, and only then become visible.

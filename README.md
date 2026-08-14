@@ -4,9 +4,8 @@ RICOCHET is an original, deterministic reimplementation of the short-round platf
 It keeps simulation rules in a pure .NET library and uses Godot only for input, presentation, and menus.
 No Landfall art, audio, text, or source code is included.
 
-The repository is in active construction.
-The bootstrap milestone provides a deterministic input/hash boundary, a headless harness, mechanical architecture checks, automated tests, and a loadable Godot shell.
-The core research milestone pins public build `21020021` (`v1.1.2.a75ee335a`) and defines sourced match, controls, player, combat, camera, and footage-measurement specifications.
+The current build provides a complete deterministic local match: two opening picks, short duels, half-point scoring, loser drafts, persistent stat builds, arena rotation, and a first-to-five winner.
+The first 12 passive cards and 62 static arenas come from the pinned public-build research catalog; behavior cards, animated hazards, bots, controllers, audio, and production presentation remain in progress.
 
 ## Quick start on Windows
 
@@ -24,6 +23,12 @@ Run the deterministic harness directly:
 ./.tools/dotnet/dotnet.exe run --project src/Rounds.Harness -- smoke --seed 20260814 --ticks 600
 ```
 
+Run the bounded full-match smoke:
+
+```powershell
+./.tools/dotnet/dotnet.exe run --project src/Rounds.Harness -- match-smoke --seed 20260814
+```
+
 Launch the current game shell:
 
 ```powershell
@@ -34,9 +39,11 @@ $godot = Get-ChildItem .tools/godot-4.7.1 -Filter '*mono_win64_console.exe' -Rec
 & $godot --path game
 ```
 
-The current shell runs an endless playable base duel on arena 006: movement, stored jump, mouse or keyboard aim, recoil, bullets, block reflection and launch, damage, ring-outs, results, and deterministic reset all come from the pure simulation.
+The live shell starts with player one's five-card opening choice, then player two's, and plays through the complete first-to-five match.
+Left/right movement wraps the active five-card selection and jump confirms after both controls have been released once.
+The full score, half points, card stacks, arena ID, loser drafts, and final winner remain visible around the same pure-simulation combat.
 Player one uses A/D, Space, mouse aim, Mouse1 fire, and Mouse2 block. Player two uses Left/Right, Up, I/J/K/L aim, O fire, and P block.
-Round scoring, card drafts, arena rotation, bots, controller defaults, and production presentation remain later milestones.
+The protected `base-combat-v1` replay remains a standalone duel format; match replay, bots, controller defaults, sound, dynamic map behavior, and production presentation remain later milestones.
 
 ## Project map
 

@@ -1,6 +1,7 @@
 using Godot;
 using Rounds.Replay;
 using Rounds.Sim;
+using Rounds.Sim.Cards;
 using Rounds.Sim.Maps;
 using SimVector = Rounds.Sim.Math.Vec2;
 
@@ -8,16 +9,20 @@ namespace Rounds.Game;
 
 public partial class Main : Node2D
 {
+    private const int PreferredScreen = 3;
     private static readonly Color Paper = Color.FromHtml("f2f0e8");
     private static readonly Color Ink = Color.FromHtml("10131c");
     private static readonly Color Red = Color.FromHtml("ff625f");
     private static readonly Color Blue = Color.FromHtml("48a9ff");
     private readonly PlayerInput[] _inputs = new PlayerInput[2];
+    private readonly StatCardCatalog _displayCards = StatCardCatalog.LoadEmbedded();
+    private Match? _match;
     private ReplayPlayback? _replay;
     private World _world = null!;
 
     public override void _Ready()
     {
+        PlaceWindowOnPreferredScreen();
         Engine.PhysicsTicksPerSecond = World.TickRate;
         var arguments = OS.GetCmdlineUserArgs();
         if (arguments.Length > 0)
@@ -42,9 +47,18 @@ public partial class Main : Node2D
         }
         else
         {
-            _world = World.CreateSmoke(1UL);
+            _match = Match.Create(1UL);
+            _world = _match.World;
         }
         QueueRedraw();
+    }
+
+    private static void PlaceWindowOnPreferredScreen()
+    {
+        if (DisplayServer.GetScreenCount() > PreferredScreen)
+        {
+            DisplayServer.WindowSetCurrentScreen(PreferredScreen);
+        }
     }
 
     public override void _ExitTree()
@@ -82,7 +96,7 @@ public partial class Main : Node2D
             Godot.Input.IsKeyPressed(Key.O),
             Godot.Input.IsKeyPressed(Key.P),
             ReadKeyboardAim());
-        Rounds.Sim.Sim.Step(_world, _inputs);
+        _match!.Step(_inputs);
         QueueRedraw();
     }
 
@@ -166,6 +180,10 @@ public partial class Main : Node2D
         }
 
         DrawHud();
+        if (_match?.Phase is MatchPhase.OpeningDraft or MatchPhase.LoserDraft)
+        {
+            DrawDraft(_match);
+        }
     }
 
     private static PlayerInput ReadKeyboard(
@@ -224,7 +242,9 @@ public partial class Main : Node2D
         DrawPlayerHud(0, new Vector2(70.0f, 70.0f), Red, HorizontalAlignment.Left);
         DrawPlayerHud(1, new Vector2(1850.0f, 70.0f), Blue, HorizontalAlignment.Right);
 
-        var phaseText = _world.Phase switch
+        var phaseText = _match?.Phase == MatchPhase.MatchResult
+            ? _match.WinnerId == 0 ? "RED WINS THE MATCH" : "BLUE WINS THE MATCH"
+            : _world.Phase switch
         {
             DuelPhase.Spawning => $"GET READY  {_world.PhaseTicksRemaining}",
             DuelPhase.Resolving => "K.O.",
@@ -244,15 +264,21 @@ public partial class Main : Node2D
                 Paper);
         }
 
+        if (_match is not null)
+        {
+            DrawMatchScore(_match);
+        }
+
+        var matchDebug = _match is null ? string.Empty : $"   match {_match.Phase}   arena {_world.Arena.Id}";
         var debug = FormattableString.Invariant(
-            $"P1 aim {_world.Players[0].AimDirection.X:0.00},{_world.Players[0].AimDirection.Y:0.00}   P2 aim {_world.Players[1].AimDirection.X:0.00},{_world.Players[1].AimDirection.Y:0.00}   bullets {_world.Bullets.Count}   duel {_world.DuelNumber}   phase {_world.Phase}");
+            $"P1 aim {_world.Players[0].AimDirection.X:0.00},{_world.Players[0].AimDirection.Y:0.00}   P2 aim {_world.Players[1].AimDirection.X:0.00},{_world.Players[1].AimDirection.Y:0.00}   bullets {_world.Bullets.Count}   duel {_world.DuelNumber}   phase {_world.Phase}{matchDebug}");
         DrawString(
             ThemeDB.FallbackFont,
-            new Vector2(510.0f, 1035.0f),
+            new Vector2(380.0f, 1035.0f),
             debug,
             HorizontalAlignment.Center,
-            900.0f,
-            20,
+            1160.0f,
+            18,
             Paper.Darkened(0.2f));
     }
 
@@ -261,14 +287,14 @@ public partial class Main : Node2D
         var player = _world.Players[playerIndex];
         var direction = alignment == HorizontalAlignment.Left ? 1.0f : -1.0f;
         var healthWidth = 260.0f;
-        var healthFraction = Mathf.Clamp((float)(player.Health / _world.Combat.BaseHealth), 0.0f, 1.0f);
+        var healthFraction = Mathf.Clamp((float)(player.Health / player.CombatProfile.MaximumHealth), 0.0f, 1.0f);
         var barX = direction > 0.0f ? anchor.X : anchor.X - healthWidth;
         DrawRect(new Rect2(barX, anchor.Y, healthWidth, 22.0f), Ink);
         var fillWidth = (healthWidth - 6.0f) * healthFraction;
         var fillX = direction > 0.0f ? barX + 3.0f : barX + healthWidth - 3.0f - fillWidth;
         DrawRect(new Rect2(fillX, anchor.Y + 3.0f, fillWidth, 16.0f), color);
 
-        for (var round = 0; round < _world.Combat.BaseAmmo; round++)
+        for (var round = 0; round < player.CombatProfile.MaximumAmmunition; round++)
         {
             var loaded = round < player.Ammo;
             DrawCircle(
@@ -290,6 +316,119 @@ public partial class Main : Node2D
             18,
             color);
     }
+
+    private void DrawMatchScore(Match match)
+    {
+        DrawString(
+            ThemeDB.FallbackFont,
+            new Vector2(710.0f, 62.0f),
+            $"{match.FullPoints[0]}   RICOCHET   {match.FullPoints[1]}",
+            HorizontalAlignment.Center,
+            500.0f,
+            32,
+            Paper);
+        if (match.HalfPoints[0] > 0)
+        {
+            DrawCircle(new Vector2(835.0f, 92.0f), 7.0f, Red);
+        }
+        if (match.HalfPoints[1] > 0)
+        {
+            DrawCircle(new Vector2(1085.0f, 92.0f), 7.0f, Blue);
+        }
+
+        DrawCardStack(match, 0, new Vector2(70.0f, 190.0f), Red, HorizontalAlignment.Left);
+        DrawCardStack(match, 1, new Vector2(1850.0f, 190.0f), Blue, HorizontalAlignment.Right);
+    }
+
+    private void DrawCardStack(
+        Match match,
+        int playerId,
+        Vector2 anchor,
+        Color color,
+        HorizontalAlignment alignment)
+    {
+        var cards = match.AcquiredCardsFor(playerId);
+        for (var index = 0; index < cards.Count; index++)
+        {
+            var definition = _displayCards.GetRequired(cards[index]);
+            var x = alignment == HorizontalAlignment.Left ? anchor.X : anchor.X - 220.0f;
+            DrawString(
+                ThemeDB.FallbackFont,
+                new Vector2(x, anchor.Y + (index * 24.0f)),
+                definition.DisplayName,
+                alignment,
+                220.0f,
+                17,
+                color);
+        }
+    }
+
+    private void DrawDraft(Match match)
+    {
+        DrawRect(new Rect2(0.0f, 250.0f, 1920.0f, 560.0f), Ink with { A = 0.96f });
+        var pickerColor = match.CurrentPickerId == 0 ? Red : Blue;
+        var title = match.Phase == MatchPhase.OpeningDraft
+            ? $"PLAYER {match.CurrentPickerId + 1} — OPENING PICK"
+            : $"PLAYER {match.CurrentPickerId + 1} — COMEBACK PICK";
+        DrawString(
+            ThemeDB.FallbackFont,
+            new Vector2(610.0f, 320.0f),
+            title,
+            HorizontalAlignment.Center,
+            700.0f,
+            38,
+            pickerColor);
+        DrawString(
+            ThemeDB.FallbackFont,
+            new Vector2(610.0f, 765.0f),
+            match.IsDraftArmed ? "LEFT / RIGHT TO CHOOSE     JUMP TO TAKE" : "RELEASE MOVE AND JUMP",
+            HorizontalAlignment.Center,
+            700.0f,
+            22,
+            Paper.Darkened(0.1f));
+
+        for (var index = 0; index < match.CurrentOffer.Count; index++)
+        {
+            var card = match.CurrentOffer[index];
+            var bounds = new Rect2(115.0f + (index * 345.0f), 370.0f, 310.0f, 300.0f);
+            var selected = index == match.SelectedOfferIndex;
+            DrawRect(bounds, selected ? pickerColor.Darkened(0.65f) : Ink.Lightened(0.08f));
+            DrawRect(bounds, selected ? pickerColor : Paper.Darkened(0.45f), false, selected ? 8.0f : 3.0f);
+            DrawString(
+                ThemeDB.FallbackFont,
+                new Vector2(bounds.Position.X + 20.0f, bounds.Position.Y + 68.0f),
+                card.DisplayName,
+                HorizontalAlignment.Center,
+                bounds.Size.X - 40.0f,
+                25,
+                selected ? pickerColor : Paper);
+            DrawString(
+                ThemeDB.FallbackFont,
+                new Vector2(bounds.Position.X + 22.0f, bounds.Position.Y + 150.0f),
+                card.Summary,
+                HorizontalAlignment.Center,
+                bounds.Size.X - 44.0f,
+                16,
+                Paper.Darkened(0.05f));
+            DrawString(
+                ThemeDB.FallbackFont,
+                new Vector2(bounds.Position.X + 22.0f, bounds.Position.Y + 252.0f),
+                EffectLine(card),
+                HorizontalAlignment.Center,
+                bounds.Size.X - 44.0f,
+                14,
+                Paper.Darkened(0.22f));
+        }
+    }
+
+    private static string EffectLine(StatCardDefinition card) =>
+        string.Join("  ", card.Effects.Select(effect => effect.Operation switch
+        {
+            StatOperation.Multiply => $"×{effect.Value:0.##}",
+            StatOperation.AddCount => $"{effect.Value:+0;-0;0} ammo",
+            StatOperation.AddFlat => $"+{effect.Value:0.##}s reload",
+            _ => $"{effect.Value:+0;-0;0}%",
+        }));
 
     private readonly record struct CameraTransform(double Scale, double CenterX, double CenterY)
     {

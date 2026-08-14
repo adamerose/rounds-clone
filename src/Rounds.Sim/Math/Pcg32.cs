@@ -25,4 +25,21 @@ public sealed class Pcg32
         var rotation = (int)(oldState >> 59);
         return (xorShifted >> rotation) | (xorShifted << ((-rotation) & 31));
     }
+
+    public uint NextBounded(uint bound)
+    {
+        if (bound == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bound), "A random bound must be positive.");
+        }
+
+        var threshold = unchecked(0U - bound) % bound;
+        uint value;
+        do
+        {
+            value = NextUInt();
+        }
+        while (value < threshold);
+        return value % bound;
+    }
 }

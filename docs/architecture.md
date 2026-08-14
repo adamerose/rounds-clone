@@ -9,8 +9,8 @@ Markdown renderers ignore single newlines, so it looks the same, and it keeps di
 
 ## What we're building
 
-A faithful reimplementation of Rounds (Landfall, 2020): a 2D versus platform shooter played in short rounds.
-Two or more players fight; the player who is behind picks a card between rounds; cards stack combinatorially until matches turn absurd.
+A faithful reimplementation of Rounds (Landfall, 2020): a 1v1 2D platform shooter played in short duels and comeback-driven rounds.
+Both players open with one card; each full-round loser picks another persistent card; stat combinations build until one player reaches five points.
 Mechanics are reimplemented from research.
 No original art, audio, or text is copied.
 
@@ -66,6 +66,8 @@ It exposes roughly:
 ```csharp
 public sealed class World { /* players, bullets, level, rng, tick, ... */ }
 
+public sealed class Match { /* scores, drafts, cards, arena cadence, one World */ }
+
 public static class Sim
 {
     public static void Step(World world, ReadOnlySpan<Input> inputs);
@@ -78,6 +80,11 @@ It never contains a game rule.
 A card's behavior never lives in a scene.
 
 This is what makes headless self-play a `for` loop instead of an engineering project, and it's what makes Godot replaceable if it disappoints.
+
+`World` owns exactly one deterministic duel and remains the version-1 replay boundary.
+`Match` owns the longer-lived score, half points, draft offers and input latches, acquired card IDs, arena rotation, and the same `World` across every duel.
+Opening and loser draft phases pause ordinary world ticks; a confirmed pick recomputes immutable per-player combat profiles and enters the one existing world reset path.
+The Godot live path steps `Match`, while replay mode continues to step `World`, so match growth cannot silently invalidate the protected base-combat corpus.
 
 ## Determinism rules
 
@@ -167,7 +174,7 @@ src/
     World.cs, Sim.cs
     Math/               Vec2, Trig, Rng
     Physics/            kinematic controller, swept circles, level geometry
-    Cards/              hook surface, registry, one file per card
+    Cards/              embedded catalogs and deterministic stat/hook folds
   Rounds.Harness/       console app: self-play, replay, stats, measurement, render
   Rounds.Sim.Tests/     unit and property tests
 game/                   the Godot project — rendering, input, audio, menus, juice
@@ -183,31 +190,17 @@ tools/checks/           the mechanical checks CI runs
 
 ## Cards
 
-Cards are the game, and they're also where parallel agents collide, so they get a fixed surface rather than free access to the world.
+Cards are embedded catalog data first, not imperative objects with arbitrary world access.
+The initial 12 stat-only cards pass through one ordered fold into an immutable per-player combat profile containing health, ammunition, damage, cadence, reload, projectile speed, block cooldown, and lifesteal.
+Combat reads that profile at the owning player boundary; a duel reset restores profile maxima while acquired IDs and the profile persist in `Match`.
 
-A card is data plus optional hooks:
+The catalog records sourced single-copy values but leaves most duplicate formulas unresolved.
+The match slice therefore names one provisional composition rule per supported target, tests acquisition-order independence and every one-copy result, and keeps acquired IDs in the hash even if a combination folds to vanilla values.
+All-vanilla profiles append nothing to `Sim.Hash`, preserving the version-1 replay hash exactly; any custom profile appends a fixed marker and every player's full profile.
 
-```csharp
-public interface ICard
-{
-    CardId Id { get; }
-    void ModifyStats(ref PlayerStats stats);          // additive/multiplicative, declared in data
-    void OnRoundStart(World w, PlayerRef p);
-    void OnBulletSpawn(World w, PlayerRef p, ref Bullet b);
-    void OnBulletHit(World w, in HitInfo hit);
-    void OnBlock(World w, PlayerRef p);
-    void OnDamageDealt(World w, in DamageInfo d);
-    void OnDamageTaken(World w, in DamageInfo d);
-}
-```
-
-Rules that keep 120 cards from breaking each other:
-
-- Hooks run in a fixed order: hook priority, then card id.
-  Never insertion order.
-- Stacking semantics come from `spec/` — additive, multiplicative, max-wins, or count-based — not from imperative code inside the card.
-- One card per file.
-  A card that needs a hook the interface doesn't have is a change to this document, recorded in `docs/decisions.md`, not an ad-hoc reach into world state.
+Behavior cards will add a small typed hook surface only when the first owning card needs it.
+Hooks run by declared priority and then stable card ID, never acquisition or collection insertion order.
+A new behavior must extend that shared surface and its deterministic event order rather than reaching ad hoc into `World`.
 
 ## What the orchestrator may change freely
 
@@ -218,10 +211,6 @@ What it may not change without amending this document: the module boundary, the 
 
 ## Open items
 
-- **Frame capture.**
-  Godot's `--headless` uses dummy display and rendering drivers and cannot produce images.
-  The nightly reel needs either Xvfb, a windowed run on a machine with a display, or a small standalone renderer that reads replay files.
-  Decide and build this early; it's the only visibility anyone has into the project.
 - **Web export.**
   Godot's C# support for browser builds has been unreliable.
   If a playable link ever matters, verify it before the codebase is large.

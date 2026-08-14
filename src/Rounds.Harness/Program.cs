@@ -24,11 +24,12 @@ internal static class HarnessCommands
         return command switch
         {
             "smoke" => Smoke(options),
+            "match-smoke" => MatchSmoke(options),
             "record" => Record(options),
             "replay" => Replay(options),
             "verify-replays" => VerifyReplays(options),
             _ => throw new ArgumentException(
-                "Usage: Rounds.Harness smoke|record|replay|verify-replays [options]"),
+                "Usage: Rounds.Harness smoke|match-smoke|record|replay|verify-replays [options]"),
         };
     }
 
@@ -50,6 +51,48 @@ internal static class HarnessCommands
 
         Console.WriteLine(
             FormattableString.Invariant($"seed={seed} ticks={ticks} players={world.Players.Count} hash={Rounds.Sim.Sim.Hash(world):x16}"));
+        return 0;
+    }
+
+    private static int MatchSmoke(Options options)
+    {
+        options.RequireOnly("seed");
+        var seed = options.GetUlong("seed", 1UL);
+        var match = Match.Create(seed);
+        var arenaSequence = new List<string> { match.World.Arena.Id };
+        var steps = 0;
+        while (match.Phase != MatchPhase.MatchResult && steps < 20_000)
+        {
+            if (match.Phase is MatchPhase.OpeningDraft or MatchPhase.LoserDraft)
+            {
+                match.Step(new PlayerInput[2]);
+                var confirm = new PlayerInput[2];
+                confirm[match.CurrentPickerId] = new PlayerInput(0, true, false, false);
+                match.Step(confirm);
+                steps += 2;
+            }
+            else
+            {
+                if (match.World.Phase == DuelPhase.Active)
+                {
+                    match.World.Players[1].Health = 0.0;
+                }
+                match.Step(new PlayerInput[2]);
+                steps++;
+            }
+
+            if (arenaSequence[^1] != match.World.Arena.Id)
+            {
+                arenaSequence.Add(match.World.Arena.Id);
+            }
+        }
+        if (match.Phase != MatchPhase.MatchResult)
+        {
+            throw new InvalidOperationException("Deterministic match smoke exceeded its step bound.");
+        }
+
+        Console.WriteLine(FormattableString.Invariant(
+            $"seed={seed} winner={match.WinnerId} score={match.FullPoints[0]}-{match.FullPoints[1]} cards0={string.Join('+', match.AcquiredCardsFor(0))} cards1={string.Join('+', match.AcquiredCardsFor(1))} arenas={string.Join('>', arenaSequence)} worldTicks={match.World.Tick} steps={steps} hash={Match.Hash(match):x16}"));
         return 0;
     }
 

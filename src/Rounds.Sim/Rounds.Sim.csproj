@@ -8,5 +8,6 @@
     <EmbeddedResource Include="..\..\spec\player.json" LogicalName="Rounds.Sim.Data.player.json" />
     <EmbeddedResource Include="..\..\spec\controls.json" LogicalName="Rounds.Sim.Data.controls.json" />
     <EmbeddedResource Include="..\..\spec\combat.json" LogicalName="Rounds.Sim.Data.combat.json" />
+    <EmbeddedResource Include="..\..\spec\cards.json" LogicalName="Rounds.Sim.Data.cards.json" />
   </ItemGroup>
 </Project>
