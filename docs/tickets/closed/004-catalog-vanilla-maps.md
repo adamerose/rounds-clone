@@ -10,6 +10,7 @@ depends-on: [2]
 sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
   - codex:019fff46-e63b-7911-8124-12c0d8fe0b12
+  - codex:019fff73-e68d-79d0-bca4-5da80964846a
 ---
 
 # Catalog and classify every vanilla arena
@@ -61,3 +62,9 @@ Arena geometry controls sightlines, recoil recovery, wall blocks, ring-outs, and
 - 2026-08-14T08:46:20Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Preserved both research contracts and all 28 checker tests, with card and map documents required and cross-checked together.
 - 2026-08-14T08:46:20Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the full combined repository gate after overlap reconciliation.
 - 2026-08-14T08:46:20Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Combined gate passed with zero warnings, 37 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, and clean diff formatting.
+- 2026-08-14T09:01:17Z stage review start session codex:019fff73-e68d-79d0-bca4-5da80964846a — Reviewing exact candidate `79e2007096735f0be082580a055464ceaa804e50` against ticket 004, the public row images, binding map design, and full combined gate.
+- 2026-08-14T09:01:17Z stage review end session codex:019fff73-e68d-79d0-bca4-5da80964846a — Rejected misaligned row geometry and saw classifications, absent IoU acceptance evidence, and an axis-aligned schema that contradicts the oriented-box design.
+- 2026-08-14T09:01:17Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Rebuilding row anchoring, oriented geometry, behavior classification, spawn derivation, and the binding mask-render IoU oracle from the public workbook.
+- 2026-08-14T09:34:09Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Replaced the rejected catalog with 70 row-anchored previews, 7,557 oriented silhouette boxes, explicit visual behavior candidates, source-supported two-dimensional spawns, and exact mask IoU scores from 0.956757 to 0.997735.
+- 2026-08-14T09:34:09Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the generator reproducibility, schema, semantic evidence, ticket, build, test, deterministic simulation, Godot, formatting, and residue gates on the complete correction.
+- 2026-08-14T09:34:48Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Byte-identical regeneration hash `83f4f7224b2be8ee2a94115b6586096db3c6698d0d7552467e2e714a573bbc34`, zero-warning build, 40 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, and diff formatting all passed.

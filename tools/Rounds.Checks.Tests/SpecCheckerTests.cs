@@ -412,6 +412,52 @@ public sealed class SpecCheckerTests : IDisposable
         Assert.Contains(failures, failure => failure.StartsWith("SPEC057 maps.json", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void SubThresholdMapMaskEvidenceIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["maskEvidence"]!["intersectionPixels"] = 9000;
+        document["maps"]![0]!["maskEvidence"]!["unionPixels"] = 10440;
+        document["maps"]![0]!["maskEvidence"]!["intersectionOverUnion"] = 0.862069;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC001 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void InconsistentMapMaskEvidenceIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["maskEvidence"]!["intersectionPixels"] = 9600;
+        document["maps"]![0]!["maskEvidence"]!["unionPixels"] = 9840;
+        document["maps"]![0]!["maskEvidence"]!["intersectionOverUnion"] = 0.99;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC058 maps.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MapGeometryRenderDriftIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "maps.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["maps"]![0]!["primitives"]![0]!["width"] = 29;
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC059 maps.json", StringComparison.Ordinal));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_repository))
@@ -672,19 +718,30 @@ public sealed class SpecCheckerTests : IDisposable
                 {
                     ["source"] = "source-one",
                     ["previewSha256"] = new string('0', 64),
-                    ["previewPixels"] = new JsonObject { ["width"] = 230, ["height"] = 128 },
+                    ["previewPixels"] = new JsonObject { ["width"] = 640, ["height"] = 360 },
+                    ["rowAnchorMethod"] = "xlsx-drawing-one-cell-anchor",
                 },
-                ["archetype"] = "static-structure",
+                ["maskEvidence"] = new JsonObject
+                {
+                    ["threshold"] = "max-rgb-greater-than-or-equal-to-24",
+                    ["maskSha256"] = new string('0', 64),
+                    ["sourceForegroundPixels"] = 9720,
+                    ["renderedForegroundPixels"] = 9720,
+                    ["intersectionPixels"] = 9720,
+                    ["unionPixels"] = 9720,
+                    ["intersectionOverUnion"] = 1,
+                },
+                ["archetype"] = "visible-platform-layout",
                 ["symmetry"] = "mirror",
                 ["ringOutFocused"] = false,
                 ["cameraBounds"] = Bounds(-18, 18, -10, 10),
                 ["collisionBounds"] = Bounds(-15, 15, -0.5, 0.5),
                 ["killBoundaryY"] = -12,
                 ["spawnRegions"] = new JsonArray(
-                    new JsonObject { ["id"] = "spawn-left", ["xMin"] = -8.6, ["xMax"] = -7.4, ["yMin"] = 0.75, ["yMax"] = 1.25, ["clearanceDiameters"] = 1 },
-                    new JsonObject { ["id"] = "spawn-right", ["xMin"] = 7.4, ["xMax"] = 8.6, ["yMin"] = 0.75, ["yMax"] = 1.25, ["clearanceDiameters"] = 1 }),
+                    new JsonObject { ["id"] = "spawn-left", ["xMin"] = -8.6, ["xMax"] = -7.4, ["yMin"] = 0.75, ["yMax"] = 1.25, ["clearanceDiameters"] = 1, ["supportPrimitiveId"] = "platform-001" },
+                    new JsonObject { ["id"] = "spawn-right", ["xMin"] = 7.4, ["xMax"] = 8.6, ["yMin"] = 0.75, ["yMax"] = 1.25, ["clearanceDiameters"] = 1, ["supportPrimitiveId"] = "platform-001" }),
                 ["primitives"] = new JsonArray(
-                    new JsonObject { ["id"] = "platform-001", ["primitive"] = "rect", ["role"] = "static", ["x"] = 0, ["y"] = 0, ["width"] = 30, ["height"] = 1 }),
+                    new JsonObject { ["id"] = "platform-001", ["primitive"] = "oriented-box", ["role"] = "static", ["x"] = 0, ["y"] = 0, ["width"] = 30, ["height"] = 1, ["rotationDegrees"] = 0 }),
                 ["behaviorModules"] = new JsonArray(),
                 ["provenance"] = Provenance(),
                 ["unknowns"] = new JsonArray("Fixture unknown."),
@@ -692,16 +749,16 @@ public sealed class SpecCheckerTests : IDisposable
         }
 
         maps[1]!["behaviorModules"] = new JsonArray(
-            new JsonObject { ["id"] = "moving-001", ["kind"] = "moving-assembly", ["bounds"] = Bounds(-2, 2, -1, 1), ["timingStatus"] = "unknown" });
+            new JsonObject { ["id"] = "moving-001", ["kind"] = "moving-assembly", ["bounds"] = Bounds(-2, 2, -1, 1), ["evidenceStatus"] = "visual-candidate", ["timingStatus"] = "unknown" });
         maps[2]!["behaviorModules"] = new JsonArray(
-            new JsonObject { ["id"] = "breakable-001", ["kind"] = "breakable-field", ["bounds"] = Bounds(-2, 2, -1, 1), ["timingStatus"] = "unknown" });
+            new JsonObject { ["id"] = "breakable-001", ["kind"] = "breakable-field", ["bounds"] = Bounds(-2, 2, -1, 1), ["evidenceStatus"] = "visual-candidate", ["timingStatus"] = "unknown" });
         maps[3]!["behaviorModules"] = new JsonArray(
-            new JsonObject { ["id"] = "saw-001", ["kind"] = "radial-saw", ["x"] = 0, ["y"] = 5, ["radius"] = 1, ["timingStatus"] = "unknown" });
+            new JsonObject { ["id"] = "saw-001", ["kind"] = "radial-saw", ["x"] = 0, ["y"] = 5, ["radius"] = 1, ["evidenceStatus"] = "visible", ["timingStatus"] = "unknown" });
         maps[4]!["symmetry"] = "asymmetric";
         maps[5]!["ringOutFocused"] = true;
 
         var vocabulary = new JsonArray();
-        foreach (var id in new[] { "rect", "radial-saw", "breakable-field", "moving-assembly", "physics-assembly" })
+        foreach (var id in new[] { "oriented-box", "radial-saw", "breakable-field", "moving-assembly", "physics-assembly" })
         {
             vocabulary.Add(new JsonObject { ["id"] = id, ["purpose"] = "Fixture vocabulary entry." });
         }
@@ -709,11 +766,11 @@ public sealed class SpecCheckerTests : IDisposable
         var document = new JsonObject
         {
             ["$schema"] = "./schema/maps.schema.json",
-            ["schemaVersion"] = 1,
+            ["schemaVersion"] = 2,
             ["targetBuild"] = "21020021",
             ["targetVersion"] = "v1.1.2.a75ee335a",
             ["catalogCount"] = 70,
-            ["units"] = new JsonObject { ["distance"] = "player-diameters", ["time"] = "60-hz-ticks", ["thumbnailPlayerDiameterPixels"] = 6.4, ["gridCellPixels"] = 5 },
+            ["units"] = new JsonObject { ["distance"] = "player-diameters", ["time"] = "60-hz-ticks", ["sourcePlayerDiameterPixels"] = 18, ["sourceMaskPixels"] = new JsonObject { ["width"] = 640, ["height"] = 360 } },
             ["geometryVocabulary"] = vocabulary,
             ["reconciliation"] = new JsonArray(
                 new JsonObject { ["source"] = "source-one", ["reportedCount"] = 70, ["relationship"] = "lower-bound", ["notes"] = "Fixture lower bound." },
@@ -722,8 +779,8 @@ public sealed class SpecCheckerTests : IDisposable
             ["representativeExamples"] = new JsonObject
             {
                 ["static"] = "fixture-map-0",
-                ["moving"] = "fixture-map-1",
-                ["breakable"] = "fixture-map-2",
+                ["movingCandidate"] = "fixture-map-1",
+                ["breakableCandidate"] = "fixture-map-2",
                 ["hazard"] = "fixture-map-3",
                 ["asymmetric"] = "fixture-map-4",
                 ["ringOut"] = "fixture-map-5",

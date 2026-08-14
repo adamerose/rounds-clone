@@ -2,62 +2,68 @@
 
 ## Binding target
 
-The catalog targets the current public Windows build `21020021`, identified in-game as `v1.1.2.a75ee335a`.
-The official Steam listing advertises “70+ maps,” which is a lower bound rather than an exact active-pool count.
-A public community sheet contains exactly 70 row-ordered vanilla preview images, so the project assigns stable IDs `arena-001` through `arena-070` to sheet rows 2 through 71.
-The current build exposes arenas through random matches and has no clean-room catalog browser, so complete direct runtime enumeration remains unresolved instead of being inferred from extracted data.
+The catalog targets public Windows build `21020021`, identified in-game as `v1.1.2.a75ee335a`.
+The official Steam listing advertises “70+ maps,” which remains a lower bound rather than an exact active-pool count.
+The public community workbook contains exactly one preview anchored in each worksheet row 2 through 71, so project IDs `arena-001` through `arena-070` bind to those rows.
+The current build randomizes arenas and exposes no clean-room catalog browser, so exhaustive runtime reconciliation remains unresolved.
 
 ## Clean-room boundary
 
-The committed catalog retains project IDs, source-row references, preview hashes, coarse vector measurements, classifications, and written uncertainty.
-It does not retain the source images, proposed community names, internal identifiers, decompiled data, original art, code, or presentation assets.
-The original previews were downloaded only to a temporary browser asset directory for visual measurement and will be deleted after the reviewed result is integrated.
+The ignored workbook is research input and is never committed.
+The committed catalog retains project IDs, source rows, preview and mask hashes, derived oriented boxes, classifications, and uncertainty.
+It does not retain source images, community names, internal identifiers, extracted game data, original art, or presentation assets.
+`tools/maps/build-map-catalog.py` reproduces `spec/maps.json` from a public XLSX export stored under ignored `research/raw/`.
 
-## Scale and vectorization
+## Row identity and masks
 
-The sheet previews are 230 by 128 pixels.
-Ticket 002 measured a player body diameter of about 18 pixels in a 640 by 360 gameplay frame, which scales to about 6.4 preview pixels at the sheet width.
-This cross-source calibration is provisional because preview framing may not scale exactly like the measured gameplay camera, so global scale carries a ±20 percent tolerance.
-Each preview was reduced to occupied silhouette cells on a five-pixel grid, adjacent cells were merged into original axis-aligned rectangle primitives, and coordinates were converted to player diameters around the preview center.
-The five-pixel grid corresponds to about 0.8 player diameters and defines the catalog's silhouette-coordinate tolerance.
-The resulting rectangles are collision hypotheses, not traced render assets or claims about hidden colliders.
+Workbook media filenames are not ordered by worksheet row and must never be used as arena identity.
+The generator resolves each `xdr:oneCellAnchor` row through `drawing1.xml.rels` to the embedded 640 by 360 image.
+It marks a source pixel as visible foreground when the maximum red, green, or blue channel is at least 24.
+That uniform threshold separates the previews' 19–23-value background from visible layout pixels, including the inverted light boundary in `arena-003`.
+Each entry records the embedded preview hash and the row-major binary mask hash.
+
+## Scale and geometry
+
+Ticket 002 measured a player body diameter of about 18 pixels in a 640 by 360 gameplay frame, so the catalog uses 18 source pixels per player diameter.
+The global scale remains provisional with a ±20 percent tolerance because the public preview framing has not been matched to a controlled current-build capture.
+The generator finds eight-connected visible components and decomposes them into oriented boxes using axis, diagonal, and principal-component candidates.
+It splits the worst-fitting boxes until a deterministic raster of the rounded world coordinates overlaps the source mask by at least 0.95 intersection over union.
+The 70 accepted scores range from 0.956757 to 0.997735.
+These boxes reproduce visible silhouettes; they remain collision hypotheses because a still cannot reveal hidden, one-way, decorative, or selectively collidable regions.
+
+## Executable evidence
+
+Every map stores source, rendered, intersection, and union pixel counts plus their intersection-over-union result.
+The repository checker recomputes the result and arithmetic, rasterizes the committed oriented boxes at 640 by 360, and requires the rendered foreground count to match.
+The ignored workbook and generator are still required to reproduce the source mask hash and intersection because original images cannot enter Git history.
+Regressions reject a sub-0.95 score, inconsistent overlap arithmetic, unsupported geometry, and any geometry change that drifts from the recorded render count.
 
 ## Bounds and spawns
 
-Every entry uses an 18-diameter horizontal camera half-width and a 10-diameter vertical half-height derived from the normalized preview frame.
-Collision bounds enclose the cataloged primitives, while the provisional kill boundary sits two player diameters below the camera bottom at `-12`.
-Two spawn regions are selected from visible supported platform tops with at least eight diameters of horizontal separation, more than one diameter of kill-bound clearance, and one diameter of conservative saw clearance.
-The current catalog's smallest spawn-center separation is 14.266 diameters after hazard-clearance correction.
-Spawn regions remain low-confidence until controlled current-build observations bind exact positions, facing, and randomized alternatives.
+Every preview uses camera bounds of 18 player diameters horizontally and 10.1 vertically, while the provisional kill boundary sits at `-12`.
+Collision bounds enclose the rounded oriented boxes.
+Two provisional spawn regions are placed above named static support boxes and maximize Euclidean separation, which supports horizontal and vertical arena layouts.
+The checker requires at least eight player diameters between centers, validates support in each box's local coordinates, keeps regions inside the camera, and applies a one-diameter visible-saw clearance.
+Exact positions, facing, and randomized alternatives remain unmeasured.
 
-## Geometry vocabulary
+## Behavior vocabulary
 
-The simplest implementation contract is one list of coarse collision rectangles plus optional regional behavior modules, with no map-specific class hierarchy.
-`rect` describes static or behavior-owned collision silhouettes.
-`radial-saw` records a visible lethal circular region while leaving contact response, rotation, and translation unknown.
-`breakable-field` marks silhouettes whose health sharing, thresholds, fragments, and reset timing require runtime observation.
-`moving-assembly` marks grouped parts whose paths and cycle timing are not available from a still preview.
-`physics-assembly` marks structures whose joints, mass, damping, and material response are unresolved.
-This vocabulary is intentionally smaller than the visual catalog because implementation should compose repeated behaviors instead of creating 70 special-purpose map types.
+`oriented-box` is the only visible geometry primitive, with `static` and `hazard-visual` roles preventing a saw silhouette from silently becoming an ordinary collider.
+`radial-saw` records a visible lethal region while leaving contact response, rotation, translation, and timing unknown.
+`breakable-field`, `moving-assembly`, and `physics-assembly` are visual candidates rather than confirmed runtime behavior.
+The official patch history confirms that vanilla Rounds contains moving platforms and a wrecking ball, but neither that note nor a still preview binds those behaviors to a catalog row.
+Controlled current-build footage must confirm candidate rows and measure their behavior before implementation enables them.
 
-## Families and representative coverage
+## Representative implementation order
 
-The 70 previews classify as 21 platform fields, 12 breakable fields, 10 hazard courses, 1 visibly moving assembly, 23 physics structures, and 3 ring-out island layouts.
-Classification describes the dominant visible play pattern and does not claim that a still image reveals every dynamic component.
-The representative implementation set is `arena-002` for static collision, `arena-026` for a moving assembly, `arena-007` for breakables, `arena-016` for saw hazards, `arena-040` for asymmetry, and `arena-006` for ring-out focus.
-The repository checker verifies that each representative actually exhibits its named category.
-
-## Implementation order
-
-1. Implement `arena-002` with static rectangles, camera framing, spawns, collision bounds, and the kill boundary.
-2. Add `arena-006` and `arena-040` to cover disconnected ring-out islands and asymmetric sightlines without new behavior modules.
-3. Add `arena-016` with radial saw contact and keep rotation or translation disabled until measured.
-4. Add `arena-007` with a reusable breakable-field boundary and separately research health, fragments, and reset behavior before enabling destruction.
-5. Add `arena-026` with a reusable moving-assembly boundary and separately research its path and timing before enabling motion.
-6. Add `arena-040`'s physics assembly only after reusable rigid-body constraints are measured, then expand by family across the remaining catalog.
+1. Implement `arena-006` to bind static oriented collision, disconnected islands, camera framing, supported spawns, and ring-out bounds.
+2. Add asymmetric `arena-024` without introducing a behavior module.
+3. Add `arena-015` with visible radial-saw contact while leaving unmeasured motion disabled.
+4. Observe `arena-016`, `arena-026`, and `arena-030` in the current build before deciding whether their visual assemblies are breakable, moving, or physics-driven.
+5. Implement each confirmed behavior once as a reusable module, then expand across the remaining catalog by evidence status rather than appearance alone.
 
 ## Unresolved work
 
-Still previews cannot establish hidden or one-way colliders, friction, restitution, layer ownership, spawn facing, exact camera margins, or decorative versus collidable edges.
+Still previews cannot establish exact colliders, friction, restitution, layer ownership, spawn facing, camera margins, or decorative edges.
 They also cannot establish break thresholds, movement paths, saw timing, rigid-body constraints, masses, damping, or reset sequencing.
-Implementation must preserve these unknowns and retune the provisional scale from controlled current-build captures instead of treating the coarse vectors as final measurements.
+Implementation must preserve those unknowns and retune scale from controlled current-build captures instead of treating the silhouette oracle as gameplay proof.

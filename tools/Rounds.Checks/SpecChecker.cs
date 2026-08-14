@@ -348,7 +348,9 @@ public static class SpecChecker
     private static void CrossCheckMaps(JsonElement root, HashSet<string> sourceIds, List<string> failures)
     {
         var units = root.GetProperty("units");
-        if (units.GetProperty("thumbnailPlayerDiameterPixels").GetDouble() > 20 || units.GetProperty("gridCellPixels").GetInt32() > 16)
+        if (units.GetProperty("sourcePlayerDiameterPixels").GetDouble() != 18 ||
+            units.GetProperty("sourceMaskPixels").GetProperty("width").GetInt32() != 640 ||
+            units.GetProperty("sourceMaskPixels").GetProperty("height").GetInt32() != 360)
         {
             failures.Add("SPEC056 maps.json unit calibration exceeds supported bounds.");
         }
@@ -423,7 +425,8 @@ public static class SpecChecker
                 if (Math.Abs(primitive.GetProperty("x").GetDouble()) > 40 ||
                     Math.Abs(primitive.GetProperty("y").GetDouble()) > 40 ||
                     primitive.GetProperty("width").GetDouble() > 80 ||
-                    primitive.GetProperty("height").GetDouble() > 80)
+                    primitive.GetProperty("height").GetDouble() > 80 ||
+                    Math.Abs(primitive.GetProperty("rotationDegrees").GetDouble()) > 45)
                 {
                     failures.Add($"SPEC056 maps.json arena `{mapId}` primitive `{primitiveId}` exceeds supported coordinates.");
                 }
@@ -447,13 +450,23 @@ public static class SpecChecker
                 var centerX = (spawn.GetProperty("xMin").GetDouble() + spawn.GetProperty("xMax").GetDouble()) / 2;
                 var centerY = (spawn.GetProperty("yMin").GetDouble() + spawn.GetProperty("yMax").GetDouble()) / 2;
                 spawnCenters.Add((centerX, centerY));
+                var supportId = spawn.GetProperty("supportPrimitiveId").GetString()!;
                 var supported = primitives.Any(primitive =>
                 {
+                    if (primitive.GetProperty("id").GetString() != supportId ||
+                        primitive.GetProperty("role").GetString() != "static")
+                    {
+                        return false;
+                    }
+
+                    var angle = primitive.GetProperty("rotationDegrees").GetDouble() * Math.PI / 180;
+                    var deltaX = centerX - primitive.GetProperty("x").GetDouble();
+                    var deltaY = centerY - primitive.GetProperty("y").GetDouble();
+                    var localX = deltaX * Math.Cos(angle) + deltaY * Math.Sin(angle);
+                    var localY = -deltaX * Math.Sin(angle) + deltaY * Math.Cos(angle);
                     var halfWidth = primitive.GetProperty("width").GetDouble() / 2;
-                    var top = primitive.GetProperty("y").GetDouble() + primitive.GetProperty("height").GetDouble() / 2;
-                    return centerX >= primitive.GetProperty("x").GetDouble() - halfWidth &&
-                           centerX <= primitive.GetProperty("x").GetDouble() + halfWidth &&
-                           centerY - top >= 0.2 && centerY - top <= 1.3;
+                    var top = primitive.GetProperty("height").GetDouble() / 2;
+                    return Math.Abs(localX) <= halfWidth + 1e-6 && localY - top >= 0.2 && localY - top <= 1.3;
                 });
                 if (!supported || spawn.GetProperty("yMin").GetDouble() <= map.GetProperty("killBoundaryY").GetDouble() + 1)
                 {
@@ -470,7 +483,9 @@ public static class SpecChecker
                 }
             }
 
-            if (spawnCenters.Count == 2 && Math.Abs(spawnCenters[1].X - spawnCenters[0].X) < 8)
+            if (spawnCenters.Count == 2 && Math.Sqrt(
+                    Math.Pow(spawnCenters[1].X - spawnCenters[0].X, 2) +
+                    Math.Pow(spawnCenters[1].Y - spawnCenters[0].Y, 2)) < 8)
             {
                 failures.Add($"SPEC050 maps.json arena `{mapId}` separates spawn centers by less than eight player diameters.");
             }
@@ -506,6 +521,27 @@ public static class SpecChecker
             {
                 failures.Add($"SPEC056 maps.json arena `{mapId}` kill boundary exceeds supported coordinates.");
             }
+
+            var evidence = map.GetProperty("maskEvidence");
+            var sourcePixels = evidence.GetProperty("sourceForegroundPixels").GetInt32();
+            var renderedPixels = evidence.GetProperty("renderedForegroundPixels").GetInt32();
+            var intersectionPixels = evidence.GetProperty("intersectionPixels").GetInt32();
+            var unionPixels = evidence.GetProperty("unionPixels").GetInt32();
+            var recordedIou = evidence.GetProperty("intersectionOverUnion").GetDouble();
+            var computedIou = intersectionPixels / (double)unionPixels;
+            if (intersectionPixels > Math.Min(sourcePixels, renderedPixels) ||
+                unionPixels < Math.Max(sourcePixels, renderedPixels) ||
+                unionPixels != sourcePixels + renderedPixels - intersectionPixels ||
+                computedIou < 0.95 ||
+                Math.Abs(recordedIou - computedIou) > 0.000001)
+            {
+                failures.Add($"SPEC058 maps.json arena `{mapId}` has inconsistent or sub-threshold mask IoU evidence.");
+            }
+
+            if (RenderMapMask(primitives) != renderedPixels)
+            {
+                failures.Add($"SPEC059 maps.json arena `{mapId}` rendered mask count does not match its committed geometry.");
+            }
         }
 
         foreach (var reconciliation in root.GetProperty("reconciliation").EnumerateArray())
@@ -526,8 +562,8 @@ public static class SpecChecker
             var matchesCategory = example.Name switch
             {
                 "static" => modules.Length == 0 && map.GetProperty("primitives").EnumerateArray().Any(primitive => primitive.GetProperty("role").GetString() == "static"),
-                "moving" => modules.Any(module => module.GetProperty("kind").GetString() == "moving-assembly"),
-                "breakable" => modules.Any(module => module.GetProperty("kind").GetString() == "breakable-field"),
+                "movingCandidate" => modules.Any(module => module.GetProperty("kind").GetString() == "moving-assembly" && module.GetProperty("evidenceStatus").GetString() == "visual-candidate"),
+                "breakableCandidate" => modules.Any(module => module.GetProperty("kind").GetString() == "breakable-field" && module.GetProperty("evidenceStatus").GetString() == "visual-candidate"),
                 "hazard" => modules.Any(module => module.GetProperty("kind").GetString() == "radial-saw"),
                 "asymmetric" => map.GetProperty("symmetry").GetString() == "asymmetric",
                 "ringOut" => map.GetProperty("ringOutFocused").GetBoolean(),
@@ -555,6 +591,46 @@ public static class SpecChecker
         inner.GetProperty("xMax").GetDouble() <= outer.GetProperty("xMax").GetDouble() &&
         inner.GetProperty("yMin").GetDouble() >= outer.GetProperty("yMin").GetDouble() &&
         inner.GetProperty("yMax").GetDouble() <= outer.GetProperty("yMax").GetDouble();
+
+    private static int RenderMapMask(JsonElement[] primitives)
+    {
+        const int width = 640;
+        const int height = 360;
+        const double playerDiameterPixels = 18;
+        var pixels = new bool[width * height];
+        foreach (var primitive in primitives)
+        {
+            var centerX = primitive.GetProperty("x").GetDouble() * playerDiameterPixels + width / 2.0;
+            var centerY = height / 2.0 - primitive.GetProperty("y").GetDouble() * playerDiameterPixels;
+            var boxWidth = primitive.GetProperty("width").GetDouble() * playerDiameterPixels;
+            var boxHeight = primitive.GetProperty("height").GetDouble() * playerDiameterPixels;
+            var angle = -primitive.GetProperty("rotationDegrees").GetDouble() * Math.PI / 180;
+            var cosine = Math.Cos(angle);
+            var sine = Math.Sin(angle);
+            var halfAabbX = Math.Abs(cosine) * boxWidth / 2 + Math.Abs(sine) * boxHeight / 2;
+            var halfAabbY = Math.Abs(sine) * boxWidth / 2 + Math.Abs(cosine) * boxHeight / 2;
+            var xMin = Math.Max(0, (int)Math.Floor(centerX - halfAabbX - 1));
+            var xMax = Math.Min(width, (int)Math.Ceiling(centerX + halfAabbX + 1));
+            var yMin = Math.Max(0, (int)Math.Floor(centerY - halfAabbY - 1));
+            var yMax = Math.Min(height, (int)Math.Ceiling(centerY + halfAabbY + 1));
+            for (var y = yMin; y < yMax; y++)
+            {
+                for (var x = xMin; x < xMax; x++)
+                {
+                    var deltaX = x + 0.5 - centerX;
+                    var deltaY = y + 0.5 - centerY;
+                    var localX = deltaX * cosine + deltaY * sine;
+                    var localY = -deltaX * sine + deltaY * cosine;
+                    if (Math.Abs(localX) <= boxWidth / 2 + 1e-9 && Math.Abs(localY) <= boxHeight / 2 + 1e-9)
+                    {
+                        pixels[y * width + x] = true;
+                    }
+                }
+            }
+        }
+
+        return pixels.Count(pixel => pixel);
+    }
 
     private static void ValidateMapSource(string sourceId, HashSet<string> sourceIds, string subject, List<string> failures)
     {

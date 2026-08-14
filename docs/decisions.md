@@ -179,3 +179,21 @@ Controlled current-build captures must retune scale, camera margins, and exact c
 Visible saws, breakable groups, moving groups, and physics structures become reusable behavior-module regions rather than invented timing or material constants.
 Paths, rotation, health, fragments, constraints, masses, damping, contact response, and reset sequencing remain unknown until direct behavior evidence binds them.
 The first playable map work should implement static topology before enabling each behavior family from separately measured evidence.
+
+## 2026-08-14 — Supersede the coarse map grid with anchored oriented geometry
+
+The first catalog incorrectly associated shuffled workbook media filenames with sequential sheet rows and had no source-render acceptance oracle.
+Arena identity now follows each embedded drawing object's worksheet-row anchor and relationship target, while its 640 by 360 mask is decomposed into oriented boxes in player-diameter units.
+Every rounded catalog render must reach at least 0.95 intersection over union with the row-bound source mask, and the repository gate recomputes both overlap arithmetic and the committed geometry's rendered pixel count.
+This supersedes the earlier five-pixel axis-grid decision; visible geometry remains provisional collision evidence rather than an assertion about hidden colliders.
+
+## 2026-08-14 — Treat unobserved arena dynamics as candidates
+
+Visible saw silhouettes are direct evidence for hazard regions, but a still does not prove movement, breakability, physics constraints, or timing.
+The catalog therefore labels `arena-016`, `arena-026`, and `arena-030` as visual candidates for separately observed behavior instead of claiming those behaviors as confirmed facts.
+Hazard silhouette boxes use a distinct non-static role so later collision work cannot accidentally treat a lethal saw as an ordinary platform.
+
+## 2026-08-14 — Measure spawn safety in two dimensions
+
+The eight-diameter spawn rule measures Euclidean center separation rather than horizontal distance because vanilla layouts include vertical arenas such as `arena-018`.
+Each provisional spawn names an oriented support box, and the gate checks support in that box's local coordinates, camera containment, kill-bound clearance, and visible-saw clearance.

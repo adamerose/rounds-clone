@@ -409,3 +409,42 @@ Rebasing the completed map catalog onto integrated ticket 003 conflicted in the 
 The resolution retained both decision and failure histories, all card sources plus the map sheet, every card regression plus six map regressions, and both card and map cross-check paths.
 The combined full gate then passed with zero warnings, 37 tests, repository checks, deterministic hash `f250d549cfb52a8b`, and Godot editor and runtime smoke.
 Git also warned that the generated map JSON and mechanically resolved test file had CRLF working copies that would normalize to LF when touched; staged diff checks confirm the repository form is valid.
+
+## 2026-08-14 — Ticket 004's first review rejected the geometry pipeline
+
+Fresh reviewer `codex:019fff73-e68d-79d0-bca4-5da80964846a` rejected exact candidate `79e2007096735f0be082580a055464ceaa804e50`.
+The public row 7 preview contains disconnected vertical islands, while the documented transform renders `arena-006` as a dense horizontal maze, and row 17 shows a destructible scaffold even though `arena-016` claims three saws.
+The 4,520 generated rectangles, inferred spawns, collision bounds, behavior families, and representatives are therefore not reliably attached to their cited source rows.
+The candidate also omitted the binding mask-render IoU oracle and allowed only axis-aligned cells even though the owning map design requires oriented boxes for visibly rotated platforms.
+An independent review raster measured roughly 0.10 IoU for `arena-006`, far below the required 0.95 acceptance threshold, while the full repository gate remained falsely green.
+Correction will replace the generator rather than patching individual rows, bind every embedded workbook image to its actual anchor, encode oriented boxes, store mechanically reproduced IoU evidence, and reject the catalog if any map falls below 0.95.
+During review, ordinary Google Sheets access was blocked before the read-only fallback and XLSX export succeeded, one read-only PowerShell query assumed a nonexistent `catalog` property, and Pillow emitted `getdata` deprecation warnings.
+Direct recursive cleanup of the reviewer's exact temporary directory was rejected before execution, after which the reviewer moved only that verified directory to the recycle bin.
+
+## 2026-08-14 — Map correction experiments exceeded one bound and produced one poor decomposition
+
+The first adaptive oriented-box experiment exceeded its 124-second process limit without producing results.
+A bounded global splitter then completed in 114 seconds but needed 42,637 boxes and still missed its approximate target on many arenas because it tried to partition disconnected layouts as one point cloud.
+The supported generator instead labels eight-connected components before fitting and splitting, completes all 70 arenas in about 68 seconds on this workstation, and commits only results that pass exact raster verification.
+
+## 2026-08-14 — The first corrected catalog build assumed horizontal spawns
+
+The first generator run reached `arena-018` and stopped because that vertically arranged layout could not provide eight diameters of horizontal separation on source-supported surfaces.
+The safety outcome is distance between opponents rather than horizontal ordering, so the generator and checker now measure Euclidean separation and retain named oriented-box support.
+
+## 2026-08-14 — The corrected schema repeated unsupported upper-bound keywords
+
+The first version 2 map schema again used `maximum` and `maxItems`, which the repository's deliberately small schema validator rejects instead of ignoring.
+The checker suite reported `SPEC001` before semantic tests could run.
+Supported schema constraints retain minima and structure, while the semantic checker enforces exact counts, coordinate maxima, rotation range, and evidence arithmetic; 31 focused tests now pass.
+
+## 2026-08-14 — A correction search named the repository's nonexistent root test directory
+
+A read-only file search included `tests`, which does not exist at the repository root, so it returned the useful map matches and then exited with code 1.
+Repository discovery identified the actual `tools/Rounds.Checks.Tests` project before any edit.
+
+## 2026-08-14 — Integrated card worktree cleanup was blocked by its local SDK executable
+
+Removing the reviewed ticket 003 worktree unregistered it but failed to delete the directory with an `Invalid argument` error.
+Two exact-directory deletion attempts then failed on `.tools/dotnet/dotnet.exe`; stopping five processes whose executable path was scoped to that worktree did not release the handle.
+Renaming only that verified executable to `dotnet.cleanup.exe` succeeded, after which exact-directory deletion succeeded and both filesystem absence and worktree unregistration were verified.

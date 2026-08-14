@@ -159,6 +159,7 @@ The renderer reads exactly the same file the simulation does, so there is one so
 Oriented boxes are the only static primitive.
 Rounds' levels are rectangles, some of them rotated, and adding a second primitive would double the collision surface area for very little gain.
 Anything curved is approximated with boxes.
+The research catalog's `hazard-visual` boxes participate in silhouette verification but do not become ordinary static collision; their owning behavior module decides contact semantics after runtime evidence exists.
 
 `movers` covers moving platforms, if research shows the base game has them.
 A mover is a box plus a motion defined as a pure function of the tick — a period, a phase, and an offset — never a simulated body.
@@ -188,6 +189,10 @@ Reconstructed from screenshots of the original, and then checked automatically.
 Rounds' levels are light geometry on a dark background, so thresholding a screenshot produces a clean binary mask of the level.
 The harness renders our JSON map to the same resolution as a mask and compares the two by intersection over union.
 A map is accepted at 0.95 or better.
+
+The public workbook's embedded media filenames are shuffled, so catalog identity comes from each drawing object's worksheet-row anchor and relationship target rather than from filename or ZIP order.
+The committed evidence includes source-mask and preview hashes, pixel-count arithmetic, and the score, while the repository gate rerenders the rounded oriented boxes and rejects render-count drift.
+Source images stay under ignored `research/raw/`, and the supported generator reproduces their hashes and overlap evidence from a fresh public XLSX export.
 
 That gives map building a real oracle rather than an agent's judgment: build the JSON, render it, score it against the screenshot, adjust, repeat until it passes.
 It is the same trick as `spec/measurements.json` — comparing against the actual game rather than against a description of it — applied to level geometry.
