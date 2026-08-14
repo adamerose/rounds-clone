@@ -13,6 +13,7 @@ sessions:
   - codex:019fff46-9914-7892-900d-0298b80df82b
   - codex:019fff51-5f0d-72f0-b036-b76b41d3e289
   - codex:019fff5e-83ba-7fe3-9033-67c3ae45f4b8
+  - codex:019fff67-9eba-7042-8e81-fc16c3885b45
 ---
 
 # Catalog every vanilla card
@@ -82,3 +83,5 @@ Cards create the game's combinatorial depth, but implementing from names or memo
 - 2026-08-14T08:32:55Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Replaced both incompatible citations, recorded two executable exclusions, and added a regression that rejects known source-unit conflicts as corroboration.
 - 2026-08-14T08:32:55Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running source consistency, schema, repository, test, deterministic simulation, Godot, ticket, and diff gates after the third correction.
 - 2026-08-14T08:32:55Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Full gate passed with zero warnings, 31 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, and clean diff formatting.
+- 2026-08-14T08:43:28Z stage review start session codex:019fff67-9eba-7042-8e81-fc16c3885b45 — Reviewing exact candidate `02c339a89dfdbb3ecf276f886d82f064e5a4eda5` after the two health-unit source corrections.
+- 2026-08-14T08:43:28Z stage review end session codex:019fff67-9eba-7042-8e81-fc16c3885b45 — Approved the exact candidate with no findings after source verification, full 67-card reconciliation, 31 passing tests, deterministic smoke, and Godot editor/runtime smoke.
