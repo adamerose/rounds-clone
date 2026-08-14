@@ -107,6 +107,69 @@ public sealed class CollisionTests
         AssertVector(new Vec2(0.0, 1.0), hit.Normal);
     }
 
+    [Fact]
+    public void SweptCircleCircleReturnsFaceHit()
+    {
+        var hit = Collision.SweepCircleCircle(
+            new Vec2(-3.0, 0.0),
+            0.5,
+            new Vec2(4.0, 0.0),
+            Vec2.Zero,
+            0.5,
+            Vec2.Zero,
+            4,
+            "target");
+
+        Assert.True(hit.HasHit);
+        Assert.Equal(0.5, hit.Time, precision: 12);
+        AssertVector(new Vec2(-1.0, 0.0), hit.Normal);
+    }
+
+    [Fact]
+    public void SweptCircleCircleReturnsGlancingNormal()
+    {
+        var hit = Collision.SweepCircleCircle(
+            new Vec2(-2.0, 0.75),
+            0.25,
+            new Vec2(4.0, 0.0),
+            Vec2.Zero,
+            0.75,
+            Vec2.Zero,
+            0,
+            "target");
+
+        Assert.True(hit.HasHit);
+        Assert.InRange(hit.Normal.Y, 0.749999, 0.750001);
+        Assert.True(hit.Normal.X < 0.0);
+    }
+
+    [Fact]
+    public void SweptCircleCircleReportsInitialOverlapAndZeroRelativeMiss()
+    {
+        var overlap = Collision.SweepCircleCircle(
+            new Vec2(0.5, 0.0), 0.75, Vec2.Zero,
+            Vec2.Zero, 0.75, Vec2.Zero, 0, "target");
+        var miss = Collision.SweepCircleCircle(
+            new Vec2(3.0, 0.0), 0.5, new Vec2(2.0, 0.0),
+            Vec2.Zero, 0.5, new Vec2(2.0, 0.0), 0, "target");
+
+        Assert.True(overlap.HasHit);
+        Assert.Equal(1.0, overlap.Separation, precision: 12);
+        AssertVector(new Vec2(1.0, 0.0), overlap.Normal);
+        Assert.False(miss.HasHit);
+    }
+
+    [Fact]
+    public void SweptCircleCircleCannotTunnelAtHighSpeed()
+    {
+        var hit = Collision.SweepCircleCircle(
+            new Vec2(-100.0, 0.0), 0.08, new Vec2(200.0, 0.0),
+            Vec2.Zero, 0.5, Vec2.Zero, 0, "target");
+
+        Assert.True(hit.HasHit);
+        Assert.Equal(0.4971, hit.Time, precision: 12);
+    }
+
     private static void AssertVector(Vec2 expected, Vec2 actual, int precision = 12)
     {
         Assert.Equal(expected.X, actual.X, precision);

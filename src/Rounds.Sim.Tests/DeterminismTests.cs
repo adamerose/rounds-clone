@@ -1,3 +1,5 @@
+using Rounds.Sim.Math;
+
 namespace Rounds.Sim.Tests;
 
 public sealed class DeterminismTests
@@ -25,12 +27,28 @@ public sealed class DeterminismTests
     {
         var idle = World.CreateSmoke(42UL);
         var moving = World.CreateSmoke(42UL);
+        Activate(idle);
+        Activate(moving);
 
         Sim.Step(idle, [default, default]);
         Sim.Step(moving, [new PlayerInput(1, false, false, false), default]);
 
         Assert.NotEqual(Sim.Hash(idle), Sim.Hash(moving));
         Assert.NotEqual(idle.Players[0].Velocity.X, moving.Players[0].Velocity.X);
+    }
+
+    [Fact]
+    public void OneAimSampleChangesCompleteArenaStateHash()
+    {
+        var horizontal = World.CreateSmoke(42UL);
+        var vertical = World.CreateSmoke(42UL);
+        Activate(horizontal);
+        Activate(vertical);
+
+        Sim.Step(horizontal, [new PlayerInput(0, false, false, false, new Vec2(1.0, 0.0)), default]);
+        Sim.Step(vertical, [new PlayerInput(0, false, false, false, new Vec2(0.0, 1.0)), default]);
+
+        Assert.NotEqual(Sim.Hash(horizontal), Sim.Hash(vertical));
     }
 
     [Fact]
@@ -57,14 +75,23 @@ public sealed class DeterminismTests
         {
             inputs[0] = new PlayerInput((sbyte)(tick % 3 - 1), tick % 31 == 0, tick % 17 == 0, false);
             inputs[1] = new PlayerInput((sbyte)(1 - tick % 3), false, tick % 19 == 0, tick % 47 == 0);
-            if (mutateLastInput && tick == 239)
+            if (mutateLastInput && tick == 61)
             {
-                inputs[1] = inputs[1] with { FirePressed = !inputs[1].FirePressed };
+                inputs[1] = inputs[1] with { FireHeld = !inputs[1].FireHeld };
             }
 
             Sim.Step(world, inputs);
         }
 
         return Sim.Hash(world);
+    }
+
+    private static void Activate(World world)
+    {
+        var inputs = new PlayerInput[world.Players.Count];
+        while (world.Phase == DuelPhase.Spawning)
+        {
+            Sim.Step(world, inputs);
+        }
     }
 }

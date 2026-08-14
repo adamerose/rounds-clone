@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-14T11:56:30Z
 origin: agent-proposed
 tags: [implementation, simulation, combat, blocking, lifecycle]
@@ -78,3 +78,6 @@ Movement becomes a game only when aiming, recoil, projectiles, blocking, damage,
 - 2026-08-14T12:14:13Z stage admission start session codex:019ffff6-6034-76b1-96a2-b080ac183346 — Final cold read of exact corrected candidate `58fa739e64f9a2154fc34c535f5b413832f8ff94` against both rejection rounds, provenance, timer/contact edges, dependencies, evidence, and risk.
 - 2026-08-14T12:14:13Z stage admission end session codex:019ffff6-6034-76b1-96a2-b080ac183346 — Admitted at risk 4 with no findings: one base duel, four fixed phases, one collision vocabulary, exact source ownership, named provisional values, and public/native evidence leave no human choice or material ambiguity.
 - 2026-08-14T12:14:13Z stage implement start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Implementing validated aim, combat tuning, stable bullets and swept contacts, recoil/damage/block impulses, deterministic duel phases/reset/hash, live controls, HUD, and focused regressions without changing spec.
+- 2026-08-14T12:35:42Z stage implement end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Added sourced/provisional combat tuning, validated independent aim, fire/reload/recoil, stable swept bullets, block reflection and impulses, four duel phases/reset, complete hashing, 26 combat and 10 new collision regressions, and live HUD/rendering; the focused simulation suite reached 68 passing tests.
+- 2026-08-14T12:35:42Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — The supported gate passed 68 simulation plus 37 checker tests with zero warnings and deterministic hash `d2687f48fe6dd085`; a 75-frame Godot movie showed spawn-to-active rendering, then exact launched PID 98220 received P1 mouse motion/left/right buttons, P2 `I`/`O`/`P`, and P1 `A`, producing normalized aims `0.95,-0.32` and `0,1`, both eight-tick shields, one visible bullet, `BLUE WINS` in `Result`, and reset from duel 2 to duel 3.
+- 2026-08-14T12:37:45Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Repeated the complete supported gate at the final tree: zero-warning build, repository checks, 68/68 simulation tests, 37/37 checker tests, deterministic 600-tick hash `d2687f48fe6dd085`, Godot editor/runtime smoke, ticket formatting, clean diff validation, unchanged `spec/`, and verified absence of the exact native process and 82 temporary capture artifacts.

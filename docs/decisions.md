@@ -264,6 +264,24 @@ Reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` admitted ticket 006 at ris
 The contract binds a single complete base duel with fixed tick phases, measured gun/block/ring-out facts, explicit provisional behavior, deterministic swept contacts and impulses, bilateral spawn/result locks, exact reset preservation, and native evidence for both local control paths.
 No human choice remains because every unmeasured value and fallback is named, while scoring, drafts, cards, arena cadence, bots, controller defaults, audio, camera, and production assets remain separate outcomes.
 
+## 2026-08-14 — Build base combat as one ordered deterministic tick
+
+The simplest new design would validate all inputs, advance timers, apply aim/block/fire and recoil, move players, sweep bullets, then resolve deaths through one explicit phase machine.
+That matches the existing pure `Rounds.Sim` boundary, so combat extends the current world rather than adding event buses, engine bodies, component frameworks, or asynchronous effects before cards need them.
+Stable player and bullet order, geometry/block/body tie priority, a four-contact bullet bound, and a visible overflow counter make every future-affecting choice replayable.
+
+## 2026-08-14 — Model block launch as impulses from players and static contacts
+
+The confirmed block push and wall-assisted launch do not require a simulated expanding rigid body.
+Activation applies equal-and-opposite constant impulses between nearby living players, then queries the existing circle-versus-oriented-box overlap path and applies one outward impulse per source-ordered static contact.
+This produces separation, floor jumps, and wall launches with one collision vocabulary while leaving unmeasured radius and magnitude explicit in combat tuning.
+
+## 2026-08-14 — Separate death, observable result, display, and spawn lock
+
+Health depletion or bottom-bound crossing marks death immediately and freezes active combat.
+A six-tick resolving phase matches the measured ring-out-to-result delay, a 90-tick result phase presents the outcome, and a 60-tick bilateral spawn phase resets both players before simultaneous unlock.
+World tick, RNG, next bullet ID, duel count, and overflow metrics continue across resets; per-duel players, bullets, health, ammo, block, aim, and timers reset exactly.
+
 ## 2026-08-14 — Keep gameplay data embedded behind stream-loadable simulation APIs
 
 The simplest new design would give the pure simulation immutable arena and tuning values directly, with loading owned at an outer application boundary.

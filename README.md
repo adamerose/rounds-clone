@@ -34,8 +34,9 @@ $godot = Get-ChildItem .tools/godot-4.7.1 -Filter '*mono_win64_console.exe' -Rec
 & $godot --path game
 ```
 
-The current shell is an architectural smoke surface, not a playable match yet.
-Gameplay implementation now has a mechanically validated core specification, while the complete card and arena catalogs remain separate research milestones.
+The current shell runs an endless playable base duel on arena 006: movement, stored jump, mouse or keyboard aim, recoil, bullets, block reflection and launch, damage, ring-outs, results, and deterministic reset all come from the pure simulation.
+Player one uses A/D, Space, mouse aim, Mouse1 fire, and Mouse2 block. Player two uses Left/Right, Up, I/J/K/L aim, O fire, and P block.
+Round scoring, card drafts, arena rotation, bots, controller defaults, and production presentation remain later milestones.
 
 ## Project map
 

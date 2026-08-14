@@ -65,6 +65,79 @@ public static class Collision
         return best;
     }
 
+    public static SweepHit SweepCircleCircle(
+        Vec2 origin,
+        double radius,
+        Vec2 delta,
+        Vec2 targetOrigin,
+        double targetRadius,
+        Vec2 targetDelta,
+        int sourceOrder,
+        string targetId)
+    {
+        if (!double.IsFinite(radius) || radius <= 0.0 ||
+            !double.IsFinite(targetRadius) || targetRadius <= 0.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(radius));
+        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetId);
+
+        var combinedRadius = radius + targetRadius;
+        var relativeOrigin = origin - targetOrigin;
+        var relativeDelta = delta - targetDelta;
+        var distanceSquared = relativeOrigin.LengthSquared;
+        if (distanceSquared < (combinedRadius * combinedRadius) - ContactEpsilonSquared)
+        {
+            if (distanceSquared <= ContactEpsilonSquared)
+            {
+                return new SweepHit(
+                    true,
+                    0.0,
+                    new Vec2(1.0, 0.0),
+                    combinedRadius,
+                    sourceOrder,
+                    targetId);
+            }
+
+            var distance = System.Math.Sqrt(distanceSquared);
+            return new SweepHit(
+                true,
+                0.0,
+                relativeOrigin / distance,
+                combinedRadius - distance,
+                sourceOrder,
+                targetId);
+        }
+
+        var a = relativeDelta.LengthSquared;
+        if (a <= ContactEpsilonSquared)
+        {
+            return SweepHit.None;
+        }
+
+        var b = 2.0 * Vec2.Dot(relativeOrigin, relativeDelta);
+        var c = distanceSquared - (combinedRadius * combinedRadius);
+        var discriminant = (b * b) - (4.0 * a * c);
+        if (discriminant < 0.0)
+        {
+            return SweepHit.None;
+        }
+
+        var time = (-b - System.Math.Sqrt(System.Math.Max(0.0, discriminant))) / (2.0 * a);
+        if (time < -TimeEpsilon || time > 1.0 + TimeEpsilon)
+        {
+            return SweepHit.None;
+        }
+
+        var normal = (relativeOrigin + (relativeDelta * time)).Normalized();
+        if (normal.LengthSquared == 0.0)
+        {
+            normal = new Vec2(1.0, 0.0);
+        }
+
+        return new SweepHit(true, time, normal, 0.0, sourceOrder, targetId);
+    }
+
     private static SweepHit InitialOverlap(Vec2 origin, double radius, Vec2 half, Obb box)
     {
         var closest = new Vec2(

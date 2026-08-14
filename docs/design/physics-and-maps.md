@@ -133,12 +133,17 @@ The counter is part of the self-play health statistics, so hitting the cap is vi
 
 ## Blocking
 
-Block is a small state machine, all durations in ticks: `Ready → Active(n) → Recovery(m) → Cooldown(k) → Ready`.
+Block is the smallest measured state machine, all durations in ticks: `Ready → Active(12) → Cooldown(240) → Ready`.
+No distinct recovery behavior has been observed, so recovery is not a fourth state hidden inside the implementation.
 
 While Active, an incoming bullet is reflected rather than absorbed: its velocity is mirrored about the player-to-bullet direction, its owner changes to the blocker, and `OnBlock` fires so cards can convert the block into a teleport, a shield, an explosion, or whatever else.
 The reflected bullet keeps its modifiers, which is where a lot of the game's best moments come from.
 
-Every duration here is a tunable in `spec/`, and the Active window in particular should come from frame-counted footage rather than from anyone's estimate.
+Activation also applies a deterministic radial impulse.
+Every nearby living player receives a constant outward push and the blocker receives the equal-and-opposite impulse.
+Each source-ordered static box overlapped by the shield circle pushes the blocker along its contact normal, so blocking beside a wall or floor produces the confirmed self-launch without engine physics or a second shield/environment solver.
+
+The Active window and cooldown come from the binding combat facts; the unmeasured shield geometry and push magnitude remain named provisional tuning values with direct boundary tests.
 
 ## Maps
 

@@ -22,6 +22,24 @@ public sealed class Player
 
     public bool WasJumpHeld { get; set; }
 
+    public Vec2 AimDirection { get; set; }
+
+    public double Health { get; set; }
+
+    public int Ammo { get; set; }
+
+    public int FireCooldownTicksRemaining { get; set; }
+
+    public int ReloadTicksRemaining { get; set; }
+
+    public BlockPhase BlockPhase { get; set; }
+
+    public int BlockTicksRemaining { get; set; }
+
+    public bool WasBlockHeld { get; set; }
+
+    public bool IsAlive { get; set; }
+
     public byte LastInputBits { get; set; }
 
     public ulong InputChecksum { get; set; }

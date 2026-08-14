@@ -1,5 +1,6 @@
 using System.Globalization;
 using Rounds.Sim;
+using Rounds.Sim.Math;
 
 var parsed = Arguments.Parse(args);
 if (!string.Equals(parsed.Command, "smoke", StringComparison.Ordinal))
@@ -66,7 +67,8 @@ internal static class SmokeInput
         return new PlayerInput(
             move,
             JumpHeld: phase == 8,
-            FirePressed: phase % 23 == 0,
-            BlockPressed: phase == 61);
+            FireHeld: phase % 23 < 3,
+            BlockHeld: phase is >= 60 and < 63,
+            AimDirection: player == 0 ? new Vec2(1.0, 0.0) : new Vec2(-1.0, 0.0));
     }
 }

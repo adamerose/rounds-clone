@@ -74,7 +74,7 @@ public sealed class MovementTests
     {
         var world = CreateNarrowWorld();
         Settle(world);
-        for (var tick = 0; tick < 80; tick++)
+        for (var tick = 0; tick < 40; tick++)
         {
             Step(world, new PlayerInput(1, false, false, false));
         }
@@ -153,6 +153,7 @@ public sealed class MovementTests
             Obb.Create("wall", 0, new Vec2(0.0, 1.0), 1.0, 6.0, 0.0),
             Obb.Create("floor", 1, new Vec2(0.0, -1.0), 20.0, 1.0, 0.0));
         var world = World.CreateMatch(1, arena);
+        Activate(world);
         var player = world.Players[0];
         player.Position = new Vec2(-2.0, 1.0);
         player.Velocity = new Vec2(3.0, 1.0);
@@ -189,14 +190,30 @@ public sealed class MovementTests
         return maximumY - startY;
     }
 
-    private static World CreateFlatWorld() => World.CreateMatch(1, CreateFlatArena("flat"));
+    private static World CreateFlatWorld() => CreateActiveWorld(CreateFlatArena("flat"));
 
     private static ArenaDefinition CreateFlatArena(string id) => CreateArena(
         id,
         Obb.Create("floor", 0, new Vec2(0.0, -1.0), 40.0, 1.0, 0.0));
 
-    private static World CreateNarrowWorld() => World.CreateMatch(1, CreateArena(
+    private static World CreateNarrowWorld() => CreateActiveWorld(CreateArena(
         Obb.Create("floor", 0, new Vec2(0.0, -1.0), 2.0, 1.0, 0.0)));
+
+    private static World CreateActiveWorld(ArenaDefinition arena)
+    {
+        var world = World.CreateMatch(1, arena);
+        Activate(world);
+        return world;
+    }
+
+    private static void Activate(World world)
+    {
+        while (world.Phase == DuelPhase.Spawning)
+        {
+            Step(world, default);
+        }
+        Assert.Equal(DuelPhase.Active, world.Phase);
+    }
 
     private static ArenaDefinition CreateArena(params Obb[] boxes) => CreateArena("fixture", boxes);
 

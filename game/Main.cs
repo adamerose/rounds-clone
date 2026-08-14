@@ -24,8 +24,23 @@ public partial class Main : Node2D
     public override void _PhysicsProcess(double delta)
     {
         _ = delta;
-        _inputs[0] = ReadKeyboard(Key.A, Key.D, Key.W, Key.F, Key.G);
-        _inputs[1] = ReadKeyboard(Key.Left, Key.Right, Key.Up, Key.Kp1, Key.Kp2);
+        var camera = CameraTransform.For(_world.Arena.CameraBounds);
+        var mouseWorld = camera.ToWorld(GetGlobalMousePosition());
+        var firstAim = mouseWorld - _world.Players[0].Position;
+        _inputs[0] = ReadKeyboard(
+            Key.A,
+            Key.D,
+            Key.Space,
+            Godot.Input.IsMouseButtonPressed(MouseButton.Left),
+            Godot.Input.IsMouseButtonPressed(MouseButton.Right),
+            firstAim);
+        _inputs[1] = ReadKeyboard(
+            Key.Left,
+            Key.Right,
+            Key.Up,
+            Godot.Input.IsKeyPressed(Key.O),
+            Godot.Input.IsKeyPressed(Key.P),
+            ReadKeyboardAim());
         Rounds.Sim.Sim.Step(_world, _inputs);
         QueueRedraw();
     }
@@ -47,41 +62,159 @@ public partial class Main : Node2D
         }
 
         DrawSetTransform(Vector2.Zero, 0.0f);
+        foreach (var bullet in _world.Bullets)
+        {
+            DrawBullet(camera, bullet);
+        }
+
         for (var index = 0; index < _world.Players.Count; index++)
         {
             var player = _world.Players[index];
             var color = index == 0 ? Red : Blue;
-            var facing = player.Velocity.X < 0.0 ? -1.0f : 1.0f;
+            if (player.BlockPhase == BlockPhase.Active)
+            {
+                DrawArc(
+                    camera.ToScreen(player.Position),
+                    (float)(_world.Combat.BlockRadius * camera.Scale),
+                    0.0f,
+                    Mathf.Tau,
+                    64,
+                    color,
+                    8.0f,
+                    antialiased: true);
+            }
             DrawFighter(
                 camera.ToScreen(player.Position),
                 color,
-                facing,
-                (float)(_world.Tuning.Radius * camera.Scale));
+                player.AimDirection,
+                (float)(_world.Tuning.Radius * camera.Scale),
+                player.IsAlive);
         }
+
+        DrawHud();
     }
 
-    private static PlayerInput ReadKeyboard(Key left, Key right, Key jump, Key fire, Key block)
+    private static PlayerInput ReadKeyboard(
+        Key left,
+        Key right,
+        Key jump,
+        bool fireHeld,
+        bool blockHeld,
+        SimVector aimDirection)
     {
         var axis = Godot.Input.IsKeyPressed(left) ? (sbyte)-1 : Godot.Input.IsKeyPressed(right) ? (sbyte)1 : (sbyte)0;
         return new PlayerInput(
             axis,
             Godot.Input.IsKeyPressed(jump),
-            Godot.Input.IsKeyPressed(fire),
-            Godot.Input.IsKeyPressed(block));
+            fireHeld,
+            blockHeld,
+            aimDirection);
     }
 
-    private void DrawFighter(Vector2 center, Color color, float facing, float radius)
+    private static SimVector ReadKeyboardAim()
     {
+        var x = Godot.Input.IsKeyPressed(Key.J) ? -1.0 : Godot.Input.IsKeyPressed(Key.L) ? 1.0 : 0.0;
+        var y = Godot.Input.IsKeyPressed(Key.I) ? 1.0 : Godot.Input.IsKeyPressed(Key.K) ? -1.0 : 0.0;
+        return new SimVector(x, y);
+    }
+
+    private void DrawFighter(Vector2 center, Color color, SimVector aim, float radius, bool alive)
+    {
+        var screenAim = new Vector2((float)aim.X, (float)-aim.Y).Normalized();
+        var bodyColor = alive ? color : color.Darkened(0.65f);
         var outline = Mathf.Max(2.0f, radius * 0.12f);
         DrawCircle(center, radius, Ink);
-        DrawCircle(center, radius - outline, color);
-        DrawCircle(center + new Vector2(radius * 0.25f * facing, -radius * 0.14f), radius * 0.12f, Ink);
+        DrawCircle(center, radius - outline, bodyColor);
+        DrawCircle(center + (screenAim * radius * 0.28f), radius * 0.12f, Ink);
         DrawLine(
-            center + new Vector2(radius * 0.64f * facing, radius * 0.08f),
-            center + new Vector2(radius * 1.40f * facing, -radius * 0.14f),
+            center + (screenAim * radius * 0.64f),
+            center + (screenAim * radius * 1.40f),
             Ink,
             radius * 0.24f);
-        DrawCircle(center + new Vector2(radius * 1.48f * facing, -radius * 0.17f), radius * 0.22f, Ink);
+        DrawCircle(center + (screenAim * radius * 1.48f), radius * 0.22f, Ink);
+    }
+
+    private void DrawBullet(CameraTransform camera, Bullet bullet)
+    {
+        var center = camera.ToScreen(bullet.Position);
+        var velocity = new Vector2((float)bullet.Velocity.X, (float)-bullet.Velocity.Y).Normalized();
+        var radius = Mathf.Max(4.0f, (float)(bullet.Radius * camera.Scale));
+        var color = bullet.OwnerId == 0 ? Red : Blue;
+        DrawLine(center - (velocity * radius * 4.0f), center, color with { A = 0.45f }, radius * 0.9f);
+        DrawCircle(center, radius + 2.0f, Ink);
+        DrawCircle(center, radius, Paper);
+    }
+
+    private void DrawHud()
+    {
+        DrawPlayerHud(0, new Vector2(70.0f, 70.0f), Red, HorizontalAlignment.Left);
+        DrawPlayerHud(1, new Vector2(1850.0f, 70.0f), Blue, HorizontalAlignment.Right);
+
+        var phaseText = _world.Phase switch
+        {
+            DuelPhase.Spawning => $"GET READY  {_world.PhaseTicksRemaining}",
+            DuelPhase.Resolving => "K.O.",
+            DuelPhase.Result when _world.IsDraw => "DRAW",
+            DuelPhase.Result => _world.WinnerId == 0 ? "RED WINS" : "BLUE WINS",
+            _ => string.Empty,
+        };
+        if (phaseText.Length > 0)
+        {
+            DrawString(
+                ThemeDB.FallbackFont,
+                new Vector2(710.0f, 120.0f),
+                phaseText,
+                HorizontalAlignment.Center,
+                500.0f,
+                46,
+                Paper);
+        }
+
+        var debug = FormattableString.Invariant(
+            $"P1 aim {_world.Players[0].AimDirection.X:0.00},{_world.Players[0].AimDirection.Y:0.00}   P2 aim {_world.Players[1].AimDirection.X:0.00},{_world.Players[1].AimDirection.Y:0.00}   bullets {_world.Bullets.Count}   duel {_world.DuelNumber}   phase {_world.Phase}");
+        DrawString(
+            ThemeDB.FallbackFont,
+            new Vector2(510.0f, 1035.0f),
+            debug,
+            HorizontalAlignment.Center,
+            900.0f,
+            20,
+            Paper.Darkened(0.2f));
+    }
+
+    private void DrawPlayerHud(int playerIndex, Vector2 anchor, Color color, HorizontalAlignment alignment)
+    {
+        var player = _world.Players[playerIndex];
+        var direction = alignment == HorizontalAlignment.Left ? 1.0f : -1.0f;
+        var healthWidth = 260.0f;
+        var healthFraction = Mathf.Clamp((float)(player.Health / _world.Combat.BaseHealth), 0.0f, 1.0f);
+        var barX = direction > 0.0f ? anchor.X : anchor.X - healthWidth;
+        DrawRect(new Rect2(barX, anchor.Y, healthWidth, 22.0f), Ink);
+        var fillWidth = (healthWidth - 6.0f) * healthFraction;
+        var fillX = direction > 0.0f ? barX + 3.0f : barX + healthWidth - 3.0f - fillWidth;
+        DrawRect(new Rect2(fillX, anchor.Y + 3.0f, fillWidth, 16.0f), color);
+
+        for (var round = 0; round < _world.Combat.BaseAmmo; round++)
+        {
+            var loaded = round < player.Ammo;
+            DrawCircle(
+                anchor + new Vector2(direction * (12.0f + (round * 28.0f)), 52.0f),
+                8.0f,
+                loaded ? Paper : Ink.Lightened(0.18f));
+        }
+
+        var blockText = player.BlockPhase == BlockPhase.Ready
+            ? "BLOCK READY"
+            : $"BLOCK {player.BlockPhase.ToString().ToUpperInvariant()} {player.BlockTicksRemaining}";
+        var textX = alignment == HorizontalAlignment.Left ? anchor.X : anchor.X - 260.0f;
+        DrawString(
+            ThemeDB.FallbackFont,
+            new Vector2(textX, anchor.Y + 90.0f),
+            blockText,
+            alignment,
+            260.0f,
+            18,
+            color);
     }
 
     private readonly record struct CameraTransform(double Scale, double CenterX, double CenterY)
@@ -105,5 +238,10 @@ public partial class Main : Node2D
             new(
                 (float)(ViewportWidth / 2.0 + ((world.X - CenterX) * Scale)),
                 (float)(ViewportHeight / 2.0 - ((world.Y - CenterY) * Scale)));
+
+        public SimVector ToWorld(Vector2 screen) =>
+            new(
+                ((screen.X - (ViewportWidth / 2.0)) / Scale) + CenterX,
+                (((ViewportHeight / 2.0) - screen.Y) / Scale) + CenterY);
     }
 }

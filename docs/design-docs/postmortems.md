@@ -619,3 +619,33 @@ The review created no files, processes, or temporary artifacts.
 Reviewer `codex:019ffff6-6034-76b1-96a2-b080ac183346` admitted exact ticket candidate `58fa739e64f9a2154fc34c535f5b413832f8ff94` at risk 4 with no findings.
 One broad combined correction/source inspection exceeded the display budget and was truncated; focused reads of the ticket, ledger, measurements, combat, match, controls, and dependencies recovered the complete evidence.
 The review changed nothing and left no residue.
+
+## 2026-08-14 — Fresh combat worktree build needed restore and one string correction
+
+The first compile command used `--no-restore` immediately after SDK bootstrap, but ignored NuGet asset files are worktree-local, so all six solution projects reported missing `project.assets.json`.
+The supported locked restore populated those ignored assets and the solution then built with zero warnings.
+The first Godot HUD build passed a concatenated interpolated `string` to `FormattableString.Invariant`, which requires one `FormattableString`; one uninterrupted interpolation fixed the compile error and the next Godot build passed.
+
+## 2026-08-14 — Spawn lock invalidated ten immediate-input test assumptions
+
+The first focused suite after introducing the confirmed spawn lock failed eight movement cases and two determinism cases because their fixtures expected the first simulation tick to accept control.
+Movement fixtures now advance the supported 60-tick bilateral lock before exercising movement, and the mutated determinism input occurs during an active tick rather than a result or spawn phase.
+The ledge-jump regression also reduced its airborne wait from 80 to 40 ticks: both are well beyond the sourced buffer window, while 80 now correctly crosses the newly enforced bottom kill boundary before the test can consume its stored jump.
+
+## 2026-08-14 — Combat capture cleanup command was rejected before execution
+
+The first attempt to combine movie-artifact inspection and cleanup in one shell command was rejected by the command safety policy before any part ran.
+The capture was then generated separately. After the native exercise, a second combined process-and-artifact cleanup command was likewise rejected before execution despite validating both roots; cleanup was split into narrower, already-enumerated operations.
+The exact Godot process was stopped, and all 82 prefix-owned PNG/WAV artifacts were removed after their temporary-directory parent and names were verified; final checks found neither the process nor any matching artifact.
+
+## 2026-08-14 — Computer-control guidance API was absent
+
+The installed `@oai/sky` package exposed window and input operations but did not expose the skill-required `documentation()` method; the mandatory guidance read failed with `globalThis.sky.documentation is not a function`.
+It enumerated the live RICOCHET window, but activation then rejected that exact window with the contradictory message that its ID no longer belonged to `Godot.Ricochet.0` while naming `Godot.Ricochet.0` as the current owner.
+Native verification therefore falls back to process-scoped Win32 capture and input against the exact launched Godot process.
+Attaching the existing foreground thread to that process's window thread established focus, and scoped mouse/keyboard input then exercised both players, bullet rendering, shields, a ring-out result, and reset without scene-owned state injection.
+
+## 2026-08-14 — Final-gate discovery search included absent paths
+
+A combined README and gate-discovery command passed nonexistent `playbook` and `scripts` paths to `rg`, so the useful README output was followed by exit 1.
+The supported command was already documented as `tools/checks/run.ps1`; no files, processes, or artifacts were created by the failed search.
