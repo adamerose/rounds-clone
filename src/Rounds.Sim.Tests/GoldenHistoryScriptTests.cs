@@ -93,6 +93,28 @@ public sealed class GoldenHistoryScriptTests
     }
 
     [Fact]
+    public void LaterValidReplacementCannotHideInvalidIntermediateGolden()
+    {
+        using var fixture = GitFixture.WithInitialReplay("protected", 1);
+        var root = fixture.Head;
+        var oldHash = fixture.ReplayHash("protected");
+        var invalidHash = oldHash == "0000000000000000" ? "0000000000000001" : "0000000000000000";
+        var path = $"replays/golden/protected{ReplayFormat.FileSuffix}";
+        fixture.WriteText(path, fixture.ReadText(path).Replace(oldHash, invalidHash, StringComparison.Ordinal));
+        fixture.AppendLedger("protected", oldHash, invalidHash, "invalid intermediate expected hash");
+        fixture.Commit("invalid intermediate golden");
+        fixture.WriteReplay("protected", 2);
+        var finalHash = fixture.ReplayHash("protected");
+        fixture.AppendLedger("protected", invalidHash, finalHash, "later valid replacement");
+        var head = fixture.Commit("valid final golden");
+
+        var result = fixture.Event(root, root, head);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("failed canonical playback", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DeletionWithoutLedgerAndMissingRevisionFailClosed()
     {
         using var fixture = GitFixture.WithInitialReplay("protected", 1);
@@ -850,7 +872,15 @@ public sealed class GoldenHistoryScriptTests
         public string ReadText(string relativePath) => File.ReadAllText(Path.Combine(Root, relativePath));
 
         public ProcessResult PowerShell(string script, params string[] arguments) =>
-            RunProcess(Root, "pwsh", ["-NoProfile", "-File", script, .. arguments]);
+            RunProcess(
+                Root,
+                "pwsh",
+                ["-NoProfile", "-File", script, .. arguments],
+                new Dictionary<string, string>
+                {
+                    ["ROUNDS_DOTNET"] = Path.Combine(Repository, ".tools", "dotnet", "dotnet.exe"),
+                    ["ROUNDS_HARNESS_PROJECT"] = Path.Combine(Repository, "src", "Rounds.Harness", "Rounds.Harness.csproj"),
+                });
 
         public ProcessResult Event(
             string historyBase,

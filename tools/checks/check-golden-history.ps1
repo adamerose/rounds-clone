@@ -11,6 +11,7 @@ $repository = [IO.Path]::GetFullPath($Repository)
 . (Join-Path $PSScriptRoot 'replay-ledger.ps1')
 $goldenPrefix = 'replays/golden/'
 $goldenSuffix = '.rounds-replay.json'
+$script:ReplayVerifier = $null
 
 function Invoke-Git {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
@@ -52,6 +53,64 @@ function Get-ReplayHash([string]$Revision, [string]$Path) {
 function Test-TreeHasGolden([string]$Revision) {
     $paths = @(Invoke-Git ls-tree -r --name-only $Revision -- $goldenPrefix)
     return @($paths | Where-Object { $_.Trim().EndsWith($goldenSuffix, [StringComparison]::Ordinal) }).Count -gt 0
+}
+
+function Get-ReplayVerifier {
+    if ($null -ne $script:ReplayVerifier) { return $script:ReplayVerifier }
+    $dotnet = if ($env:ROUNDS_DOTNET) { $env:ROUNDS_DOTNET } else { Join-Path $repository '.tools/dotnet/dotnet.exe' }
+    $harness = if ($env:ROUNDS_HARNESS_PROJECT) { $env:ROUNDS_HARNESS_PROJECT } else { Join-Path $repository 'src/Rounds.Harness/Rounds.Harness.csproj' }
+    $assembly = Join-Path (Split-Path -Parent $harness) 'bin/Release/net8.0/Rounds.Harness.dll'
+    if (-not [IO.File]::Exists($assembly)) {
+        $restoreOutput = @(& $dotnet restore $harness --locked-mode 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "Could not restore the replay verifier before historical playback:`n$($restoreOutput -join [Environment]::NewLine)" }
+        $buildOutput = @(& $dotnet build $harness --configuration Release --no-restore 2>&1)
+        if ($LASTEXITCODE -ne 0 -or -not [IO.File]::Exists($assembly)) {
+            throw "Could not build the replay verifier before historical playback:`n$($buildOutput -join [Environment]::NewLine)"
+        }
+    }
+    $script:ReplayVerifier = [pscustomobject]@{ Dotnet = $dotnet; Harness = $harness }
+    return $script:ReplayVerifier
+}
+
+function Export-GitBlob([string]$Revision, [string]$Path, [string]$Destination) {
+    $objectId = (@(Invoke-Git rev-parse --verify "$Revision`:$Path"))[0].Trim()
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = 'git'
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($argument in @('-C', $repository, 'cat-file', 'blob', $objectId)) { $null = $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    $errors = $process.StandardError.ReadToEndAsync()
+    $stream = [IO.File]::Create($Destination)
+    try {
+        $process.StandardOutput.BaseStream.CopyTo($stream)
+        $stream.Dispose()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) { throw "Could not export replay `$Path` at $Revision`: $($errors.Result)" }
+    } finally {
+        $stream.Dispose()
+        $process.Dispose()
+    }
+}
+
+function Test-ReplayAtRevision([string]$Revision, [string]$Path, [string]$ExpectedHash) {
+    $temporary = Join-Path ([IO.Path]::GetTempPath()) ("rounds-replay-history-" + [Guid]::NewGuid().ToString('N'))
+    [IO.Directory]::CreateDirectory($temporary) | Out-Null
+    try {
+        $replayPath = Join-Path $temporary ([IO.Path]::GetFileName($Path))
+        Export-GitBlob -Revision $Revision -Path $Path -Destination $replayPath
+        $verifier = Get-ReplayVerifier
+        $verification = @(& $verifier.Dotnet run --project $verifier.Harness --configuration Release --no-build --no-restore -- verify-replays --directory $temporary 2>&1)
+        if ($LASTEXITCODE -ne 0 -or -not ($verification | Where-Object { $_ -match "^verified id=[a-z0-9-]+ ticks=[0-9]+ hash=$ExpectedHash$" })) {
+            throw "Golden `$Path` failed canonical playback at $Revision`:`n$($verification -join [Environment]::NewLine)"
+        }
+    } finally {
+        if ([IO.Directory]::Exists($temporary)) {
+            Get-ChildItem -LiteralPath $temporary -Force -Recurse | ForEach-Object { $_.Attributes = [IO.FileAttributes]::Normal }
+            [IO.Directory]::Delete($temporary, $true)
+        }
+    }
 }
 
 function Get-GoldenChanges([string]$Parent, [string]$Commit) {
@@ -126,11 +185,13 @@ try {
                     throw "Golden `$file` reuses a permanently reserved deleted basename at $commit."
                 }
                 $newHash = Get-ReplayHash $commit $change.Path
+                Test-ReplayAtRevision -Revision $commit -Path $change.Path -ExpectedHash $newHash
                 Write-Output "TRANSITION $commit $file absent $newHash"
                 continue
             }
             $oldHash = Get-ReplayHash $parent $change.Path
             $newHash = if ($change.Status -ceq 'D') { 'deleted' } else { Get-ReplayHash $commit $change.Path }
+            if ($change.Status -cne 'D') { Test-ReplayAtRevision -Revision $commit -Path $change.Path -ExpectedHash $newHash }
             $matches = @()
             for ($index = 0; $index -lt $addedEntries.Count; $index++) {
                 $entry = $addedEntries[$index]

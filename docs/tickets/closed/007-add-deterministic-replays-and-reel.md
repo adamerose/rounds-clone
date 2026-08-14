@@ -22,6 +22,7 @@ sessions:
   - codex:01a000c5-7def-76c1-94ad-1f2c895696c6
   - codex:01a000eb-212e-7640-82f7-a7b11c745b87
   - codex:01a000fd-0cf6-7142-aae8-c71a8445bd6a
+  - codex:01a0010d-da47-7f20-adb3-831c90ff5aae
 ---
 
 # Add deterministic replays and a rendered reel
@@ -192,3 +193,7 @@ A small exact replay boundary now turns every later failure into a reproducible 
 - 2026-08-14T16:06:00Z stage review end session codex:01a000fd-0cf6-7142-aae8-c71a8445bd6a — Rejected the candidate because the history guard could not cross commits before ledger introduction and the general renderer applied six golden-specific frame assertions to shorter valid replays.
 - 2026-08-14T16:06:00Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening implementation to model pre-ledger history as empty until one-way policy introduction and separate generic replay movie validation from golden-only presentation evidence.
 - 2026-08-14T16:11:39Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Made pre-policy commits traversable while requiring the ledger whenever goldens exist and forbidding later removal, proved the real four-commit integration range, and made generic first/middle/last decoding independent of the six canonical-golden state checks; a one-tick replay rendered and validated one frame, and the full gate passed 166 simulation tests plus 37 checker tests.
+- 2026-08-14T16:27:26Z stage review start session codex:01a0010d-da47-7f20-adb3-831c90ff5aae — Reviewed exact candidate cecd2c22ba01ddb2b1d52ccd654851fbb0be7050 across the real five-commit range, altered merges, short and canonical rendering, every prior boundary, and a hostile invalid-intermediate replay chain.
+- 2026-08-14T16:27:26Z stage review end session codex:01a0010d-da47-7f20-adb3-831c90ff5aae — Rejected the candidate because history checked intermediate replay hash text and ledger transitions but canonically replayed only the final effective tree, allowing a later valid commit to hide an earlier invalid golden.
+- 2026-08-14T16:27:26Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening implementation to export and publicly replay every added or replaced golden from the exact commit where it changes, with an invalid-intermediate/later-valid range regression.
+- 2026-08-14T16:34:53Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Exported each changed golden's exact Git blob and verified its canonical filename, bytes, and deterministic playback before accepting the transition; the invalid-B/later-valid-C range now fails at B, all 30 history fixtures pass, the real integration range replays its first golden, and the full zero-warning gate passes 167 simulation tests plus 37 checker tests.

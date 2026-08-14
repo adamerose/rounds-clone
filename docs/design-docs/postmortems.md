@@ -894,3 +894,16 @@ Separate exact-path cleanup removed every reviewer clone, AVI, replay, and extra
 
 The first ledger-removal regression expected the older generic truncation diagnostic, but the strengthened guard now fails earlier at the more specific invariant that goldens cannot exist without the policy ledger.
 The assertion was aligned to that stable boundary; policy removal and golden-before-policy remain separate negative cases.
+
+## 2026-08-14 — Ticket 007's fourth correction still replayed only the endpoint
+
+Reviewer `codex:01a0010d-da47-7f20-adb3-831c90ff5aae` rejected exact candidate `cecd2c22ba01ddb2b1d52ccd654851fbb0be7050` after constructing a valid A replay, an intermediate B file whose declared hash did not match its unchanged inputs, and a later valid C replacement.
+Both ledger transitions and the final C endpoint passed because the history guard extracted intermediate hash text without running the intermediate file through public playback.
+The correction must canonically replay every added or replaced golden from its exact commit so a later commit cannot repair rejected history.
+
+The review's first hostile-merge cleanup met read-only generated Git objects, and one interpolated line-number search mangled its dollar-sign regular expression.
+Exact-path cleanup with generated attributes cleared removed every reviewer fixture, clone, AVI, replay, and extracted frame; no tracked change, ref, process, or temporary directory remained.
+
+The first complete per-commit-playback fixture run had four failures because direct history-script helpers, unlike event helpers, did not point temporary Git repositories at the real pinned SDK and harness.
+The remaining 26 cases passed, including the new hostile chain.
+Giving every direct history helper the same explicit verifier environment fixed the test boundary without adding tools to fixture repositories.
