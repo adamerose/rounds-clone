@@ -166,7 +166,7 @@ function Measure-DecodedFrame([int]$FrameNumber) {
                 if ($b -gt 150 -and $b -gt ($r * 1.5) -and $b -gt ($g * 1.05)) { $blue++ }
             }
         }
-        if ($paper -lt 120000 -or $red -lt 1000 -or $blue -lt 1000) {
+        if ($paper -lt 120000) {
             throw "Replay frame $FrameNumber is visually incomplete after independent decode: paper=$paper red=$red blue=$blue."
         }
         return [pscustomobject]@{ Frame = $FrameNumber; Paper = $paper; Red = $red; Blue = $blue }
@@ -180,12 +180,23 @@ function Measure-DecodedFrame([int]$FrameNumber) {
 }
 
 $decoded = @{}
-foreach ($frameNumber in @(1, 62, 100, 181, 300, 600)) {
+$genericFrames = @(1, [Math]::Max(1, [int][Math]::Ceiling($totalTicks / 2.0)), $totalTicks) | Select-Object -Unique
+foreach ($frameNumber in $genericFrames) {
     $decoded[$frameNumber] = Measure-DecodedFrame $frameNumber
 }
-if ($decoded[62].Red -lt $decoded[1].Red + 500) { throw 'Shield representative frame does not contain its expected team-color expansion.' }
-if (($decoded[181].Red + $decoded[181].Blue) -ge ($decoded[1].Red + $decoded[1].Blue - 500)) { throw 'Result representative frame does not show the expected defeated-player change.' }
-if (($decoded[300].Red + $decoded[300].Blue) -lt 4000) { throw 'Reset representative frame does not restore both visible players.' }
+if ($decoded[1].Red -lt 1000 -or $decoded[1].Blue -lt 1000) {
+    throw "Replay first frame does not show both players after independent decode: red=$($decoded[1].Red) blue=$($decoded[1].Blue)."
+}
+
+$isCanonicalGolden = $replayId -ceq 'base-combat-006-seed-1' -and $totalTicks -eq 600 -and $expectedHash -ceq 'b91f86b6f1dc6b10'
+if ($isCanonicalGolden) {
+    foreach ($frameNumber in @(1, 62, 100, 181, 300, 600)) {
+        if (-not $decoded.ContainsKey($frameNumber)) { $decoded[$frameNumber] = Measure-DecodedFrame $frameNumber }
+    }
+    if ($decoded[62].Red -lt $decoded[1].Red + 500) { throw 'Shield representative frame does not contain its expected team-color expansion.' }
+    if (($decoded[181].Red + $decoded[181].Blue) -ge ($decoded[1].Red + $decoded[1].Blue - 500)) { throw 'Result representative frame does not show the expected defeated-player change.' }
+    if (($decoded[300].Red + $decoded[300].Blue) -lt 4000) { throw 'Reset representative frame does not restore both visible players.' }
+}
 $decodedSummary = $decoded.Keys | Sort-Object | ForEach-Object { $value = $decoded[$_]; "$($value.Frame):$($value.Paper)/$($value.Red)/$($value.Blue)" }
 Write-Output "independently decoded replay frames (frame:paper/red/blue) $($decodedSummary -join ', ')"
 

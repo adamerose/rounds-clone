@@ -29,6 +29,53 @@ public sealed class GoldenHistoryScriptTests
     }
 
     [Fact]
+    public void LegacyPrePolicyHistoryCanIntroduceLedgerAndFirstGolden()
+    {
+        using var fixture = new GitFixture();
+        fixture.WriteText("legacy.txt", "root\n");
+        var root = fixture.Commit("legacy root");
+        fixture.WriteText("legacy.txt", "root\nlegacy continuation\n");
+        fixture.Commit("legacy continuation");
+        fixture.WriteEmptyLedger();
+        fixture.WriteReplay("first-policy-golden", 1);
+        var head = fixture.Commit("introduce replay policy and golden");
+
+        var result = fixture.PowerShell(HistoryScript, "-Base", root, "-Head", head, "-Repository", fixture.Root);
+
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.Contains("first-policy-golden", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void IntroducedLedgerCannotBeRemoved()
+    {
+        using var fixture = GitFixture.WithInitialReplay("baseline", 1);
+        var root = fixture.Head;
+        fixture.Git("rm", "replays/intentional-breaks.md");
+        var head = fixture.Commit("remove policy ledger");
+
+        var result = fixture.PowerShell(HistoryScript, "-Base", root, "-Head", head, "-Repository", fixture.Root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("ledger is missing while golden replays exist", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GoldenCannotPrecedePolicyLedgerIntroduction()
+    {
+        using var fixture = new GitFixture();
+        fixture.WriteText("legacy.txt", "root\n");
+        var root = fixture.Commit("legacy root");
+        fixture.WriteReplay("unprotected", 1);
+        var head = fixture.Commit("golden without policy ledger");
+
+        var result = fixture.PowerShell(HistoryScript, "-Base", root, "-Head", head, "-Repository", fixture.Root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("ledger is missing while golden replays exist", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MultiCommitPushCannotHideEarlierUnledgeredReplacement()
     {
         using var fixture = GitFixture.WithInitialReplay("protected", 1);

@@ -21,6 +21,7 @@ sessions:
   - codex:01a000ac-dd36-7902-81e2-5b2c75826c5d
   - codex:01a000c5-7def-76c1-94ad-1f2c895696c6
   - codex:01a000eb-212e-7640-82f7-a7b11c745b87
+  - codex:01a000fd-0cf6-7142-aae8-c71a8445bd6a
 ---
 
 # Add deterministic replays and a rendered reel
@@ -187,3 +188,7 @@ A small exact replay boundary now turns every later failure into a reproducible 
 - 2026-08-14T15:46:20Z stage review end session codex:01a000eb-212e-7640-82f7-a7b11c745b87 — Rejected clean CI verification before build, invalid recorder input mutating before rejection, corrupted absolute render paths, and remaining hash, run-shape, and ordinal multi-file process evidence gaps.
 - 2026-08-14T15:46:20Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening implementation to make the event guard self-sufficient on a clean runner, validate frames before stepping, preserve absolute paths, and complete the remaining public evidence rows.
 - 2026-08-14T15:53:31Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Built a missing verifier before effective-corpus playback, rejected malformed movement and aim before changing tick or hash, supported absolute renderer paths in the nightly workflow, added every named hash and run-type mutation, and verified an ordinal two-file corpus through the public process; the zero-warning gate passed 163 simulation tests and 37 checker tests.
+- 2026-08-14T16:06:00Z stage review start session codex:01a000fd-0cf6-7142-aae8-c71a8445bd6a — Reviewed exact candidate 6628ac2192fbb2f5ea76ff736cb5905c749b0db8 across its real pre-ticket integration range and with a valid one-tick replay in addition to every earlier regression.
+- 2026-08-14T16:06:00Z stage review end session codex:01a000fd-0cf6-7142-aae8-c71a8445bd6a — Rejected the candidate because the history guard could not cross commits before ledger introduction and the general renderer applied six golden-specific frame assertions to shorter valid replays.
+- 2026-08-14T16:06:00Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reopening implementation to model pre-ledger history as empty until one-way policy introduction and separate generic replay movie validation from golden-only presentation evidence.
+- 2026-08-14T16:11:39Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Made pre-policy commits traversable while requiring the ledger whenever goldens exist and forbidding later removal, proved the real four-commit integration range, and made generic first/middle/last decoding independent of the six canonical-golden state checks; a one-tick replay rendered and validated one frame, and the full gate passed 166 simulation tests plus 37 checker tests.

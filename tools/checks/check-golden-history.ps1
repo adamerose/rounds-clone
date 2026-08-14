@@ -49,6 +49,11 @@ function Get-ReplayHash([string]$Revision, [string]$Path) {
     return $Matches.hash
 }
 
+function Test-TreeHasGolden([string]$Revision) {
+    $paths = @(Invoke-Git ls-tree -r --name-only $Revision -- $goldenPrefix)
+    return @($paths | Where-Object { $_.Trim().EndsWith($goldenSuffix, [StringComparison]::Ordinal) }).Count -gt 0
+}
+
 function Get-GoldenChanges([string]$Parent, [string]$Commit) {
     if ($Parent.Length -eq 0) {
         $paths = @(Invoke-Git ls-tree -r --name-only $Commit -- $goldenPrefix)
@@ -90,12 +95,25 @@ try {
             $automaticTree = @($mergeOutput)[0].Trim()
             $actualTree = (@(Invoke-Git rev-parse "$commit`^{tree}"))[0].Trim()
             if ($automaticTree -cne $actualTree) { throw "Merge $commit changes the automatic merge tree and must be recreated cleanly." }
+            $mergeLedger = Read-ReplayLedgerFromGit -Repository $repository -Revision $commit -Required $false
+            if ($mergeLedger.Bytes.Length -eq 0 -and (Test-TreeHasGolden $commit)) {
+                throw "Replay policy ledger is missing while golden replays exist at merge $commit."
+            }
+            foreach ($parentValue in $parents) {
+                $parentLedger = Read-ReplayLedgerFromGit -Repository $repository -Revision $parentValue -Required $false
+                if (-not (Test-ReplayLedgerBytePrefix -Candidate $mergeLedger.Bytes -Prefix $parentLedger.Bytes)) {
+                    throw "Replay break ledger was removed or truncated by merge $commit."
+                }
+            }
             continue
         }
 
         $parent = if ($parents.Count -eq 1) { $parents[0] } else { '' }
-        $oldLedger = if ($parent.Length -gt 0) { Read-ReplayLedgerFromGit -Repository $repository -Revision $parent } else { [pscustomobject]@{ Bytes = [byte[]]@(); Text = ''; Lines = @(); Entries = @() } }
-        $newLedger = Read-ReplayLedgerFromGit -Repository $repository -Revision $commit
+        $oldLedger = if ($parent.Length -gt 0) { Read-ReplayLedgerFromGit -Repository $repository -Revision $parent -Required $false } else { [pscustomobject]@{ Bytes = [byte[]]@(); Text = ''; Lines = @(); Entries = @() } }
+        $newLedger = Read-ReplayLedgerFromGit -Repository $repository -Revision $commit -Required $false
+        if ($newLedger.Bytes.Length -eq 0 -and (Test-TreeHasGolden $commit)) {
+            throw "Replay policy ledger is missing while golden replays exist at $commit."
+        }
         if ($parent.Length -gt 0 -and -not (Test-ReplayLedgerBytePrefix -Candidate $newLedger.Bytes -Prefix $oldLedger.Bytes)) {
             throw "Replay break ledger was edited, reordered, or truncated at $commit."
         }

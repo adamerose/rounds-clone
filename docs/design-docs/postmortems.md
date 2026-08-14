@@ -882,3 +882,15 @@ The review's first gate launch used an accidental one-second timeout, one ignore
 The reviewer removed every generated AVI, PNG, clean archive, and temporary directory after exact validation and left no tracked change, process, branch, or Git ref.
 
 While preparing the later match slice, one combined source read guessed absent `src/Rounds.Sim/CombatState.cs`; the useful `World.cs` read completed first, and the actual combat state is distributed across `World`, `Player`, `CombatTuning`, and `CombatController`.
+
+## 2026-08-14 — Ticket 007's next review exercised the real integration range and a short replay
+
+Reviewer `codex:01a000fd-0cf6-7142-aae8-c71a8445bd6a` rejected exact candidate `6628ac2192fbb2f5ea76ff736cb5905c749b0db8` because fixtures introduced the ledger at their root while the actual repository has legacy commits before the policy file.
+The real `26b2895…→candidate` integration range therefore failed on its first missing parent ledger even though new history was valid.
+The review also rendered a valid one-tick replay: Godot produced the correct one-frame AVI and completion marker, but the general validator still indexed golden-only frames 62 through 600.
+
+The review's first gate launch used a short timeout, and one combined temporary-lifecycle command was safety-blocked before execution.
+Separate exact-path cleanup removed every reviewer clone, AVI, replay, and extracted frame; no tracked change, ref, process, or reviewer temporary directory remained.
+
+The first ledger-removal regression expected the older generic truncation diagnostic, but the strengthened guard now fails earlier at the more specific invariant that goldens cannot exist without the policy ledger.
+The assertion was aligned to that stable boundary; policy removal and golden-before-policy remain separate negative cases.
