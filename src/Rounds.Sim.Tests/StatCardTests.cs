@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Nodes;
 using Rounds.Sim.Cards;
 using Rounds.Sim.Maps;
 using Rounds.Sim.Math;
@@ -162,6 +163,66 @@ public sealed class StatCardTests
     }
 
     [Fact]
+    public void StreamCatalogRejectsAnIdDuplicatedAcrossImplementationTiers()
+    {
+        var json = ReadEmbeddedCatalog();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(
+            json.Replace("\"id\": \"abyssal-countdown\"", "\"id\": \"careful-planning\"", StringComparison.Ordinal)));
+
+        Assert.Throws<InvalidDataException>(() => StatCardCatalog.Load(stream));
+    }
+
+    [Fact]
+    public void FoldRoundsMidpointsAwayFromZeroAndClampsFireAndReloadToOneTick()
+    {
+        var midpointFire = PlayerCombatProfile.Fold(
+            new[] { "careful-planning" },
+            CatalogWithEffect("careful-planning", "attack-speed", -25.0));
+        var midpointReload = PlayerCombatProfile.Fold(
+            new[] { "careful-planning" },
+            CatalogWithEffect("careful-planning", "reload-time", 1.0 / 120.0));
+        var clampedFire = PlayerCombatProfile.Fold(
+            new[] { "careful-planning" },
+            CatalogWithEffect("careful-planning", "attack-speed", 200.0));
+        var clampedReload = PlayerCombatProfile.Fold(
+            new[] { "careful-planning" },
+            CatalogWithEffect("careful-planning", "reload-time", -10.0));
+
+        Assert.Equal(23, midpointFire.FireIntervalTicks);
+        Assert.Equal(121, midpointReload.ReloadTicks);
+        Assert.Equal(1, clampedFire.FireIntervalTicks);
+        Assert.Equal(1, clampedReload.ReloadTicks);
+    }
+
+    [Fact]
+    public void DerivedProfilesRejectEveryNonFiniteOrNonPositiveBoundary()
+    {
+        var vanilla = PlayerCombatProfile.Vanilla;
+        var invalid = new[]
+        {
+            vanilla with { MaximumHealth = double.NaN },
+            vanilla with { MaximumAmmunition = 0 },
+            vanilla with { BulletDamage = double.PositiveInfinity },
+            vanilla with { FireIntervalTicks = 0 },
+            vanilla with { ReloadTicks = 0 },
+            vanilla with { ProjectileSpeed = 0.0 },
+            vanilla with { BlockCooldownTicks = 0 },
+            vanilla with { Lifesteal = double.NaN },
+            vanilla with { Lifesteal = -0.01 },
+        };
+
+        foreach (var profile in invalid)
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(profile.Validate);
+        }
+
+        var overflowing = CatalogWithEffect("glass-cannon", "damage", double.MaxValue);
+        Assert.Throws<ArgumentOutOfRangeException>(() => PlayerCombatProfile.Fold(
+            Enumerable.Repeat("glass-cannon", 200),
+            overflowing));
+    }
+
+    [Fact]
     public void CombatReadsEveryPlayerSpecificWeaponTimer()
     {
         var profile = new PlayerCombatProfile(
@@ -208,6 +269,20 @@ public sealed class StatCardTests
             .GetManifestResourceStream("Rounds.Sim.Data.cards.json")!;
         using var reader = new StreamReader(stream, Encoding.UTF8);
         return reader.ReadToEnd();
+    }
+
+    private static StatCardCatalog CatalogWithEffect(string cardId, string effectId, double value)
+    {
+        var root = JsonNode.Parse(ReadEmbeddedCatalog())!.AsObject();
+        var card = root["cards"]!.AsArray()
+            .Select(node => node!.AsObject())
+            .Single(node => node["id"]!.GetValue<string>() == cardId);
+        var effect = card["effects"]!.AsArray()
+            .Select(node => node!.AsObject())
+            .Single(node => node["id"]!.GetValue<string>() == effectId);
+        effect["value"] = value;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(root.ToJsonString()));
+        return StatCardCatalog.Load(stream);
     }
 
     private static ArenaDefinition CreateArena() => new(

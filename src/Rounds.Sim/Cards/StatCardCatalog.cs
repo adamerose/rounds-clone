@@ -36,8 +36,17 @@ public sealed class StatCardCatalog
         }
 
         var cards = new List<StatCardDefinition>();
+        var seenIds = new List<string>();
         foreach (var card in root.GetProperty("cards").EnumerateArray())
         {
+            var id = card.GetProperty("id").GetString()
+                ?? throw new InvalidDataException("A card id is missing.");
+            if (seenIds.Contains(id, StringComparer.Ordinal))
+            {
+                throw new InvalidDataException($"Card catalog duplicates `{id}`.");
+            }
+            seenIds.Add(id);
+
             if (card.GetProperty("implementationTier").GetString() != "stat-only")
             {
                 continue;
@@ -48,8 +57,6 @@ public sealed class StatCardCatalog
                 throw new InvalidDataException("A stat-only card declares a behavior hook.");
             }
 
-            var id = card.GetProperty("id").GetString()
-                ?? throw new InvalidDataException("A stat-only card id is missing.");
             var effects = card.GetProperty("effects").EnumerateArray()
                 .Select(effect => ParseEffect(id, effect))
                 .ToArray();
@@ -65,14 +72,6 @@ public sealed class StatCardCatalog
         {
             throw new InvalidDataException("The stat-only card pool must contain exactly 12 cards.");
         }
-        for (var index = 1; index < cards.Count; index++)
-        {
-            if (cards[index - 1].Id == cards[index].Id)
-            {
-                throw new InvalidDataException($"Card catalog duplicates `{cards[index].Id}`.");
-            }
-        }
-
         return new StatCardCatalog(cards.ToArray());
     }
 

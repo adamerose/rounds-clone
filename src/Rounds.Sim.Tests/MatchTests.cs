@@ -1,6 +1,7 @@
 using Rounds.Sim.Cards;
 using Rounds.Sim.Maps;
 using Rounds.Sim.Math;
+using System.Reflection;
 
 namespace Rounds.Sim.Tests;
 
@@ -175,6 +176,81 @@ public sealed class MatchTests
     }
 
     [Fact]
+    public void CompleteScriptedMatchesHaveIdenticalPerDuelHistories()
+    {
+        var first = RunCompleteMatch(51, chooseIndex: 0);
+        var second = RunCompleteMatch(51, chooseIndex: 0);
+        var changed = RunCompleteMatch(51, chooseIndex: 1);
+
+        Assert.Equal(first.DuelHashes, second.DuelHashes);
+        Assert.Equal(first.Offers, second.Offers);
+        Assert.Equal(first.Arenas, second.Arenas);
+        Assert.Equal(first.Cards, second.Cards);
+        Assert.Equal(first.Scores, second.Scores);
+        Assert.Equal(first.FinalHash, second.FinalHash);
+        Assert.NotEqual(first.FinalHash, changed.FinalHash);
+    }
+
+    [Fact]
+    public void MatchHashCoversEveryOwnedFieldAndTheCompleteWorld()
+    {
+        AssertHashChanges("world", match => match.World.Players[0].Health -= 0.01);
+        AssertHashChanges("future RNG", match => match.World.Rng.NextUInt());
+        AssertHashChanges("phase", match => SetPrivate(match, "<Phase>k__BackingField", MatchPhase.Duel));
+        AssertHashChanges("full score", match => ReadPrivate<int[]>(match, "_fullPoints")[0]++);
+        AssertHashChanges("half score", match => ReadPrivate<int[]>(match, "_halfPoints")[1]++);
+        AssertHashChanges("acquired IDs", match => ReadPrivate<List<string>[]>(match, "_acquiredCards")[0].Add("combine"));
+        AssertHashChanges("picker", match => SetPrivate(match, "<CurrentPickerId>k__BackingField", 1));
+        AssertHashChanges("selection", match => SetPrivate(match, "<SelectedOfferIndex>k__BackingField", 1));
+        AssertHashChanges("armed latch", match => SetPrivate(match, "<IsDraftArmed>k__BackingField", true));
+        AssertHashChanges("axis latch", match => SetPrivate(match, "_lastDraftAxis", (sbyte)1));
+        AssertHashChanges("jump latch", match => SetPrivate(match, "_lastDraftJump", true));
+        AssertHashChanges("offer length", match => SetPrivate(match, "_currentOffer", Array.Empty<StatCardDefinition>()));
+        AssertHashChanges("offer IDs", match =>
+        {
+            var offer = ReadPrivate<StatCardDefinition[]>(match, "_currentOffer");
+            (offer[0], offer[1]) = (offer[1], offer[0]);
+        });
+        AssertHashChanges("observed result", match => SetPrivate(match, "_observedDuelResultCount", 1));
+        AssertHashChanges("pending loser", match => SetPrivate<int?>(match, "_pendingRoundLoser", 1));
+        AssertHashChanges("pending winner", match => SetPrivate<int?>(match, "_pendingMatchWinner", 0));
+        AssertHashChanges("winner", match => SetPrivate<int?>(match, "<WinnerId>k__BackingField", 0));
+    }
+
+    [Fact]
+    public void OpeningOffersHaveExactSeedVectorsAndIndependentPcgConsumption()
+    {
+        var catalog = StatCardCatalog.LoadEmbedded();
+        var reference = new Pcg32(23);
+        var firstExpected = ReferenceOffer(catalog, reference);
+        var match = Match.Create(23);
+
+        Assert.Equal(
+            new[] { "huge", "quick-shot", "defender", "combine", "quick-reload" },
+            match.CurrentOffer.Select(card => card.Id));
+        Assert.Equal(firstExpected, match.CurrentOffer.Select(card => card.Id));
+        Assert.Equal(13_377_857_065_441_616_114UL, match.World.Rng.State);
+        Assert.Equal(reference.State, match.World.Rng.State);
+
+        ArmAndConfirm(match);
+        var secondExpected = ReferenceOffer(catalog, reference);
+        Assert.Equal(
+            new[] { "leech", "careful-planning", "wind-up", "fastball", "tank" },
+            match.CurrentOffer.Select(card => card.Id));
+        Assert.Equal(secondExpected, match.CurrentOffer.Select(card => card.Id));
+        Assert.Equal(6_550_549_163_608_964_203UL, match.World.Rng.State);
+        Assert.Equal(reference.State, match.World.Rng.State);
+
+        var changedSeed = Match.Create(24);
+        Assert.Equal(
+            new[] { "quick-reload", "quick-shot", "combine", "fastball", "wind-up" },
+            changedSeed.CurrentOffer.Select(card => card.Id));
+        Assert.NotEqual(
+            match.CurrentOffer.Select(card => card.Id),
+            changedSeed.CurrentOffer.Select(card => card.Id));
+    }
+
+    [Fact]
     public void OwnedCardsRemainEligibleForLaterOffers()
     {
         var foundRecurrence = false;
@@ -253,6 +329,85 @@ public sealed class MatchTests
             string.Join(',', match.AcquiredCardsFor(0).Concat(match.AcquiredCardsFor(1))));
     }
 
+    private static ScriptedHistory RunCompleteMatch(ulong seed, int chooseIndex)
+    {
+        var match = Match.Create(seed);
+        var duelHashes = new List<ulong>();
+        var offers = new List<string>();
+        var arenas = new List<string>();
+        var cards = new List<string>();
+        var scores = new List<string>();
+
+        RecordOffer(match, offers);
+        ArmAndConfirm(match, chooseIndex);
+        RecordOffer(match, offers);
+        ArmAndConfirm(match, chooseIndex);
+        RecordBuild(match, arenas, cards);
+
+        while (match.Phase != MatchPhase.MatchResult)
+        {
+            CompleteDuel(match, winner: 0);
+            duelHashes.Add(Match.Hash(match));
+            scores.Add($"{match.FullPoints[0]}:{match.FullPoints[1]}:{match.HalfPoints[0]}:{match.HalfPoints[1]}");
+            RecordBuild(match, arenas, cards);
+            if (match.Phase == MatchPhase.LoserDraft)
+            {
+                RecordOffer(match, offers);
+                ArmAndConfirm(match, chooseIndex);
+                RecordBuild(match, arenas, cards);
+            }
+        }
+
+        return new ScriptedHistory(
+            duelHashes.ToArray(),
+            offers.ToArray(),
+            arenas.ToArray(),
+            cards.ToArray(),
+            scores.ToArray(),
+            Match.Hash(match));
+    }
+
+    private static void RecordOffer(Match match, List<string> offers) =>
+        offers.Add(string.Join(',', match.CurrentOffer.Select(card => card.Id)));
+
+    private static void RecordBuild(Match match, List<string> arenas, List<string> cards)
+    {
+        arenas.Add(match.World.Arena.Id);
+        cards.Add(string.Join('|',
+            string.Join(',', match.AcquiredCardsFor(0)),
+            string.Join(',', match.AcquiredCardsFor(1))));
+    }
+
+    private static string[] ReferenceOffer(StatCardCatalog catalog, Pcg32 rng)
+    {
+        var shuffled = catalog.Cards.ToArray();
+        for (var index = shuffled.Length - 1; index > 0; index--)
+        {
+            var swap = (int)rng.NextBounded((uint)(index + 1));
+            (shuffled[index], shuffled[swap]) = (shuffled[swap], shuffled[index]);
+        }
+        return shuffled[..5].Select(card => card.Id).ToArray();
+    }
+
+    private static void AssertHashChanges(string field, Action<Match> mutate)
+    {
+        var baseline = Match.Create(91);
+        var changed = Match.Create(91);
+        mutate(changed);
+        Assert.True(Match.Hash(baseline) != Match.Hash(changed), $"Match.Hash omitted {field}.");
+    }
+
+    private static T ReadPrivate<T>(Match match, string fieldName) =>
+        (T)(typeof(Match).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(match)
+            ?? throw new InvalidOperationException($"Missing Match field `{fieldName}`."));
+
+    private static void SetPrivate<T>(Match match, string fieldName, T value)
+    {
+        var field = typeof(Match).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException($"Missing Match field `{fieldName}`.");
+        field.SetValue(match, value);
+    }
+
     private static Match StartMatch(ulong seed)
     {
         var match = Match.Create(seed);
@@ -311,4 +466,12 @@ public sealed class MatchTests
             rng.NextBounded(bound);
         }
     }
+
+    private sealed record ScriptedHistory(
+        ulong[] DuelHashes,
+        string[] Offers,
+        string[] Arenas,
+        string[] Cards,
+        string[] Scores,
+        ulong FinalHash);
 }

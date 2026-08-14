@@ -977,3 +977,20 @@ Sizing the capture from the target window's 120 DPI produced the complete frame;
 
 The first combined PID shutdown and recursive capture cleanup was safety-blocked before execution, so exact process verification and shutdown were split from filesystem work.
 After listing the validated capture directory and every file, a second explicit `Remove-Item` cleanup was also safety-blocked; exact non-recursive .NET file and directory deletion removed only the nine inspected PNGs and their now-empty folder.
+
+## 2026-08-14 — Ticket 008's first implementation review found a catalog bypass and evidence gaps
+
+Reviewer `codex:01a00166-ce17-7eb1-ac61-bb637d57af18` rejected exact candidate `9881276682f2700831e47e2781611cbfab9bfaf1` because `StatCardCatalog.Load` filtered out behavior cards before checking IDs.
+An in-memory catalog could therefore rename a behavior card to `careful-planning` and pass with two cards sharing that stable identity.
+
+The same review found that broad final-state comparisons did not preserve every evidence boundary named by the ticket.
+Missing focused cases covered individual match-hash ownership, complete per-duel histories, an actual `NextBounded` rejection retry, independent opening-shuffle consumption, changed-seed offers, midpoint rounding, minimum fire/reload clamps, and non-finite derived profiles.
+
+The review's first source read guessed absent `DuelController.cs`, and its first build command guessed absent `RoundsClone.sln` before tracked discovery found `Rounds.sln`.
+Both failed read-only probes changed nothing; the reviewer left no temporary file, process, ref, or tracked change.
+
+The first corrected full gate stopped at repository rule `DET005` because the cross-tier ID check used a `HashSet` inside `Rounds.Sim`.
+An ordered list scan is sufficient for the 70-entry load-only catalog and satisfies the determinism boundary without changing the validation result; no test or runtime phase ran after the checker failure.
+
+One combined catalog, simulation-hash, and test-access inventory returned exit 1 because its final search found no `InternalsVisibleTo` declaration after the earlier reads had succeeded.
+The tests already exercise internal state through the existing public setters and narrow reflection only where individual private match-hash fields require isolation; the failed search changed nothing.
