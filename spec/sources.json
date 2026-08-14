@@ -56,6 +56,16 @@
       "reliability": "medium"
     },
     {
+      "id": "patch-111",
+      "title": "ROUNDS patch 1.1.1",
+      "publisher": "Landfall Games via Steam",
+      "url": "https://steamcommunity.com/ogg/1557740/announcements/detail/4116925200740005271",
+      "accessedOn": "2026-08-14",
+      "kind": "official-announcement",
+      "scope": "Official correction for projectile scaling based on damage supplied by cards.",
+      "reliability": "high"
+    },
+    {
       "id": "footage-wcg",
       "title": "Rounds No Commentary Gameplay",
       "publisher": "The Fighter",
@@ -96,6 +106,61 @@
       "kind": "community-reference",
       "scope": "Default ammunition, approximate damage, jump storage, block behavior, and wall-adjacent shield bounce.",
       "reliability": "low"
+    },
+    {
+      "id": "wiki-all-cards",
+      "title": "All Cards",
+      "publisher": "ROUNDS Wiki community",
+      "url": "https://rounds.fandom.com/wiki/All_Cards",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "A 67-row vanilla card index with display names, rarities, visible behavior, and current displayed modifiers.",
+      "reliability": "low",
+      "notes": "The ordinary reader returned HTTP 402, so the project's read-only fetch-url fallback recovered the public table. Descriptive prose and card art were not copied into the repository."
+    },
+    {
+      "id": "atwiki-card-index",
+      "title": "All cards and linked card pages",
+      "publisher": "ROUNDS Japanese Wiki community",
+      "url": "https://w.atwiki.jp/roundszatuwiki/pages/19.html",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "An independently maintained vanilla index and 66 linked per-card pages, last updated in 2024-2025, used to cross-check names, visible behavior, and modifiers.",
+      "reliability": "low",
+      "notes": "The index omits Quick Shot and contains several English-name typos. Those discrepancies are retained in the reconciliation record rather than silently normalized as source facts."
+    },
+    {
+      "id": "gamefaqs-card-list",
+      "title": "ROUNDS Card List",
+      "publisher": "Jordon Olson via GameFAQs",
+      "url": "https://gamefaqs.gamespot.com/pc/317272-rounds/faqs/81303",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "A June 2024 vanilla list organized by rarity with visible card behavior and displayed modifiers.",
+      "reliability": "low",
+      "notes": "Used as corroboration only. Conflicting modifiers remain explicit and the post-1.05 value wins only when supported by another current index or official note."
+    },
+    {
+      "id": "korean-card-guide",
+      "title": "ROUNDS basic guide",
+      "publisher": "ROUNDS Korean community",
+      "url": "https://gall.dcinside.com/mgallery/board/view/?id=rounds&no=34",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "A complete October 2021 card guide used to confirm Quick Shot and preserve pre-patch modifier conflicts.",
+      "reliability": "low",
+      "notes": "Several values predate or conflict with later public indexes; it is never the sole basis for a current numeric value."
+    },
+    {
+      "id": "stacking-discussion",
+      "title": "Does anyone know if the cards stack?",
+      "publisher": "ROUNDS Steam community",
+      "url": "https://steamcommunity.com/app/1557740/discussions/0/3068621701759431523/",
+      "accessedOn": "2026-08-14",
+      "kind": "community-reference",
+      "scope": "Contemporaneous player reports about repeated numerical, idempotent, duration, radius, and hook card behavior.",
+      "reliability": "low",
+      "notes": "Reports disagree on several hook-heavy cards, so all inferred formulas except the integer bounce-count case remain provisional."
     }
   ]
 }

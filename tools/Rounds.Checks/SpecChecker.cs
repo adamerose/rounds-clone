@@ -21,6 +21,7 @@ public static class SpecChecker
     private static readonly IReadOnlyDictionary<string, string> RequiredDocuments = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["sources.json"] = "source-index.schema.json",
+        ["cards.json"] = "cards.schema.json",
         ["match.json"] = "mechanics.schema.json",
         ["controls.json"] = "mechanics.schema.json",
         ["player.json"] = "mechanics.schema.json",
@@ -28,6 +29,88 @@ public static class SpecChecker
         ["camera.json"] = "mechanics.schema.json",
         ["measurements.json"] = "measurements.schema.json",
     };
+
+    private static readonly HashSet<string> KnownCardTargets =
+    [
+        "player.block-cooldown",
+        "player.lifesteal",
+        "player.max-health",
+        "player.move-speed",
+        "weapon.ammo",
+        "weapon.attack-speed",
+        "weapon.damage",
+        "weapon.projectile-bounces",
+        "weapon.projectile-size",
+        "weapon.projectile-slow",
+        "weapon.projectile-speed",
+        "weapon.projectiles-per-shot",
+        "weapon.reload-speed",
+        "weapon.reload-time",
+        "weapon.splash-damage",
+        "weapon.wall-drill-distance",
+        "ability.abyssal-countdown",
+        "ability.bombs-away",
+        "ability.brawler",
+        "ability.brawler-duration",
+        "ability.burst",
+        "ability.chase",
+        "ability.chilling-presence",
+        "ability.cold-bullets",
+        "ability.damage-decay",
+        "ability.damage-decay-duration",
+        "ability.dazzle",
+        "ability.demonic-pact",
+        "ability.demonic-pact-cost",
+        "ability.drill-ammo",
+        "ability.echo",
+        "ability.emp",
+        "ability.empower",
+        "ability.explosive-bullet",
+        "ability.frost-slam",
+        "ability.grow",
+        "ability.grow-distance",
+        "ability.grow-maximum-damage",
+        "ability.healing-field",
+        "ability.healing-field-activation",
+        "ability.homing",
+        "ability.implode",
+        "ability.lifestealer",
+        "ability.lifestealer-drain",
+        "ability.overpower",
+        "ability.overpower-damage",
+        "ability.parasite",
+        "ability.parasite-duration",
+        "ability.phoenix",
+        "ability.poison",
+        "ability.poison-duration",
+        "ability.pristine-perseverence",
+        "ability.pristine-perseverence-threshold",
+        "ability.radar-shot",
+        "ability.radiance",
+        "ability.refresh",
+        "ability.remote",
+        "ability.riccochet",
+        "ability.saw",
+        "ability.scavenger",
+        "ability.shield-charge",
+        "ability.shields-up",
+        "ability.shockwave",
+        "ability.silence",
+        "ability.sneaky",
+        "ability.static-field",
+        "ability.supernova",
+        "ability.tactical-reload",
+        "ability.target-bounce",
+        "ability.taste-of-blood",
+        "ability.taste-of-blood-duration",
+        "ability.teleport",
+        "ability.thruster",
+        "ability.timed-detonation",
+        "ability.timed-detonation-delay",
+        "ability.toxic-cloud",
+        "ability.trickster",
+        "ability.trickster-damage-per-bounce",
+    ];
 
     public static IReadOnlyList<string> CheckRepository(string repository)
     {
@@ -105,6 +188,8 @@ public static class SpecChecker
                 failures.Add($"SPEC002 sources.json duplicates source id `{sourceId}`.");
             }
         }
+
+        CrossCheckCards(documents["cards.json"].RootElement, sourceIds, failures);
 
         var factIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var documentName in RequiredDocuments.Keys.Where(name => RequiredDocuments[name] == "mechanics.schema.json"))
@@ -253,6 +338,111 @@ public static class SpecChecker
             foreach (var factId in RequiredMeasuredFacts.Where(factId => !coveredFacts.Contains(factId)))
             {
                 failures.Add($"SPEC015 measurements.json omits required coverage for fact `{factId}`.");
+            }
+        }
+    }
+
+    private static void CrossCheckCards(JsonElement root, HashSet<string> sourceIds, List<string> failures)
+    {
+        var cards = root.GetProperty("cards").EnumerateArray().ToArray();
+        if (cards.Length != root.GetProperty("catalogCount").GetInt32())
+        {
+            failures.Add($"SPEC018 cards.json declares {root.GetProperty("catalogCount").GetInt32()} cards but contains {cards.Length}.");
+        }
+
+        var cardEffects = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var card in cards)
+        {
+            var cardId = card.GetProperty("id").GetString()!;
+            if (!cardEffects.TryAdd(cardId, new HashSet<string>(StringComparer.Ordinal)))
+            {
+                failures.Add($"SPEC019 cards.json duplicates card id `{cardId}`.");
+                continue;
+            }
+
+            ValidateProvenanceSources(card.GetProperty("metadataProvenance"), sourceIds, $"card `{cardId}` metadata", failures);
+            ValidateProvenanceSources(card.GetProperty("behavior").GetProperty("provenance"), sourceIds, $"card `{cardId}` behavior", failures);
+
+            foreach (var effect in card.GetProperty("effects").EnumerateArray())
+            {
+                var effectId = effect.GetProperty("id").GetString()!;
+                if (!cardEffects[cardId].Add(effectId))
+                {
+                    failures.Add($"SPEC020 cards.json card `{cardId}` duplicates effect id `{effectId}`.");
+                }
+
+                var target = effect.GetProperty("target").GetString()!;
+                if (!KnownCardTargets.Contains(target))
+                {
+                    failures.Add($"SPEC021 cards.json card `{cardId}` effect `{effectId}` targets unknown stat or hook `{target}`.");
+                }
+
+                var provenance = effect.GetProperty("provenance");
+                ValidateProvenanceSources(provenance, sourceIds, $"card `{cardId}` effect `{effectId}`", failures);
+                if (effect.GetProperty("operation").GetString() != "register-hook")
+                {
+                    var effectSources = provenance.GetProperty("sources").EnumerateArray().Select(item => item.GetString()!).ToArray();
+                    if (effectSources.Length < 2 && !effectSources.Contains("patch-105", StringComparer.Ordinal))
+                    {
+                        failures.Add($"SPEC022 cards.json card `{cardId}` numeric effect `{effectId}` lacks an official note, direct observation, or two corroborating sources.");
+                    }
+                }
+            }
+        }
+
+        foreach (var reconciliation in root.GetProperty("reconciliation").EnumerateArray())
+        {
+            var sourceId = reconciliation.GetProperty("source").GetString()!;
+            if (!sourceIds.Contains(sourceId))
+            {
+                failures.Add($"SPEC023 cards.json reconciliation cites unknown source `{sourceId}`.");
+            }
+        }
+
+        foreach (var patch in root.GetProperty("patchHistory").EnumerateArray())
+        {
+            var sourceId = patch.GetProperty("source").GetString()!;
+            if (!sourceIds.Contains(sourceId))
+            {
+                failures.Add($"SPEC027 cards.json patch history cites unknown source `{sourceId}`.");
+            }
+        }
+
+        var stackingOperators = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var stackingCase in root.GetProperty("stackingCases").EnumerateArray())
+        {
+            var stackingOperator = stackingCase.GetProperty("operator").GetString()!;
+            stackingOperators.Add(stackingOperator);
+            var cardId = stackingCase.GetProperty("cardId").GetString()!;
+            var effectId = stackingCase.GetProperty("effectId").GetString()!;
+            if (!cardEffects.TryGetValue(cardId, out var effectIds) || !effectIds.Contains(effectId))
+            {
+                failures.Add($"SPEC024 cards.json stacking case `{stackingOperator}` targets missing effect `{cardId}/{effectId}`.");
+            }
+
+            ValidateProvenanceSources(stackingCase.GetProperty("provenance"), sourceIds, $"stacking case `{stackingOperator}`", failures);
+        }
+
+        foreach (var requiredOperator in new[] { "additive", "multiplicative", "count", "max-wins", "hook" })
+        {
+            if (!stackingOperators.Contains(requiredOperator))
+            {
+                failures.Add($"SPEC025 cards.json omits representative `{requiredOperator}` stacking semantics.");
+            }
+        }
+    }
+
+    private static void ValidateProvenanceSources(
+        JsonElement provenance,
+        HashSet<string> sourceIds,
+        string subject,
+        List<string> failures)
+    {
+        foreach (var sourceId in provenance.GetProperty("sources").EnumerateArray().Select(item => item.GetString()!))
+        {
+            if (!sourceIds.Contains(sourceId))
+            {
+                failures.Add($"SPEC026 cards.json {subject} cites unknown source `{sourceId}`.");
             }
         }
     }

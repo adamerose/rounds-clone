@@ -106,3 +106,23 @@ This is a more useful implementation contract than inflating source counts: ever
 
 Fresh reviewer session `codex:019fff26-f793-7293-87fe-8a816060e432` approved exact candidate `6681545522380445e270edc6c2888fb0a3e81d5c` with no findings.
 The candidate was fast-forwarded to `main` unchanged.
+
+## 2026-08-14 — Admit ticket 003 as bounded card research
+
+Reviewer session `codex:019fff30-7cf1-75a3-aa80-02e6bc681833` admitted ticket 003 at risk 4 after ticket 002 closed.
+The work is limited to a sourced current-build catalog, stacking semantics, schema enforcement, and implementation ordering; it does not implement card behavior or copy original presentation assets.
+The contract has no unresolved human choice because conflicts remain explicit rather than being silently resolved, and every non-obvious numeric value needs official evidence, direct observation, or two corroborating public sources.
+
+## 2026-08-14 — Bind 67 cards while retaining the clean-room count gap
+
+The catalog uses 67 project IDs because the English table, the 2024 GameFAQs list, and the 2021 Korean guide include Quick Shot, while the Japanese index's 66 linked pages omit it and the official store supplies only a 65+ lower bound.
+The clean-room runtime cannot force a complete pool listing in one session, so that direct current-build enumeration remains an explicit gap instead of a fabricated confirmation.
+
+## 2026-08-14 — Separate displayed modifiers from stacking formulas
+
+Confirmed card numbers may enter the research catalog while unmeasured duplicate-card composition remains explicitly provisional or unresolved.
+This prevents later simulation work from treating a UI percentage as proof of additive or multiplicative implementation order.
+
+## 2026-08-14 — Bind official card fixes over older guides
+
+Patch 1.05 supplies changed numeric card values, patch 1.1.1 binds damage-based projectile scaling, and the November 2024 update binds corrected growth behavior for build 21020021.

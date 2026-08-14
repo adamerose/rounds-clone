@@ -234,3 +234,54 @@ Integration cleanup removed that exact directory, the earlier reported review-di
 
 `git worktree remove --force` removed the detached worktree registration but reported `Filename too long` while deleting its ignored local tools and build outputs.
 The owning session revalidated the exact absolute target under `.ivy/worktrees/`, deleted only that orphan through the Windows long-path `System.IO.Directory` API, and verified both the directory and registration absent.
+
+## 2026-08-14 — A proposed core-duel slice violated the binding research order
+
+The owning session initially prioritized a playable deterministic duel after ticket 002 and created an empty `005-core-duel` worktree.
+Reading `GOAL.md` showed that complete card and map research is a binding dependency before the simulation core, so no ticket or code was created and the exact empty worktree was removed immediately.
+Work continues with ticket 003's complete vanilla card catalog instead.
+
+## 2026-08-14 — Design-file inspection used an invalid Windows glob and a nonexistent path
+
+An `rg` command passed `docs/design/*.md` as a literal Windows path and exited after the operating system rejected the wildcard syntax.
+A follow-up read also guessed `docs/design/observability.md`, which does not exist.
+The owning session used the actual `docs/design/physics-and-maps.md`, `GOAL.md`, and repository file map instead.
+
+## 2026-08-14 — The primary card wiki rejected the ordinary fetch path
+
+Opening the Fandom all-cards page through the ordinary web reader returned HTTP 402 even though search indexing exposed part of its table.
+The required fetch-url fallback recovered the complete 67-row public table without copying card art or descriptive prose into the repository.
+
+## 2026-08-14 — Card-source batching exposed two retrieval limits
+
+The first multi-URL fetch-url command passed `--separator` as a separate dash-prefixed value, so its argument parser treated the value as another option and rejected the read before network work began.
+Using the supported `--separator=value` form fixed that command-shape error.
+A later 66-page request and a six-process parallel retry each exceeded the 60-second command limit because every fallback races browser-backed retrieval.
+Sequential ten-page batches completed in about 6–12 seconds each and preserved the same public inputs.
+
+## 2026-08-14 — Direct retrieval of the Japanese card index hit Cloudflare
+
+PowerShell's ordinary `Invoke-WebRequest` received a JavaScript-and-cookie Cloudflare challenge from the Japanese card wiki.
+The fetch-url fallback had already demonstrated access to the same pages and remained the read-only retrieval path.
+
+## 2026-08-14 — The first generated catalog patch had a malformed terminator
+
+The first in-memory card-catalog generator preserved the JSON file's trailing newline as an added patch line immediately before `*** End Patch`.
+The patch parser rejected the malformed terminator and wrote nothing.
+The retry removed the synthetic trailing line before constructing the patch and added the complete 67-card JSON atomically.
+
+## 2026-08-14 — The fresh card worktree had no pinned SDK cache
+
+The first test command reached the system `dotnet` launcher, but `global.json` correctly requires SDK 8.0.423 and the new worktree had no ignored `.tools` cache.
+The hash-pinned repository bootstrap installed SDK 8.0.423 and Godot 4.7.1 into that worktree before verification continued.
+
+## 2026-08-14 — `dotnet test` does not accept the restore-only locked-mode switch
+
+A targeted test command passed `--locked-mode` directly to `dotnet test`, which forwarded it to MSBuild and failed with `MSB1001` before compilation.
+Running `dotnet restore --locked-mode` first and then `dotnet test --no-restore` exercised the intended locked dependency path and passed all 15 checker tests.
+
+## 2026-08-14 — A combined research-note patch used the wrong decision context
+
+The first patch that added the card research note also tried to append after an admission sentence that did not match the actual decision record's prose.
+The atomic patch wrote nothing.
+The retry anchored to the existing final sentence, added the note, and appended three concise decision sections without changing prior entries.

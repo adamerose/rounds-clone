@@ -159,6 +159,62 @@ public sealed class SpecCheckerTests : IDisposable
             failure == "SPEC015 measurements.json omits required coverage for fact `player-diameter`.");
     }
 
+    [Fact]
+    public void CardWithUnknownStatOrHookIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["cards"]![0]!["effects"]![0]!["target"] = "weapon.unknown-stat";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC021 cards.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CardEffectWithoutSourceIsRejectedBySchema()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["cards"]![0]!["effects"]![0]!["provenance"]!.AsObject().Remove("sources");
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC001 cards.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DuplicateCardIdIsRejected()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["cards"]![1]!["id"] = document["cards"]![0]!["id"]!.GetValue<string>();
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC019 cards.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void UnsupportedCardStackingOperatorIsRejectedBySchema()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["cards"]![0]!["effects"]![0]!["stacking"] = "concatenate";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC001 cards.json", StringComparison.Ordinal));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_repository))
@@ -191,9 +247,20 @@ public sealed class SpecCheckerTests : IDisposable
                 "kind": "official-store",
                 "scope": "Test fixture.",
                 "reliability": "high"
+              }, {
+                "id": "source-two",
+                "title": "Source two",
+                "publisher": "Publisher",
+                "url": "https://example.test/source-two",
+                "accessedOn": "2026-08-14",
+                "kind": "runtime-observation",
+                "scope": "Second test fixture source.",
+                "reliability": "high"
               }]
             }
             """);
+
+        WriteCards();
 
         foreach (var kind in new[] { "match", "controls", "player", "combat", "camera" })
         {
@@ -201,6 +268,85 @@ public sealed class SpecCheckerTests : IDisposable
         }
 
         WriteMeasurements("player-fact");
+    }
+
+    private void WriteCards()
+    {
+        static JsonObject Provenance() => new()
+        {
+            ["status"] = "confirmed",
+            ["confidence"] = "high",
+            ["method"] = "Fixture method.",
+            ["tolerance"] = "Exact fixture value.",
+            ["sources"] = new JsonArray("source-one", "source-two"),
+        };
+
+        var cards = new JsonArray();
+        for (var index = 0; index < 67; index++)
+        {
+            cards.Add(new JsonObject
+            {
+                ["id"] = $"fixture-card-{index}",
+                ["originalName"] = $"Fixture Card {index}",
+                ["rarity"] = "common",
+                ["draftAvailability"] = "available",
+                ["implementationTier"] = "stat-only",
+                ["metadataProvenance"] = Provenance(),
+                ["behavior"] = new JsonObject
+                {
+                    ["summary"] = "Fixture behavior.",
+                    ["hook"] = "passive",
+                    ["provenance"] = Provenance(),
+                },
+                ["effects"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = "fixture-effect",
+                    ["target"] = "weapon.damage",
+                    ["operation"] = "add-percent",
+                    ["value"] = 1,
+                    ["unit"] = "percent",
+                    ["stacking"] = "additive",
+                    ["order"] = 20,
+                    ["cap"] = "none-observed",
+                    ["provenance"] = Provenance(),
+                }),
+                ["unknowns"] = new JsonArray("Fixture unknown."),
+            });
+        }
+
+        var stackingCases = new JsonArray();
+        foreach (var stackingOperator in new[] { "additive", "multiplicative", "count", "max-wins", "hook" })
+        {
+            stackingCases.Add(new JsonObject
+            {
+                ["operator"] = stackingOperator,
+                ["cardId"] = "fixture-card-0",
+                ["effectId"] = "fixture-effect",
+                ["rule"] = "Fixture stacking rule.",
+                ["provenance"] = Provenance(),
+            });
+        }
+
+        var document = new JsonObject
+        {
+            ["$schema"] = "./schema/cards.schema.json",
+            ["schemaVersion"] = 1,
+            ["targetBuild"] = "21020021",
+            ["targetVersion"] = "v1.1.2.a75ee335a",
+            ["catalogCount"] = 67,
+            ["reconciliation"] = new JsonArray(
+                new JsonObject { ["source"] = "source-one", ["reportedCount"] = 67, ["relationship"] = "exact", ["notes"] = "Fixture exact count." },
+                new JsonObject { ["source"] = "source-two", ["reportedCount"] = 65, ["relationship"] = "lower-bound", ["notes"] = "Fixture lower bound." },
+                new JsonObject { ["source"] = "source-one", ["reportedCount"] = 1, ["relationship"] = "observed-subset", ["notes"] = "Fixture observation." }),
+            ["patchHistory"] = new JsonArray(
+                new JsonObject { ["version"] = "fixture-one", ["date"] = "2026-08-14", ["source"] = "source-one", ["scope"] = "Fixture patch.", ["binding"] = "Fixture binding." },
+                new JsonObject { ["version"] = "fixture-two", ["date"] = "2026-08-14", ["source"] = "source-two", ["scope"] = "Fixture patch.", ["binding"] = "Fixture binding." },
+                new JsonObject { ["version"] = "fixture-three", ["date"] = "2026-08-14", ["source"] = "source-one", ["scope"] = "Fixture patch.", ["binding"] = "Fixture binding." }),
+            ["stackingCases"] = stackingCases,
+            ["cards"] = cards,
+        };
+
+        File.WriteAllText(Path.Combine(_repository, "spec", "cards.json"), document.ToJsonString());
     }
 
     private void WriteMechanics(string kind, string factId, string sourceId)
