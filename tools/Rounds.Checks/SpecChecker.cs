@@ -344,6 +344,24 @@ public static class SpecChecker
 
     private static void CrossCheckCards(JsonElement root, HashSet<string> sourceIds, List<string> failures)
     {
+        var sourceExclusions = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var exclusion in root.GetProperty("sourceExclusions").EnumerateArray())
+        {
+            var source = exclusion.GetProperty("source").GetString()!;
+            var cardId = exclusion.GetProperty("cardId").GetString()!;
+            var fact = exclusion.GetProperty("fact").GetString()!;
+            var key = $"{source}/{cardId}/{fact}";
+            if (!sourceExclusions.TryAdd(key, exclusion.GetProperty("reason").GetString()!))
+            {
+                failures.Add($"SPEC034 cards.json duplicates source exclusion `{key}`.");
+            }
+
+            if (!sourceIds.Contains(source))
+            {
+                failures.Add($"SPEC035 cards.json source exclusion `{key}` cites unknown source `{source}`.");
+            }
+        }
+
         var evaluationOrders = new HashSet<int>();
         foreach (var phase in root.GetProperty("evaluationOrder").EnumerateArray())
         {
@@ -361,6 +379,7 @@ public static class SpecChecker
         }
 
         var cardEffects = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var cardEffectStacking = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var card in cards)
         {
             var cardId = card.GetProperty("id").GetString()!;
@@ -372,6 +391,8 @@ public static class SpecChecker
 
             ValidateProvenanceSources(card.GetProperty("metadataProvenance"), sourceIds, $"card `{cardId}` metadata", failures);
             ValidateProvenanceSources(card.GetProperty("behavior").GetProperty("provenance"), sourceIds, $"card `{cardId}` behavior", failures);
+            ValidateExcludedSources(card.GetProperty("metadataProvenance"), sourceExclusions, cardId, "metadata", failures);
+            ValidateExcludedSources(card.GetProperty("behavior").GetProperty("provenance"), sourceExclusions, cardId, "behavior", failures);
 
             foreach (var effect in card.GetProperty("effects").EnumerateArray())
             {
@@ -380,6 +401,8 @@ public static class SpecChecker
                 {
                     failures.Add($"SPEC020 cards.json card `{cardId}` duplicates effect id `{effectId}`.");
                 }
+
+                cardEffectStacking[$"{cardId}/{effectId}"] = effect.GetProperty("stacking").GetString()!;
 
                 var target = effect.GetProperty("target").GetString()!;
                 if (!KnownCardTargets.Contains(target))
@@ -391,6 +414,8 @@ public static class SpecChecker
                 ValidateProvenanceSources(provenance, sourceIds, $"card `{cardId}` effect `{effectId}`", failures);
                 var stackingProvenance = effect.GetProperty("stackingProvenance");
                 ValidateProvenanceSources(stackingProvenance, sourceIds, $"card `{cardId}` effect `{effectId}` stacking and cap", failures);
+                ValidateExcludedSources(provenance, sourceExclusions, cardId, $"effect:{effectId}", failures);
+                ValidateExcludedSources(stackingProvenance, sourceExclusions, cardId, $"effect:{effectId}", failures);
 
                 var order = effect.GetProperty("order").GetInt32();
                 if (!evaluationOrders.Contains(order))
@@ -432,6 +457,17 @@ public static class SpecChecker
             }
         }
 
+        foreach (var exclusion in root.GetProperty("sourceExclusions").EnumerateArray())
+        {
+            var cardId = exclusion.GetProperty("cardId").GetString()!;
+            var fact = exclusion.GetProperty("fact").GetString()!;
+            if (!cardEffects.TryGetValue(cardId, out var effectIds) ||
+                (fact.StartsWith("effect:", StringComparison.Ordinal) && fact != "effect:*" && !effectIds.Contains(fact["effect:".Length..])))
+            {
+                failures.Add($"SPEC036 cards.json source exclusion targets missing fact `{cardId}/{fact}`.");
+            }
+        }
+
         foreach (var reconciliation in root.GetProperty("reconciliation").EnumerateArray())
         {
             var sourceId = reconciliation.GetProperty("source").GetString()!;
@@ -457,9 +493,25 @@ public static class SpecChecker
             stackingOperators.Add(stackingOperator);
             var cardId = stackingCase.GetProperty("cardId").GetString()!;
             var effectId = stackingCase.GetProperty("effectId").GetString()!;
+            var effectKey = $"{cardId}/{effectId}";
             if (!cardEffects.TryGetValue(cardId, out var effectIds) || !effectIds.Contains(effectId))
             {
                 failures.Add($"SPEC024 cards.json stacking case `{stackingOperator}` targets missing effect `{cardId}/{effectId}`.");
+            }
+
+            else
+            {
+                var resolution = stackingCase.GetProperty("resolution").GetString()!;
+                var effectStacking = cardEffectStacking[effectKey];
+                var expectedStacking = stackingOperator == "hook" ? "hook-per-copy" : stackingOperator;
+                if (resolution == "unresolved" && effectStacking != "unresolved")
+                {
+                    failures.Add($"SPEC032 cards.json unresolved stacking case `{stackingOperator}` asserts `{effectStacking}` on `{effectKey}`.");
+                }
+                else if (resolution != "unresolved" && effectStacking != expectedStacking)
+                {
+                    failures.Add($"SPEC033 cards.json resolved stacking case `{stackingOperator}` disagrees with `{effectKey}` operator `{effectStacking}`.");
+                }
             }
 
             ValidateProvenanceSources(stackingCase.GetProperty("provenance"), sourceIds, $"stacking case `{stackingOperator}`", failures);
@@ -485,6 +537,25 @@ public static class SpecChecker
             if (!sourceIds.Contains(sourceId))
             {
                 failures.Add($"SPEC026 cards.json {subject} cites unknown source `{sourceId}`.");
+            }
+        }
+    }
+
+    private static void ValidateExcludedSources(
+        JsonElement provenance,
+        IReadOnlyDictionary<string, string> sourceExclusions,
+        string cardId,
+        string fact,
+        List<string> failures)
+    {
+        foreach (var sourceId in provenance.GetProperty("sources").EnumerateArray().Select(item => item.GetString()!))
+        {
+            var exactKey = $"{sourceId}/{cardId}/{fact}";
+            var wildcardKey = $"{sourceId}/{cardId}/effect:*";
+            if (sourceExclusions.TryGetValue(exactKey, out var reason) ||
+                (fact.StartsWith("effect:", StringComparison.Ordinal) && sourceExclusions.TryGetValue(wildcardKey, out reason)))
+            {
+                failures.Add($"SPEC037 cards.json card `{cardId}` fact `{fact}` cites excluded source `{sourceId}`: {reason}");
             }
         }
     }

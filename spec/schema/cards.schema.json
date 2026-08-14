@@ -4,7 +4,7 @@
   "title": "RICOCHET clean-room vanilla card catalog",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "targetBuild", "targetVersion", "catalogCount", "reconciliation", "patchHistory", "evaluationOrder", "stackingCases", "cards"],
+  "required": ["schemaVersion", "targetBuild", "targetVersion", "catalogCount", "reconciliation", "patchHistory", "evaluationOrder", "sourceExclusions", "stackingCases", "cards"],
   "properties": {
     "$schema": { "const": "./schema/cards.schema.json" },
     "schemaVersion": { "const": 1 },
@@ -25,6 +25,10 @@
       "type": "array",
       "minItems": 1,
       "items": { "$ref": "#/$defs/evaluationPhase" }
+    },
+    "sourceExclusions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sourceExclusion" }
     },
     "stackingCases": {
       "type": "array",
@@ -69,9 +73,10 @@
     "stackingCase": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["operator", "cardId", "effectId", "rule", "provenance"],
+      "required": ["operator", "resolution", "cardId", "effectId", "rule", "provenance"],
       "properties": {
         "operator": { "enum": ["additive", "multiplicative", "count", "max-wins", "hook"] },
+        "resolution": { "enum": ["confirmed", "provisional", "unresolved"] },
         "cardId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
         "effectId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
         "rule": { "type": "string", "minLength": 1 },
@@ -98,6 +103,17 @@
         "order": { "type": "integer", "minimum": 0 },
         "phase": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
         "rule": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sourceExclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "cardId", "fact", "reason"],
+      "properties": {
+        "source": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" },
+        "cardId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "fact": { "type": "string", "pattern": "^(metadata|behavior|effect:(\\*|[a-z0-9]+(?:-[a-z0-9]+)*))$" },
+        "reason": { "type": "string", "minLength": 1 }
       }
     },
     "behavior": {

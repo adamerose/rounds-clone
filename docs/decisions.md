@@ -138,3 +138,14 @@ Project evaluation phases remain implementation vocabulary rather than claims ab
 The official 11 April 2021 note binds not only numeric card changes but also Abyssal Countdown's relative timing changes, Cold Bullets accumulation beyond two copies, and Shield Charge range independence from health.
 Exact values remain unknown where the note publishes only a direction or behavioral constraint.
 GameFAQs' older Parasite and Poison values remain attached as historical conflicts rather than corroborating the current build.
+
+## 2026-08-14 — Bind only directly reported duplicate-card behavior
+
+The Japanese card pages explicitly report no change from repeated Refresh copies and one additional Echo activation per copy.
+Quick Reload's one-copy factor does not prove multiplication across copies, and community statements about Remote contradict one another, so both duplicate behaviors remain unresolved.
+The catalog keeps a named unresolved multiplicative test case without asserting its `0.3^n` hypothesis as behavior.
+
+## 2026-08-14 — Make known source omissions executable
+
+GameFAQs omits Bouncy and Homing entirely, omits Chase's health and Taste of Blood's lifesteal modifiers, and preserves pre-1.05 Parasite and Poison values.
+The catalog records those exclusions explicitly, and the repository gate now rejects reuse of an excluded source as metadata, behavior, numeric, stacking, or cap evidence.

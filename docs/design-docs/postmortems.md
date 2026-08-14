@@ -305,3 +305,21 @@ The correction used the actual `tools/Rounds.Checks.Tests` path on the next insp
 A verification command looked for `check-diff.mjs` under the Ivy ticket-check directory, but no such script exists, and a repository-wide filename search confirmed the absence.
 The supported `git diff --check` command remained the formatting gate.
 The same inspection also named a nonexistent root `scripts` directory while looking for gate documentation; reading `README.md` and `.github/workflows/ci.yml` supplied the actual `tools/checks/run.ps1` entry point.
+
+## 2026-08-14 — Ticket 003's second review rejected false corroboration
+
+Fresh reviewer `codex:019fff51-5f0d-72f0-b036-b76b41d3e289` rejected exact candidate `58d5eca40be80170375228bdd8b86c275b4e884e`.
+Quick Reload and Remote still asserted duplicate formulas their sources did not establish, Echo cited a discussion that never mentioned it, and GameFAQs was falsely counted as support for Bouncy, Homing, Chase health, and Taste of Blood lifesteal.
+The patch record also said only that Dazzle duration changed instead of preserving the official 25% increase and the unknown absolute duration.
+Correction makes Quick Reload and Remote unresolved, cites the Japanese Echo and Refresh pages for the behaviors they state directly, and turns every known GameFAQs omission or historical value into an executable source exclusion.
+The reviewer's first full-gate call accidentally used a one-second timeout and was terminated after a clean build; an immediate correctly bounded rerun passed all gates and changed no tracked files.
+
+## 2026-08-14 — The first stacking-consistency fixture reused one effect for five families
+
+The new checker correctly rejected the existing valid fixture because its five representative cases all targeted one additive effect while claiming different resolved families.
+The fixture now supplies one correctly typed effect for each family, and all 21 checker tests pass.
+
+## 2026-08-14 — The new source-exclusion gate caught three stale stacking citations
+
+The first full correction gate rejected GameFAQs in the stacking provenance for current Parasite health and Poison damage and ammunition even though their numeric provenance had already removed it.
+Those unresolved stacking records now cite only the same current sources as their corrected numeric facts, and the exclusion remains as a regression against reintroduction.

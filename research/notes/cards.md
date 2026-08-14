@@ -26,8 +26,9 @@ The three declared phases distinguish direct modifiers, retention factors, and b
 
 Most percentage composition remains `unresolved` until controlled multi-copy observation can distinguish additive percentage points from per-copy multiplication.
 The catalog still gives explicit representative rules for flat addition, multiplication, integer counts, max-wins capabilities, and per-copy hooks so later simulation work has named hypotheses to test.
-Quick Reload's multiplicative interpretation, Remote's max-wins behavior, and Echo's per-copy delayed block are intentionally provisional.
-Bouncy's two-bounce count per copy has the strongest public corroboration of the five representative cases.
+Quick Reload's single copy is a `0.3` retention factor, but its duplicate-copy composition remains an explicit unresolved multiplicative test case.
+Remote also remains unresolved because its cited community discussion contradicts itself about duplicate copies.
+The Japanese card pages explicitly support idempotent Refresh copies and one additional Echo activation per copy, while Bouncy supplies the confirmed count case and Barrage retains a provisional flat-addition case.
 
 ## Current-value conflicts
 
@@ -38,6 +39,7 @@ The June 2024 GameFAQs list also preserves pre-1.05 values for Parasite health a
 
 Patch 1.05 also confirms that Abyssal Countdown triggers sooner and lasts longer, Cold Bullets stacks beyond two copies, and Shield Charge range no longer varies with health.
 Those relative constraints are binding, while their unpublished exact timings, duplicate-copy formula, cap, and charge distance remain unresolved.
+The same note increases Dazzle's repeated-stagger duration by 25%; its current absolute duration remains unavailable.
 
 The current indexes report Spray at `+1000%` attack speed while the older guide reports `+100%`.
 The current indexes report Target Bounce at one added bounce while the older guide reports two.

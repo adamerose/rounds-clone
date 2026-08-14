@@ -273,6 +273,40 @@ public sealed class SpecCheckerTests : IDisposable
         Assert.Contains(failures, failure => failure.StartsWith("SPEC031 cards.json", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void UnresolvedStackingCaseCannotAssertAFormulaOnItsEffect()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["stackingCases"]![0]!["resolution"] = "unresolved";
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC032 cards.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void KnownSourceOmissionCannotBeUsedAsCorroboration()
+    {
+        CreateValidRepository();
+        var path = Path.Combine(_repository, "spec", "cards.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        document["sourceExclusions"]!.AsArray().Add(new JsonObject
+        {
+            ["source"] = "source-one",
+            ["cardId"] = "fixture-card-0",
+            ["fact"] = "effect:fixture-effect",
+            ["reason"] = "Fixture source omits this fact.",
+        });
+        File.WriteAllText(path, document.ToJsonString());
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC037 cards.json", StringComparison.Ordinal));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_repository))
@@ -373,14 +407,47 @@ public sealed class SpecCheckerTests : IDisposable
             });
         }
 
+        var fixtureEffects = cards[0]!["effects"]!.AsArray();
+        foreach (var (effectId, operation, unit, stacking) in new[]
+        {
+            ("multiplicative-effect", "multiply", "factor", "multiplicative"),
+            ("count-effect", "add-count", "count", "count"),
+            ("max-wins-effect", "register-hook", "presence", "max-wins"),
+            ("hook-effect", "register-hook", "presence", "hook-per-copy"),
+        })
+        {
+            fixtureEffects.Add(new JsonObject
+            {
+                ["id"] = effectId,
+                ["target"] = "weapon.damage",
+                ["operation"] = operation,
+                ["value"] = 1,
+                ["unit"] = unit,
+                ["stacking"] = stacking,
+                ["order"] = 20,
+                ["cap"] = "unknown",
+                ["provenance"] = Provenance(),
+                ["stackingProvenance"] = Provenance(),
+            });
+        }
+
         var stackingCases = new JsonArray();
         foreach (var stackingOperator in new[] { "additive", "multiplicative", "count", "max-wins", "hook" })
         {
+            var effectId = stackingOperator switch
+            {
+                "additive" => "fixture-effect",
+                "multiplicative" => "multiplicative-effect",
+                "count" => "count-effect",
+                "max-wins" => "max-wins-effect",
+                _ => "hook-effect",
+            };
             stackingCases.Add(new JsonObject
             {
                 ["operator"] = stackingOperator,
+                ["resolution"] = "confirmed",
                 ["cardId"] = "fixture-card-0",
-                ["effectId"] = "fixture-effect",
+                ["effectId"] = effectId,
                 ["rule"] = "Fixture stacking rule.",
                 ["provenance"] = Provenance(),
             });
@@ -403,6 +470,7 @@ public sealed class SpecCheckerTests : IDisposable
                 new JsonObject { ["version"] = "fixture-three", ["date"] = "2026-08-14", ["source"] = "source-one", ["scope"] = "Fixture patch.", ["binding"] = "Fixture binding." }),
             ["evaluationOrder"] = new JsonArray(
                 new JsonObject { ["order"] = 20, ["phase"] = "fixture-phase", ["rule"] = "Fixture evaluation phase." }),
+            ["sourceExclusions"] = new JsonArray(),
             ["stackingCases"] = stackingCases,
             ["cards"] = cards,
         };

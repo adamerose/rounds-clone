@@ -11,6 +11,7 @@ sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
   - codex:019fff30-7cf1-75a3-aa80-02e6bc681833
   - codex:019fff46-9914-7892-900d-0298b80df82b
+  - codex:019fff51-5f0d-72f0-b036-b76b41d3e289
 ---
 
 # Catalog every vanilla card
@@ -64,3 +65,13 @@ Cards create the game's combinatorial depth, but implementing from names or memo
 - 2026-08-14T08:08:26Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Reduced 194 effects to unresolved stacking and 198 caps to unknown, retained five sourced representative formulas and Grow's official cap, corrected all review findings, and added four regressions.
 - 2026-08-14T08:08:26Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the complete repository gate, semantic summaries, ticket checks, and diff checks on the corrected candidate.
 - 2026-08-14T08:08:47Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Full gate passed with zero warnings, 28 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, and clean diff formatting.
+- 2026-08-14T08:20:34Z stage review start session codex:019fff51-5f0d-72f0-b036-b76b41d3e289 — Reviewing corrected exact candidate `58d5eca40be80170375228bdd8b86c275b4e884e` against ticket 003 and its cited public facts.
+- 2026-08-14T08:20:34Z stage review end session codex:019fff51-5f0d-72f0-b036-b76b41d3e289 — Rejected three unsupported duplicate formulas, false GameFAQs corroboration for four cards, and incomplete preservation of Dazzle's relative duration change.
+- 2026-08-14T08:20:34Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Auditing source coverage, binding supported Echo and Refresh duplicates, making Quick Reload and Remote unresolved, and preserving Dazzle's relative patch constraint.
+- 2026-08-14T08:22:10Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Corrected every second-review finding, added 11 executable GameFAQs exclusions, and made resolved-versus-unresolved stacking cases mechanically consistent with their effects.
+- 2026-08-14T08:22:10Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Running the complete repository, source-exclusion, schema, ticket, deterministic, Godot, and diff gates on the second correction.
+- 2026-08-14T08:22:58Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — The new exclusion gate rejected three stale GameFAQs stacking citations before tests ran.
+- 2026-08-14T08:22:58Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Aligning the three unresolved stacking records with their corrected current-value sources.
+- 2026-08-14T08:22:58Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Removed the stale citations while retaining executable exclusions against recurrence.
+- 2026-08-14T08:22:58Z stage verify start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Re-running the complete gate after the source-alignment correction.
+- 2026-08-14T08:22:58Z stage verify end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Full gate passed with zero warnings, 30 tests, repository and ticket checks, deterministic hash `f250d549cfb52a8b`, Godot editor/runtime smoke, and clean diff formatting.

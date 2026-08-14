@@ -35,8 +35,8 @@
       "version": "1.05",
       "date": "2021-04-11",
       "source": "patch-105",
-      "scope": "Changed Dazzle duration, Lifestealer drain, Leech wording, Careful Planning cadence, Poison ammunition and damage, Parasite health, Toxic Cloud damage, Healing Field activation, Grow distance and cap, Abyssal Countdown trigger and duration, Cold Bullets duplicate stacking beyond two copies, and Shield Charge range independence from health.",
-      "binding": "The post-patch numeric values replace older guide values. The relative Abyssal Countdown timing changes, Cold Bullets beyond-two stacking, and health-independent Shield Charge range are binding constraints; their undisclosed exact formulas remain unresolved."
+      "scope": "Increased Dazzle duration by 25%; changed Lifestealer drain, Leech wording, Careful Planning cadence, Poison ammunition and damage, Parasite health, Toxic Cloud damage, Healing Field activation, Grow distance and cap, Abyssal Countdown trigger and duration, Cold Bullets duplicate stacking beyond two copies, and Shield Charge range independence from health.",
+      "binding": "The post-patch numeric values replace older guide values. Dazzle duration is 25% longer than before the patch. The relative Abyssal Countdown timing changes, Cold Bullets beyond-two stacking, and health-independent Shield Charge range are binding constraints; their undisclosed exact values or formulas remain unresolved."
     },
     {
       "version": "1.1.1",
@@ -51,6 +51,91 @@
       "source": "steam-news",
       "scope": "Corrected bullets that did not grow properly under some card effects.",
       "binding": "Growth behavior is part of the current build even where older footage shows the rendering defect."
+    }
+  ],
+  "evaluationOrder": [
+    {
+      "order": 20,
+      "phase": "direct-modifiers",
+      "rule": "Project normalization phase for flat, percentage, count, and threshold modifiers; it does not claim the original engine evaluates every mixed effect in this order."
+    },
+    {
+      "order": 30,
+      "phase": "retention-factors",
+      "rule": "Project normalization phase for dimensionless retention factors after direct modifiers; mixed-card engine ordering remains unresolved."
+    },
+    {
+      "order": 50,
+      "phase": "behavior-hooks",
+      "rule": "Project normalization phase for registering behavior hooks after numeric modifiers; hook invocation ordering remains effect-specific and unresolved unless separately sourced."
+    }
+  ],
+  "sourceExclusions": [
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "bouncy",
+      "fact": "metadata",
+      "reason": "The GameFAQs list omits Bouncy entirely."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "bouncy",
+      "fact": "behavior",
+      "reason": "The GameFAQs list omits Bouncy entirely."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "bouncy",
+      "fact": "effect:*",
+      "reason": "The GameFAQs list omits Bouncy entirely."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "homing",
+      "fact": "metadata",
+      "reason": "The GameFAQs list omits Homing entirely."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "homing",
+      "fact": "behavior",
+      "reason": "The GameFAQs list omits Homing entirely."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "homing",
+      "fact": "effect:*",
+      "reason": "The GameFAQs list omits Homing entirely."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "chase",
+      "fact": "effect:health",
+      "reason": "The GameFAQs Chase entry omits the health modifier."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "taste-of-blood",
+      "fact": "effect:lifesteal",
+      "reason": "The GameFAQs Taste of Blood entry omits the lifesteal modifier."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "parasite",
+      "fact": "effect:health",
+      "reason": "The GameFAQs Parasite entry reports the pre-1.05 health value."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "poison",
+      "fact": "effect:damage",
+      "reason": "The GameFAQs Poison entry reports the pre-1.05 damage value."
+    },
+    {
+      "source": "gamefaqs-card-list",
+      "cardId": "poison",
+      "fact": "effect:ammo",
+      "reason": "The GameFAQs Poison entry predates the ammunition penalty."
     }
   ],
   "stackingCases": [
@@ -68,23 +153,26 @@
           "wiki-all-cards",
           "stacking-discussion"
         ]
-      }
+      },
+      "resolution": "provisional"
     },
     {
       "operator": "multiplicative",
       "cardId": "quick-reload",
       "effectId": "reload-time",
-      "rule": "Each copy provisionally retains thirty percent of the preceding reload duration.",
+      "rule": "One copy retains 30% of prior reload duration; duplicate-copy multiplication is an explicit unresolved hypothesis, not binding behavior.",
       "provenance": {
-        "status": "provisional",
+        "status": "unknown",
         "confidence": "low",
-        "method": "Interpreted the displayed 70% reduction as a per-copy retention factor.",
-        "tolerance": "Replace if direct observation shows additive percentage points.",
+        "method": "Three public tables establish the one-copy reduction but none reports a controlled duplicate-copy result.",
+        "tolerance": "Test 0.3^n against additive percentage points before selecting a duplicate formula.",
         "sources": [
           "wiki-all-cards",
-          "gamefaqs-card-list"
+          "gamefaqs-card-list",
+          "atwiki-card-index"
         ]
-      }
+      },
+      "resolution": "unresolved"
     },
     {
       "operator": "count",
@@ -101,38 +189,40 @@
           "atwiki-card-index",
           "stacking-discussion"
         ]
-      }
+      },
+      "resolution": "confirmed"
     },
     {
       "operator": "max-wins",
-      "cardId": "remote",
-      "effectId": "manual-steering",
-      "rule": "The steering capability is registered once; additional copies do not create another input channel.",
+      "cardId": "refresh",
+      "effectId": "restore-block",
+      "rule": "Each damage event restores one block; repeated Refresh copies do not add another restoration.",
       "provenance": {
-        "status": "provisional",
-        "confidence": "low",
-        "method": "Used repeated-card discussion and the single-controller visible behavior.",
-        "tolerance": "Direct two-copy confirmation is required.",
+        "status": "confirmed",
+        "confidence": "medium",
+        "method": "The Japanese Refresh page explicitly reports no change from repeated copies.",
+        "tolerance": "Idempotence is binding; the internal cooldown duration remains unresolved.",
         "sources": [
-          "stacking-discussion"
+          "atwiki-card-index"
         ]
-      }
+      },
+      "resolution": "confirmed"
     },
     {
       "operator": "hook",
       "cardId": "echo",
       "effectId": "delayed-block",
-      "rule": "Each copy provisionally registers one delayed block invocation after the initiating block.",
+      "rule": "Each Echo copy adds one delayed block activation.",
       "provenance": {
-        "status": "provisional",
-        "confidence": "low",
-        "method": "Combined delayed-block behavior with reports that numerical hook effects amplify per copy.",
-        "tolerance": "Invocation spacing and recursion safeguards remain unmeasured.",
+        "status": "confirmed",
+        "confidence": "medium",
+        "method": "The Japanese Echo page explicitly reports activation counts growing to three, four, five, and onward as copies are added.",
+        "tolerance": "One activation per copy is binding; spacing and recursion safeguards remain unresolved.",
         "sources": [
-          "wiki-all-cards",
-          "stacking-discussion"
+          "atwiki-card-index"
         ]
-      }
+      },
+      "resolution": "confirmed"
     }
   ],
   "cards": [
@@ -595,7 +685,7 @@
         "tolerance": "Exact text metadata; no original card art or descriptive copy retained.",
         "sources": [
           "wiki-all-cards",
-          "gamefaqs-card-list"
+          "atwiki-card-index"
         ]
       },
       "behavior": {
@@ -608,7 +698,7 @@
           "tolerance": "Qualitative behavior only; exact radii, timing, and ordering are unresolved unless listed as effects.",
           "sources": [
             "wiki-all-cards",
-            "gamefaqs-card-list"
+            "atwiki-card-index"
           ]
         }
       },
@@ -629,7 +719,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -660,7 +750,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -670,7 +760,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         },
@@ -690,7 +780,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -700,7 +790,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         }
@@ -1408,11 +1498,11 @@
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
-            "method": "Cross-checked public card metadata for the bound post-1.05 build.",
-            "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "method": "Cross-checked the displayed modifier between the current English and Japanese public card tables; GameFAQs omits this modifier.",
+            "tolerance": "Exact displayed modifier; the GameFAQs omission is not corroboration.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -1422,7 +1512,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         }
@@ -1805,7 +1895,8 @@
           "tolerance": "Qualitative behavior only; exact radii, timing, and ordering are unresolved unless listed as effects.",
           "sources": [
             "wiki-all-cards",
-            "gamefaqs-card-list"
+            "gamefaqs-card-list",
+            "patch-105"
           ]
         }
       },
@@ -1872,6 +1963,7 @@
         }
       ],
       "unknowns": [
+        "Official patch 1.05 increased the repeated-stagger duration by 25%, but no clean-room source supplies the current absolute duration.",
         "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
       ]
     },
@@ -2460,13 +2552,12 @@
             ]
           },
           "stackingProvenance": {
-            "status": "provisional",
-            "confidence": "low",
-            "method": "Per-effect evidence: Combined delayed-block behavior with reports that numerical hook effects amplify per copy.",
-            "tolerance": "Invocation spacing and recursion safeguards remain unmeasured.",
+            "status": "confirmed",
+            "confidence": "medium",
+            "method": "The Japanese Echo page explicitly reports three, four, five, and further block activations as copies are added.",
+            "tolerance": "The activation count grows by one per copy; invocation spacing and recursion safeguards remain unmeasured.",
             "sources": [
-              "wiki-all-cards",
-              "stacking-discussion"
+              "atwiki-card-index"
             ]
           }
         },
@@ -3677,7 +3768,7 @@
         "tolerance": "Exact text metadata; no original card art or descriptive copy retained.",
         "sources": [
           "wiki-all-cards",
-          "gamefaqs-card-list"
+          "atwiki-card-index"
         ]
       },
       "behavior": {
@@ -3690,7 +3781,7 @@
           "tolerance": "Qualitative behavior only; exact radii, timing, and ordering are unresolved unless listed as effects.",
           "sources": [
             "wiki-all-cards",
-            "gamefaqs-card-list"
+            "atwiki-card-index"
           ]
         }
       },
@@ -3711,7 +3802,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -3721,7 +3812,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         },
@@ -3741,7 +3832,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -3751,7 +3842,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         },
@@ -3771,7 +3862,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -3781,7 +3872,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         },
@@ -3801,7 +3892,7 @@
             "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -3811,7 +3902,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         }
@@ -4661,7 +4752,6 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list",
               "patch-105"
             ]
           }
@@ -4945,7 +5035,6 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list",
               "patch-105"
             ]
           }
@@ -5006,7 +5095,6 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list",
               "patch-105"
             ]
           }
@@ -5180,7 +5268,7 @@
           "operation": "multiply",
           "value": 0.3,
           "unit": "factor",
-          "stacking": "multiplicative",
+          "stacking": "unresolved",
           "order": 30,
           "cap": "unknown",
           "provenance": {
@@ -5194,19 +5282,20 @@
             ]
           },
           "stackingProvenance": {
-            "status": "provisional",
+            "status": "unknown",
             "confidence": "low",
-            "method": "Per-effect evidence: Interpreted the displayed 70% reduction as a per-copy retention factor.",
-            "tolerance": "Replace if direct observation shows additive percentage points.",
+            "method": "The public sources establish one copy as a 0.3 reload-duration factor but do not establish duplicate-copy composition.",
+            "tolerance": "Test multiplicative 0.3^n against additive percentage-point behavior before binding duplicate copies.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "gamefaqs-card-list",
+              "atwiki-card-index"
             ]
           }
         }
       ],
       "unknowns": [
-        "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
+        "Single-copy reload duration is a 0.3 factor; duplicate-copy composition remains unresolved."
       ]
     },
     {
@@ -5571,7 +5660,7 @@
           "operation": "register-hook",
           "value": 1,
           "unit": "presence",
-          "stacking": "unresolved",
+          "stacking": "max-wins",
           "order": 50,
           "cap": "unknown",
           "provenance": {
@@ -5585,20 +5674,19 @@
             ]
           },
           "stackingProvenance": {
-            "status": "unknown",
-            "confidence": "low",
-            "method": "No controlled duplicate-card observation supports an exact composition formula or cap for this effect.",
-            "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
+            "status": "confirmed",
+            "confidence": "medium",
+            "method": "The Japanese card page explicitly reports no change when Refresh is repeated.",
+            "tolerance": "Duplicate copies are idempotent; the internal restore cooldown remains unmeasured.",
             "sources": [
-              "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         }
       ],
       "unknowns": [
         "The internal refresh cooldown is visible in play but no clean-room source supplies a reliable duration.",
-        "Additional copies appear idempotent in community reports; direct current-build confirmation is still required."
+        "The Japanese card page reports duplicate copies as idempotent; direct current-build confirmation remains desirable."
       ]
     },
     {
@@ -5638,7 +5726,7 @@
           "operation": "register-hook",
           "value": 1,
           "unit": "presence",
-          "stacking": "max-wins",
+          "stacking": "unresolved",
           "order": 50,
           "cap": "unknown",
           "provenance": {
@@ -5652,10 +5740,10 @@
             ]
           },
           "stackingProvenance": {
-            "status": "provisional",
+            "status": "conflict",
             "confidence": "low",
-            "method": "Per-effect evidence: Used repeated-card discussion and the single-controller visible behavior.",
-            "tolerance": "Direct two-copy confirmation is required.",
+            "method": "The cited duplicate-card discussion contains contradictory reports about whether Remote stacks.",
+            "tolerance": "Keep duplicate steering unresolved until a controlled two-copy observation resolves the conflict.",
             "sources": [
               "stacking-discussion"
             ]
@@ -5724,7 +5812,7 @@
       ],
       "unknowns": [
         "A 2021 Korean guide shows -0.25 seconds reload while the two current indexes show +0.25 seconds; the current-index value is binding.",
-        "Multiple steering hooks are modeled as max-wins provisionally because one input cannot steer a projectile twice."
+        "Community reports contradict one another about duplicate Remote behavior, so additional steering copies remain unresolved."
       ]
     },
     {
@@ -7694,11 +7782,11 @@
           "provenance": {
             "status": "confirmed",
             "confidence": "medium",
-            "method": "Cross-checked public card metadata for the bound post-1.05 build.",
-            "tolerance": "Exact displayed modifier; unobserved interaction timing remains unresolved.",
+            "method": "Cross-checked the displayed modifier between the current English and Japanese public card tables; GameFAQs omits this modifier.",
+            "tolerance": "Exact displayed modifier; the GameFAQs omission is not corroboration.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           },
           "stackingProvenance": {
@@ -7708,7 +7796,7 @@
             "tolerance": "Keep stacking and cap unresolved until a duplicate-card observation or an explicit stacking source binds them.",
             "sources": [
               "wiki-all-cards",
-              "gamefaqs-card-list"
+              "atwiki-card-index"
             ]
           }
         }
@@ -8534,23 +8622,6 @@
       "unknowns": [
         "Cross-copy ordering and interactions beyond the recorded operator remain unmeasured."
       ]
-    }
-  ],
-  "evaluationOrder": [
-    {
-      "order": 20,
-      "phase": "direct-modifiers",
-      "rule": "Project normalization phase for flat, percentage, count, and threshold modifiers; it does not claim the original engine evaluates every mixed effect in this order."
-    },
-    {
-      "order": 30,
-      "phase": "retention-factors",
-      "rule": "Project normalization phase for dimensionless retention factors after direct modifiers; mixed-card engine ordering remains unresolved."
-    },
-    {
-      "order": 50,
-      "phase": "behavior-hooks",
-      "rule": "Project normalization phase for registering behavior hooks after numeric modifiers; hook invocation ordering remains effect-specific and unresolved unless separately sourced."
     }
   ]
 }
