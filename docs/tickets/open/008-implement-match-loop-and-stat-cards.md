@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-08-14T16:54:24Z
 origin: agent-proposed
 tags: [implementation, match, cards, maps, ui]
@@ -10,6 +10,7 @@ depends-on: [3, 4, 6, 7]
 sessions:
   - codex:019ffea8-55c5-79b3-96b2-da3210d67d84
   - codex:01a00135-7e77-7f82-aa78-1831e5864da6
+  - codex:01a0013c-933e-7563-ab82-361e2fc6cb2b
 ---
 
 # Implement a complete match loop with stat cards
@@ -118,3 +119,5 @@ Scoring, loser upgrades, persistent builds, and changing arenas create the small
 - 2026-08-14T17:04:41Z stage admission end session codex:01a00135-7e77-7f82-aa78-1831e5864da6 — Rejected an unreachable capped-loser branch, unresolved custom-profile hash ownership, a missing opening reset, and underspecified arena RNG consumption.
 - 2026-08-14T17:04:41Z stage correction start session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Removing the impossible branch and binding conditional profile hashing, the profile-aware duel-zero reset, and exact bounded arena selection.
 - 2026-08-14T17:04:41Z stage correction end session codex:019ffea8-55c5-79b3-96b2-da3210d67d84 — Capped drafts now terminate naturally, vanilla hashes remain byte-exact through a custom-profile marker, both opening profiles reset duel zero, and arena choice consumes one bounded selection plus rejection retries.
+- 2026-08-14T17:10:24Z stage admission start session codex:01a0013c-933e-7563-ab82-361e2fc6cb2b — Freshly reviewing exact corrected candidate `8b8952a45315c18e6c054b4bc85fad97eaa517c7` against all earlier findings, dependencies, source catalogs, hash/reset/RNG edges, evidence, exclusions, human choices, and risk.
+- 2026-08-14T17:10:24Z stage admission end session codex:01a0013c-933e-7563-ab82-361e2fc6cb2b — Admitted at risk 4 with no findings: one match owner and one duel world now have exact scoring, draft, stat, arena, compatibility, and verification boundaries with all remaining fidelity choices explicit.

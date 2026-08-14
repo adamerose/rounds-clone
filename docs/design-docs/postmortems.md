@@ -935,3 +935,6 @@ The same cold read found that custom per-player combat profiles had no exact has
 
 The correction removes the unreachable path, conditionally extends `Sim.Hash` only for non-vanilla profiles, routes the opening through the same non-incrementing reset, and requires one `NextBounded(61)` arena selection after removing the current map.
 The review's one inventory command named an absent top-level `tests` directory, and one `git cat-file` probe let PowerShell misparse `HEAD^{commit}`; both returned nonzero without changing files, and exact identity plus the useful inventories were independently established.
+
+The fresh corrected admission passed with no findings.
+Its initial reads guessed absent repository-local `AGENTS.md`, ticket, and solution filenames before tracked-path discovery found the active global guidance and real files; the nonzero probes changed nothing and left no residue.
