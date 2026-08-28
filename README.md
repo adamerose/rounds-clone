@@ -2,10 +2,11 @@
 
 RICOCHET is an original, deterministic reimplementation of the short-round platform-shooter structure popularized by Rounds.
 It keeps simulation rules in a pure .NET library and uses Godot only for input, presentation, and menus.
-No Landfall art, audio, text, or source code is included.
+Exact sourced gameplay identifiers and short names are used where fidelity and unambiguous validation require them.
+Original source code, logo, card art or other extracted art, audio, and longer expressive or flavor text are not included.
 
 The current build provides a complete deterministic local match: two opening picks, short duels, half-point scoring, loser drafts, persistent stat builds, arena rotation, and a first-to-five winner.
-The first 12 passive cards and 62 static arenas come from the pinned public-build research catalog; behavior cards, animated hazards, bots, controllers, audio, and production presentation remain in progress.
+The deterministic draft pool contains the initial 12 passive cards plus Bouncy, Fast Forward, Mayhem, and Spray, including bounded geometry ricochets and their composed combat stats; animated hazards, bots, controllers, audio, and production presentation remain in progress.
 
 ## Quick start on Windows
 
@@ -41,7 +42,7 @@ $godot = Get-ChildItem .tools/godot-4.7.1 -Filter '*mono_win64_console.exe' -Rec
 
 The live shell starts with player one's five-card opening choice, then player two's, and plays through the complete first-to-five match.
 Left/right movement wraps the active five-card selection and jump confirms after both controls have been released once.
-The full score, half points, card stacks, arena ID, loser drafts, and final winner remain visible around the same pure-simulation combat.
+The full score, half points, sourced card names, effect summaries, card stacks, arena ID, live bullet bounce budgets, loser drafts, and final winner remain visible around the same pure-simulation combat.
 Player one uses A/D, Space, mouse aim, Mouse1 fire, and Mouse2 block. Player two uses Left/Right, Up, I/J/K/L aim, O fire, and P block.
 The protected `base-combat-v1` replay remains a standalone duel format; match replay, bots, controller defaults, sound, dynamic map behavior, and production presentation remain later milestones.
 

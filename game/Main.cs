@@ -270,8 +270,11 @@ public partial class Main : Node2D
         }
 
         var matchDebug = _match is null ? string.Empty : $"   match {_match.Phase}   arena {_world.Arena.Id}";
+        var bounceDebug = _world.Bullets.Count == 0
+            ? "-"
+            : string.Join(',', _world.Bullets.Select(static bullet => bullet.BouncesRemaining));
         var debug = FormattableString.Invariant(
-            $"P1 aim {_world.Players[0].AimDirection.X:0.00},{_world.Players[0].AimDirection.Y:0.00}   P2 aim {_world.Players[1].AimDirection.X:0.00},{_world.Players[1].AimDirection.Y:0.00}   bullets {_world.Bullets.Count}   duel {_world.DuelNumber}   phase {_world.Phase}{matchDebug}");
+            $"P1 aim {_world.Players[0].AimDirection.X:0.00},{_world.Players[0].AimDirection.Y:0.00}   P2 aim {_world.Players[1].AimDirection.X:0.00},{_world.Players[1].AimDirection.Y:0.00}   bullets {_world.Bullets.Count}   bounces {bounceDebug}   duel {_world.DuelNumber}   phase {_world.Phase}{matchDebug}");
         DrawString(
             ThemeDB.FallbackFont,
             new Vector2(380.0f, 1035.0f),
@@ -422,11 +425,12 @@ public partial class Main : Node2D
     }
 
     private static string EffectLine(StatCardDefinition card) =>
-        string.Join("  ", card.Effects.Select(effect => effect.Operation switch
+        string.Join("  ", card.Effects.Select(effect => (effect.Target, effect.Operation) switch
         {
-            StatOperation.Multiply => $"×{effect.Value:0.##}",
-            StatOperation.AddCount => $"{effect.Value:+0;-0;0} ammo",
-            StatOperation.AddFlat => $"+{effect.Value:0.##}s reload",
+            (_, StatOperation.Multiply) => $"×{effect.Value:0.##}",
+            (StatTarget.ProjectileBounces, StatOperation.AddCount) => $"{effect.Value:+0;-0;0} bounces",
+            (StatTarget.Ammunition, StatOperation.AddCount) => $"{effect.Value:+0;-0;0} ammo",
+            (StatTarget.ReloadTime, StatOperation.AddFlat) => $"+{effect.Value:0.##}s reload",
             _ => $"{effect.Value:+0;-0;0}%",
         }));
 

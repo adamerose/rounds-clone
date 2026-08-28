@@ -12,7 +12,8 @@ Markdown renderers ignore single newlines, so it looks the same, and it keeps di
 A faithful reimplementation of Rounds (Landfall, 2020): a 1v1 2D platform shooter played in short duels and comeback-driven rounds.
 Both players open with one card; each full-round loser picks another persistent card; stat combinations build until one player reaches five points.
 Mechanics are reimplemented from research.
-No original art, audio, or text is copied.
+Exact sourced gameplay identifiers and short names are allowed where fidelity and unambiguous validation require them.
+Original source code, logo, card art or other extracted art, audio, and longer expressive or flavor text remain excluded.
 
 The project is built by autonomous agents with no human reviewing the code.
 That single constraint shapes nearly everything below.
@@ -191,14 +192,16 @@ tools/checks/           the mechanical checks CI runs
 ## Cards
 
 Cards are embedded catalog data first, not imperative objects with arbitrary world access.
-The initial 12 stat-only cards pass through one ordered fold into an immutable per-player combat profile containing health, ammunition, damage, cadence, reload, projectile speed, block cooldown, and lifesteal.
-Combat reads that profile at the owning player boundary; a duel reset restores profile maxima while acquired IDs and the profile persist in `Match`.
+The supported 16-card pool passes through one ordered fold into an immutable per-player combat profile containing health, ammunition, damage, cadence, reload, projectile speed, geometry bounces, block cooldown, and lifesteal.
+The four ricochet additions use additive non-negative bounce counts, sign-aware attack speed, flat-then-speed-then-Quick-Reload composition, additive positive damage, and one multiplicative factor per negative damage effect while retaining the existing ammunition and projectile-speed bounds.
+Combat reads that profile at the owning player boundary; a spawned bullet copies its shooter's geometry-bounce budget, and a duel reset restores profile maxima while acquired IDs and the profile persist in `Match`.
+Geometry reflection consumes only an available geometry bounce, while block reflection retains the budget and transfers ownership through the existing bounded contact path.
 
 The catalog records sourced single-copy values but leaves most duplicate formulas unresolved.
 The match slice therefore names one provisional composition rule per supported target, tests acquisition-order independence and every one-copy result, and keeps acquired IDs in the hash even if a combination folds to vanilla values.
 All-vanilla profiles append nothing to `Sim.Hash`, preserving the version-1 replay hash exactly; any custom profile appends a fixed marker and every player's full profile.
 
-Behavior cards will add a small typed hook surface only when the first owning card needs it.
+Future hook-driven behavior cards will add a small typed surface only when the first owning card needs it; the recovered ricochet cards extend the shared profile and collision path instead.
 Hooks run by declared priority and then stable card ID, never acquisition or collection insertion order.
 A new behavior must extend that shared surface and its deterministic event order rather than reaching ad hoc into `World`.
 

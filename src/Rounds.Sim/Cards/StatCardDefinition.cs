@@ -9,8 +9,10 @@ public enum StatTarget : byte
     Damage,
     AttackSpeed,
     ReloadTime,
+    ReloadSpeed,
     Ammunition,
     ProjectileSpeed,
+    ProjectileBounces,
     BlockCooldown,
 }
 

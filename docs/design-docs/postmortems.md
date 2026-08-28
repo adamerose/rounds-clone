@@ -1026,3 +1026,16 @@ Ticket 013's first guarded close stopped after fast-forward because `close-ticke
 The documented selector-free single-ticket path revalidated the same approved range and closed it safely, but claim cleanup then targeted `.ivy/claims/013.json` while the allocator had created `.ivy/claims/13.json`.
 The guarded refusal prevented publication or worktree cleanup on the failed attempt; a fresh integration dispatch used auto-detection, removed the exact reviewed worktree, and the orchestrator removed only the actual claim file.
 Until Ivy normalizes ticket numbers consistently, single-ticket deliveries use selector-free auto-detection and explicitly verify the exact unpadded claim path after closure.
+
+## 2026-08-28 — Headless Godot crashed when sandboxed profile paths were read-only
+
+Ticket 014's first supported headless editor launch imported the candidate, then failed to save Godot editor settings and logs beneath the default user profile and crashed with signal 11 before the runtime check.
+The run opened no visible window and changed no frozen artifact or tracked project file.
+Redirecting only the verification process's roaming and local application-data paths plus Godot log files to the candidate's ignored `.tmp/godot-headless` directory made the headless editor, three-frame runtime, interrupted replay, and complete 600-tick golden replay checks pass.
+
+## 2026-08-28 — Ticket 014's first transplant and restore probes used unavailable sandbox paths
+
+The first path-limited snapshot transplant used `git restore` and was refused before any file changed because the sandbox could not create the linked-worktree `index.lock`.
+An index-free, path-limited `git diff --binary | git apply` transplant succeeded, and later blob hashes proved that all ten selected file snapshots were exact.
+The first ordinary locked NuGet restore also attempted the unavailable vulnerability-audit endpoint and reported `NU1900`; it changed no tracked file, lock file, selected dependency, ref, registration, or frozen artifact.
+Repeating the same locked restore with audit disabled for offline verification preserved the lock and dependency graph, after which the zero-warning build and complete 270-test suite passed.

@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json.Nodes;
 using Rounds.Sim.Cards;
 using Rounds.Sim.Maps;
 using Rounds.Sim.Math;
@@ -10,39 +9,57 @@ namespace Rounds.Sim.Tests;
 public sealed class StatCardTests
 {
     [Fact]
-    public void EmbeddedCatalogHasExactOrdinalPoolAndOriginalNeutralNames()
+    public void EmbeddedCatalogHasExactOrdinalPoolAndSourcedRoundsNames()
     {
         var catalog = StatCardCatalog.LoadEmbedded();
 
         Assert.Equal(
             new[]
             {
-                "careful-planning", "combine", "defender", "fastball", "glass-cannon", "huge",
-                "leech", "quick-reload", "quick-shot", "steady-shot", "tank", "wind-up",
+                "bouncy", "careful-planning", "combine", "defender", "fast-forward", "fastball",
+                "glass-cannon", "huge", "leech", "mayhem", "quick-reload", "quick-shot", "spray",
+                "steady-shot", "tank", "wind-up",
             },
             catalog.Cards.Select(card => card.Id));
         Assert.Equal(
             new[]
             {
-                "Deliberate", "Chamber Trade", "Guarded", "Railshot", "Overcharge", "Heavy",
-                "Siphon", "Snap Load", "Hair Trigger", "Stabilizer", "Juggernaut", "Windup",
+                "Bouncy", "Careful Planning", "Combine", "Defender", "Fast Forward", "Fastball",
+                "Glass Cannon", "Huge", "Leech", "Mayhem", "Quick Reload", "Quick Shot", "Spray",
+                "Steady Shot", "Tank", "Wind Up",
             },
             catalog.Cards.Select(card => card.DisplayName));
     }
 
+    [Fact]
+    public void PublicStreamLoaderAcceptsTheExactEmbeddedCatalog()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(ReadEmbeddedCatalog()));
+
+        var catalog = StatCardCatalog.Load(stream);
+
+        Assert.Equal(16, catalog.Cards.Count);
+        Assert.Equal("bouncy", catalog.Cards[0].Id);
+        Assert.Equal("wind-up", catalog.Cards[^1].Id);
+    }
+
     [Theory]
-    [InlineData("careful-planning", 1.0, 3, 1.10, 45, 150, 2.4, 240, 0.0)]
-    [InlineData("combine", 1.0, 1, 1.10, 18, 150, 2.4, 240, 0.0)]
-    [InlineData("defender", 1.3, 3, 0.55, 18, 120, 2.4, 168, 0.0)]
-    [InlineData("fastball", 1.0, 3, 0.55, 27, 135, 8.4, 240, 0.0)]
-    [InlineData("glass-cannon", 0.5, 3, 1.10, 18, 135, 2.4, 240, 0.0)]
-    [InlineData("huge", 1.8, 3, 0.55, 18, 120, 2.4, 240, 0.0)]
-    [InlineData("leech", 1.3, 3, 0.55, 18, 120, 2.4, 240, 0.75)]
-    [InlineData("quick-reload", 1.0, 3, 0.55, 18, 36, 2.4, 240, 0.0)]
-    [InlineData("quick-shot", 1.0, 3, 0.55, 18, 135, 6.0, 240, 0.0)]
-    [InlineData("steady-shot", 1.4, 3, 0.55, 18, 135, 4.8, 240, 0.0)]
-    [InlineData("tank", 2.0, 3, 0.55, 23, 150, 2.4, 240, 0.0)]
-    [InlineData("wind-up", 1.0, 3, 0.88, 36, 150, 4.8, 240, 0.0)]
+    [InlineData("bouncy", 1.0, 3, 0.6875, 18, 135, 2.4, 240, 0.0, 2)]
+    [InlineData("careful-planning", 1.0, 3, 1.10, 45, 150, 2.4, 240, 0.0, 0)]
+    [InlineData("combine", 1.0, 1, 1.10, 18, 150, 2.4, 240, 0.0, 0)]
+    [InlineData("defender", 1.3, 3, 0.55, 18, 120, 2.4, 168, 0.0, 0)]
+    [InlineData("fast-forward", 1.0, 3, 0.55, 18, 92, 4.8, 240, 0.0, 0)]
+    [InlineData("fastball", 1.0, 3, 0.55, 27, 135, 8.4, 240, 0.0, 0)]
+    [InlineData("glass-cannon", 0.5, 3, 1.10, 18, 135, 2.4, 240, 0.0, 0)]
+    [InlineData("huge", 1.8, 3, 0.55, 18, 120, 2.4, 240, 0.0, 0)]
+    [InlineData("leech", 1.3, 3, 0.55, 18, 120, 2.4, 240, 0.75, 0)]
+    [InlineData("mayhem", 1.0, 3, 0.4675, 18, 150, 2.4, 240, 0.0, 5)]
+    [InlineData("quick-reload", 1.0, 3, 0.55, 18, 36, 2.4, 240, 0.0, 0)]
+    [InlineData("quick-shot", 1.0, 3, 0.55, 18, 135, 6.0, 240, 0.0, 0)]
+    [InlineData("spray", 1.0, 15, 0.1375, 2, 135, 2.4, 240, 0.0, 0)]
+    [InlineData("steady-shot", 1.4, 3, 0.55, 18, 135, 4.8, 240, 0.0, 0)]
+    [InlineData("tank", 2.0, 3, 0.55, 23, 150, 2.4, 240, 0.0, 0)]
+    [InlineData("wind-up", 1.0, 3, 0.88, 36, 150, 4.8, 240, 0.0, 0)]
     public void EverySingleCardHasExactProfile(
         string id,
         double health,
@@ -52,7 +69,8 @@ public sealed class StatCardTests
         int reloadTicks,
         double speed,
         int blockTicks,
-        double lifesteal)
+        double lifesteal,
+        int bounces)
     {
         var profile = PlayerCombatProfile.Fold(new[] { id });
 
@@ -64,6 +82,7 @@ public sealed class StatCardTests
         Assert.Equal(speed, profile.ProjectileSpeed, 10);
         Assert.Equal(blockTicks, profile.BlockCooldownTicks);
         Assert.Equal(lifesteal, profile.Lifesteal, 10);
+        Assert.Equal(bounces, profile.ProjectileBounces);
     }
 
     [Fact]
@@ -103,6 +122,25 @@ public sealed class StatCardTests
             arena,
             playerProfiles: new[] { heavy, PlayerCombatProfile.Vanilla });
         Assert.NotEqual(Sim.Hash(implicitVanilla), Sim.Hash(custom));
+    }
+
+    [Fact]
+    public void ProjectileDuplicatesComposeDamageSpeedReloadAndBouncesExactly()
+    {
+        for (var copies = 2; copies <= 5; copies++)
+        {
+            var spray = PlayerCombatProfile.Fold(Enumerable.Repeat("spray", copies));
+            Assert.Equal(0.55 * System.Math.Pow(0.25, copies), spray.BulletDamage, 12);
+            Assert.Equal(3 + (12 * copies), spray.MaximumAmmunition);
+            Assert.True(spray.FireIntervalTicks >= 1);
+        }
+
+        var first = PlayerCombatProfile.Fold(new[] { "bouncy", "mayhem", "fast-forward", "quick-reload", "spray" });
+        var second = PlayerCombatProfile.Fold(new[] { "spray", "quick-reload", "fast-forward", "mayhem", "bouncy" });
+        Assert.Equal(first, second);
+        Assert.Equal(7, first.ProjectileBounces);
+        Assert.Equal(0.55 * 1.25 * 0.85 * 0.25, first.BulletDamage, 12);
+        Assert.Equal(42, first.ReloadTicks);
     }
 
     [Fact]
@@ -172,6 +210,44 @@ public sealed class StatCardTests
         Assert.Throws<InvalidDataException>(() => StatCardCatalog.Load(stream));
     }
 
+    [Theory]
+    [InlineData("bouncy", "\"value\": 2", "\"value\": 3")]
+    [InlineData("bouncy", "\"value\": 2", "\"value\": 2.5")]
+    [InlineData("spray", "\"value\": -75", "\"value\": -100")]
+    [InlineData("quick-reload", "\"value\": 0.3", "\"value\": 0")]
+    public void StreamCatalogRejectsUnsupportedSelectedEffectValues(
+        string cardId,
+        string oldText,
+        string newText)
+    {
+        var json = MutateCard(ReadEmbeddedCatalog(), cardId, oldText, newText);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
+        Assert.Throws<InvalidDataException>(() => StatCardCatalog.Load(stream));
+    }
+
+    [Fact]
+    public void StreamCatalogRejectsAMissingSupportedCard()
+    {
+        var json = MutateCard(ReadEmbeddedCatalog(), "bouncy", "\"id\": \"bouncy\"", "\"id\": \"unsupported-bouncy\"");
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
+        Assert.Throws<InvalidDataException>(() => StatCardCatalog.Load(stream));
+    }
+
+    [Fact]
+    public void StreamCatalogRejectsRenamedSupportedCard()
+    {
+        var json = MutateCard(
+            ReadEmbeddedCatalog(),
+            "bouncy",
+            "\"originalName\": \"Bouncy\"",
+            "\"originalName\": \"Rebound\"");
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
+        Assert.Throws<InvalidDataException>(() => StatCardCatalog.Load(stream));
+    }
+
     [Fact]
     public void FoldRoundsMidpointsAwayFromZeroAndClampsFireAndReloadToOneTick()
     {
@@ -183,7 +259,7 @@ public sealed class StatCardTests
             CatalogWithEffect("careful-planning", "reload-time", 1.0 / 120.0));
         var clampedFire = PlayerCombatProfile.Fold(
             new[] { "careful-planning" },
-            CatalogWithEffect("careful-planning", "attack-speed", 200.0));
+            CatalogWithEffect("careful-planning", "attack-speed", 10_000.0));
         var clampedReload = PlayerCombatProfile.Fold(
             new[] { "careful-planning" },
             CatalogWithEffect("careful-planning", "reload-time", -10.0));
@@ -209,6 +285,7 @@ public sealed class StatCardTests
             vanilla with { BlockCooldownTicks = 0 },
             vanilla with { Lifesteal = double.NaN },
             vanilla with { Lifesteal = -0.01 },
+            vanilla with { ProjectileBounces = -1 },
         };
 
         foreach (var profile in invalid)
@@ -233,7 +310,8 @@ public sealed class StatCardTests
             ReloadTicks: 2,
             ProjectileSpeed: 1.25,
             BlockCooldownTicks: 7,
-            Lifesteal: 0.0);
+            Lifesteal: 0.0,
+            ProjectileBounces: 0);
         var world = World.CreateMatch(
             1,
             CreateArena(),
@@ -271,18 +349,31 @@ public sealed class StatCardTests
         return reader.ReadToEnd();
     }
 
+    private static string MutateCard(string json, string cardId, string oldText, string newText)
+    {
+        var marker = $"\"id\": \"{cardId}\"";
+        var start = json.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"Missing card `{cardId}`.");
+        var next = json.IndexOf("\n    {\n      \"id\": ", start + marker.Length, StringComparison.Ordinal);
+        var end = next < 0 ? json.Length : next;
+        var card = json[start..end];
+        Assert.Contains(oldText, card, StringComparison.Ordinal);
+        card = card.Replace(oldText, newText, StringComparison.Ordinal);
+        return string.Concat(json.AsSpan(0, start), card.AsSpan(), json.AsSpan(end));
+    }
+
     private static StatCardCatalog CatalogWithEffect(string cardId, string effectId, double value)
     {
-        var root = JsonNode.Parse(ReadEmbeddedCatalog())!.AsObject();
-        var card = root["cards"]!.AsArray()
-            .Select(node => node!.AsObject())
-            .Single(node => node["id"]!.GetValue<string>() == cardId);
-        var effect = card["effects"]!.AsArray()
-            .Select(node => node!.AsObject())
-            .Single(node => node["id"]!.GetValue<string>() == effectId);
-        effect["value"] = value;
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(root.ToJsonString()));
-        return StatCardCatalog.Load(stream);
+        var card = StatCardCatalog.LoadEmbedded().GetRequired(cardId);
+        var effects = card.Effects
+            .Select(effect => effect.Id == effectId ? effect with { Value = value } : effect)
+            .ToArray();
+        Assert.Contains(effects, effect => effect.Id == effectId && effect.Value == value);
+        return StatCardCatalog.CreateForTesting(new StatCardDefinition(
+            card.Id,
+            card.DisplayName,
+            card.Summary,
+            effects));
     }
 
     private static ArenaDefinition CreateArena() => new(

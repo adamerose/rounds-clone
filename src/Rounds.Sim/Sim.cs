@@ -162,6 +162,7 @@ public static class Sim
                 hash.Add(profile.ProjectileSpeed);
                 hash.Add(profile.BlockCooldownTicks);
                 hash.Add(profile.Lifesteal);
+                hash.Add(profile.ProjectileBounces);
             }
         }
 

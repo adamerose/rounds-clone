@@ -123,7 +123,7 @@ internal static class CombatController
             Velocity = player.AimDirection * player.CombatProfile.ProjectileSpeed,
             Radius = tuning.ProjectileRadius,
             Damage = player.CombatProfile.BulletDamage,
-            BouncesRemaining = tuning.BaseBounces,
+            BouncesRemaining = player.CombatProfile.ProjectileBounces,
         };
 
         if (world.Bullets.Count >= tuning.LiveBulletCap)
@@ -221,7 +221,14 @@ internal static class CombatController
             bullet.Position += contact.Hit.Normal * (contact.Hit.Separation + world.Tuning.CollisionSkin);
             if (contact.Kind == ContactKind.Geometry)
             {
-                return false;
+                if (bullet.BouncesRemaining == 0)
+                {
+                    return false;
+                }
+                bullet.BouncesRemaining--;
+                bullet.Velocity = Reflect(bullet.Velocity, contact.Hit.Normal);
+                remaining = Reflect(remaining * (1.0 - time), contact.Hit.Normal);
+                continue;
             }
 
             var target = world.Players[contact.PlayerId];

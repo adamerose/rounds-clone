@@ -6,6 +6,12 @@ namespace Rounds.Sim.Cards;
 public sealed class StatCardCatalog
 {
     private const string EmbeddedResourceName = "Rounds.Sim.Data.cards.json";
+    private static readonly string[] SupportedIds =
+    [
+        "bouncy", "careful-planning", "combine", "defender", "fast-forward", "fastball",
+        "glass-cannon", "huge", "leech", "mayhem", "quick-reload", "quick-shot", "spray",
+        "steady-shot", "tank", "wind-up",
+    ];
     private readonly StatCardDefinition[] _cards;
     private readonly ReadOnlyCollection<StatCardDefinition> _readOnlyCards;
 
@@ -16,6 +22,9 @@ public sealed class StatCardCatalog
     }
 
     public IReadOnlyList<StatCardDefinition> Cards => _readOnlyCards;
+
+    internal static StatCardCatalog CreateForTesting(params StatCardDefinition[] cards) =>
+        new(cards);
 
     public static StatCardCatalog LoadEmbedded()
     {
@@ -47,30 +56,34 @@ public sealed class StatCardCatalog
             }
             seenIds.Add(id);
 
-            if (card.GetProperty("implementationTier").GetString() != "stat-only")
+            if (Array.BinarySearch(SupportedIds, id, StringComparer.Ordinal) < 0)
             {
                 continue;
             }
 
-            if (card.GetProperty("behavior").GetProperty("hook").GetString() != "passive")
-            {
-                throw new InvalidDataException("A stat-only card declares a behavior hook.");
-            }
+            ValidateCardMode(
+                id,
+                card.GetProperty("implementationTier").GetString(),
+                card.GetProperty("behavior").GetProperty("hook").GetString());
+            var originalName = card.GetProperty("originalName").GetString()
+                ?? throw new InvalidDataException($"Supported card `{id}` has no original name.");
+            ValidateOriginalName(id, originalName);
 
             var effects = card.GetProperty("effects").EnumerateArray()
                 .Select(effect => ParseEffect(id, effect))
                 .ToArray();
+            ValidateCardEffects(id, effects);
             cards.Add(new StatCardDefinition(
                 id,
-                DisplayNameFor(id),
+                originalName,
                 SummaryFor(id),
                 effects));
         }
 
         cards.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Id, right.Id));
-        if (cards.Count != 12)
+        if (cards.Count != SupportedIds.Length)
         {
-            throw new InvalidDataException("The stat-only card pool must contain exactly 12 cards.");
+            throw new InvalidDataException("The supported card pool must contain exactly 16 cards.");
         }
         return new StatCardCatalog(cards.ToArray());
     }
@@ -102,8 +115,10 @@ public sealed class StatCardCatalog
             "weapon.damage" => StatTarget.Damage,
             "weapon.attack-speed" => StatTarget.AttackSpeed,
             "weapon.reload-time" => StatTarget.ReloadTime,
+            "weapon.reload-speed" => StatTarget.ReloadSpeed,
             "weapon.ammo" => StatTarget.Ammunition,
             "weapon.projectile-speed" => StatTarget.ProjectileSpeed,
+            "weapon.projectile-bounces" => StatTarget.ProjectileBounces,
             _ => throw new InvalidDataException($"Card `{cardId}` has unsupported target `{targetText}`."),
         };
         var operation = operationText switch
@@ -140,6 +155,10 @@ public sealed class StatCardCatalog
         {
             throw new InvalidDataException($"Card `{cardId}` has a non-positive multiplier.");
         }
+        if (target == StatTarget.Damage && operation == StatOperation.AddPercent && value <= -100.0)
+        {
+            throw new InvalidDataException($"Card `{cardId}` has a non-positive damage factor.");
+        }
         return new StatEffect(id, target, operation, value);
     }
 
@@ -153,42 +172,184 @@ public sealed class StatCardCatalog
             (StatTarget.AttackSpeed, StatOperation.AddPercent) => true,
             (StatTarget.ReloadTime, StatOperation.AddFlat) => true,
             (StatTarget.ReloadTime, StatOperation.Multiply) => true,
+            (StatTarget.ReloadSpeed, StatOperation.AddPercent) => true,
             (StatTarget.Ammunition, StatOperation.AddCount) => true,
             (StatTarget.ProjectileSpeed, StatOperation.AddPercent) => true,
+            (StatTarget.ProjectileBounces, StatOperation.AddCount) => true,
             _ => false,
         };
 
-    private static string DisplayNameFor(string id) => id switch
+    private static void ValidateCardMode(string id, string? tier, string? hook)
     {
-        "careful-planning" => "Deliberate",
-        "combine" => "Chamber Trade",
-        "defender" => "Guarded",
-        "fastball" => "Railshot",
-        "glass-cannon" => "Overcharge",
-        "huge" => "Heavy",
-        "leech" => "Siphon",
-        "quick-reload" => "Snap Load",
-        "quick-shot" => "Hair Trigger",
-        "steady-shot" => "Stabilizer",
-        "tank" => "Juggernaut",
-        "wind-up" => "Windup",
-        _ => throw new InvalidDataException($"Stat card `{id}` has no original-neutral display name."),
-    };
+        var valid = id switch
+        {
+            "bouncy" or "mayhem" => tier == "projectile" && hook == "on-bounce",
+            "fast-forward" or "spray" => tier == "projectile" && hook == "passive",
+            _ => tier == "stat-only" && hook == "passive",
+        };
+        if (!valid)
+        {
+            throw new InvalidDataException($"Supported card `{id}` declares unsupported tier or hook behavior.");
+        }
+    }
+
+    private static void ValidateCardEffects(string id, IReadOnlyList<StatEffect> effects)
+    {
+        StatEffect[] expected = id switch
+        {
+            "bouncy" =>
+            [
+                E("bounces", StatTarget.ProjectileBounces, StatOperation.AddCount, 2),
+                E("damage", StatTarget.Damage, StatOperation.AddPercent, 25),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.25),
+            ],
+            "careful-planning" =>
+            [
+                E("damage", StatTarget.Damage, StatOperation.AddPercent, 100),
+                E("attack-speed", StatTarget.AttackSpeed, StatOperation.AddPercent, -150),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.5),
+            ],
+            "combine" =>
+            [
+                E("damage", StatTarget.Damage, StatOperation.AddPercent, 100),
+                E("ammo", StatTarget.Ammunition, StatOperation.AddCount, -2),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.5),
+            ],
+            "defender" =>
+            [
+                E("block-cooldown", StatTarget.BlockCooldown, StatOperation.AddPercent, -30),
+                E("health", StatTarget.MaximumHealth, StatOperation.AddPercent, 30),
+            ],
+            "fast-forward" =>
+            [
+                E("projectile-speed", StatTarget.ProjectileSpeed, StatOperation.AddPercent, 100),
+                E("reload-speed", StatTarget.ReloadSpeed, StatOperation.AddPercent, 30),
+            ],
+            "fastball" =>
+            [
+                E("projectile-speed", StatTarget.ProjectileSpeed, StatOperation.AddPercent, 250),
+                E("attack-speed", StatTarget.AttackSpeed, StatOperation.AddPercent, -50),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.25),
+            ],
+            "glass-cannon" =>
+            [
+                E("damage", StatTarget.Damage, StatOperation.AddPercent, 100),
+                E("health", StatTarget.MaximumHealth, StatOperation.AddPercent, -100),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.25),
+            ],
+            "huge" => [E("health", StatTarget.MaximumHealth, StatOperation.AddPercent, 80)],
+            "leech" =>
+            [
+                E("lifesteal", StatTarget.Lifesteal, StatOperation.AddPercent, 75),
+                E("health", StatTarget.MaximumHealth, StatOperation.AddPercent, 30),
+            ],
+            "mayhem" =>
+            [
+                E("bounces", StatTarget.ProjectileBounces, StatOperation.AddCount, 5),
+                E("damage", StatTarget.Damage, StatOperation.AddPercent, -15),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.5),
+            ],
+            "quick-reload" => [E("reload-time", StatTarget.ReloadTime, StatOperation.Multiply, 0.3)],
+            "quick-shot" =>
+            [
+                E("projectile-speed", StatTarget.ProjectileSpeed, StatOperation.AddPercent, 150),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.25),
+            ],
+            "spray" =>
+            [
+                E("attack-speed", StatTarget.AttackSpeed, StatOperation.AddPercent, 1000),
+                E("ammo", StatTarget.Ammunition, StatOperation.AddCount, 12),
+                E("damage", StatTarget.Damage, StatOperation.AddPercent, -75),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.25),
+            ],
+            "steady-shot" =>
+            [
+                E("health", StatTarget.MaximumHealth, StatOperation.AddPercent, 40),
+                E("projectile-speed", StatTarget.ProjectileSpeed, StatOperation.AddPercent, 100),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.25),
+            ],
+            "tank" =>
+            [
+                E("health", StatTarget.MaximumHealth, StatOperation.AddPercent, 100),
+                E("attack-speed", StatTarget.AttackSpeed, StatOperation.AddPercent, -25),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.5),
+            ],
+            "wind-up" =>
+            [
+                E("projectile-speed", StatTarget.ProjectileSpeed, StatOperation.AddPercent, 100),
+                E("damage", StatTarget.Damage, StatOperation.AddPercent, 60),
+                E("attack-speed", StatTarget.AttackSpeed, StatOperation.AddPercent, -100),
+                E("reload-time", StatTarget.ReloadTime, StatOperation.AddFlat, 0.5),
+            ],
+            _ => throw new InvalidDataException($"Card `{id}` is not supported."),
+        };
+
+        if (effects.Count != expected.Length)
+        {
+            throw new InvalidDataException($"Supported card `{id}` has an unexpected effect count.");
+        }
+        for (var index = 0; index < effects.Count; index++)
+        {
+            var actual = effects[index];
+            if (actual.Id != expected[index].Id ||
+                actual.Target != expected[index].Target ||
+                actual.Operation != expected[index].Operation ||
+                actual.Value != expected[index].Value)
+            {
+                throw new InvalidDataException($"Supported card `{id}` has an unexpected effect at index {index}.");
+            }
+        }
+    }
+
+    private static StatEffect E(string id, StatTarget target, StatOperation operation, double value) =>
+        new(id, target, operation, value);
+
+    private static void ValidateOriginalName(string id, string originalName)
+    {
+        var expected = id switch
+        {
+            "bouncy" => "Bouncy",
+            "careful-planning" => "Careful Planning",
+            "combine" => "Combine",
+            "defender" => "Defender",
+            "fast-forward" => "Fast Forward",
+            "fastball" => "Fastball",
+            "glass-cannon" => "Glass Cannon",
+            "huge" => "Huge",
+            "leech" => "Leech",
+            "mayhem" => "Mayhem",
+            "quick-reload" => "Quick Reload",
+            "quick-shot" => "Quick Shot",
+            "spray" => "Spray",
+            "steady-shot" => "Steady Shot",
+            "tank" => "Tank",
+            "wind-up" => "Wind Up",
+            _ => throw new InvalidDataException($"Stat card `{id}` has no sourced original name."),
+        };
+        if (originalName != expected)
+        {
+            throw new InvalidDataException($"Supported card `{id}` must use original name `{expected}`.");
+        }
+    }
 
     private static string SummaryFor(string id) => id switch
     {
+        "bouncy" => "Two ricochets; damage up",
         "careful-planning" => "Damage up; fire and reload slow",
         "combine" => "Damage up; one-round magazine",
         "defender" => "Health up; block recovers faster",
+        "fast-forward" => "Bullet and reload speed up",
         "fastball" => "Bullet speed up; handling slow",
         "glass-cannon" => "Double damage; half health",
         "huge" => "Eighty percent more health",
         "leech" => "Health and damage healing",
+        "mayhem" => "Five ricochets; damage down",
         "quick-reload" => "Reload at thirty percent",
         "quick-shot" => "Bullet speed up; reload slow",
+        "spray" => "Rapid fire; large magazine; damage down",
         "steady-shot" => "Health and bullet speed up",
         "tank" => "Double health; slower fire",
         "wind-up" => "Damage and speed up; fire slow",
-        _ => throw new InvalidDataException($"Stat card `{id}` has no original-neutral summary."),
+        _ => throw new InvalidDataException($"Stat card `{id}` has no effect summary."),
     };
 }

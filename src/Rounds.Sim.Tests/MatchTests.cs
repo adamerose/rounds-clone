@@ -226,28 +226,58 @@ public sealed class MatchTests
         var match = Match.Create(23);
 
         Assert.Equal(
-            new[] { "huge", "quick-shot", "defender", "combine", "quick-reload" },
+            new[] { "fastball", "spray", "fast-forward", "glass-cannon", "bouncy" },
             match.CurrentOffer.Select(card => card.Id));
         Assert.Equal(firstExpected, match.CurrentOffer.Select(card => card.Id));
-        Assert.Equal(13_377_857_065_441_616_114UL, match.World.Rng.State);
+        Assert.Equal(4_980_105_771_538_322_822UL, match.World.Rng.State);
         Assert.Equal(reference.State, match.World.Rng.State);
 
         ArmAndConfirm(match);
         var secondExpected = ReferenceOffer(catalog, reference);
         Assert.Equal(
-            new[] { "leech", "careful-planning", "wind-up", "fastball", "tank" },
+            new[] { "careful-planning", "wind-up", "quick-shot", "glass-cannon", "mayhem" },
             match.CurrentOffer.Select(card => card.Id));
         Assert.Equal(secondExpected, match.CurrentOffer.Select(card => card.Id));
-        Assert.Equal(6_550_549_163_608_964_203UL, match.World.Rng.State);
+        Assert.Equal(2_330_107_498_961_357_555UL, match.World.Rng.State);
         Assert.Equal(reference.State, match.World.Rng.State);
 
         var changedSeed = Match.Create(24);
         Assert.Equal(
-            new[] { "quick-reload", "quick-shot", "combine", "fastball", "wind-up" },
+            new[] { "fast-forward", "quick-reload", "careful-planning", "wind-up", "tank" },
             changedSeed.CurrentOffer.Select(card => card.Id));
         Assert.NotEqual(
             match.CurrentOffer.Select(card => card.Id),
             changedSeed.CurrentOffer.Select(card => card.Id));
+    }
+
+    [Fact]
+    public void EveryProjectileCardCanBeDraftedAndPersistsIntoTheDuelProfile()
+    {
+        foreach (var cardId in new[] { "bouncy", "fast-forward", "spray" })
+        {
+            var match = Match.Create(23);
+            var index = Array.FindIndex(
+                match.CurrentOffer.Select(card => card.Id).ToArray(),
+                id => id == cardId);
+            Assert.True(index >= 0);
+
+            ArmAndConfirm(match, index);
+            ArmAndConfirm(match);
+
+            Assert.Equal(new[] { cardId }, match.AcquiredCardsFor(0));
+            Assert.Equal(PlayerCombatProfile.Fold(new[] { cardId }), match.World.Players[0].CombatProfile);
+        }
+
+        var mayhem = Match.Create(23);
+        ArmAndConfirm(mayhem);
+        var mayhemIndex = Array.FindIndex(
+            mayhem.CurrentOffer.Select(card => card.Id).ToArray(),
+            id => id == "mayhem");
+        Assert.True(mayhemIndex >= 0);
+        ArmAndConfirm(mayhem, mayhemIndex);
+
+        Assert.Equal(new[] { "mayhem" }, mayhem.AcquiredCardsFor(1));
+        Assert.Equal(PlayerCombatProfile.Fold(new[] { "mayhem" }), mayhem.World.Players[1].CombatProfile);
     }
 
     [Fact]
@@ -263,6 +293,43 @@ public sealed class MatchTests
         }
 
         Assert.True(foundRecurrence);
+    }
+
+    [Fact]
+    public void ASecondSprayDraftTransitionsIntoTheNextDuelWithPositiveDamage()
+    {
+        ulong? exercisedSeed = null;
+        for (ulong seed = 0; seed < 500 && exercisedSeed is null; seed++)
+        {
+            var match = Match.Create(seed);
+            ArmAndConfirm(match);
+            var openingSpray = Array.FindIndex(
+                match.CurrentOffer.Select(card => card.Id).ToArray(),
+                id => id == "spray");
+            if (openingSpray < 0)
+            {
+                continue;
+            }
+            ArmAndConfirm(match, openingSpray);
+            CompleteDuel(match, winner: 0);
+            CompleteDuel(match, winner: 0);
+            var comebackSpray = Array.FindIndex(
+                match.CurrentOffer.Select(card => card.Id).ToArray(),
+                id => id == "spray");
+            if (comebackSpray < 0)
+            {
+                continue;
+            }
+
+            ArmAndConfirm(match, comebackSpray);
+            exercisedSeed = seed;
+            Assert.Equal(MatchPhase.Duel, match.Phase);
+            Assert.Equal(new[] { "spray", "spray" }, match.AcquiredCardsFor(1));
+            Assert.Equal(0.55 * 0.25 * 0.25, match.World.Players[1].CombatProfile.BulletDamage, 12);
+            Assert.True(match.World.Players[1].CombatProfile.BulletDamage > 0.0);
+        }
+
+        Assert.NotNull(exercisedSeed);
     }
 
     [Fact]
@@ -461,7 +528,7 @@ public sealed class MatchTests
 
     private static void ConsumeShuffle(Pcg32 rng)
     {
-        for (uint bound = 12; bound > 1; bound--)
+        for (uint bound = 16; bound > 1; bound--)
         {
             rng.NextBounded(bound);
         }

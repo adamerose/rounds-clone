@@ -10,7 +10,8 @@ public sealed record PlayerCombatProfile(
     int ReloadTicks,
     double ProjectileSpeed,
     int BlockCooldownTicks,
-    double Lifesteal)
+    double Lifesteal,
+    int ProjectileBounces)
 {
     public static PlayerCombatProfile Vanilla { get; } = FromVanilla();
 
@@ -26,7 +27,8 @@ public sealed record PlayerCombatProfile(
             tuning.ReloadTicks,
             tuning.ProjectileSpeed,
             tuning.BlockCooldownTicks,
-            0.0);
+            0.0,
+            tuning.BaseBounces);
     }
 
     public void Validate()
@@ -37,7 +39,8 @@ public sealed record PlayerCombatProfile(
             FireIntervalTicks <= 0 || ReloadTicks <= 0 ||
             !double.IsFinite(ProjectileSpeed) || ProjectileSpeed <= 0.0 ||
             BlockCooldownTicks <= 0 ||
-            !double.IsFinite(Lifesteal) || Lifesteal < 0.0)
+            !double.IsFinite(Lifesteal) || Lifesteal < 0.0 ||
+            ProjectileBounces < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(PlayerCombatProfile), "Player combat profile values must be finite and positive where required.");
         }
@@ -53,14 +56,18 @@ public sealed record PlayerCombatProfile(
         var resolvedCombat = combat ?? CombatTuning.Vanilla;
         var positiveHealth = 0.0;
         var negativeHealth = 0.0;
-        var damage = 0.0;
+        var positiveDamage = 0.0;
+        var negativeDamageFactor = 1.0;
         var projectileSpeed = 0.0;
-        var attackSpeed = 0.0;
+        var positiveAttackSpeed = 0.0;
+        var negativeAttackSpeed = 0.0;
         var blockCooldown = 0.0;
         var reloadSeconds = 0.0;
+        var reloadSpeed = 0.0;
         var reloadMultiplierCopies = 0;
         var ammunition = 0;
         var lifesteal = 0.0;
+        var projectileBounces = 0;
 
         foreach (var cardId in acquiredCardIds.OrderBy(static id => id, StringComparer.Ordinal))
         {
@@ -75,14 +82,20 @@ public sealed record PlayerCombatProfile(
                     case StatTarget.MaximumHealth:
                         negativeHealth += -effect.Value / 100.0;
                         break;
+                    case StatTarget.Damage when effect.Value >= 0.0:
+                        positiveDamage += effect.Value / 100.0;
+                        break;
                     case StatTarget.Damage:
-                        damage += effect.Value / 100.0;
+                        negativeDamageFactor *= 1.0 + (effect.Value / 100.0);
                         break;
                     case StatTarget.ProjectileSpeed:
                         projectileSpeed += effect.Value / 100.0;
                         break;
+                    case StatTarget.AttackSpeed when effect.Value >= 0.0:
+                        positiveAttackSpeed += effect.Value / 100.0;
+                        break;
                     case StatTarget.AttackSpeed:
-                        attackSpeed += -effect.Value / 100.0;
+                        negativeAttackSpeed += -effect.Value / 100.0;
                         break;
                     case StatTarget.BlockCooldown:
                         blockCooldown += effect.Value / 100.0;
@@ -93,11 +106,17 @@ public sealed record PlayerCombatProfile(
                     case StatTarget.ReloadTime:
                         reloadMultiplierCopies++;
                         break;
+                    case StatTarget.ReloadSpeed:
+                        reloadSpeed += effect.Value / 100.0;
+                        break;
                     case StatTarget.Ammunition:
                         ammunition += checked((int)effect.Value);
                         break;
                     case StatTarget.Lifesteal:
                         lifesteal += effect.Value / 100.0;
+                        break;
+                    case StatTarget.ProjectileBounces:
+                        projectileBounces = checked(projectileBounces + (int)effect.Value);
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported folded effect `{effect.Id}`.");
@@ -105,7 +124,7 @@ public sealed record PlayerCombatProfile(
             }
         }
 
-        var reload = resolvedCombat.ReloadTicks + (reloadSeconds * World.TickRate);
+        var reload = (resolvedCombat.ReloadTicks + (reloadSeconds * World.TickRate)) / (1.0 + reloadSpeed);
         for (var copy = 0; copy < reloadMultiplierCopies; copy++)
         {
             reload *= 0.3;
@@ -114,12 +133,14 @@ public sealed record PlayerCombatProfile(
         var profile = new PlayerCombatProfile(
             MaximumHealth: resolvedCombat.BaseHealth * (1.0 + positiveHealth) / (1.0 + negativeHealth),
             MaximumAmmunition: System.Math.Max(1, resolvedCombat.BaseAmmo + ammunition),
-            BulletDamage: resolvedCombat.BaseDamage * (1.0 + damage),
-            FireIntervalTicks: RoundAtLeastOne(resolvedCombat.FireIntervalTicks * (1.0 + attackSpeed)),
+            BulletDamage: resolvedCombat.BaseDamage * (1.0 + positiveDamage) * negativeDamageFactor,
+            FireIntervalTicks: RoundAtLeastOne(
+                resolvedCombat.FireIntervalTicks * (1.0 + negativeAttackSpeed) / (1.0 + positiveAttackSpeed)),
             ReloadTicks: RoundAtLeastOne(reload),
             ProjectileSpeed: resolvedCombat.ProjectileSpeed * (1.0 + projectileSpeed),
             BlockCooldownTicks: RoundAtLeastOne(resolvedCombat.BlockCooldownTicks * System.Math.Max(0.05, 1.0 + blockCooldown)),
-            Lifesteal: lifesteal);
+            Lifesteal: lifesteal,
+            ProjectileBounces: System.Math.Max(0, resolvedCombat.BaseBounces + projectileBounces));
         profile.Validate();
         return profile;
     }
