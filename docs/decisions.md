@@ -363,3 +363,9 @@ Every project window is also bound to the small fourth monitor through project g
 Fresh reviewer `codex:01a0494c-7878-7232-9169-27500bc90c45` admitted ticket 013 at risk 3 after three earlier fresh reviews exposed and the contract corrected omissions in dirty registered bytes, digest framing, ticket-version identity, surviving Git provenance, phase-scoped mutation, self-reference, project ledgers, and media inclusion.
 The admitted inventory freezes the eight pre-existing orphan artifact paths, treats lifecycle labels as claims, correlates commits, objects, operational indexes, and bytes without touching credentials, and leaves every recovery or deletion action to a later independently reviewed ticket.
 Authoritative `main` remains the only project state until that later recovery work closes through the normal pipeline.
+
+## 2026-08-28 — Recover clean registered history before orphan snapshots
+
+Ticket 009 is the safest next slice because it is the only complete frozen artifact with a clean working tree and an exact 13-commit chain directly above `c24ed0a88c2bff843e788e1957502d9b86bc3d25`, so a fresh ticket can review a named range without reconstructing provenance.
+Later orphan outcomes remain evidence-only because matching operational indexes and review text preserve useful evidence but cannot replace missing commit, tree, parent, or review-range identity; the bounded evidence and remaining uncertainty are in the [recovery inventory](recovery/orphaned-progress-2026-08-28.md).
+Tickets 010 and 012 are superseded by 026 and 025, ticket 024 remains `blocked-external-action` because credential reset requires authenticated provider access, and no frozen artifact is discardable because none is proven to lack unique recoverable bytes or records.

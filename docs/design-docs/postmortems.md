@@ -1003,3 +1003,19 @@ It also mistakenly attempted an official Godot documentation search alongside lo
 
 After fast-forward integration, cleanup verified the detached worktree was clean, screen and test processes were absent, and `.tools` was an exact junction to the shared root cache.
 Removing only that junction preserved the shared cache; build-server shutdown released generated outputs, and `git worktree remove --force` removed the exact ticket worktree without error.
+
+## 2026-08-28 — The sandbox account needed a read-only Git ownership override
+
+The first root-repository ref and worktree-registration probes stopped at Git's dubious-ownership guard because the integration root belongs to the user's account while this session runs under the sandbox account.
+The probe opened no artifact file and changed no configuration or repository state.
+Repeating the same commands with a per-command `safe.directory` value captured the baseline without changing global Git configuration.
+
+## 2026-08-28 — Recovery evidence wrappers produced false failures before focused probes passed
+
+The first manifest-generation wrapper checked PowerShell's unset native-process exit variable after the helper had successfully generated all eight manifests and therefore reported a false failure.
+Independent byte verification replaced that wrapper instead of regenerating or changing any artifact.
+The first detached-status retry also tried to silence an inaccessible global-ignore warning with `core.excludesFile=NUL`, but this Git build rejected that path before returning status.
+Removing the nonessential override allowed the exact registered statuses to complete with the harmless warning visible.
+Three later Markdown-table formatting probes exited before output because their compact PowerShell loops were malformed; a smaller read-only loop produced the required 55 occurrence rows without writing a file.
+The first combined ticket-identity verifier also had a parse error before execution, so smaller occurrence-count and exact-row comparisons replaced it and both passed.
+The first final-check wrapper tried to change PowerShell's current directory, but the sandbox denied traversal through the absolute path even though direct file access works; a child process with the exact delivery-worktree working directory ran the ticket checker successfully, and `git -C` ran the diff check.
