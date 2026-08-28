@@ -1019,3 +1019,10 @@ Removing the nonessential override allowed the exact registered statuses to comp
 Three later Markdown-table formatting probes exited before output because their compact PowerShell loops were malformed; a smaller read-only loop produced the required 55 occurrence rows without writing a file.
 The first combined ticket-identity verifier also had a parse error before execution, so smaller occurrence-count and exact-row comparisons replaced it and both passed.
 The first final-check wrapper tried to change PowerShell's current directory, but the sandbox denied traversal through the absolute path even though direct file access works; a child process with the exact delivery-worktree working directory ran the ticket checker successfully, and `git -C` ran the diff check.
+
+## 2026-08-28 — Ivy ticket delivery mishandled zero-padded identifiers
+
+Ticket 013's first guarded close stopped after fast-forward because `close-ticket.mjs --ticket 13` compared the argument text `13` directly with filename prefix `013` and reported that the reviewed range named no ticket.
+The documented selector-free single-ticket path revalidated the same approved range and closed it safely, but claim cleanup then targeted `.ivy/claims/013.json` while the allocator had created `.ivy/claims/13.json`.
+The guarded refusal prevented publication or worktree cleanup on the failed attempt; a fresh integration dispatch used auto-detection, removed the exact reviewed worktree, and the orchestrator removed only the actual claim file.
+Until Ivy normalizes ticket numbers consistently, single-ticket deliveries use selector-free auto-detection and explicitly verify the exact unpadded claim path after closure.
