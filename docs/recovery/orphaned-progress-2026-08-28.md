@@ -58,12 +58,135 @@ The baseline worktree registrations were the root `main` worktree, registered de
 
 ## Deterministic content manifests
 
-Run the bounded helper from any PowerShell working directory with explicit paths:
+After this ticket is integrated, run the bounded helper from any directory inside the durable repository checkout. The same procedure also works during pre-integration verification from a linked worktree: it derives the shared artifact root from Git instead of naming that disposable worktree.
 
 ```powershell
-& 'C:\_MyFiles\Programming\Projects\rounds-clone\.ivy\worktrees\013-make-orphaned-project-progress-safely-recoverable\tools\recovery\inventory-orphaned-progress.ps1' `
-  -RepositoryRoot 'C:\_MyFiles\Programming\Projects\rounds-clone' `
-  -OutputDirectory 'C:\_MyFiles\Programming\Projects\rounds-clone\.ivy\worktrees\013-make-orphaned-project-progress-safely-recoverable\docs\recovery\orphaned-progress-2026-08-28-manifests'
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+$repositoryRoot = [System.IO.Path]::GetFullPath((git rev-parse --show-toplevel).Trim())
+$helperPath = [System.IO.Path]::Combine(
+    $repositoryRoot,
+    'tools',
+    'recovery',
+    'inventory-orphaned-progress.ps1'
+)
+$baselineDirectory = [System.IO.Path]::Combine(
+    $repositoryRoot,
+    'docs',
+    'recovery',
+    'orphaned-progress-2026-08-28-manifests'
+)
+
+$artifactRepositoryRoot = $repositoryRoot
+$firstFrozenArtifact = [System.IO.Path]::Combine(
+    $artifactRepositoryRoot,
+    '.ivy',
+    'worktrees',
+    '009-projectile-cards'
+)
+if (-not [System.IO.Directory]::Exists($firstFrozenArtifact)) {
+    $commonGitDirectory = [System.IO.Path]::GetFullPath(
+        (git rev-parse --path-format=absolute --git-common-dir).Trim()
+    )
+    $artifactRepositoryRoot = [System.IO.Directory]::GetParent($commonGitDirectory).FullName
+}
+
+function Test-IsWithinDirectory {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $Directory
+    )
+
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $fullDirectory = [System.IO.Path]::GetFullPath($Directory).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    ) + [System.IO.Path]::DirectorySeparatorChar
+    return $fullPath.StartsWith($fullDirectory, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+$temporaryRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+$generatedDirectory = [System.IO.Path]::GetFullPath(
+    [System.IO.Path]::Combine(
+        $temporaryRoot,
+        'rounds-orphan-manifests-' + [System.Guid]::NewGuid().ToString('N')
+    )
+)
+if (
+    (Test-IsWithinDirectory -Path $generatedDirectory -Directory $repositoryRoot) -or
+    (Test-IsWithinDirectory -Path $generatedDirectory -Directory $artifactRepositoryRoot) -or
+    -not (Test-IsWithinDirectory -Path $generatedDirectory -Directory $temporaryRoot) -or
+    [System.IO.Directory]::Exists($generatedDirectory) -or
+    [System.IO.File]::Exists($generatedDirectory)
+) {
+    throw "Refusing unsafe manifest output path: $generatedDirectory"
+}
+[void] [System.IO.Directory]::CreateDirectory($generatedDirectory)
+
+$comparisonSucceeded = $false
+try {
+    & $helperPath `
+        -RepositoryRoot $artifactRepositoryRoot `
+        -OutputDirectory $generatedDirectory
+
+    $baselineFiles = @(
+        Get-ChildItem -LiteralPath $baselineDirectory -Force -File | Sort-Object Name
+    )
+    $generatedFiles = @(
+        Get-ChildItem -LiteralPath $generatedDirectory -Force -File | Sort-Object Name
+    )
+    $generatedDirectories = @(
+        Get-ChildItem -LiteralPath $generatedDirectory -Force -Directory
+    )
+    $fileSetDifference = @(
+        Compare-Object `
+            -ReferenceObject @($baselineFiles.Name) `
+            -DifferenceObject @($generatedFiles.Name) `
+            -CaseSensitive
+    )
+    if (
+        $baselineFiles.Count -eq 0 -or
+        $generatedDirectories.Count -ne 0 -or
+        $fileSetDifference.Count -ne 0
+    ) {
+        throw 'Generated manifest file set differs from the committed baseline.'
+    }
+
+    foreach ($baselineFile in $baselineFiles) {
+        $generatedPath = [System.IO.Path]::Combine($generatedDirectory, $baselineFile.Name)
+        $baselineBytes = [System.IO.File]::ReadAllBytes($baselineFile.FullName)
+        $generatedBytes = [System.IO.File]::ReadAllBytes($generatedPath)
+        if ($baselineBytes.Length -ne $generatedBytes.Length) {
+            throw "Manifest length differs: $($baselineFile.Name)"
+        }
+        for ($index = 0; $index -lt $baselineBytes.Length; $index++) {
+            if ($baselineBytes[$index] -ne $generatedBytes[$index]) {
+                throw "Manifest bytes differ: $($baselineFile.Name) at offset $index"
+            }
+        }
+    }
+
+    $comparisonSucceeded = $true
+}
+catch {
+    throw "Manifest comparison failed; generated output remains at '$generatedDirectory'. $($_.Exception.Message)"
+}
+
+if ($comparisonSucceeded) {
+    if (
+        -not (Test-IsWithinDirectory -Path $generatedDirectory -Directory $temporaryRoot) -or
+        (Test-IsWithinDirectory -Path $generatedDirectory -Directory $repositoryRoot) -or
+        (Test-IsWithinDirectory -Path $generatedDirectory -Directory $artifactRepositoryRoot)
+    ) {
+        throw "Refusing unsafe cleanup path: $generatedDirectory"
+    }
+    foreach ($generatedFile in $generatedFiles) {
+        [System.IO.File]::Delete($generatedFile.FullName)
+    }
+    [System.IO.Directory]::Delete($generatedDirectory, $false)
+    Write-Output 'Verified exact manifest file set and bytes; removed the fresh generated directory.'
+}
 ```
 
 Each manifest is UTF-8 without a BOM, uses LF endings, ends with one LF, and is sorted by the ordinal byte order of each forward-slash UTF-8 path.
@@ -327,7 +450,7 @@ The ticket-024 provider action remains separate from repository recovery and mus
 - `git rev-parse HEAD` in the delivery worktree records the admission base and later proves it stayed detached.
 - `git -c safe.directory=C:/_MyFiles/Programming/Projects/rounds-clone -C C:/_MyFiles/Programming/Projects/rounds-clone show-ref --head` captures all refs without changing configuration.
 - `git -c safe.directory=C:/_MyFiles/Programming/Projects/rounds-clone -C C:/_MyFiles/Programming/Projects/rounds-clone worktree list --porcelain` captures all registrations.
-- The helper command above must produce byte-identical manifests and the eight artifact digests in this inventory on repeated runs.
+- The reproduction procedure above must generate all eight manifests in a fresh directory outside the repository, compare the exact file set and every byte with the committed baseline, fail while retaining generated output on any mismatch, and remove only that exact fresh directory after a successful comparison.
 - Registered status must remain 009 clean, 010 with 0 staged/2 unstaged/2 untracked, and 011 with 0 staged/30 unstaged/20 untracked.
 - The five `.git-index` SHA-256 values, sizes, root metadata, refs, registrations, and all eight artifact manifest digests must match before and after implementation.
 - Ticket verification must find 55 occurrences, 28 byte variants, and all 21 logical numbers 009–029.
