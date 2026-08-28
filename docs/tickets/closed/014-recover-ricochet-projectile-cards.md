@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-28T19:17:45Z
 origin: system-detected
 tags: [recovery, cards, projectiles, combat]
@@ -91,3 +91,5 @@ The authoritative match gains the four deterministic ricochet-card behaviors pre
 - 2026-08-28T20:08:50Z stage verify start session codex:01a049e0-39ea-7c60-b57d-8094bf7af9b5 — Rechecking ticket format, whitespace, LF bytes, exact path scope, selected source blobs and presentation hunks, complete incremental and candidate diffs, and all frozen manifests, indexes, dirty states, refs, and registrations.
 - 2026-08-28T20:16:46Z stage verify end session codex:01a049e0-39ea-7c60-b57d-8094bf7af9b5 — Passed append-only bookkeeping, complete-diff inspection, ticket, whitespace, LF, 14-path scope, exact selected-blob and two-hunk presentation checks, and unchanged frozen manifests, indexes, dirty states, refs, registrations, detached HEAD, and product bytes.
 - 2026-08-28T20:20:54Z stage review start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04a07-582c-77e3-af95-ea1b831e548b — Independently reviewing the complete exact recovery candidate from admission base through this unmatched marker, including source fidelity, clean-room boundaries, deterministic evidence, full verification, frozen-artifact preservation, and workflow identity.
+- 2026-08-28T20:37:50Z stage review end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04a07-582c-77e3-af95-ea1b831e548b — approved candidate 801376d1bf815864e714dc15e30de9a9033a384c..ef3c71ea43c432a823c9496a41527879682ce4a2
+- 2026-08-28T20:37:50Z stage integration end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — integrated ef3c71ea43c432a823c9496a41527879682ce4a2 as ef3c71ea43c432a823c9496a41527879682ce4a2
