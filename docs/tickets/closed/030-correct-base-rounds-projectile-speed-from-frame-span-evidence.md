@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-29T05:51:48Z
 origin: human-request
 tags: ["product-fidelity", "simulation", "combat", "evidence"]
@@ -62,3 +62,5 @@ The clone's base projectile crosses the arena roughly six times faster than the 
 - 2026-08-29T07:12:07Z stage implementation end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Corrected the only review finding: final notes now state the completed `0.38` embedded runtime binding and replay hash, while the manifest preserves `2.4` explicitly as the pre-binding red state and records the later applied outcome. JSON parsing, repository checks, ticket checks, stale-term search, path scope, and diff checks pass; no gameplay, spec, source, or replay bytes changed.
 - 2026-08-29T07:12:46Z stage review start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04c50-ac78-7663-90ae-3202713755dd — Re-reviewing the exact corrected admission range through `256d1b7`, focused on the rejected final-state research/manifest contradiction and regression of the already-passed media, arithmetic, checker, commit-boundary, replay/history, and headless runtime evidence.
 - 2026-08-29T07:15:07Z stage review verdict session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04c50-ac78-7663-90ae-3202713755dd — Approved exact corrected range `4da7d9002834e12789d634a03a2ee10e8cf58007..4154f8fa20ab927403240aa07be010ee1d86f76e` with no findings. The sole P1 is resolved, all previously reviewed product/evidence/replay bytes remain unchanged, and targeted JSON, repository, ticket, path, golden-history, event, and cross-field checks pass. The canonical review end remains reserved for Ivy's closing transaction.
+- 2026-08-29T07:28:40Z stage review end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04c50-ac78-7663-90ae-3202713755dd — approved candidate 4da7d9002834e12789d634a03a2ee10e8cf58007..573063102fb92461863b2c069dc5e1139064e133
+- 2026-08-29T07:28:40Z stage integration end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — integrated 573063102fb92461863b2c069dc5e1139064e133 as 573063102fb92461863b2c069dc5e1139064e133
