@@ -14,23 +14,50 @@ public sealed class StartupRouteTests
 
         Assert.Equal(StartupMode.Match, ordinary.Mode);
         Assert.Null(ordinary.ReplayPath);
+        Assert.Null(ordinary.DebugEvidenceOutputPath);
         Assert.True(ordinary.RunsContinuousPhysics);
         Assert.Equal(StartupMode.Replay, replay.Mode);
         Assert.Equal("evidence.rounds-replay.json", replay.ReplayPath);
+        Assert.Null(replay.DebugEvidenceOutputPath);
         Assert.True(replay.RunsContinuousPhysics);
     }
 
     [Fact]
     public void EvidenceArgumentIsAvailableOnlyToDebugRouting()
     {
-        var arguments = new[] { StartupRoute.DebugIncompleteFidelityEvidenceArgument };
+        var outputPath = Path.Combine(Path.GetTempPath(), "rounds-boundary-evidence.png");
+        var arguments = new[] { StartupRoute.DebugIncompleteFidelityEvidenceArgument, outputPath };
 
         var debug = StartupRoute.Parse(arguments, allowDebugEvidence: true);
 
         Assert.Equal(StartupMode.DebugIncompleteFidelityEvidence, debug.Mode);
         Assert.Null(debug.ReplayPath);
+        Assert.Equal(outputPath, debug.DebugEvidenceOutputPath);
         Assert.False(debug.RunsContinuousPhysics);
         Assert.Throws<ArgumentException>(() => StartupRoute.Parse(arguments, allowDebugEvidence: false));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { StartupRoute.DebugIncompleteFidelityEvidenceArgument },
+            allowDebugEvidence: true));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { StartupRoute.DebugIncompleteFidelityEvidenceArgument, "relative.png" },
+            allowDebugEvidence: true));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { StartupRoute.DebugIncompleteFidelityEvidenceArgument, Path.ChangeExtension(outputPath, ".jpg") },
+            allowDebugEvidence: true));
+    }
+
+    [Fact]
+    public void RendererCaptureMarkersAreExactAndInvariant()
+    {
+        Assert.Equal(
+            "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_COMPLETE width=1280 height=720",
+            DebugEvidenceCaptureProtocol.CompleteMarker(1280, 720));
+        Assert.Equal(
+            "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR stage=save-png code=12",
+            DebugEvidenceCaptureProtocol.ErrorMarker("save-png", 12));
+        Assert.Equal(
+            "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR stage=renderer-unavailable code=0",
+            DebugEvidenceCaptureProtocol.ErrorMarker("renderer-unavailable", 0));
     }
 
     [Fact]

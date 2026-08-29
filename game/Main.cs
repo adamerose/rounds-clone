@@ -67,7 +67,55 @@ public partial class Main : Node2D
         if (!route.RunsContinuousPhysics)
         {
             SetPhysicsProcess(false);
+            _ = CaptureDebugEvidenceAsync(route.DebugEvidenceOutputPath!);
         }
+    }
+
+    private async Task CaptureDebugEvidenceAsync(string outputPath)
+    {
+        if (File.Exists(outputPath))
+        {
+            FinishDebugEvidenceWithError("output-exists", 0);
+            return;
+        }
+
+        try
+        {
+            if (DisplayServer.GetName() == "headless")
+            {
+                FinishDebugEvidenceWithError("renderer-unavailable", 0);
+                return;
+            }
+
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            RenderingServer.ForceDraw();
+            var image = GetViewport().GetTexture().GetImage();
+            if (image.GetWidth() <= 0 || image.GetHeight() <= 0)
+            {
+                FinishDebugEvidenceWithError("empty-viewport", 0);
+                return;
+            }
+
+            var error = image.SavePng(outputPath);
+            if (error != Error.Ok)
+            {
+                FinishDebugEvidenceWithError("save-png", (int)error);
+                return;
+            }
+
+            GD.Print(DebugEvidenceCaptureProtocol.CompleteMarker(image.GetWidth(), image.GetHeight()));
+            GetTree().Quit();
+        }
+        catch (Exception)
+        {
+            FinishDebugEvidenceWithError("capture", 1);
+        }
+    }
+
+    private void FinishDebugEvidenceWithError(string stage, int code)
+    {
+        GD.Print(DebugEvidenceCaptureProtocol.ErrorMarker(stage, code));
+        GetTree().Quit(1);
     }
 
     private static void PlaceWindowOnPreferredScreen()

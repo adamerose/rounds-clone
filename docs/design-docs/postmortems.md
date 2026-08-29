@@ -1071,3 +1071,15 @@ All seven tool-attributable lock-file changes were restored exactly from the kno
 The no-input debug route put exact candidate `98793dc992a1235f08f593686927924193e0b3ae` at the real frozen loser-draft boundary, but its single long 32-point headline exceeded the rendered text width in the configured 1280x720 window at 120 DPI.
 The monitor-4 capture at origin `(811,-878)`, size `821x486`, showed only through `AWAIT DIRECT ROU` instead of the required `DIRECT ROUNDS VERIFICATION`; exact PID 2548 was stopped afterward.
 The correction keeps the same warning and subtitle, splits each into centered lines of at most 32 characters, and protects both reconstructed strings and the line-length ceiling in a direct regression before native recapture.
+
+## 2026-08-29 — Foreground-window capture was occluded by another application
+
+The second native run of exact candidate `9d34affbe32eeda4862d3e1b3de3b4e25f1ec340` again placed the unique target window at origin `(811,-878)`, size `821x486`, with center `(1221.5,-635)` on monitor 4, but an unrelated foreground application covered the Windows screenshot.
+The verifier did not activate ROUNDS, inspect the unrelated application, or inject input, and stopped exact PID 49284 after the failed capture.
+The correction moves evidence ownership into the debug Godot route itself: after reaching the same real frozen boundary, the renderer waits for its completed viewport frame, writes an explicitly named PNG outside tracked paths, emits a deterministic completion or error marker, and exits automatically.
+
+The first headless renderer-route check waited on `RenderingServer.FramePostDraw`, which the headless backend did not emit, so the exact isolated Godot child and its command wrapper remained waiting past 30 seconds.
+After verifying their command lines and exact temporary-output UUID, the owner stopped only PIDs 37092, 11428, and 14000 and removed only `C:\Users\Adam\AppData\Local\Temp\rounds-debug-evidence-29c4dd093b5545cf995f6a67698a85d2`.
+The capture lifecycle now waits for the scene tree's next process frame and explicitly forces the renderer draw before reading the viewport, which provides a bounded completion point in both headless verification and the visible debug renderer.
+Godot's dummy headless renderer has no viewport texture to save, so the first bounded retry exited through the deterministic `stage=capture code=1` marker and left no game process, but also printed an engine null-texture backtrace.
+The route now detects the headless display driver first and exits cleanly with `stage=renderer-unavailable code=0`; the visible debug renderer remains the only path that attempts the PNG, while unit tests protect both completion and error marker grammar.

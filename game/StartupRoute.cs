@@ -7,7 +7,10 @@ internal enum StartupMode
     DebugIncompleteFidelityEvidence,
 }
 
-internal readonly record struct StartupRoute(StartupMode Mode, string? ReplayPath)
+internal readonly record struct StartupRoute(
+    StartupMode Mode,
+    string? ReplayPath,
+    string? DebugEvidenceOutputPath)
 {
     internal const string Usage = "Usage: Rounds.Game -- --replay <path>";
     internal const string DebugIncompleteFidelityEvidenceArgument =
@@ -19,17 +22,18 @@ internal readonly record struct StartupRoute(StartupMode Mode, string? ReplayPat
     {
         if (arguments.Length == 0)
         {
-            return new StartupRoute(StartupMode.Match, null);
+            return new StartupRoute(StartupMode.Match, null, null);
         }
         if (arguments.Length == 2 && arguments[0] == "--replay")
         {
-            return new StartupRoute(StartupMode.Replay, arguments[1]);
+            return new StartupRoute(StartupMode.Replay, arguments[1], null);
         }
         if (allowDebugEvidence &&
-            arguments.Length == 1 &&
-            arguments[0] == DebugIncompleteFidelityEvidenceArgument)
+            arguments.Length == 2 &&
+            arguments[0] == DebugIncompleteFidelityEvidenceArgument &&
+            DebugEvidenceCaptureProtocol.IsValidOutputPath(arguments[1]))
         {
-            return new StartupRoute(StartupMode.DebugIncompleteFidelityEvidence, null);
+            return new StartupRoute(StartupMode.DebugIncompleteFidelityEvidence, null, arguments[1]);
         }
 
         throw new ArgumentException(Usage, nameof(arguments));
