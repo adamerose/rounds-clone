@@ -5,6 +5,36 @@ namespace Rounds.Sim.Tests;
 public sealed class FaithfulSubsetMatchShellTests
 {
     [Fact]
+    public void IncompleteFidelityOverlayPreservesCopyInBoundedLines()
+    {
+        var headlineLines = new[]
+        {
+            FaithfulSubsetMatchShell.IncompleteFidelityHeadlineLine1,
+            FaithfulSubsetMatchShell.IncompleteFidelityHeadlineLine2,
+            FaithfulSubsetMatchShell.IncompleteFidelityHeadlineLine3,
+        };
+        var subtitleLines = new[]
+        {
+            FaithfulSubsetMatchShell.IncompleteFidelitySubtitleLine1,
+            FaithfulSubsetMatchShell.IncompleteFidelitySubtitleLine2,
+            FaithfulSubsetMatchShell.IncompleteFidelitySubtitleLine3,
+        };
+
+        Assert.Equal(
+            FaithfulSubsetMatchShell.IncompleteFidelityMessage,
+            string.Join(' ', headlineLines));
+        Assert.Equal(
+            FaithfulSubsetMatchShell.IncompleteFidelitySubtitle,
+            string.Join(' ', subtitleLines));
+        Assert.All(
+            headlineLines.Concat(subtitleLines),
+            line => Assert.InRange(
+                line.Length,
+                1,
+                FaithfulSubsetMatchShell.IncompleteFidelityMaximumLineCharacters));
+    }
+
+    [Fact]
     public void ShippedShellStopsBeforeSecondCardSelectionOrLaterSimulation()
     {
         var shell = new FaithfulSubsetMatchShell(Match.Create(14));

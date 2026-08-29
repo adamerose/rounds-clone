@@ -448,23 +448,24 @@ public partial class Main : Node2D
     private void DrawIncompleteFidelityBoundary()
     {
         DrawRect(new Rect2(0.0f, 250.0f, 1920.0f, 560.0f), Ink with { A = 0.96f });
-        DrawString(
-            ThemeDB.FallbackFont,
-            new Vector2(360.0f, 480.0f),
-            FaithfulSubsetMatchShell.IncompleteFidelityMessage,
-            HorizontalAlignment.Center,
-            1200.0f,
-            32,
-            Paper);
-        DrawString(
-            ThemeDB.FallbackFont,
-            new Vector2(460.0f, 560.0f),
-            "THE OPENING CARDS AND FIRST FULL ROUND ARE THE CURRENT PLAYABLE SUBSET",
-            HorizontalAlignment.Center,
-            1000.0f,
-            22,
-            Paper.Darkened(0.1f));
+        DrawIncompleteFidelityLine(FaithfulSubsetMatchShell.IncompleteFidelityHeadlineLine1, 410.0f, 30, Paper);
+        DrawIncompleteFidelityLine(FaithfulSubsetMatchShell.IncompleteFidelityHeadlineLine2, 455.0f, 30, Paper);
+        DrawIncompleteFidelityLine(FaithfulSubsetMatchShell.IncompleteFidelityHeadlineLine3, 500.0f, 30, Paper);
+        var subtitleColor = Paper.Darkened(0.1f);
+        DrawIncompleteFidelityLine(FaithfulSubsetMatchShell.IncompleteFidelitySubtitleLine1, 610.0f, 24, subtitleColor);
+        DrawIncompleteFidelityLine(FaithfulSubsetMatchShell.IncompleteFidelitySubtitleLine2, 645.0f, 24, subtitleColor);
+        DrawIncompleteFidelityLine(FaithfulSubsetMatchShell.IncompleteFidelitySubtitleLine3, 680.0f, 24, subtitleColor);
     }
+
+    private void DrawIncompleteFidelityLine(string text, float baselineY, int fontSize, Color color) =>
+        DrawString(
+            ThemeDB.FallbackFont,
+            new Vector2(260.0f, baselineY),
+            text,
+            HorizontalAlignment.Center,
+            1400.0f,
+            fontSize,
+            color);
 
     private static string EffectLine(StatCardDefinition card) =>
         string.Join("  ", card.Effects.Select(effect => (effect.Target, effect.Operation) switch

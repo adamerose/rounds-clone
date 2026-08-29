@@ -1065,3 +1065,9 @@ The same absolute-path and worktree-containment checks followed by the runtime d
 The first focused correction build targeted the Godot project alone in Release configuration, which removed the editor-only package entry from its working lock file even though no dependency changed.
 A force-evaluated solution restore reinstated that entry but normalized final-newline formatting in every lock file.
 All seven tool-attributable lock-file changes were restored exactly from the known clean candidate before staging; the correction does not change a package version, lock byte, simulation input, or shipped route.
+
+## 2026-08-29 — The first boundary capture clipped its central warning
+
+The no-input debug route put exact candidate `98793dc992a1235f08f593686927924193e0b3ae` at the real frozen loser-draft boundary, but its single long 32-point headline exceeded the rendered text width in the configured 1280x720 window at 120 DPI.
+The monitor-4 capture at origin `(811,-878)`, size `821x486`, showed only through `AWAIT DIRECT ROU` instead of the required `DIRECT ROUNDS VERIFICATION`; exact PID 2548 was stopped afterward.
+The correction keeps the same warning and subtitle, splits each into centered lines of at most 32 characters, and protects both reconstructed strings and the line-length ceiling in a direct regression before native recapture.
