@@ -96,6 +96,16 @@ public partial class Main : Node2D
                 return;
             }
 
+            var screen = DisplayServer.WindowGetCurrentScreen();
+            var windowPosition = DisplayServer.WindowGetPosition();
+            var windowSize = DisplayServer.WindowGetSize();
+            if (screen != PreferredScreen)
+            {
+                GD.Print(DebugEvidenceCaptureProtocol.WrongScreenMarker(screen, PreferredScreen));
+                GetTree().Quit(1);
+                return;
+            }
+
             var error = image.SavePng(outputPath);
             if (error != Error.Ok)
             {
@@ -103,7 +113,15 @@ public partial class Main : Node2D
                 return;
             }
 
-            GD.Print(DebugEvidenceCaptureProtocol.CompleteMarker(image.GetWidth(), image.GetHeight()));
+            var attestation = new DebugEvidenceCaptureAttestation(
+                screen,
+                windowPosition.X,
+                windowPosition.Y,
+                windowSize.X,
+                windowSize.Y,
+                image.GetWidth(),
+                image.GetHeight());
+            GD.Print(DebugEvidenceCaptureProtocol.CompleteMarker(attestation));
             GetTree().Quit();
         }
         catch (Exception)

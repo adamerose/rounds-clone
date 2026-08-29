@@ -2,6 +2,15 @@ using System.Globalization;
 
 namespace Rounds.Game;
 
+internal readonly record struct DebugEvidenceCaptureAttestation(
+    int Screen,
+    int WindowX,
+    int WindowY,
+    int WindowWidth,
+    int WindowHeight,
+    int ViewportWidth,
+    int ViewportHeight);
+
 internal static class DebugEvidenceCaptureProtocol
 {
     internal const string CompletePrefix = "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_COMPLETE";
@@ -24,13 +33,18 @@ internal static class DebugEvidenceCaptureProtocol
         }
     }
 
-    public static string CompleteMarker(int width, int height) =>
+    public static string CompleteMarker(DebugEvidenceCaptureAttestation attestation) =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"{CompletePrefix} width={width} height={height}");
+            $"{CompletePrefix} screen={attestation.Screen} windowX={attestation.WindowX} windowY={attestation.WindowY} windowWidth={attestation.WindowWidth} windowHeight={attestation.WindowHeight} viewportWidth={attestation.ViewportWidth} viewportHeight={attestation.ViewportHeight}");
 
     public static string ErrorMarker(string stage, int code) =>
         string.Create(
             CultureInfo.InvariantCulture,
             $"{ErrorPrefix} stage={stage} code={code}");
+
+    public static string WrongScreenMarker(int screen, int expectedScreen) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{ErrorPrefix} stage=wrong-screen screen={screen} expectedScreen={expectedScreen}");
 }

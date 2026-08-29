@@ -50,14 +50,18 @@ public sealed class StartupRouteTests
     public void RendererCaptureMarkersAreExactAndInvariant()
     {
         Assert.Equal(
-            "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_COMPLETE width=1280 height=720",
-            DebugEvidenceCaptureProtocol.CompleteMarker(1280, 720));
+            "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_COMPLETE screen=3 windowX=811 windowY=-878 windowWidth=821 windowHeight=486 viewportWidth=1920 viewportHeight=1080",
+            DebugEvidenceCaptureProtocol.CompleteMarker(
+                new DebugEvidenceCaptureAttestation(3, 811, -878, 821, 486, 1920, 1080)));
         Assert.Equal(
             "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR stage=save-png code=12",
             DebugEvidenceCaptureProtocol.ErrorMarker("save-png", 12));
         Assert.Equal(
             "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR stage=renderer-unavailable code=0",
             DebugEvidenceCaptureProtocol.ErrorMarker("renderer-unavailable", 0));
+        Assert.Equal(
+            "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR stage=wrong-screen screen=1 expectedScreen=3",
+            DebugEvidenceCaptureProtocol.WrongScreenMarker(1, 3));
     }
 
     [Fact]
