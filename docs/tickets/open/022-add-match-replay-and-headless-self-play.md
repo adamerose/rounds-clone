@@ -9,7 +9,7 @@ risk: 4
 sessions:
   - codex:01a0492f-57bc-7f32-87fa-1fbe5d483893
 execution: unattended
-depends-on: [18, 19]
+depends-on: [18, 19, 32]
 supersedes: []
 split-from: []
 ---
@@ -28,6 +28,7 @@ The goal requires long-running deterministic validation, but the current protect
 
 - Self-play is verification infrastructure, not a ROUNDS gameplay feature. Agents use only legal player inputs and receive no hidden state unavailable to a real controller unless the test is explicitly labeled structural.
 - Match replay extends the existing deterministic event/history rules and records intentional format or golden changes explicitly.
+- Reuse ticket 032's admitted semantic action and observation boundary for complete-match agents rather than creating a parallel bot-control surface. This ticket may extend or supersede the debug trace only through an explicitly reviewed migration while keeping complete-match replay distinct from ticket 032's bounded debug evidence.
 
 ## Evidence required
 
@@ -39,3 +40,5 @@ The goal requires long-running deterministic validation, but the current protect
 
 - 2026-08-29T02:40:49Z stage design start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Assigning complete-match replay and bot-driven validation as internal infrastructure rather than an invented shipped ROUNDS mode.
 - 2026-08-29T02:40:49Z stage design end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Bound complete deterministic history and the 10,000-match safety gate to legal semantic inputs and no player-facing AI.
+- 2026-08-29T20:23:32Z stage design start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Making the new bounded clone playtest surface an explicit prerequisite so later complete-match self-play extends one semantic agent boundary instead of inventing a parallel controller.
+- 2026-08-29T20:24:47Z stage design end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Added ticket 032 as the owner of the bounded clone-side action/observation surface; complete-match agents must reuse or explicitly migrate it while keeping debug traces distinct from protected match replay.
