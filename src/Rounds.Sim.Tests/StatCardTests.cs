@@ -44,22 +44,22 @@ public sealed class StatCardTests
     }
 
     [Theory]
-    [InlineData("bouncy", 1.0, 3, 0.6875, 18, 135, 2.4, 240, 0.0, 2)]
-    [InlineData("careful-planning", 1.0, 3, 1.10, 45, 150, 2.4, 240, 0.0, 0)]
-    [InlineData("combine", 1.0, 1, 1.10, 18, 150, 2.4, 240, 0.0, 0)]
-    [InlineData("defender", 1.3, 3, 0.55, 18, 120, 2.4, 168, 0.0, 0)]
-    [InlineData("fast-forward", 1.0, 3, 0.55, 18, 92, 4.8, 240, 0.0, 0)]
-    [InlineData("fastball", 1.0, 3, 0.55, 27, 135, 8.4, 240, 0.0, 0)]
-    [InlineData("glass-cannon", 0.5, 3, 1.10, 18, 135, 2.4, 240, 0.0, 0)]
-    [InlineData("huge", 1.8, 3, 0.55, 18, 120, 2.4, 240, 0.0, 0)]
-    [InlineData("leech", 1.3, 3, 0.55, 18, 120, 2.4, 240, 0.75, 0)]
-    [InlineData("mayhem", 1.0, 3, 0.4675, 18, 150, 2.4, 240, 0.0, 5)]
-    [InlineData("quick-reload", 1.0, 3, 0.55, 18, 36, 2.4, 240, 0.0, 0)]
-    [InlineData("quick-shot", 1.0, 3, 0.55, 18, 135, 6.0, 240, 0.0, 0)]
-    [InlineData("spray", 1.0, 15, 0.1375, 2, 135, 2.4, 240, 0.0, 0)]
-    [InlineData("steady-shot", 1.4, 3, 0.55, 18, 135, 4.8, 240, 0.0, 0)]
-    [InlineData("tank", 2.0, 3, 0.55, 23, 150, 2.4, 240, 0.0, 0)]
-    [InlineData("wind-up", 1.0, 3, 0.88, 36, 150, 4.8, 240, 0.0, 0)]
+    [InlineData("bouncy", 1.0, 3, 0.6875, 18, 135, 1.0, 240, 0.0, 2)]
+    [InlineData("careful-planning", 1.0, 3, 1.10, 45, 150, 1.0, 240, 0.0, 0)]
+    [InlineData("combine", 1.0, 1, 1.10, 18, 150, 1.0, 240, 0.0, 0)]
+    [InlineData("defender", 1.3, 3, 0.55, 18, 120, 1.0, 168, 0.0, 0)]
+    [InlineData("fast-forward", 1.0, 3, 0.55, 18, 92, 2.0, 240, 0.0, 0)]
+    [InlineData("fastball", 1.0, 3, 0.55, 27, 135, 3.5, 240, 0.0, 0)]
+    [InlineData("glass-cannon", 0.5, 3, 1.10, 18, 135, 1.0, 240, 0.0, 0)]
+    [InlineData("huge", 1.8, 3, 0.55, 18, 120, 1.0, 240, 0.0, 0)]
+    [InlineData("leech", 1.3, 3, 0.55, 18, 120, 1.0, 240, 0.75, 0)]
+    [InlineData("mayhem", 1.0, 3, 0.4675, 18, 150, 1.0, 240, 0.0, 5)]
+    [InlineData("quick-reload", 1.0, 3, 0.55, 18, 36, 1.0, 240, 0.0, 0)]
+    [InlineData("quick-shot", 1.0, 3, 0.55, 18, 135, 2.5, 240, 0.0, 0)]
+    [InlineData("spray", 1.0, 15, 0.1375, 2, 135, 1.0, 240, 0.0, 0)]
+    [InlineData("steady-shot", 1.4, 3, 0.55, 18, 135, 2.0, 240, 0.0, 0)]
+    [InlineData("tank", 2.0, 3, 0.55, 23, 150, 1.0, 240, 0.0, 0)]
+    [InlineData("wind-up", 1.0, 3, 0.88, 36, 150, 2.0, 240, 0.0, 0)]
     public void EverySingleCardHasExactProfile(
         string id,
         double health,
@@ -67,7 +67,7 @@ public sealed class StatCardTests
         double damage,
         int fireTicks,
         int reloadTicks,
-        double speed,
+        double projectileSpeedMultiplier,
         int blockTicks,
         double lifesteal,
         int bounces)
@@ -79,7 +79,10 @@ public sealed class StatCardTests
         Assert.Equal(damage, profile.BulletDamage, 10);
         Assert.Equal(fireTicks, profile.FireIntervalTicks);
         Assert.Equal(reloadTicks, profile.ReloadTicks);
-        Assert.Equal(speed, profile.ProjectileSpeed, 10);
+        Assert.Equal(
+            CombatTuning.Vanilla.ProjectileSpeed * projectileSpeedMultiplier,
+            profile.ProjectileSpeed,
+            10);
         Assert.Equal(blockTicks, profile.BlockCooldownTicks);
         Assert.Equal(lifesteal, profile.Lifesteal, 10);
         Assert.Equal(bounces, profile.ProjectileBounces);

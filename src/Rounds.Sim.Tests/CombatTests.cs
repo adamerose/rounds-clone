@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Rounds.Sim.Maps;
 using Rounds.Sim.Math;
 using Rounds.Sim.Physics;
@@ -16,7 +17,15 @@ public sealed class CombatTests
         Assert.Equal(0.55, tuning.BaseDamage);
         Assert.Equal(18, tuning.FireIntervalTicks);
         Assert.Equal(120, tuning.ReloadTicks);
-        Assert.Equal(2.4, tuning.ProjectileSpeed);
+        using var stream = typeof(CombatTuning).Assembly
+            .GetManifestResourceStream("Rounds.Sim.Data.combat.json")!;
+        using var document = JsonDocument.Parse(stream);
+        var bindingProjectileSpeed = document.RootElement.GetProperty("facts")
+            .EnumerateArray()
+            .Single(fact => fact.GetProperty("id").GetString() == "combat-projectile-speed")
+            .GetProperty("value")
+            .GetDouble();
+        Assert.Equal(bindingProjectileSpeed, tuning.ProjectileSpeed);
         Assert.Equal(0.08, tuning.ProjectileRadius);
         Assert.Equal(0, tuning.BaseBounces);
         Assert.Equal(0.10, tuning.RecoilSpeed);
@@ -82,7 +91,7 @@ public sealed class CombatTests
         Assert.Equal(2, world.Players[0].Ammo);
         Assert.Equal(18, world.Players[0].FireCooldownTicksRemaining);
         Assert.Single(world.Bullets);
-        Assert.Equal(2.4, world.Bullets[0].Velocity.Y, precision: 12);
+        Assert.Equal(world.Players[0].CombatProfile.ProjectileSpeed, world.Bullets[0].Velocity.Y, precision: 12);
         Assert.Equal(0.08, world.Bullets[0].Radius);
         Assert.True(double.IsFinite(world.Bullets[0].Position.Y));
 
@@ -500,7 +509,7 @@ public sealed class CombatTests
     private static void FireRightAndRun(World world)
     {
         Step(world, new PlayerInput(0, false, true, false, new Vec2(1.0, 0.0)));
-        for (var tick = 0; tick < 10 && world.Bullets.Count > 0; tick++)
+        for (var tick = 0; tick < world.Combat.BulletLifetimeSweeps && world.Bullets.Count > 0; tick++)
         {
             Step(world);
         }
