@@ -30,5 +30,13 @@
     <Compile Include="..\..\game\DebugEvidenceMatchFactory.cs" Link="Game\DebugEvidenceMatchFactory.cs" />
     <Compile Include="..\..\game\FaithfulSubsetMatchShell.cs" Link="Game\FaithfulSubsetMatchShell.cs" />
     <Compile Include="..\..\game\StartupRoute.cs" Link="Game\StartupRoute.cs" />
+    <Compile Include="..\..\game\AgentPlaytestArtifacts.cs" Link="Game\AgentPlaytestArtifacts.cs" />
+    <Compile Include="..\..\game\AgentPlaytestManifest.cs" Link="Game\AgentPlaytestManifest.cs" />
+    <Compile Include="..\..\game\AgentPlaytestObservations.cs" Link="Game\AgentPlaytestObservations.cs" />
+    <Compile Include="..\..\game\AgentPlaytestProtocol.cs" Link="Game\AgentPlaytestProtocol.cs" />
+    <Compile Include="..\..\game\AgentPlaytestProtocolLoop.cs" Link="Game\AgentPlaytestProtocolLoop.cs" />
+    <Compile Include="..\..\game\AgentPlaytestSession.cs" Link="Game\AgentPlaytestSession.cs" />
+    <Compile Include="..\..\game\AgentPlaytestSupervisor.cs" Link="Game\AgentPlaytestSupervisor.cs" />
+    <Compile Include="..\..\game\AgentPlaytestTrace.cs" Link="Game\AgentPlaytestTrace.cs" />
   </ItemGroup>
 </Project>

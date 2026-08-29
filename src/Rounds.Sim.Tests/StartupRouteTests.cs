@@ -15,11 +15,106 @@ public sealed class StartupRouteTests
         Assert.Equal(StartupMode.Match, ordinary.Mode);
         Assert.Null(ordinary.ReplayPath);
         Assert.Null(ordinary.DebugEvidenceOutputPath);
+        Assert.Null(ordinary.DebugAgentPlaytestOutputRoot);
         Assert.True(ordinary.RunsContinuousPhysics);
         Assert.Equal(StartupMode.Replay, replay.Mode);
         Assert.Equal("evidence.rounds-replay.json", replay.ReplayPath);
         Assert.Null(replay.DebugEvidenceOutputPath);
+        Assert.Null(replay.DebugAgentPlaytestOutputRoot);
         Assert.True(replay.RunsContinuousPhysics);
+    }
+
+    [Fact]
+    public void AgentPlaytestArgumentIsDebugOnlyAbsoluteAbsentAndMutuallyExclusive()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rounds-agent-playtest-route-" + Guid.NewGuid().ToString("N"));
+        var arguments = new[] { StartupRoute.DebugAgentPlaytestArgument, root };
+
+        var route = StartupRoute.Parse(arguments, allowDebugEvidence: true);
+
+        Assert.Equal(StartupMode.DebugAgentPlaytest, route.Mode);
+        Assert.Equal(Path.GetFullPath(root), route.DebugAgentPlaytestOutputRoot);
+        Assert.Null(route.ReplayPath);
+        Assert.Null(route.DebugEvidenceOutputPath);
+        Assert.False(route.RunsContinuousPhysics);
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(arguments, allowDebugEvidence: false));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { StartupRoute.DebugAgentPlaytestArgument, "relative" },
+            allowDebugEvidence: true));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { "--replay", "x", StartupRoute.DebugAgentPlaytestArgument, root },
+            allowDebugEvidence: true));
+
+        Directory.CreateDirectory(root);
+        try
+        {
+            Assert.Throws<ArgumentException>(() => StartupRoute.Parse(arguments, allowDebugEvidence: true));
+        }
+        finally
+        {
+            Directory.Delete(root);
+        }
+        Assert.False(Directory.Exists(root));
+    }
+
+    [Fact]
+    public void AgentPlaytestRootNormalizationRequiresExistingNonReparseParentAndRejectsTrailingSeparators()
+    {
+        var parent = Path.Combine(Path.GetTempPath(), "rounds-agent-root-shapes-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(parent);
+        var normalized = Path.Combine(parent, "child");
+        var equivalent = Path.Combine(parent, "unused", "..", "child");
+        var missingParentChild = Path.Combine(parent, "missing", "nested-child");
+        var parentFile = Path.Combine(parent, "not-a-directory");
+        File.WriteAllText(parentFile, "file parent");
+        var nonDirectoryParentChild = Path.Combine(parentFile, "child");
+        var trailing = normalized + Path.DirectorySeparatorChar;
+        var realParent = Path.Combine(parent, "real-parent");
+        var reparseParent = Path.Combine(parent, "reparse-parent");
+        Directory.CreateDirectory(realParent);
+        Directory.CreateSymbolicLink(reparseParent, realParent);
+        try
+        {
+            var route = StartupRoute.Parse(
+                new[] { StartupRoute.DebugAgentPlaytestArgument, equivalent },
+                allowDebugEvidence: true);
+            Assert.Equal(Path.GetFullPath(normalized), route.DebugAgentPlaytestOutputRoot);
+
+            Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+                new[] { StartupRoute.DebugAgentPlaytestArgument, missingParentChild },
+                allowDebugEvidence: true));
+            Assert.Throws<ArgumentException>(() => AgentPlaytestArtifactOwner.Create(missingParentChild));
+            Assert.False(Directory.Exists(Path.Combine(parent, "missing")));
+
+            Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+                new[] { StartupRoute.DebugAgentPlaytestArgument, nonDirectoryParentChild },
+                allowDebugEvidence: true));
+            Assert.Throws<ArgumentException>(() => AgentPlaytestArtifactOwner.Create(nonDirectoryParentChild));
+
+            Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+                new[] { StartupRoute.DebugAgentPlaytestArgument, trailing },
+                allowDebugEvidence: true));
+            Assert.Throws<ArgumentException>(() => AgentPlaytestArtifactOwner.Create(trailing));
+
+            var reparseChild = Path.Combine(reparseParent, "child");
+            Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+                new[] { StartupRoute.DebugAgentPlaytestArgument, reparseChild },
+                allowDebugEvidence: true));
+            Assert.Throws<ArgumentException>(() => AgentPlaytestArtifactOwner.Create(reparseChild));
+
+            var owner = AgentPlaytestArtifactOwner.Create(equivalent);
+            Assert.Equal(Path.GetFullPath(normalized), owner.Root);
+            owner.CleanupFailedRun();
+            owner.Dispose();
+        }
+        finally
+        {
+            if (Directory.Exists(reparseParent))
+            {
+                Directory.Delete(reparseParent);
+            }
+            Directory.Delete(parent, recursive: true);
+        }
     }
 
     [Fact]

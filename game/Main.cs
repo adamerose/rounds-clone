@@ -18,7 +18,9 @@ public partial class Main : Node2D
     private readonly StatCardCatalog _displayCards = StatCardCatalog.LoadEmbedded();
     private Match? _match;
     private FaithfulSubsetMatchShell? _matchShell;
+    private AgentPlaytestSession? _agentPlaytest;
     private ReplayPlayback? _replay;
+    private StartupMode _startupMode;
     private World _world = null!;
 
     public override void _Ready()
@@ -36,6 +38,7 @@ public partial class Main : Node2D
             FailReplay(StartupRoute.Usage);
             return;
         }
+        _startupMode = route.Mode;
 
         if (route.Mode == StartupMode.Replay)
         {
@@ -57,6 +60,12 @@ public partial class Main : Node2D
             _match = _matchShell.Match;
             _world = _match.World;
         }
+        else if (route.Mode == StartupMode.DebugAgentPlaytest)
+        {
+            _agentPlaytest = new AgentPlaytestSession();
+            _match = _agentPlaytest.Match;
+            _world = _match.World;
+        }
         else
         {
             _match = Match.Create(1UL);
@@ -67,8 +76,55 @@ public partial class Main : Node2D
         if (!route.RunsContinuousPhysics)
         {
             SetPhysicsProcess(false);
-            _ = CaptureDebugEvidenceAsync(route.DebugEvidenceOutputPath!);
+            if (route.Mode == StartupMode.DebugAgentPlaytest)
+            {
+                RefuseUnavailableAgentPlaytestRenderer(route.DebugAgentPlaytestOutputRoot!);
+            }
+            else
+            {
+                _ = CaptureDebugEvidenceAsync(route.DebugEvidenceOutputPath!);
+            }
         }
+    }
+
+    private void RefuseUnavailableAgentPlaytestRenderer(string outputRoot)
+    {
+        AgentPlaytestArtifactOwner? owner = null;
+        AgentPlaytestErrorResponse response;
+        try
+        {
+            owner = AgentPlaytestArtifactOwner.Create(outputRoot);
+            response = AgentPlaytestErrors.Create(0, "renderer", "renderer-unavailable");
+        }
+        catch (Exception)
+        {
+            response = AgentPlaytestErrors.Create(0, "resource", "resource-limit-exceeded");
+        }
+        if (owner is not null)
+        {
+            var cleanupFailed = false;
+            try
+            {
+                owner.CleanupFailedRun();
+            }
+            catch (Exception)
+            {
+                cleanupFailed = true;
+                response = AgentPlaytestErrors.Create(0, "lifecycle", "cleanup-failed");
+            }
+            if (!cleanupFailed)
+            {
+                owner.Dispose();
+            }
+        }
+
+        var line = AgentPlaytestNdjson.SerializeResponse(response);
+        using var output = Console.OpenStandardOutput();
+        output.Write(line);
+        output.Flush();
+        GC.KeepAlive(owner);
+        Console.Error.WriteLine("Agent playtest renderer-backed owner is unavailable; no perceptual evidence was produced.");
+        GetTree().Quit(1);
     }
 
     private async Task CaptureDebugEvidenceAsync(string outputPath)
@@ -156,6 +212,10 @@ public partial class Main : Node2D
     public override void _PhysicsProcess(double delta)
     {
         _ = delta;
+        if (_startupMode == StartupMode.DebugAgentPlaytest)
+        {
+            throw new InvalidOperationException("The agent-playtest route must never enter ordinary physics/input processing.");
+        }
         if (_replay is not null)
         {
             StepReplay();

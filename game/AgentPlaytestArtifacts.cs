@@ -1,0 +1,483 @@
+using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+
+namespace Rounds.Game;
+
+internal interface IAgentPlaytestRgba8Decoder
+{
+    DecodedAgentPlaytestFrame Decode(ReadOnlySpan<byte> encodedPng);
+}
+
+internal sealed class DecodedAgentPlaytestFrame
+{
+    private readonly byte[] _pixels;
+
+    public DecodedAgentPlaytestFrame(int width, int height, ReadOnlySpan<byte> topToBottomStraightSrgbRgba8)
+    {
+        if (width <= 0 || height <= 0 ||
+            width > AgentPlaytestLimits.MaximumWidth || height > AgentPlaytestLimits.MaximumHeight ||
+            topToBottomStraightSrgbRgba8.Length != checked(width * height * 4))
+        {
+            throw new InvalidDataException("Decoded playtest frames must be bounded, tightly packed top-to-bottom straight-alpha sRGB RGBA8.");
+        }
+        Width = width;
+        Height = height;
+        _pixels = topToBottomStraightSrgbRgba8.ToArray();
+    }
+
+    public int Width { get; }
+    public int Height { get; }
+    public ReadOnlySpan<byte> Pixels => _pixels;
+}
+
+internal interface IAgentPlaytestRootLease : IDisposable
+{
+    string Root { get; }
+    bool TryDeleteOwnedRoot();
+}
+
+internal interface IAgentPlaytestRootAcquirer
+{
+    IAgentPlaytestRootLease Acquire(string absoluteRoot);
+}
+
+internal static class AgentPlaytestOutputRoot
+{
+    public static bool TryNormalizeAbsentChild(string? path, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path) || Path.EndsInDirectorySeparator(path))
+        {
+            return false;
+        }
+        try
+        {
+            var root = Path.GetFullPath(path);
+            var parent = Path.GetDirectoryName(root);
+            if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent) ||
+                File.Exists(root) || Directory.Exists(root))
+            {
+                return false;
+            }
+            var attributes = File.GetAttributes(parent);
+            if ((attributes & FileAttributes.Directory) == 0 || (attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return false;
+            }
+            normalized = root;
+            return true;
+        }
+        catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    public static string NormalizeAbsentChild(string path)
+    {
+        if (!TryNormalizeAbsentChild(path, out var normalized))
+        {
+            throw new ArgumentException(
+                "The playtest output root must be a normalized absent child of an existing non-reparse directory.",
+                nameof(path));
+        }
+        return normalized;
+    }
+}
+
+internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRootAcquirer
+{
+    public static AtomicWindowsAgentPlaytestRootAcquirer Instance { get; } = new();
+
+    public IAgentPlaytestRootLease Acquire(string absoluteRoot)
+    {
+        if (string.IsNullOrWhiteSpace(absoluteRoot) || !Path.IsPathFullyQualified(absoluteRoot) ||
+            Path.EndsInDirectorySeparator(absoluteRoot) ||
+            !string.Equals(Path.GetFullPath(absoluteRoot), absoluteRoot, StringComparison.Ordinal) ||
+            File.Exists(absoluteRoot) || Directory.Exists(absoluteRoot))
+        {
+            throw new ArgumentException("The root acquirer requires one already-normalized absent child.", nameof(absoluteRoot));
+        }
+        var normalizedRoot = absoluteRoot;
+        var parent = Path.GetDirectoryName(normalizedRoot)!;
+        if (!Directory.Exists(parent))
+        {
+            throw new ArgumentException("The root acquirer requires an existing non-reparse parent.", nameof(absoluteRoot));
+        }
+        var parentAttributes = File.GetAttributes(parent);
+        if ((parentAttributes & FileAttributes.Directory) == 0 ||
+            (parentAttributes & FileAttributes.ReparsePoint) != 0)
+        {
+            throw new ArgumentException("The root acquirer requires an existing non-reparse parent.", nameof(absoluteRoot));
+        }
+        var siblingLockPath = Path.Combine(
+            parent,
+            Path.GetFileName(normalizedRoot) + ".rounds-agent-playtest-owner");
+        FileStream? siblingLock = null;
+        FileStream? marker = null;
+        var createdRoot = false;
+        try
+        {
+            siblingLock = new FileStream(
+                siblingLockPath,
+                FileMode.CreateNew,
+                FileAccess.ReadWrite,
+                FileShare.None,
+                1,
+                FileOptions.DeleteOnClose);
+            if (!OperatingSystem.IsWindows() || NativeDirectory.CreateDirectory(normalizedRoot, IntPtr.Zero) == 0)
+            {
+                throw new IOException("The playtest output root could not be acquired atomically.");
+            }
+            createdRoot = true;
+            marker = new FileStream(
+                Path.Combine(normalizedRoot, ".rounds-agent-playtest-owner"),
+                FileMode.CreateNew,
+                FileAccess.ReadWrite,
+                FileShare.None,
+                1,
+                FileOptions.DeleteOnClose);
+            return new AgentPlaytestRootLease(normalizedRoot, siblingLock, marker);
+        }
+        catch
+        {
+            marker?.Dispose();
+            try
+            {
+                if (createdRoot && Directory.Exists(normalizedRoot) && !Directory.EnumerateFileSystemEntries(normalizedRoot).Any())
+                {
+                    Directory.Delete(normalizedRoot);
+                }
+            }
+            finally
+            {
+                siblingLock?.Dispose();
+            }
+            throw;
+        }
+    }
+
+    private sealed class AgentPlaytestRootLease(
+        string root,
+        FileStream siblingLock,
+        FileStream marker) : IAgentPlaytestRootLease
+    {
+        private FileStream? _marker = marker;
+
+        public string Root { get; } = root;
+
+        public bool TryDeleteOwnedRoot()
+        {
+            _marker?.Dispose();
+            _marker = null;
+            try
+            {
+                if (Directory.Exists(Root))
+                {
+                    Directory.Delete(Root, recursive: true);
+                }
+                return !Directory.Exists(Root);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                return !Directory.Exists(Root);
+            }
+        }
+
+        public void Dispose()
+        {
+            _marker?.Dispose();
+            _marker = null;
+            siblingLock.Dispose();
+        }
+    }
+
+    private static class NativeDirectory
+    {
+#pragma warning disable SYSLIB1054
+        [DllImport("kernel32.dll", EntryPoint = "CreateDirectoryW", SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern int CreateDirectory(string path, IntPtr securityAttributes);
+#pragma warning restore SYSLIB1054
+    }
+}
+
+internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFinalizedFrameVerifier
+{
+    private const int MaximumCleanupAttempts = 3;
+    private readonly string _rootWithSeparator;
+    private IAgentPlaytestRootLease? _rootLease;
+    private FileStream? _traceLease;
+    private bool _disposed;
+    private bool _completed;
+    private bool _cleanupExhausted;
+
+    private AgentPlaytestArtifactOwner(IAgentPlaytestRootLease rootLease)
+    {
+        _rootLease = rootLease;
+        Root = rootLease.Root;
+        _rootWithSeparator = Root + Path.DirectorySeparatorChar;
+    }
+
+    public string Root { get; }
+
+    public static AgentPlaytestArtifactOwner Create(
+        string absoluteAbsentRoot,
+        IAgentPlaytestRootAcquirer? acquirer = null)
+    {
+        var root = AgentPlaytestOutputRoot.NormalizeAbsentChild(absoluteAbsentRoot);
+        var lease = (acquirer ?? AtomicWindowsAgentPlaytestRootAcquirer.Instance).Acquire(root);
+        if (!string.Equals(lease.Root, root, StringComparison.Ordinal))
+        {
+            lease.Dispose();
+            throw new IOException("The root acquirer returned a lease for a different path.");
+        }
+        return new AgentPlaytestArtifactOwner(lease);
+    }
+
+    public (AgentPlaytestFrameResponse Response, HumanPlaytestObservation Observation) PublishFrame(
+        int sequence,
+        ReadOnlySpan<byte> encodedPng,
+        IAgentPlaytestRgba8Decoder decoder,
+        bool terminal)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (sequence is < 0 or >= AgentPlaytestLimits.MaximumFrames)
+        {
+            throw new AgentPlaytestFailure(sequence, "resource", "resource-limit-exceeded", "The frame budget was exceeded.");
+        }
+        ArgumentNullException.ThrowIfNull(decoder);
+        var partial = ExpectedFramePath(sequence) + ".partial";
+        var final = ExpectedFramePath(sequence);
+        try
+        {
+            using (var stream = new FileStream(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                stream.Write(encodedPng);
+                stream.Flush(flushToDisk: true);
+            }
+            var decoded = decoder.Decode(encodedPng);
+            var hash = Convert.ToHexString(SHA256.HashData(encodedPng)).ToLowerInvariant();
+            File.Move(partial, final, overwrite: false);
+            var response = new AgentPlaytestFrameResponse(sequence, final, hash, decoded.Width, decoded.Height, terminal);
+            if (Directory.EnumerateFiles(Root).Sum(static path => new FileInfo(path).Length) > AgentPlaytestLimits.MaximumOutputBytes)
+            {
+                throw new AgentPlaytestFailure(sequence, "resource", "resource-limit-exceeded", "The artifact output cap was exceeded.");
+            }
+            return (response, VerifyResponse(response, decoder));
+        }
+        catch (AgentPlaytestFailure)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new AgentPlaytestFailure(sequence, "frame", "frame-publish-failed", exception.Message);
+        }
+    }
+
+    public HumanPlaytestObservation VerifyResponse(
+        AgentPlaytestFrameResponse response,
+        IAgentPlaytestRgba8Decoder decoder)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(response);
+        ArgumentNullException.ThrowIfNull(decoder);
+        var expected = ExpectedFramePath(response.FrameSequence);
+        if (!string.Equals(Path.GetFullPath(response.FramePath), expected, StringComparison.Ordinal) ||
+            !response.FramePath.StartsWith(_rootWithSeparator, StringComparison.OrdinalIgnoreCase) ||
+            !File.Exists(expected))
+        {
+            throw new AgentPlaytestFailure(response.FrameSequence, "frame", "frame-publish-failed", "The response frame path is not the exact finalized task-owned path.");
+        }
+        var bytes = File.ReadAllBytes(expected);
+        var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        var decoded = decoder.Decode(bytes);
+        if (!string.Equals(hash, response.FrameSha256, StringComparison.Ordinal) ||
+            decoded.Width != response.Width || decoded.Height != response.Height)
+        {
+            throw new AgentPlaytestFailure(response.FrameSequence, "frame", "frame-publish-failed", "The finalized frame hash or dimensions do not match the response.");
+        }
+        return new HumanPlaytestObservation(response.FrameSequence, decoded.Pixels, decoded.Width, decoded.Height);
+    }
+
+    public void PublishTrace(ReadOnlySpan<byte> traceBytes)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var tracePartial = Path.Combine(Root, "trace.jsonl.partial");
+        var traceFinal = Path.Combine(Root, "trace.jsonl");
+        WriteNew(tracePartial, traceBytes);
+        File.Move(tracePartial, traceFinal, overwrite: false);
+        _traceLease = new FileStream(traceFinal, FileMode.Open, FileAccess.Read, FileShare.Read);
+        CheckOutputLimit();
+    }
+
+    public byte[] ReadFinalTrace()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_traceLease is null)
+        {
+            throw new AgentPlaytestFailure(null, "replay", "replay-mismatch", "The finalized trace is not locked for verification.");
+        }
+        _traceLease.Position = 0;
+        using var copy = new MemoryStream();
+        _traceLease.CopyTo(copy);
+        return copy.ToArray();
+    }
+
+    public void PublishManifest(ReadOnlySpan<byte> manifestBytes)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var manifestPartial = Path.Combine(Root, "manifest.json.partial");
+        var manifestFinal = Path.Combine(Root, "manifest.json");
+        WriteNew(manifestPartial, manifestBytes);
+        File.Move(manifestPartial, manifestFinal, overwrite: false);
+        CheckOutputLimit();
+        AgentPlaytestManifestCodec.ValidateCanonical(File.ReadAllBytes(manifestFinal));
+        _completed = true;
+    }
+
+    public void CleanupFailedRun()
+    {
+        if (_disposed || _rootLease is null)
+        {
+            return;
+        }
+        var lease = _rootLease;
+        _traceLease?.Dispose();
+        _traceLease = null;
+        for (var attempt = 0; attempt < MaximumCleanupAttempts; attempt++)
+        {
+            if (!lease.TryDeleteOwnedRoot())
+            {
+                continue;
+            }
+            lease.Dispose();
+            _rootLease = null;
+            _disposed = true;
+            return;
+        }
+        _cleanupExhausted = true;
+        throw new IOException("The owned playtest output root could not be deleted after bounded retries.");
+    }
+
+    public string ExpectedFramePath(int sequence) =>
+        Path.GetFullPath(Path.Combine(Root, $"frame-{sequence:0000}.png"));
+
+    public void Dispose()
+    {
+        if (!_completed)
+        {
+            if (_cleanupExhausted)
+            {
+                _rootLease?.Dispose();
+                _rootLease = null;
+            }
+            else
+            {
+                CleanupFailedRun();
+            }
+        }
+        else
+        {
+            _traceLease?.Dispose();
+            _traceLease = null;
+            _rootLease?.Dispose();
+            _rootLease = null;
+        }
+        _disposed = true;
+    }
+
+    private static void WriteNew(string path, ReadOnlySpan<byte> bytes)
+    {
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        stream.Write(bytes);
+        stream.Flush(flushToDisk: true);
+    }
+
+    private void CheckOutputLimit()
+    {
+        if (Directory.EnumerateFiles(Root).Sum(static path => new FileInfo(path).Length) > AgentPlaytestLimits.MaximumOutputBytes)
+        {
+            throw new AgentPlaytestFailure(null, "resource", "resource-limit-exceeded", "The artifact output cap was exceeded.");
+        }
+    }
+}
+
+internal sealed record AgentPlaytestOwnerConfiguration(
+    bool BelowNormalPriority,
+    int LogicalProcessors,
+    int OwnerTimeoutSeconds,
+    int MaximumProcessCount,
+    long MaximumPrivateMemoryBytes,
+    long MaximumDedicatedGpuMemoryBytes,
+    double MaximumGpuUtilization,
+    bool HeartbeatGateEnabled,
+    bool ExactProcessTreeCleanupEnabled)
+{
+    public static AgentPlaytestOwnerConfiguration Required { get; } = new(
+        true,
+        AgentPlaytestLimits.MaximumLogicalProcessors,
+        AgentPlaytestLimits.OwnerTimeoutSeconds,
+        AgentPlaytestLimits.MaximumProcessCount,
+        AgentPlaytestLimits.MaximumPrivateMemoryBytes,
+        AgentPlaytestLimits.MaximumDedicatedGpuMemoryBytes,
+        AgentPlaytestLimits.MaximumGpuUtilization,
+        true,
+        true);
+
+    public bool IsRendererEvidenceEligible() => this == Required;
+}
+
+internal sealed record AgentPlaytestResourceSample(
+    int ProcessCount,
+    long PrivateMemoryBytes,
+    long DedicatedGpuMemoryBytes,
+    double TotalGpuUtilization,
+    int FramesInPreviousSecond,
+    int Width,
+    int Height,
+    double HeartbeatBaselineP95Milliseconds,
+    double HeartbeatP95Milliseconds,
+    double MaximumHeartbeatDelayMilliseconds,
+    int WindowScreen,
+    bool WindowNonActivating);
+
+internal static class AgentPlaytestResourceGate
+{
+    public static bool AcceptsRendererEvidence(
+        AgentPlaytestOwnerConfiguration configuration,
+        IReadOnlyList<AgentPlaytestResourceSample> samples)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(samples);
+        if (!configuration.IsRendererEvidenceEligible() || samples.Count == 0)
+        {
+            return false;
+        }
+        foreach (var sample in samples)
+        {
+            var heartbeatCeiling = System.Math.Min(
+                AgentPlaytestLimits.MaximumHeartbeatP95Milliseconds,
+                sample.HeartbeatBaselineP95Milliseconds + AgentPlaytestLimits.MaximumHeartbeatIncreaseMilliseconds);
+            if (sample.ProcessCount is < 1 or > AgentPlaytestLimits.MaximumProcessCount ||
+                sample.PrivateMemoryBytes is < 0 or > AgentPlaytestLimits.MaximumPrivateMemoryBytes ||
+                sample.DedicatedGpuMemoryBytes is < 0 or > AgentPlaytestLimits.MaximumDedicatedGpuMemoryBytes ||
+                !double.IsFinite(sample.TotalGpuUtilization) ||
+                sample.TotalGpuUtilization is < 0.0 or > AgentPlaytestLimits.MaximumGpuUtilization ||
+                sample.FramesInPreviousSecond is < 0 or > AgentPlaytestLimits.MaximumFramesPerSecond ||
+                sample.Width is < 1 or > AgentPlaytestLimits.MaximumWidth ||
+                sample.Height is < 1 or > AgentPlaytestLimits.MaximumHeight ||
+                !double.IsFinite(sample.HeartbeatBaselineP95Milliseconds) || sample.HeartbeatBaselineP95Milliseconds < 0.0 ||
+                !double.IsFinite(sample.HeartbeatP95Milliseconds) || sample.HeartbeatP95Milliseconds < 0.0 ||
+                sample.HeartbeatP95Milliseconds > heartbeatCeiling ||
+                !double.IsFinite(sample.MaximumHeartbeatDelayMilliseconds) ||
+                sample.MaximumHeartbeatDelayMilliseconds < 0.0 ||
+                sample.MaximumHeartbeatDelayMilliseconds > AgentPlaytestLimits.MaximumHeartbeatDelayMilliseconds ||
+                sample.WindowScreen != 3 || !sample.WindowNonActivating)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+}
