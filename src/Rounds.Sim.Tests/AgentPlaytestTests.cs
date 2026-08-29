@@ -304,23 +304,32 @@ public sealed class AgentPlaytestTests
         var driver = new RecordingDriver(events);
         var supervisor = new AgentPlaytestOwnerSupervisor(channel, verifier, new FixedDecoder(), driver);
 
-        var receipts = supervisor.RunToTerminal();
+        var proof = supervisor.RunToTerminal();
+        var receipts = proof.SnapshotReceipts();
 
         Assert.Equal(2, driver.ChooseCount);
+        Assert.Equal(3, driver.ObserveCount);
         Assert.Equal(2, channel.WrittenRequests.Count);
         Assert.Same(driver.ReturnedRequests[0], channel.WrittenRequests[0]);
         Assert.Same(driver.ReturnedRequests[1], channel.WrittenRequests[1]);
         Assert.Equal(new[]
         {
-            "read:0", "verify:0", "choose:0", "write:1", "read:1",
-            "verify:1", "choose:1", "write:2", "read:2",
+            "read:0", "verify:0", "observe:0", "choose:0", "write:1", "read:1",
+            "verify:1", "observe:1", "choose:1", "write:2", "read:2", "verify:2", "observe:2",
         }, events);
         Assert.Equal(2, receipts.Count);
-        Assert.Equal(receipts, supervisor.CausalityReceipts);
         Assert.Equal(0, receipts[0].PriorFrameSequence);
         Assert.Equal(1, receipts[0].RequestSequence);
         Assert.Equal(Frame(0, false).FrameSha256, receipts[0].PriorFrameSha256);
-        Assert.Equal(AgentPlaytestCausality.ActionIdentity(Request(1, 1)), receipts[0].ActionIdentity);
+        Assert.Equal(64, receipts[0].ActionIdentity.Length);
+        Assert.Empty(typeof(AgentPlaytestOwnerSupervisor.CausalCompletionProof).GetConstructors());
+        Assert.Throws<InvalidOperationException>(() =>
+            new AgentPlaytestOwnerSupervisor.CausalCompletionProof(
+                receipts,
+                2,
+                Frame(2, true).FrameSha256,
+                false,
+                new object()));
     }
 
     [Fact]
@@ -435,6 +444,24 @@ public sealed class AgentPlaytestTests
     }
 
     [Fact]
+    public void ArtifactOwnerPreflightsOutputCapBeforeWritingFrameBytes()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rounds-agent-playtest-cap-" + Guid.NewGuid().ToString("N"));
+        var owner = AgentPlaytestArtifactOwner.Create(root, maximumOutputBytes: 8);
+
+        AssertFailure(
+            () => owner.PublishFrame(0, new byte[9], new FixedDecoder(), terminal: false),
+            "resource",
+            "resource-limit-exceeded");
+
+        Assert.False(File.Exists(Path.Combine(root, "frame-0000.png.partial")));
+        Assert.False(File.Exists(Path.Combine(root, "frame-0000.png")));
+        Assert.True(Directory.EnumerateFiles(root).Sum(static path => new FileInfo(path).Length) <= 8);
+        owner.CleanupFailedRun();
+        owner.Dispose();
+    }
+
+    [Fact]
     public void StrictTraceParserRejectsTamperingAndNoncanonicalBytes()
     {
         var session = CreateStructuralBoundarySession();
@@ -479,6 +506,21 @@ public sealed class AgentPlaytestTests
         Assert.False(Directory.Exists(locked));
         Assert.Equal("foreign lock", File.ReadAllText(lockPath));
         File.Delete(lockPath);
+    }
+
+    [Fact]
+    public void AtomicRootAcquisitionNeverDeletesReplacementAfterParentIdentityChanges()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rounds-agent-playtest-parent-race-" + Guid.NewGuid().ToString("N"));
+        var binder = new ReplacingParentBinder(root);
+        var acquirer = new AtomicWindowsAgentPlaytestRootAcquirer(binder);
+
+        Assert.ThrowsAny<IOException>(() => AgentPlaytestArtifactOwner.Create(root, acquirer));
+
+        Assert.True(binder.Lease!.Disposed);
+        Assert.True(binder.Lease.ReplacementInstalled);
+        Assert.Equal("foreign replacement", File.ReadAllText(Path.Combine(root, "sentinel.txt")));
+        Directory.Delete(root, recursive: true);
     }
 
     [Fact]
@@ -590,51 +632,54 @@ public sealed class AgentPlaytestTests
     }
 
     [Fact]
-    public void RendererCompletionRequiresExactOrderedCausalityReceipts()
+    public void SyntheticAndCallerAuthoredEvidenceCannotCompleteWithoutOpaqueProductionProof()
     {
         var session = CreateStructuralBoundarySession();
         var frames = Enumerable.Range(0, session.Accepted.Count + 1)
             .Select(sequence => Frame(sequence, sequence == session.Accepted.Count))
             .ToArray();
-        var receipts = session.Accepted.Select((interval, index) => new AgentPlaytestCausalityReceipt(
-            index,
-            frames[index].FrameSha256,
-            interval.Sequence,
-            AgentPlaytestCausality.ActionIdentity(new AgentPlaytestRequest(
-                AgentPlaytestLimits.Protocol,
-                interval.Sequence,
-                interval.RequestedIntervalTicks,
-                interval.Players)))).ToArray();
+        var events = new List<string>();
+        var supervisor = new AgentPlaytestOwnerSupervisor(
+            new CausalOwnerChannel(events, frames),
+            new RecordingVerifier(events),
+            new FixedDecoder(),
+            new ExactActionDriver(session.Accepted));
+        var proof = supervisor.RunToTerminal();
         var sample = new AgentPlaytestResourceSample(
             2, 1, 1, 0.1, 1, 2, 1, 1, 1, 1, 3, true);
         var eligible = new AgentPlaytestManifestContext(
             "renderer-evidence",
             "test-renderer-build",
             new[] { sample },
-            receipts,
             true,
             true,
             true);
         var trace = TraceBytes(session);
 
-        var complete = AgentPlaytestManifest.Create(eligible, frames, session.Accepted, trace);
-        Assert.True(complete.Complete);
-        var completeBytes = AgentPlaytestManifestCodec.ToCanonicalBytes(complete);
-        AgentPlaytestManifestCodec.ValidateCanonical(completeBytes);
-        var tamperedReceipt = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(completeBytes)
-            .Replace(receipts[0].ActionIdentity, new string('0', 64), StringComparison.Ordinal));
-        AssertFailure(() => AgentPlaytestManifestCodec.ValidateCanonical(tamperedReceipt), "replay", "replay-mismatch");
+        var withoutProof = AgentPlaytestManifest.Create(eligible, frames, session.Accepted, trace);
+        Assert.False(withoutProof.Complete);
+        Assert.Empty(withoutProof.CausalityReceipts);
+        Assert.DoesNotContain(
+            typeof(AgentPlaytestManifestContext).GetProperties(),
+            static property => property.Name.Contains("Causal", StringComparison.Ordinal));
 
-        var withoutReceipts = AgentPlaytestManifest.Create(
-            eligible with { CausalityReceipts = Array.Empty<AgentPlaytestCausalityReceipt>() },
-            frames,
-            session.Accepted,
-            trace);
-        Assert.False(withoutReceipts.Complete);
-        var forged = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(
-            AgentPlaytestManifestCodec.ToCanonicalBytes(withoutReceipts))
+        AssertFailure(
+            () => AgentPlaytestManifest.Create(eligible, frames, session.Accepted, trace, proof),
+            "replay",
+            "replay-mismatch");
+
+        var forged = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(AgentPlaytestManifestCodec.ToCanonicalBytes(withoutProof))
             .Replace("\"complete\":false", "\"complete\":true", StringComparison.Ordinal));
         AssertFailure(() => AgentPlaytestManifestCodec.ValidateCanonical(forged), "replay", "replay-mismatch");
+        AssertFailure(
+            () => AgentPlaytestManifest.Create(
+                AgentPlaytestManifestContext.TestOnlySynthetic,
+                frames,
+                session.Accepted,
+                trace,
+                proof),
+            "replay",
+            "replay-mismatch");
     }
 
     [Fact]
@@ -960,6 +1005,44 @@ public sealed class AgentPlaytestTests
         public void Dispose() => SiblingLockHeld = false;
     }
 
+    private sealed class ReplacingParentBinder(string root) : IAgentPlaytestParentIdentityBinder
+    {
+        public ReplacingParentLease? Lease { get; private set; }
+
+        public IAgentPlaytestParentIdentityLease Bind(string normalizedParent)
+        {
+            Assert.Equal(Path.GetDirectoryName(root), normalizedParent);
+            Lease = new ReplacingParentLease(root);
+            return Lease;
+        }
+    }
+
+    private sealed class ReplacingParentLease(string root) : IAgentPlaytestParentIdentityLease
+    {
+        private int _checks;
+        public bool Disposed { get; private set; }
+        public bool ReplacementInstalled { get; private set; }
+
+        public bool MatchesCurrentPath()
+        {
+            _checks++;
+            if (_checks < 3)
+            {
+                return true;
+            }
+            if (!ReplacementInstalled)
+            {
+                Directory.Delete(root);
+                Directory.CreateDirectory(root);
+                File.WriteAllText(Path.Combine(root, "sentinel.txt"), "foreign replacement");
+                ReplacementInstalled = true;
+            }
+            return false;
+        }
+
+        public void Dispose() => Disposed = true;
+    }
+
     private sealed class NonSeekableReadStream(Stream inner) : Stream
     {
         public override bool CanRead => true;
@@ -1036,7 +1119,14 @@ public sealed class AgentPlaytestTests
     private sealed class RecordingDriver(List<string> events) : IHumanPlaytestDriver
     {
         public int ChooseCount { get; private set; }
+        public int ObserveCount { get; private set; }
         public List<AgentPlaytestRequest> ReturnedRequests { get; } = [];
+
+        public void Observe(HumanPlaytestObservation observation)
+        {
+            ObserveCount++;
+            events.Add($"observe:{observation.Sequence}");
+        }
 
         public AgentPlaytestRequest Choose(HumanPlaytestObservation observation)
         {
@@ -1045,6 +1135,24 @@ public sealed class AgentPlaytestTests
             var request = Request(observation.Sequence + 1, 1);
             ReturnedRequests.Add(request);
             return request;
+        }
+    }
+
+    private sealed class ExactActionDriver(IReadOnlyList<AgentPlaytestAcceptedInterval> intervals) : IHumanPlaytestDriver
+    {
+        private int _next;
+
+        public void Observe(HumanPlaytestObservation observation) => Assert.Equal(_next, observation.Sequence);
+
+        public AgentPlaytestRequest Choose(HumanPlaytestObservation observation)
+        {
+            Assert.Equal(_next, observation.Sequence);
+            var interval = intervals[_next++];
+            return new AgentPlaytestRequest(
+                AgentPlaytestLimits.Protocol,
+                interval.Sequence,
+                interval.RequestedIntervalTicks,
+                interval.Players);
         }
     }
 }

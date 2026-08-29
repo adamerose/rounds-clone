@@ -49,11 +49,14 @@ internal sealed record NonHumanStructuralObservation(
 
 internal interface IHumanPlaytestDriver
 {
+    void Observe(HumanPlaytestObservation observation);
     AgentPlaytestRequest Choose(HumanPlaytestObservation observation);
 }
 
 internal sealed class DeterministicAdaptivePlaytestDriver : IHumanPlaytestDriver
 {
+    public void Observe(HumanPlaytestObservation observation) => ArgumentNullException.ThrowIfNull(observation);
+
     public AgentPlaytestRequest Choose(HumanPlaytestObservation observation)
     {
         ArgumentNullException.ThrowIfNull(observation);

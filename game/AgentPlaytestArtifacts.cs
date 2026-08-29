@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace Rounds.Game;
 
@@ -39,6 +40,162 @@ internal interface IAgentPlaytestRootLease : IDisposable
 internal interface IAgentPlaytestRootAcquirer
 {
     IAgentPlaytestRootLease Acquire(string absoluteRoot);
+}
+
+internal interface IAgentPlaytestParentIdentityLease : IDisposable
+{
+    bool MatchesCurrentPath();
+}
+
+internal interface IAgentPlaytestParentIdentityBinder
+{
+    IAgentPlaytestParentIdentityLease Bind(string normalizedParent);
+}
+
+internal sealed class WindowsAgentPlaytestParentIdentityBinder : IAgentPlaytestParentIdentityBinder
+{
+    public static WindowsAgentPlaytestParentIdentityBinder Instance { get; } = new();
+
+    public IAgentPlaytestParentIdentityLease Bind(string normalizedParent) =>
+        WindowsParentIdentityLease.Open(normalizedParent);
+
+    private sealed class WindowsParentIdentityLease(
+        string path,
+        SafeFileHandle handle,
+        ParentIdentity identity) : IAgentPlaytestParentIdentityLease
+    {
+        public static WindowsParentIdentityLease Open(string path)
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                throw new PlatformNotSupportedException("Atomic playtest parent binding requires Windows.");
+            }
+            var handle = NativeParent.OpenDirectory(path);
+            try
+            {
+                var identity = NativeParent.Identity(handle);
+                return new WindowsParentIdentityLease(path, handle, identity);
+            }
+            catch
+            {
+                handle.Dispose();
+                throw;
+            }
+        }
+
+        public bool MatchesCurrentPath()
+        {
+            if (handle.IsInvalid || handle.IsClosed)
+            {
+                return false;
+            }
+            try
+            {
+                using var current = NativeParent.OpenDirectory(path);
+                return NativeParent.Identity(current) == identity;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        public void Dispose() => handle.Dispose();
+    }
+
+    private readonly record struct ParentIdentity(uint VolumeSerial, ulong FileIndex);
+
+    private static class NativeParent
+    {
+        private const uint FileShareRead = 1;
+        private const uint FileShareWrite = 2;
+        private const uint OpenExisting = 3;
+        private const uint FileFlagBackupSemantics = 0x02000000;
+        private const uint FileFlagOpenReparsePoint = 0x00200000;
+        private const uint FileAttributeDirectory = 0x10;
+        private const uint FileAttributeReparsePoint = 0x400;
+
+        internal static SafeFileHandle OpenDirectory(string path)
+        {
+            var handle = CreateFile(
+                path,
+                0,
+                FileShareRead | FileShareWrite,
+                IntPtr.Zero,
+                OpenExisting,
+                FileFlagBackupSemantics | FileFlagOpenReparsePoint,
+                IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                throw new IOException("The playtest parent directory could not be bound by handle.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+            }
+            var information = Information(handle);
+            if ((information.FileAttributes & FileAttributeDirectory) == 0 ||
+                (information.FileAttributes & FileAttributeReparsePoint) != 0)
+            {
+                handle.Dispose();
+                throw new IOException("The playtest parent handle is not a non-reparse directory.");
+            }
+            return handle;
+        }
+
+        internal static ParentIdentity Identity(SafeFileHandle handle)
+        {
+            var information = Information(handle);
+            return new ParentIdentity(
+                information.VolumeSerialNumber,
+                ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow);
+        }
+
+        private static ByHandleFileInformation Information(SafeFileHandle handle)
+        {
+            if (!GetFileInformationByHandle(handle, out var information))
+            {
+                throw new IOException("The playtest parent identity could not be read.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+            }
+            return information;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FileTime
+        {
+            public uint LowDateTime;
+            public uint HighDateTime;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ByHandleFileInformation
+        {
+            public uint FileAttributes;
+            public FileTime CreationTime;
+            public FileTime LastAccessTime;
+            public FileTime LastWriteTime;
+            public uint VolumeSerialNumber;
+            public uint FileSizeHigh;
+            public uint FileSizeLow;
+            public uint NumberOfLinks;
+            public uint FileIndexHigh;
+            public uint FileIndexLow;
+        }
+
+#pragma warning disable SYSLIB1054
+        [DllImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern SafeFileHandle CreateFile(
+            string fileName,
+            uint desiredAccess,
+            uint shareMode,
+            IntPtr securityAttributes,
+            uint creationDisposition,
+            uint flagsAndAttributes,
+            IntPtr templateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetFileInformationByHandle(
+            SafeFileHandle file,
+            out ByHandleFileInformation information);
+#pragma warning restore SYSLIB1054
+    }
 }
 
 internal static class AgentPlaytestOutputRoot
@@ -87,7 +244,15 @@ internal static class AgentPlaytestOutputRoot
 
 internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRootAcquirer
 {
-    public static AtomicWindowsAgentPlaytestRootAcquirer Instance { get; } = new();
+    private readonly IAgentPlaytestParentIdentityBinder _parentBinder;
+
+    public static AtomicWindowsAgentPlaytestRootAcquirer Instance { get; } =
+        new(WindowsAgentPlaytestParentIdentityBinder.Instance);
+
+    internal AtomicWindowsAgentPlaytestRootAcquirer(IAgentPlaytestParentIdentityBinder parentBinder)
+    {
+        _parentBinder = parentBinder ?? throw new ArgumentNullException(nameof(parentBinder));
+    }
 
     public IAgentPlaytestRootLease Acquire(string absoluteRoot)
     {
@@ -113,11 +278,15 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
         var siblingLockPath = Path.Combine(
             parent,
             Path.GetFileName(normalizedRoot) + ".rounds-agent-playtest-owner");
+        IAgentPlaytestParentIdentityLease? parentLease = null;
         FileStream? siblingLock = null;
         FileStream? marker = null;
         var createdRoot = false;
+        var parentIdentityLost = false;
         try
         {
+            parentLease = _parentBinder.Bind(parent);
+            RequireStableParent(parentLease, ref parentIdentityLost);
             siblingLock = new FileStream(
                 siblingLockPath,
                 FileMode.CreateNew,
@@ -125,11 +294,13 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
                 FileShare.None,
                 1,
                 FileOptions.DeleteOnClose);
+            RequireStableParent(parentLease, ref parentIdentityLost);
             if (!OperatingSystem.IsWindows() || NativeDirectory.CreateDirectory(normalizedRoot, IntPtr.Zero) == 0)
             {
                 throw new IOException("The playtest output root could not be acquired atomically.");
             }
             createdRoot = true;
+            RequireStableParent(parentLease, ref parentIdentityLost);
             marker = new FileStream(
                 Path.Combine(normalizedRoot, ".rounds-agent-playtest-owner"),
                 FileMode.CreateNew,
@@ -137,14 +308,16 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
                 FileShare.None,
                 1,
                 FileOptions.DeleteOnClose);
-            return new AgentPlaytestRootLease(normalizedRoot, siblingLock, marker);
+            RequireStableParent(parentLease, ref parentIdentityLost);
+            return new AgentPlaytestRootLease(normalizedRoot, parentLease, siblingLock, marker);
         }
         catch
         {
             marker?.Dispose();
             try
             {
-                if (createdRoot && Directory.Exists(normalizedRoot) && !Directory.EnumerateFileSystemEntries(normalizedRoot).Any())
+                if (createdRoot && !parentIdentityLost && parentLease is not null && parentLease.MatchesCurrentPath() &&
+                    Directory.Exists(normalizedRoot) && !Directory.EnumerateFileSystemEntries(normalizedRoot).Any())
                 {
                     Directory.Delete(normalizedRoot);
                 }
@@ -152,13 +325,27 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
             finally
             {
                 siblingLock?.Dispose();
+                parentLease?.Dispose();
             }
             throw;
         }
     }
 
+    private static void RequireStableParent(
+        IAgentPlaytestParentIdentityLease parentLease,
+        ref bool parentIdentityLost)
+    {
+        if (parentLease.MatchesCurrentPath())
+        {
+            return;
+        }
+        parentIdentityLost = true;
+        throw new IOException("The playtest parent directory identity changed during acquisition.");
+    }
+
     private sealed class AgentPlaytestRootLease(
         string root,
+        IAgentPlaytestParentIdentityLease parentLease,
         FileStream siblingLock,
         FileStream marker) : IAgentPlaytestRootLease
     {
@@ -168,6 +355,10 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
 
         public bool TryDeleteOwnedRoot()
         {
+            if (!parentLease.MatchesCurrentPath())
+            {
+                return false;
+            }
             _marker?.Dispose();
             _marker = null;
             try
@@ -189,6 +380,7 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
             _marker?.Dispose();
             _marker = null;
             siblingLock.Dispose();
+            parentLease.Dispose();
         }
     }
 
@@ -205,25 +397,32 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
 {
     private const int MaximumCleanupAttempts = 3;
     private readonly string _rootWithSeparator;
+    private readonly long _maximumOutputBytes;
     private IAgentPlaytestRootLease? _rootLease;
     private FileStream? _traceLease;
     private bool _disposed;
     private bool _completed;
     private bool _cleanupExhausted;
 
-    private AgentPlaytestArtifactOwner(IAgentPlaytestRootLease rootLease)
+    private AgentPlaytestArtifactOwner(IAgentPlaytestRootLease rootLease, long maximumOutputBytes)
     {
         _rootLease = rootLease;
         Root = rootLease.Root;
         _rootWithSeparator = Root + Path.DirectorySeparatorChar;
+        _maximumOutputBytes = maximumOutputBytes;
     }
 
     public string Root { get; }
 
     public static AgentPlaytestArtifactOwner Create(
         string absoluteAbsentRoot,
-        IAgentPlaytestRootAcquirer? acquirer = null)
+        IAgentPlaytestRootAcquirer? acquirer = null,
+        long maximumOutputBytes = AgentPlaytestLimits.MaximumOutputBytes)
     {
+        if (maximumOutputBytes is < 1 or > AgentPlaytestLimits.MaximumOutputBytes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumOutputBytes));
+        }
         var root = AgentPlaytestOutputRoot.NormalizeAbsentChild(absoluteAbsentRoot);
         var lease = (acquirer ?? AtomicWindowsAgentPlaytestRootAcquirer.Instance).Acquire(root);
         if (!string.Equals(lease.Root, root, StringComparison.Ordinal))
@@ -231,7 +430,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
             lease.Dispose();
             throw new IOException("The root acquirer returned a lease for a different path.");
         }
-        return new AgentPlaytestArtifactOwner(lease);
+        return new AgentPlaytestArtifactOwner(lease, maximumOutputBytes);
     }
 
     public (AgentPlaytestFrameResponse Response, HumanPlaytestObservation Observation) PublishFrame(
@@ -250,6 +449,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         var final = ExpectedFramePath(sequence);
         try
         {
+            EnsureCanAdd(encodedPng.Length, sequence);
             using (var stream = new FileStream(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 stream.Write(encodedPng);
@@ -259,10 +459,6 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
             var hash = Convert.ToHexString(SHA256.HashData(encodedPng)).ToLowerInvariant();
             File.Move(partial, final, overwrite: false);
             var response = new AgentPlaytestFrameResponse(sequence, final, hash, decoded.Width, decoded.Height, terminal);
-            if (Directory.EnumerateFiles(Root).Sum(static path => new FileInfo(path).Length) > AgentPlaytestLimits.MaximumOutputBytes)
-            {
-                throw new AgentPlaytestFailure(sequence, "resource", "resource-limit-exceeded", "The artifact output cap was exceeded.");
-            }
             return (response, VerifyResponse(response, decoder));
         }
         catch (AgentPlaytestFailure)
@@ -305,10 +501,10 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         ObjectDisposedException.ThrowIf(_disposed, this);
         var tracePartial = Path.Combine(Root, "trace.jsonl.partial");
         var traceFinal = Path.Combine(Root, "trace.jsonl");
+        EnsureCanAdd(traceBytes.Length, null);
         WriteNew(tracePartial, traceBytes);
         File.Move(tracePartial, traceFinal, overwrite: false);
         _traceLease = new FileStream(traceFinal, FileMode.Open, FileAccess.Read, FileShare.Read);
-        CheckOutputLimit();
     }
 
     public byte[] ReadFinalTrace()
@@ -324,15 +520,17 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         return copy.ToArray();
     }
 
-    public void PublishManifest(ReadOnlySpan<byte> manifestBytes)
+    public void PublishManifest(
+        ReadOnlySpan<byte> manifestBytes,
+        AgentPlaytestOwnerSupervisor.CausalCompletionProof? causalProof = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var manifestPartial = Path.Combine(Root, "manifest.json.partial");
         var manifestFinal = Path.Combine(Root, "manifest.json");
+        EnsureCanAdd(manifestBytes.Length, null);
         WriteNew(manifestPartial, manifestBytes);
         File.Move(manifestPartial, manifestFinal, overwrite: false);
-        CheckOutputLimit();
-        AgentPlaytestManifestCodec.ValidateCanonical(File.ReadAllBytes(manifestFinal));
+        AgentPlaytestManifestCodec.ValidateCanonical(File.ReadAllBytes(manifestFinal), causalProof);
         _completed = true;
     }
 
@@ -394,11 +592,12 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         stream.Flush(flushToDisk: true);
     }
 
-    private void CheckOutputLimit()
+    private void EnsureCanAdd(long byteCount, int? sequence)
     {
-        if (Directory.EnumerateFiles(Root).Sum(static path => new FileInfo(path).Length) > AgentPlaytestLimits.MaximumOutputBytes)
+        var current = Directory.EnumerateFiles(Root).Sum(static path => new FileInfo(path).Length);
+        if (byteCount < 0 || current > _maximumOutputBytes || byteCount > _maximumOutputBytes - current)
         {
-            throw new AgentPlaytestFailure(null, "resource", "resource-limit-exceeded", "The artifact output cap was exceeded.");
+            throw new AgentPlaytestFailure(sequence, "resource", "resource-limit-exceeded", "The artifact output cap would be exceeded.");
         }
     }
 }

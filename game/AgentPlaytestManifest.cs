@@ -7,7 +7,6 @@ internal sealed record AgentPlaytestManifestContext(
     string Status,
     string BuildIdentity,
     IReadOnlyList<AgentPlaytestResourceSample> ResourceSamples,
-    IReadOnlyList<AgentPlaytestCausalityReceipt> CausalityReceipts,
     bool CleanupEvidenceAvailable,
     bool TelemetryEvidenceAvailable,
     bool MonitorAttestationAvailable)
@@ -16,7 +15,6 @@ internal sealed record AgentPlaytestManifestContext(
         "test-only-non-evidence",
         "synthetic-unit-test-build",
         Array.Empty<AgentPlaytestResourceSample>(),
-        Array.Empty<AgentPlaytestCausalityReceipt>(),
         false,
         false,
         false);
@@ -25,26 +23,48 @@ internal sealed record AgentPlaytestManifestContext(
         "renderer-unavailable",
         "debug-build-without-renderer-evidence",
         Array.Empty<AgentPlaytestResourceSample>(),
-        Array.Empty<AgentPlaytestCausalityReceipt>(),
         false,
         false,
         false);
 }
 
-internal sealed record AgentPlaytestManifest(
-    AgentPlaytestManifestContext Context,
-    bool Complete,
-    int Width,
-    int Height,
-    IReadOnlyList<AgentPlaytestFrameResponse> Frames,
-    IReadOnlyList<AgentPlaytestAcceptedInterval> Intervals,
-    string TraceSha256)
+internal sealed class AgentPlaytestManifest
 {
+    private AgentPlaytestManifest(
+        AgentPlaytestManifestContext context,
+        bool complete,
+        int width,
+        int height,
+        IReadOnlyList<AgentPlaytestFrameResponse> frames,
+        IReadOnlyList<AgentPlaytestAcceptedInterval> intervals,
+        IReadOnlyList<AgentPlaytestCausalityReceiptView> causalityReceipts,
+        string traceSha256)
+    {
+        Context = context;
+        Complete = complete;
+        Width = width;
+        Height = height;
+        Frames = frames;
+        Intervals = intervals;
+        CausalityReceipts = causalityReceipts;
+        TraceSha256 = traceSha256;
+    }
+
+    public AgentPlaytestManifestContext Context { get; }
+    public bool Complete { get; }
+    public int Width { get; }
+    public int Height { get; }
+    public IReadOnlyList<AgentPlaytestFrameResponse> Frames { get; }
+    public IReadOnlyList<AgentPlaytestAcceptedInterval> Intervals { get; }
+    public IReadOnlyList<AgentPlaytestCausalityReceiptView> CausalityReceipts { get; }
+    public string TraceSha256 { get; }
+
     public static AgentPlaytestManifest Create(
         AgentPlaytestManifestContext context,
         IReadOnlyList<AgentPlaytestFrameResponse> frames,
         IReadOnlyList<AgentPlaytestAcceptedInterval> intervals,
-        ReadOnlySpan<byte> traceBytes)
+        ReadOnlySpan<byte> traceBytes,
+        AgentPlaytestOwnerSupervisor.CausalCompletionProof? causalProof = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(frames);
@@ -56,16 +76,19 @@ internal sealed record AgentPlaytestManifest(
         {
             throw new AgentPlaytestFailure(null, "replay", "replay-mismatch", "Manifest frames and trace intervals do not describe one ordered terminal run.");
         }
-        var receiptsMatch = AgentPlaytestCausality.ReceiptsMatch(frames, intervals, context.CausalityReceipts);
-        if ((context.Status == "test-only-non-evidence" && context.CausalityReceipts.Count != 0) ||
-            (context.CausalityReceipts.Count != 0 && !receiptsMatch))
+        if (context.Status == "test-only-non-evidence" && causalProof is not null)
         {
-            throw new AgentPlaytestFailure(null, "replay", "replay-mismatch", "Manifest causality receipts are unavailable or do not match the ordered actions.");
+            throw new AgentPlaytestFailure(null, "replay", "replay-mismatch", "Synthetic manifests cannot consume causal completion proof.");
         }
+        if (causalProof is not null && !causalProof.ConsumeForManifest(frames, intervals))
+        {
+            throw new AgentPlaytestFailure(null, "replay", "replay-mismatch", "Causal completion proof does not match the ordered finalized frames and actions.");
+        }
+        var receipts = causalProof?.SnapshotReceipts() ?? Array.Empty<AgentPlaytestCausalityReceiptView>();
         var complete = context.Status == "renderer-evidence" &&
             context.CleanupEvidenceAvailable && context.TelemetryEvidenceAvailable && context.MonitorAttestationAvailable &&
             frames.Count >= 5 && frames.Select(static frame => frame.FrameSha256).Distinct(StringComparer.Ordinal).Count() >= 5 &&
-            receiptsMatch &&
+            causalProof is not null &&
             AgentPlaytestResourceGate.AcceptsRendererEvidence(AgentPlaytestOwnerConfiguration.Required, context.ResourceSamples);
         if (context.Status == "test-only-non-evidence" && complete)
         {
@@ -74,7 +97,6 @@ internal sealed record AgentPlaytestManifest(
         var frozenContext = context with
         {
             ResourceSamples = Array.AsReadOnly(context.ResourceSamples.ToArray()),
-            CausalityReceipts = Array.AsReadOnly(context.CausalityReceipts.ToArray()),
         };
         return new AgentPlaytestManifest(
             frozenContext,
@@ -83,6 +105,7 @@ internal sealed record AgentPlaytestManifest(
             frames[0].Height,
             Array.AsReadOnly(frames.ToArray()),
             Array.AsReadOnly(intervals.ToArray()),
+            receipts,
             Convert.ToHexString(SHA256.HashData(traceBytes)).ToLowerInvariant());
     }
 }
@@ -147,7 +170,7 @@ internal static class AgentPlaytestManifestCodec
             writer.WriteEndArray();
             writer.WritePropertyName("causalityReceipts");
             writer.WriteStartArray();
-            foreach (var receipt in manifest.Context.CausalityReceipts)
+            foreach (var receipt in manifest.CausalityReceipts)
             {
                 writer.WriteStartObject();
                 writer.WriteNumber("priorFrameSequence", receipt.PriorFrameSequence);
@@ -192,11 +215,13 @@ internal static class AgentPlaytestManifestCodec
         return output.ToArray();
     }
 
-    public static void ValidateCanonical(ReadOnlySpan<byte> bytes)
+    public static void ValidateCanonical(
+        ReadOnlySpan<byte> bytes,
+        AgentPlaytestOwnerSupervisor.CausalCompletionProof? causalProof = null)
     {
         try
         {
-            ValidateCanonicalCore(bytes);
+            ValidateCanonicalCore(bytes, causalProof);
         }
         catch (AgentPlaytestFailure)
         {
@@ -209,7 +234,9 @@ internal static class AgentPlaytestManifestCodec
         }
     }
 
-    private static void ValidateCanonicalCore(ReadOnlySpan<byte> bytes)
+    private static void ValidateCanonicalCore(
+        ReadOnlySpan<byte> bytes,
+        AgentPlaytestOwnerSupervisor.CausalCompletionProof? causalProof)
     {
         if (bytes.Length == 0 || bytes[^1] != (byte)'\n')
         {
@@ -282,14 +309,14 @@ internal static class AgentPlaytestManifestCodec
                     throw Mismatch("Manifest accepted actions or exact tick/hash coverage are invalid.");
                 }
             }
-            var parsedReceipts = new AgentPlaytestCausalityReceipt[receipts.Length];
+            var parsedReceipts = new AgentPlaytestCausalityReceiptView[receipts.Length];
             for (var index = 0; index < receipts.Length; index++)
             {
                 if (!HasExactlyInOrder(receipts[index], ReceiptProperties))
                 {
                     throw Mismatch("Manifest causality receipt schema is invalid.");
                 }
-                parsedReceipts[index] = new AgentPlaytestCausalityReceipt(
+                parsedReceipts[index] = new AgentPlaytestCausalityReceiptView(
                     receipts[index].GetProperty("priorFrameSequence").GetInt32(),
                     receipts[index].GetProperty("priorFrameSha256").GetString() ?? string.Empty,
                     receipts[index].GetProperty("requestSequence").GetInt32(),
@@ -307,15 +334,16 @@ internal static class AgentPlaytestManifestCodec
             {
                 throw Mismatch("Manifest causality receipts do not match the ordered frame/action transitions.");
             }
-            var rendererEvidenceComplete = status == "renderer-evidence" && cleanup && telemetry && monitor &&
+            var rendererEvidenceEligible = status == "renderer-evidence" && cleanup && telemetry && monitor &&
                 frameHashes.Distinct(StringComparer.Ordinal).Count() >= 5 &&
                 receiptsMatch &&
                 AgentPlaytestResourceGate.AcceptsRendererEvidence(
                     AgentPlaytestOwnerConfiguration.Required,
                     resourceSamples);
-            if (complete != rendererEvidenceComplete)
+            var proofMatches = causalProof is not null && causalProof.Matches(parsedReceipts, frameHashes);
+            if (complete != (rendererEvidenceEligible && proofMatches))
             {
-                throw Mismatch("Manifest completion does not match renderer, resource, cleanup, and monitor evidence.");
+                throw Mismatch("Manifest completion does not match opaque causal proof and renderer, resource, cleanup, and monitor evidence.");
             }
 
             using var normalized = new MemoryStream();
@@ -404,7 +432,7 @@ internal static class AgentPlaytestManifestCodec
     private static bool ReceiptsMatchActions(
         IReadOnlyList<string?> frameHashes,
         IReadOnlyList<JsonElement> actions,
-        IReadOnlyList<AgentPlaytestCausalityReceipt> receipts)
+        IReadOnlyList<AgentPlaytestCausalityReceiptView> receipts)
     {
         if (receipts.Count != actions.Count)
         {
@@ -429,13 +457,16 @@ internal static class AgentPlaytestManifestCodec
             var receipt = receipts[index];
             if (receipt.PriorFrameSequence != index || receipt.RequestSequence != index + 1 ||
                 !string.Equals(receipt.PriorFrameSha256, frameHashes[index], StringComparison.Ordinal) ||
-                !string.Equals(receipt.ActionIdentity, AgentPlaytestCausality.ActionIdentity(request), StringComparison.Ordinal))
+                !string.Equals(receipt.ActionIdentity, RequestIdentity(request), StringComparison.Ordinal))
             {
                 return false;
             }
         }
         return true;
     }
+
+    private static string RequestIdentity(AgentPlaytestRequest request) =>
+        Convert.ToHexString(SHA256.HashData(AgentPlaytestNdjson.SerializeRequest(request))).ToLowerInvariant();
 
     private static AgentPlaytestResourceSample ParseResourceSample(JsonElement element)
     {
