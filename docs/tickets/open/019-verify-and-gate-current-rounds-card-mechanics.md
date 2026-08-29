@@ -9,7 +9,7 @@ risk: 4
 sessions:
   - codex:01a0492f-57bc-7f32-87fa-1fbe5d483893
 execution: unattended
-depends-on: [15, 16, 17]
+depends-on: [15, 16, 17, 33]
 supersedes: []
 split-from: []
 ---
@@ -43,3 +43,5 @@ The runtime uses exact names for 16 of 67 cataloged ROUNDS cards, but several me
 - 2026-08-29T02:33:55Z stage design end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Required an evidence matrix and correction of the existing 16, with unsupported or unresolved cards and combinations omitted rather than approximated.
 - 2026-08-29T02:50:41Z stage correction start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Removing the self-play dependency deadlock by limiting this ticket to current-card verification and gating before expansion.
 - 2026-08-29T02:50:41Z stage correction end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Assigned scripted current-subset evidence here, large-volume self-play to ticket 022, and all 51-card expansion to ticket 025.
+- 2026-08-29T23:26:59.9104995Z stage correction start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Ordering verified card presentation summaries after ticket 033 removes the currently unsupported runtime summary surface.
+- 2026-08-29T23:27:32.3911171Z stage correction end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Added ticket 033 as a prerequisite so verified card presentation summaries can only be restored after the unsupported summary implementation is gone.
