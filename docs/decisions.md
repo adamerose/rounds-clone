@@ -390,3 +390,9 @@ The current simulation, maps, tuning, composition rules, and presentation remain
 Because second-card composition is not verified, the shipped Godot shell now stops after the first full round before any loser-draft selection or later simulation step, while the pure `Match` scaffold remains available for internal deterministic testing.
 
 As a narrow metadata-only exception to the ordinary `spec/` freeze, ticket 015 changes only the human-readable `title` field in the five existing schema files from the superseded product title to `ROUNDS`; their stable `$id` values and all validation and research bytes remain unchanged.
+
+## 2026-08-29 — Admit the frame-span speed correction and non-disruptive evidence boundary
+
+Fresh reviewer `codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04bf9-57f9-7fa3-b2a8-63710fa3769e` admitted tickets 016, 017, 030, and 031 together at risk 4 or lower after independently confirming the retained source hash, 30-fps stream, and two fixed projectile trajectories.
+Ticket 030 corrects the demonstrated six-frame denominator error without claiming complete current-build calibration; ticket 016 retains all other base-feel work, ticket 017 owns presentation without changing simulation, and ticket 031 owns input-isolated installed-build capture under objective CPU, GPU, memory, cadence, latency, placement, and cleanup limits.
+Binding combat specs are embedded runtime data, so the admitted green sequence lands measurement/checker evidence first, behavior-neutral source preparation separately when needed, and the behavior-changing binding spec together with its replay/golden/intentional-break consequences, never mixing `spec/` and `src/` in one commit.
