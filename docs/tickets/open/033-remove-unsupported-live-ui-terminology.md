@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-08-29T23:20:16Z
 origin: system-detected
 tags: ["product-fidelity", "presentation", "terminology"]
@@ -51,3 +51,5 @@ The shipped shell still presents internal simulation diagnostics and project-aut
 - 2026-08-29T23:26:25.3728811Z stage admission end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04f3a-8b6c-7471-91ea-749dd8a0df5b — Rejected a missing ticket 019 dependency edge, ambiguous `BLOCK READY` treatment, a README promise that would become false, and omission of the agent-playtest render route.
 - 2026-08-29T23:26:59.9104995Z stage correction start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Correcting all four findings while keeping the change removal-only and preserving block mechanics, functional controls, and broader presentation ownership.
 - 2026-08-29T23:27:32.3911171Z stage correction end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Ordered ticket 019 after this removal, removed the entire textual block diagnostic while preserving mechanics, assigned the README correction, and covered every `Main` renderer route including agent playtesting.
+- 2026-08-29T23:28:12.6199379Z stage admission start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04f3a-8b6c-7471-91ea-749dd8a0df5b — Freshly judging both corrected ticket records, the full `Main` route set, block feedback boundary, active README description, and the 033→019→020/021 dependency order.
+- 2026-08-29T23:29:29.1482472Z stage admission end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04f3a-8b6c-7471-91ea-749dd8a0df5b — Admitted at risk 3 with no findings; the contract is removal-only, dependency-safe, mechanically judgeable without GUI evidence, and preserves exact names, functional feedback, controls, mechanics, maps, replays, and research summaries.
