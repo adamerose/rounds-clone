@@ -37,6 +37,12 @@ internal interface IAgentPlaytestRootLease : IDisposable
     bool TryDeleteOwnedRoot();
 }
 
+internal interface IAgentPlaytestTrackedRootLease
+{
+    void TrackOwnedFile(string fileName);
+    void MoveOwnedFile(string sourceFileName, string destinationFileName);
+}
+
 internal interface IAgentPlaytestRootAcquirer
 {
     IAgentPlaytestRootLease Acquire(string absoluteRoot);
@@ -198,6 +204,217 @@ internal sealed class WindowsAgentPlaytestParentIdentityBinder : IAgentPlaytestP
     }
 }
 
+internal readonly record struct AgentPlaytestDirectoryIdentity(uint VolumeSerial, ulong FileIndex);
+
+internal sealed class WindowsAgentPlaytestDirectoryIdentityLease : IDisposable
+{
+    private readonly string _path;
+    private SafeFileHandle? _handle;
+
+    private WindowsAgentPlaytestDirectoryIdentityLease(
+        string path,
+        SafeFileHandle handle,
+        AgentPlaytestDirectoryIdentity identity)
+    {
+        _path = path;
+        _handle = handle;
+        Identity = identity;
+    }
+
+    public AgentPlaytestDirectoryIdentity Identity { get; }
+
+    public static WindowsAgentPlaytestDirectoryIdentityLease Open(
+        string path,
+        bool shareDelete,
+        bool requestDeleteAccess)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("Atomic playtest child binding requires Windows.");
+        }
+        var handle = NativeDirectoryIdentity.OpenDirectory(path, shareDelete, requestDeleteAccess);
+        try
+        {
+            return new(path, handle, NativeDirectoryIdentity.Identity(handle));
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
+    public bool MatchesCurrentPath()
+    {
+        if (_handle is null || _handle.IsInvalid || _handle.IsClosed)
+        {
+            return false;
+        }
+        try
+        {
+            using var current = NativeDirectoryIdentity.OpenDirectory(_path, shareDelete: true, requestDeleteAccess: false);
+            return NativeDirectoryIdentity.Identity(current) == Identity;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    public bool TryDeleteExactOnClose()
+    {
+        if (_handle is null || _handle.IsInvalid || _handle.IsClosed)
+        {
+            return false;
+        }
+        if (!NativeDirectoryIdentity.MarkDeleteOnClose(_handle))
+        {
+            return false;
+        }
+        _handle.Dispose();
+        _handle = null;
+        return true;
+    }
+
+    public void Dispose()
+    {
+        _handle?.Dispose();
+        _handle = null;
+    }
+
+    private static class NativeDirectoryIdentity
+    {
+        private const uint DeleteAccess = 0x00010000;
+        private const uint FileShareRead = 1;
+        private const uint FileShareWrite = 2;
+        private const uint FileShareDelete = 4;
+        private const uint OpenExisting = 3;
+        private const uint FileFlagBackupSemantics = 0x02000000;
+        private const uint FileFlagOpenReparsePoint = 0x00200000;
+        private const uint FileAttributeDirectory = 0x10;
+        private const uint FileAttributeReparsePoint = 0x400;
+        private const int FileDispositionInfo = 4;
+
+        internal static SafeFileHandle OpenDirectory(string path, bool shareDelete, bool requestDeleteAccess)
+        {
+            var share = FileShareRead | FileShareWrite | (shareDelete ? FileShareDelete : 0);
+            var handle = CreateFile(
+                path,
+                requestDeleteAccess ? DeleteAccess : 0,
+                share,
+                IntPtr.Zero,
+                OpenExisting,
+                FileFlagBackupSemantics | FileFlagOpenReparsePoint,
+                IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                throw new IOException("The playtest child directory could not be bound by handle.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+            }
+            var information = Information(handle);
+            if ((information.FileAttributes & FileAttributeDirectory) == 0 ||
+                (information.FileAttributes & FileAttributeReparsePoint) != 0)
+            {
+                handle.Dispose();
+                throw new IOException("The playtest child handle is not a non-reparse directory.");
+            }
+            return handle;
+        }
+
+        internal static AgentPlaytestDirectoryIdentity Identity(SafeFileHandle handle)
+        {
+            var information = Information(handle);
+            return new(
+                information.VolumeSerialNumber,
+                ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow);
+        }
+
+        internal static bool MarkDeleteOnClose(SafeFileHandle handle)
+        {
+            var disposition = new FileDispositionInformation { DeleteFile = true };
+            return SetFileInformationByHandle(
+                handle,
+                FileDispositionInfo,
+                ref disposition,
+                Marshal.SizeOf<FileDispositionInformation>());
+        }
+
+        private static ByHandleFileInformation Information(SafeFileHandle handle)
+        {
+            if (!GetFileInformationByHandle(handle, out var information))
+            {
+                throw new IOException("The playtest child identity could not be read.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+            }
+            return information;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FileDispositionInformation
+        {
+            [MarshalAs(UnmanagedType.Bool)]
+            public bool DeleteFile;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FileTime
+        {
+            public uint LowDateTime;
+            public uint HighDateTime;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ByHandleFileInformation
+        {
+            public uint FileAttributes;
+            public FileTime CreationTime;
+            public FileTime LastAccessTime;
+            public FileTime LastWriteTime;
+            public uint VolumeSerialNumber;
+            public uint FileSizeHigh;
+            public uint FileSizeLow;
+            public uint NumberOfLinks;
+            public uint FileIndexHigh;
+            public uint FileIndexLow;
+        }
+
+#pragma warning disable SYSLIB1054
+        [DllImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern SafeFileHandle CreateFile(
+            string fileName,
+            uint desiredAccess,
+            uint shareMode,
+            IntPtr securityAttributes,
+            uint creationDisposition,
+            uint flagsAndAttributes,
+            IntPtr templateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetFileInformationByHandle(
+            SafeFileHandle file,
+            out ByHandleFileInformation information);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetFileInformationByHandle(
+            SafeFileHandle file,
+            int fileInformationClass,
+            ref FileDispositionInformation fileInformation,
+            int bufferSize);
+#pragma warning restore SYSLIB1054
+    }
+}
+
+internal interface IAgentPlaytestAcquisitionRaceHook
+{
+    void AfterStagingMoved(string normalizedRoot);
+}
+
+internal sealed class NoOpAgentPlaytestAcquisitionRaceHook : IAgentPlaytestAcquisitionRaceHook
+{
+    public static NoOpAgentPlaytestAcquisitionRaceHook Instance { get; } = new();
+    public void AfterStagingMoved(string normalizedRoot) { }
+}
+
 internal static class AgentPlaytestOutputRoot
 {
     public static bool TryNormalizeAbsentChild(string? path, out string normalized)
@@ -245,13 +462,17 @@ internal static class AgentPlaytestOutputRoot
 internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRootAcquirer
 {
     private readonly IAgentPlaytestParentIdentityBinder _parentBinder;
+    private readonly IAgentPlaytestAcquisitionRaceHook _raceHook;
 
     public static AtomicWindowsAgentPlaytestRootAcquirer Instance { get; } =
-        new(WindowsAgentPlaytestParentIdentityBinder.Instance);
+        new(WindowsAgentPlaytestParentIdentityBinder.Instance, NoOpAgentPlaytestAcquisitionRaceHook.Instance);
 
-    internal AtomicWindowsAgentPlaytestRootAcquirer(IAgentPlaytestParentIdentityBinder parentBinder)
+    internal AtomicWindowsAgentPlaytestRootAcquirer(
+        IAgentPlaytestParentIdentityBinder parentBinder,
+        IAgentPlaytestAcquisitionRaceHook? raceHook = null)
     {
         _parentBinder = parentBinder ?? throw new ArgumentNullException(nameof(parentBinder));
+        _raceHook = raceHook ?? NoOpAgentPlaytestAcquisitionRaceHook.Instance;
     }
 
     public IAgentPlaytestRootLease Acquire(string absoluteRoot)
@@ -278,10 +499,17 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
         var siblingLockPath = Path.Combine(
             parent,
             Path.GetFileName(normalizedRoot) + ".rounds-agent-playtest-owner");
+        var stagingRoot = Path.Combine(
+            parent,
+            "." + Path.GetFileName(normalizedRoot) + ".rounds-agent-playtest-staging-" + Guid.NewGuid().ToString("N"));
         IAgentPlaytestParentIdentityLease? parentLease = null;
         FileStream? siblingLock = null;
         FileStream? marker = null;
-        var createdRoot = false;
+        WindowsAgentPlaytestDirectoryIdentityLease? stagingLease = null;
+        WindowsAgentPlaytestDirectoryIdentityLease? childLease = null;
+        var stagingCreated = false;
+        var movedToRoot = false;
+        var childIdentityBound = false;
         var parentIdentityLost = false;
         try
         {
@@ -295,12 +523,26 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
                 1,
                 FileOptions.DeleteOnClose);
             RequireStableParent(parentLease, ref parentIdentityLost);
-            if (!OperatingSystem.IsWindows() || NativeDirectory.CreateDirectory(normalizedRoot, IntPtr.Zero) == 0)
+            if (!OperatingSystem.IsWindows() || NativeDirectory.CreateDirectory(stagingRoot, IntPtr.Zero) == 0)
             {
-                throw new IOException("The playtest output root could not be acquired atomically.");
+                throw new IOException("The playtest staging root could not be acquired exclusively.");
             }
-            createdRoot = true;
+            stagingCreated = true;
+            stagingLease = WindowsAgentPlaytestDirectoryIdentityLease.Open(
+                stagingRoot, shareDelete: true, requestDeleteAccess: false);
             RequireStableParent(parentLease, ref parentIdentityLost);
+            Directory.Move(stagingRoot, normalizedRoot);
+            movedToRoot = true;
+            _raceHook.AfterStagingMoved(normalizedRoot);
+            childLease = WindowsAgentPlaytestDirectoryIdentityLease.Open(
+                normalizedRoot, shareDelete: false, requestDeleteAccess: true);
+            if (childLease.Identity != stagingLease.Identity)
+            {
+                throw new IOException("The playtest output root identity changed before ownership was bound.");
+            }
+            childIdentityBound = true;
+            stagingLease.Dispose();
+            stagingLease = null;
             marker = new FileStream(
                 Path.Combine(normalizedRoot, ".rounds-agent-playtest-owner"),
                 FileMode.CreateNew,
@@ -309,21 +551,37 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
                 1,
                 FileOptions.DeleteOnClose);
             RequireStableParent(parentLease, ref parentIdentityLost);
-            return new AgentPlaytestRootLease(normalizedRoot, parentLease, siblingLock, marker);
+            return new AgentPlaytestRootLease(normalizedRoot, parentLease, siblingLock, marker, childLease);
         }
         catch
         {
             marker?.Dispose();
             try
             {
-                if (createdRoot && !parentIdentityLost && parentLease is not null && parentLease.MatchesCurrentPath() &&
-                    Directory.Exists(normalizedRoot) && !Directory.EnumerateFileSystemEntries(normalizedRoot).Any())
+                if (childIdentityBound && childLease is not null && childLease.MatchesCurrentPath() &&
+                    !Directory.EnumerateFileSystemEntries(normalizedRoot).Any())
                 {
-                    Directory.Delete(normalizedRoot);
+                    childLease.TryDeleteExactOnClose();
+                }
+                else if (!movedToRoot && stagingCreated && stagingLease is not null &&
+                    stagingLease.MatchesCurrentPath() && !Directory.EnumerateFileSystemEntries(stagingRoot).Any())
+                {
+                    var stagingIdentity = stagingLease.Identity;
+                    stagingLease.Dispose();
+                    stagingLease = null;
+                    using var cleanupLease = WindowsAgentPlaytestDirectoryIdentityLease.Open(
+                        stagingRoot, shareDelete: false, requestDeleteAccess: true);
+                    if (cleanupLease.Identity == stagingIdentity &&
+                        !Directory.EnumerateFileSystemEntries(stagingRoot).Any())
+                    {
+                        cleanupLease.TryDeleteExactOnClose();
+                    }
                 }
             }
             finally
             {
+                childLease?.Dispose();
+                stagingLease?.Dispose();
                 siblingLock?.Dispose();
                 parentLease?.Dispose();
             }
@@ -347,31 +605,74 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
         string root,
         IAgentPlaytestParentIdentityLease parentLease,
         FileStream siblingLock,
-        FileStream marker) : IAgentPlaytestRootLease
+        FileStream marker,
+        WindowsAgentPlaytestDirectoryIdentityLease childLease) : IAgentPlaytestRootLease, IAgentPlaytestTrackedRootLease
     {
         private FileStream? _marker = marker;
+        private WindowsAgentPlaytestDirectoryIdentityLease? _childLease = childLease;
+        private readonly HashSet<string> _ownedFiles = new(StringComparer.Ordinal);
+        private bool _ownershipLost;
+        private bool _ownedRootRemoved;
 
         public string Root { get; } = root;
 
+        public void TrackOwnedFile(string fileName)
+        {
+            if (_ownershipLost || _ownedRootRemoved || Path.GetFileName(fileName) != fileName ||
+                !_ownedFiles.Add(fileName))
+            {
+                throw new IOException("The playtest artifact ownership ledger rejected a file registration.");
+            }
+        }
+
+        public void MoveOwnedFile(string sourceFileName, string destinationFileName)
+        {
+            if (_ownershipLost || _ownedRootRemoved || Path.GetFileName(sourceFileName) != sourceFileName ||
+                Path.GetFileName(destinationFileName) != destinationFileName ||
+                !_ownedFiles.Remove(sourceFileName) || !_ownedFiles.Add(destinationFileName))
+            {
+                throw new IOException("The playtest artifact ownership ledger rejected a file move.");
+            }
+        }
+
         public bool TryDeleteOwnedRoot()
         {
-            if (!parentLease.MatchesCurrentPath())
+            if (_ownedRootRemoved)
             {
+                return true;
+            }
+            if (_ownershipLost || _childLease is null || !parentLease.MatchesCurrentPath() ||
+                !_childLease.MatchesCurrentPath())
+            {
+                _ownershipLost = true;
                 return false;
             }
             _marker?.Dispose();
             _marker = null;
             try
             {
-                if (Directory.Exists(Root))
+                foreach (var entry in Directory.EnumerateFileSystemEntries(Root))
                 {
-                    Directory.Delete(Root, recursive: true);
+                    var name = Path.GetFileName(entry);
+                    if (Directory.Exists(entry) || !_ownedFiles.Contains(name))
+                    {
+                        return false;
+                    }
+                    File.Delete(entry);
+                    _ownedFiles.Remove(name);
                 }
-                return !Directory.Exists(Root);
+                if (!_childLease.MatchesCurrentPath() || !_childLease.TryDeleteExactOnClose())
+                {
+                    _ownershipLost = true;
+                    return false;
+                }
+                _childLease = null;
+                _ownedRootRemoved = true;
+                return true;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                return !Directory.Exists(Root);
+                return false;
             }
         }
 
@@ -379,6 +680,8 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
         {
             _marker?.Dispose();
             _marker = null;
+            _childLease?.Dispose();
+            _childLease = null;
             siblingLock.Dispose();
             parentLease.Dispose();
         }
@@ -452,12 +755,14 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
             EnsureCanAdd(encodedPng.Length, sequence);
             using (var stream = new FileStream(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
+                TrackOwnedFile(partial);
                 stream.Write(encodedPng);
                 stream.Flush(flushToDisk: true);
             }
             var decoded = decoder.Decode(encodedPng);
             var hash = Convert.ToHexString(SHA256.HashData(encodedPng)).ToLowerInvariant();
             File.Move(partial, final, overwrite: false);
+            MoveOwnedFile(partial, final);
             var response = new AgentPlaytestFrameResponse(sequence, final, hash, decoded.Width, decoded.Height, terminal);
             return (response, VerifyResponse(response, decoder));
         }
@@ -504,6 +809,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         EnsureCanAdd(traceBytes.Length, null);
         WriteNew(tracePartial, traceBytes);
         File.Move(tracePartial, traceFinal, overwrite: false);
+        MoveOwnedFile(tracePartial, traceFinal);
         _traceLease = new FileStream(traceFinal, FileMode.Open, FileAccess.Read, FileShare.Read);
     }
 
@@ -520,9 +826,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         return copy.ToArray();
     }
 
-    public void PublishManifest(
-        ReadOnlySpan<byte> manifestBytes,
-        AgentPlaytestOwnerSupervisor.CausalCompletionProof? causalProof = null)
+    public void PublishManifest(ReadOnlySpan<byte> manifestBytes)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var manifestPartial = Path.Combine(Root, "manifest.json.partial");
@@ -530,7 +834,8 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         EnsureCanAdd(manifestBytes.Length, null);
         WriteNew(manifestPartial, manifestBytes);
         File.Move(manifestPartial, manifestFinal, overwrite: false);
-        AgentPlaytestManifestCodec.ValidateCanonical(File.ReadAllBytes(manifestFinal), causalProof);
+        MoveOwnedFile(manifestPartial, manifestFinal);
+        AgentPlaytestManifestCodec.ValidateCanonical(File.ReadAllBytes(manifestFinal));
         _completed = true;
     }
 
@@ -585,12 +890,21 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         _disposed = true;
     }
 
-    private static void WriteNew(string path, ReadOnlySpan<byte> bytes)
+    private void WriteNew(string path, ReadOnlySpan<byte> bytes)
     {
         using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        TrackOwnedFile(path);
         stream.Write(bytes);
         stream.Flush(flushToDisk: true);
     }
+
+    private void TrackOwnedFile(string path) =>
+        (_rootLease as IAgentPlaytestTrackedRootLease)?.TrackOwnedFile(Path.GetFileName(path));
+
+    private void MoveOwnedFile(string sourcePath, string destinationPath) =>
+        (_rootLease as IAgentPlaytestTrackedRootLease)?.MoveOwnedFile(
+            Path.GetFileName(sourcePath),
+            Path.GetFileName(destinationPath));
 
     private void EnsureCanAdd(long byteCount, int? sequence)
     {

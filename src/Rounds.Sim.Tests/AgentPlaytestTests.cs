@@ -304,8 +304,7 @@ public sealed class AgentPlaytestTests
         var driver = new RecordingDriver(events);
         var supervisor = new AgentPlaytestOwnerSupervisor(channel, verifier, new FixedDecoder(), driver);
 
-        var proof = supervisor.RunToTerminal();
-        var receipts = proof.SnapshotReceipts();
+        var receipts = supervisor.RunToTerminal();
 
         Assert.Equal(2, driver.ChooseCount);
         Assert.Equal(3, driver.ObserveCount);
@@ -322,14 +321,7 @@ public sealed class AgentPlaytestTests
         Assert.Equal(1, receipts[0].RequestSequence);
         Assert.Equal(Frame(0, false).FrameSha256, receipts[0].PriorFrameSha256);
         Assert.Equal(64, receipts[0].ActionIdentity.Length);
-        Assert.Empty(typeof(AgentPlaytestOwnerSupervisor.CausalCompletionProof).GetConstructors());
-        Assert.Throws<InvalidOperationException>(() =>
-            new AgentPlaytestOwnerSupervisor.CausalCompletionProof(
-                receipts,
-                2,
-                Frame(2, true).FrameSha256,
-                false,
-                new object()));
+        Assert.Throws<InvalidOperationException>(() => supervisor.RunToTerminal());
     }
 
     [Fact]
@@ -509,17 +501,51 @@ public sealed class AgentPlaytestTests
     }
 
     [Fact]
-    public void AtomicRootAcquisitionNeverDeletesReplacementAfterParentIdentityChanges()
+    public void AtomicRootAcquisitionBindsCreatedChildIdentityAndNeverDeletesRacedReplacement()
     {
-        var root = Path.Combine(Path.GetTempPath(), "rounds-agent-playtest-parent-race-" + Guid.NewGuid().ToString("N"));
-        var binder = new ReplacingParentBinder(root);
-        var acquirer = new AtomicWindowsAgentPlaytestRootAcquirer(binder);
+        var root = Path.Combine(Path.GetTempPath(), "rounds-agent-playtest-child-race-" + Guid.NewGuid().ToString("N"));
+        var hook = new ReplaceMovedRootHook();
+        var acquirer = new AtomicWindowsAgentPlaytestRootAcquirer(
+            WindowsAgentPlaytestParentIdentityBinder.Instance,
+            hook);
 
         Assert.ThrowsAny<IOException>(() => AgentPlaytestArtifactOwner.Create(root, acquirer));
 
-        Assert.True(binder.Lease!.Disposed);
-        Assert.True(binder.Lease.ReplacementInstalled);
+        Assert.True(hook.ReplacementInstalled);
         Assert.Equal("foreign replacement", File.ReadAllText(Path.Combine(root, "sentinel.txt")));
+        Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
+    public void AtomicRootAcquisitionNeverDeletesAnEmptyRacedReplacement()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rounds-agent-playtest-empty-child-race-" + Guid.NewGuid().ToString("N"));
+        var hook = new ReplaceMovedRootHook(addSentinel: false);
+        var acquirer = new AtomicWindowsAgentPlaytestRootAcquirer(
+            WindowsAgentPlaytestParentIdentityBinder.Instance,
+            hook);
+
+        Assert.ThrowsAny<IOException>(() => AgentPlaytestArtifactOwner.Create(root, acquirer));
+
+        Assert.True(hook.ReplacementInstalled);
+        Assert.True(Directory.Exists(root));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(root));
+        Directory.Delete(root);
+    }
+
+    [Fact]
+    public void ExactOwnedCleanupRefusesUnknownForeignContentInsteadOfRecursivelyDeletingIt()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rounds-agent-playtest-foreign-content-" + Guid.NewGuid().ToString("N"));
+        var owner = AgentPlaytestArtifactOwner.Create(root);
+        var sentinel = Path.Combine(root, "frame-0000.png");
+        File.WriteAllText(sentinel, "foreign");
+
+        Assert.Throws<IOException>(() => owner.CleanupFailedRun());
+        Assert.Equal("foreign", File.ReadAllText(sentinel));
+
+        owner.Dispose();
+        Assert.Equal("foreign", File.ReadAllText(sentinel));
         Directory.Delete(root, recursive: true);
     }
 
@@ -632,54 +658,39 @@ public sealed class AgentPlaytestTests
     }
 
     [Fact]
-    public void SyntheticAndCallerAuthoredEvidenceCannotCompleteWithoutOpaqueProductionProof()
+    public void CompletionIsStructurallyUnavailableUntilConcreteRendererEvidenceOwnerExists()
     {
         var session = CreateStructuralBoundarySession();
         var frames = Enumerable.Range(0, session.Accepted.Count + 1)
             .Select(sequence => Frame(sequence, sequence == session.Accepted.Count))
             .ToArray();
-        var events = new List<string>();
-        var supervisor = new AgentPlaytestOwnerSupervisor(
-            new CausalOwnerChannel(events, frames),
-            new RecordingVerifier(events),
-            new FixedDecoder(),
-            new ExactActionDriver(session.Accepted));
-        var proof = supervisor.RunToTerminal();
-        var sample = new AgentPlaytestResourceSample(
-            2, 1, 1, 0.1, 1, 2, 1, 1, 1, 1, 3, true);
-        var eligible = new AgentPlaytestManifestContext(
-            "renderer-evidence",
-            "test-renderer-build",
-            new[] { sample },
-            true,
-            true,
-            true);
         var trace = TraceBytes(session);
 
-        var withoutProof = AgentPlaytestManifest.Create(eligible, frames, session.Accepted, trace);
-        Assert.False(withoutProof.Complete);
-        Assert.Empty(withoutProof.CausalityReceipts);
-        Assert.DoesNotContain(
-            typeof(AgentPlaytestManifestContext).GetProperties(),
-            static property => property.Name.Contains("Causal", StringComparison.Ordinal));
+        var manifest = AgentPlaytestManifest.Create(
+            AgentPlaytestManifestContext.TestOnlySynthetic,
+            frames,
+            session.Accepted,
+            trace);
+        Assert.False(manifest.Complete);
+        Assert.Empty(manifest.CausalityReceipts);
+        Assert.Empty(typeof(AgentPlaytestManifestContext).GetConstructors());
+        Assert.Equal(
+            new[] { "ProductionRendererUnavailable", "TestOnlySynthetic" },
+            typeof(AgentPlaytestManifestContext).GetProperties()
+                .Where(static property => property.PropertyType == typeof(AgentPlaytestManifestContext))
+                .Select(static property => property.Name)
+                .OrderBy(static name => name));
 
-        AssertFailure(
-            () => AgentPlaytestManifest.Create(eligible, frames, session.Accepted, trace, proof),
-            "replay",
-            "replay-mismatch");
-
-        var forged = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(AgentPlaytestManifestCodec.ToCanonicalBytes(withoutProof))
+        var canonical = AgentPlaytestManifestCodec.ToCanonicalBytes(manifest);
+        var forged = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(canonical)
             .Replace("\"complete\":false", "\"complete\":true", StringComparison.Ordinal));
         AssertFailure(() => AgentPlaytestManifestCodec.ValidateCanonical(forged), "replay", "replay-mismatch");
-        AssertFailure(
-            () => AgentPlaytestManifest.Create(
-                AgentPlaytestManifestContext.TestOnlySynthetic,
-                frames,
-                session.Accepted,
-                trace,
-                proof),
-            "replay",
-            "replay-mismatch");
+        var forgedRenderer = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(canonical)
+            .Replace("\"status\":\"test-only-non-evidence\"", "\"status\":\"renderer-evidence\"", StringComparison.Ordinal));
+        AssertFailure(() => AgentPlaytestManifestCodec.ValidateCanonical(forgedRenderer), "replay", "replay-mismatch");
+        var forgedReceipt = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(canonical)
+            .Replace("\"causalityReceipts\":[]", "\"causalityReceipts\":[{}]", StringComparison.Ordinal));
+        AssertFailure(() => AgentPlaytestManifestCodec.ValidateCanonical(forgedReceipt), "replay", "replay-mismatch");
     }
 
     [Fact]
@@ -1005,42 +1016,20 @@ public sealed class AgentPlaytestTests
         public void Dispose() => SiblingLockHeld = false;
     }
 
-    private sealed class ReplacingParentBinder(string root) : IAgentPlaytestParentIdentityBinder
+    private sealed class ReplaceMovedRootHook(bool addSentinel = true) : IAgentPlaytestAcquisitionRaceHook
     {
-        public ReplacingParentLease? Lease { get; private set; }
-
-        public IAgentPlaytestParentIdentityLease Bind(string normalizedParent)
-        {
-            Assert.Equal(Path.GetDirectoryName(root), normalizedParent);
-            Lease = new ReplacingParentLease(root);
-            return Lease;
-        }
-    }
-
-    private sealed class ReplacingParentLease(string root) : IAgentPlaytestParentIdentityLease
-    {
-        private int _checks;
-        public bool Disposed { get; private set; }
         public bool ReplacementInstalled { get; private set; }
 
-        public bool MatchesCurrentPath()
+        public void AfterStagingMoved(string normalizedRoot)
         {
-            _checks++;
-            if (_checks < 3)
+            Directory.Delete(normalizedRoot);
+            Directory.CreateDirectory(normalizedRoot);
+            if (addSentinel)
             {
-                return true;
+                File.WriteAllText(Path.Combine(normalizedRoot, "sentinel.txt"), "foreign replacement");
             }
-            if (!ReplacementInstalled)
-            {
-                Directory.Delete(root);
-                Directory.CreateDirectory(root);
-                File.WriteAllText(Path.Combine(root, "sentinel.txt"), "foreign replacement");
-                ReplacementInstalled = true;
-            }
-            return false;
+            ReplacementInstalled = true;
         }
-
-        public void Dispose() => Disposed = true;
     }
 
     private sealed class NonSeekableReadStream(Stream inner) : Stream
