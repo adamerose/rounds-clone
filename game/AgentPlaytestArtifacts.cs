@@ -404,6 +404,221 @@ internal sealed class WindowsAgentPlaytestDirectoryIdentityLease : IDisposable
     }
 }
 
+internal readonly record struct AgentPlaytestFileIdentity(uint VolumeSerial, ulong FileIndex);
+
+internal sealed class WindowsAgentPlaytestFileIdentityLease : IDisposable
+{
+    private string _path;
+    private SafeFileHandle? _handle;
+
+    private WindowsAgentPlaytestFileIdentityLease(
+        string path,
+        SafeFileHandle handle,
+        AgentPlaytestFileIdentity identity)
+    {
+        _path = path;
+        _handle = handle;
+        Identity = identity;
+    }
+
+    public AgentPlaytestFileIdentity Identity { get; }
+
+    public static WindowsAgentPlaytestFileIdentityLease Open(
+        string path,
+        bool shareDelete,
+        bool requestDeleteAccess)
+    {
+        var handle = NativeFileIdentity.Open(path, shareDelete, requestDeleteAccess);
+        try
+        {
+            return new(path, handle, NativeFileIdentity.Identity(handle));
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
+    public bool MatchesCurrentPath()
+    {
+        if (_handle is null || _handle.IsInvalid || _handle.IsClosed)
+        {
+            return false;
+        }
+        try
+        {
+            using var current = NativeFileIdentity.Open(_path, shareDelete: true, requestDeleteAccess: false);
+            return NativeFileIdentity.Identity(current) == Identity;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    public bool TryRebindPath(string path)
+    {
+        if (_handle is null || _handle.IsInvalid || _handle.IsClosed)
+        {
+            return false;
+        }
+        try
+        {
+            using var current = NativeFileIdentity.Open(path, shareDelete: true, requestDeleteAccess: false);
+            if (NativeFileIdentity.Identity(current) != Identity)
+            {
+                return false;
+            }
+            _path = path;
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    public bool TryDeleteExactOnClose()
+    {
+        if (_handle is null || _handle.IsInvalid || _handle.IsClosed ||
+            !NativeFileIdentity.MarkDeleteOnClose(_handle))
+        {
+            return false;
+        }
+        _handle.Dispose();
+        _handle = null;
+        return true;
+    }
+
+    public void Dispose()
+    {
+        _handle?.Dispose();
+        _handle = null;
+    }
+
+    private static class NativeFileIdentity
+    {
+        private const uint DeleteAccess = 0x00010000;
+        private const uint FileShareRead = 1;
+        private const uint FileShareWrite = 2;
+        private const uint FileShareDelete = 4;
+        private const uint OpenExisting = 3;
+        private const uint FileAttributeDirectory = 0x10;
+        private const uint FileAttributeReparsePoint = 0x400;
+        private const int FileDispositionInfo = 4;
+
+        internal static SafeFileHandle Open(string path, bool shareDelete, bool requestDeleteAccess)
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                throw new PlatformNotSupportedException("Atomic playtest artifact binding requires Windows.");
+            }
+            var handle = CreateFile(
+                path,
+                requestDeleteAccess ? DeleteAccess : 0,
+                FileShareRead | FileShareWrite | (shareDelete ? FileShareDelete : 0),
+                IntPtr.Zero,
+                OpenExisting,
+                0,
+                IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                throw new IOException("The playtest artifact could not be bound by handle.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+            }
+            var information = Information(handle);
+            if ((information.FileAttributes & (FileAttributeDirectory | FileAttributeReparsePoint)) != 0)
+            {
+                handle.Dispose();
+                throw new IOException("The playtest artifact handle is not a regular non-reparse file.");
+            }
+            return handle;
+        }
+
+        internal static AgentPlaytestFileIdentity Identity(SafeFileHandle handle)
+        {
+            var information = Information(handle);
+            return new(
+                information.VolumeSerialNumber,
+                ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow);
+        }
+
+        internal static bool MarkDeleteOnClose(SafeFileHandle handle)
+        {
+            var disposition = new FileDispositionInformation { DeleteFile = true };
+            return SetFileInformationByHandle(
+                handle,
+                FileDispositionInfo,
+                ref disposition,
+                Marshal.SizeOf<FileDispositionInformation>());
+        }
+
+        private static ByHandleFileInformation Information(SafeFileHandle handle)
+        {
+            if (!GetFileInformationByHandle(handle, out var information))
+            {
+                throw new IOException("The playtest artifact identity could not be read.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+            }
+            return information;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FileDispositionInformation
+        {
+            [MarshalAs(UnmanagedType.Bool)]
+            public bool DeleteFile;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FileTime
+        {
+            public uint LowDateTime;
+            public uint HighDateTime;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ByHandleFileInformation
+        {
+            public uint FileAttributes;
+            public FileTime CreationTime;
+            public FileTime LastAccessTime;
+            public FileTime LastWriteTime;
+            public uint VolumeSerialNumber;
+            public uint FileSizeHigh;
+            public uint FileSizeLow;
+            public uint NumberOfLinks;
+            public uint FileIndexHigh;
+            public uint FileIndexLow;
+        }
+
+#pragma warning disable SYSLIB1054
+        [DllImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern SafeFileHandle CreateFile(
+            string fileName,
+            uint desiredAccess,
+            uint shareMode,
+            IntPtr securityAttributes,
+            uint creationDisposition,
+            uint flagsAndAttributes,
+            IntPtr templateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetFileInformationByHandle(
+            SafeFileHandle file,
+            out ByHandleFileInformation information);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetFileInformationByHandle(
+            SafeFileHandle file,
+            int fileInformationClass,
+            ref FileDispositionInformation fileInformation,
+            int bufferSize);
+#pragma warning restore SYSLIB1054
+    }
+}
+
 internal interface IAgentPlaytestAcquisitionRaceHook
 {
     void AfterStagingMoved(string normalizedRoot);
@@ -465,7 +680,9 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
     private readonly IAgentPlaytestAcquisitionRaceHook _raceHook;
 
     public static AtomicWindowsAgentPlaytestRootAcquirer Instance { get; } =
-        new(WindowsAgentPlaytestParentIdentityBinder.Instance, NoOpAgentPlaytestAcquisitionRaceHook.Instance);
+        new(
+            WindowsAgentPlaytestParentIdentityBinder.Instance,
+            NoOpAgentPlaytestAcquisitionRaceHook.Instance);
 
     internal AtomicWindowsAgentPlaytestRootAcquirer(
         IAgentPlaytestParentIdentityBinder parentBinder,
@@ -610,7 +827,8 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
     {
         private FileStream? _marker = marker;
         private WindowsAgentPlaytestDirectoryIdentityLease? _childLease = childLease;
-        private readonly HashSet<string> _ownedFiles = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, WindowsAgentPlaytestFileIdentityLease> _ownedFiles =
+            new(StringComparer.Ordinal);
         private bool _ownershipLost;
         private bool _ownedRootRemoved;
 
@@ -619,20 +837,36 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
         public void TrackOwnedFile(string fileName)
         {
             if (_ownershipLost || _ownedRootRemoved || Path.GetFileName(fileName) != fileName ||
-                !_ownedFiles.Add(fileName))
+                _ownedFiles.ContainsKey(fileName))
             {
                 throw new IOException("The playtest artifact ownership ledger rejected a file registration.");
             }
+            var path = Path.Combine(Root, fileName);
+            _ownedFiles.Add(
+                fileName,
+                WindowsAgentPlaytestFileIdentityLease.Open(path, shareDelete: true, requestDeleteAccess: true));
         }
 
         public void MoveOwnedFile(string sourceFileName, string destinationFileName)
         {
             if (_ownershipLost || _ownedRootRemoved || Path.GetFileName(sourceFileName) != sourceFileName ||
                 Path.GetFileName(destinationFileName) != destinationFileName ||
-                !_ownedFiles.Remove(sourceFileName) || !_ownedFiles.Add(destinationFileName))
+                !_ownedFiles.Remove(sourceFileName, out var sourceLease) ||
+                _ownedFiles.ContainsKey(destinationFileName))
             {
                 throw new IOException("The playtest artifact ownership ledger rejected a file move.");
             }
+            var destinationPath = Path.Combine(Root, destinationFileName);
+            if (!sourceLease.TryRebindPath(destinationPath))
+            {
+                if (!sourceLease.TryDeleteExactOnClose())
+                {
+                    sourceLease.Dispose();
+                }
+                _ownershipLost = true;
+                throw new IOException("The finalized playtest artifact identity changed during publication.");
+            }
+            _ownedFiles.Add(destinationFileName, sourceLease);
         }
 
         public bool TryDeleteOwnedRoot()
@@ -651,14 +885,33 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
             _marker = null;
             try
             {
+                foreach (var ownedFile in _ownedFiles.ToArray())
+                {
+                    if (ownedFile.Value.MatchesCurrentPath())
+                    {
+                        continue;
+                    }
+                    if (!ownedFile.Value.TryDeleteExactOnClose())
+                    {
+                        ownedFile.Value.Dispose();
+                    }
+                    _ownedFiles.Remove(ownedFile.Key);
+                    _ownershipLost = true;
+                    return false;
+                }
                 foreach (var entry in Directory.EnumerateFileSystemEntries(Root))
                 {
                     var name = Path.GetFileName(entry);
-                    if (Directory.Exists(entry) || !_ownedFiles.Contains(name))
+                    if (Directory.Exists(entry) || !_ownedFiles.TryGetValue(name, out var fileLease))
                     {
+                        _ownershipLost = true;
                         return false;
                     }
-                    File.Delete(entry);
+                    if (!fileLease.TryDeleteExactOnClose())
+                    {
+                        _ownershipLost = true;
+                        return false;
+                    }
                     _ownedFiles.Remove(name);
                 }
                 if (!_childLease.MatchesCurrentPath() || !_childLease.TryDeleteExactOnClose())
@@ -680,6 +933,11 @@ internal sealed class AtomicWindowsAgentPlaytestRootAcquirer : IAgentPlaytestRoo
         {
             _marker?.Dispose();
             _marker = null;
+            foreach (var fileLease in _ownedFiles.Values)
+            {
+                fileLease.Dispose();
+            }
+            _ownedFiles.Clear();
             _childLease?.Dispose();
             _childLease = null;
             siblingLock.Dispose();
@@ -753,7 +1011,11 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         try
         {
             EnsureCanAdd(encodedPng.Length, sequence);
-            using (var stream = new FileStream(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var stream = new FileStream(
+                partial,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.Read | FileShare.Delete))
             {
                 TrackOwnedFile(partial);
                 stream.Write(encodedPng);
@@ -790,7 +1052,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         {
             throw new AgentPlaytestFailure(response.FrameSequence, "frame", "frame-publish-failed", "The response frame path is not the exact finalized task-owned path.");
         }
-        var bytes = File.ReadAllBytes(expected);
+        var bytes = ReadAllOwnedBytes(expected);
         var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         var decoded = decoder.Decode(bytes);
         if (!string.Equals(hash, response.FrameSha256, StringComparison.Ordinal) ||
@@ -810,7 +1072,11 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         WriteNew(tracePartial, traceBytes);
         File.Move(tracePartial, traceFinal, overwrite: false);
         MoveOwnedFile(tracePartial, traceFinal);
-        _traceLease = new FileStream(traceFinal, FileMode.Open, FileAccess.Read, FileShare.Read);
+        _traceLease = new FileStream(
+            traceFinal,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read | FileShare.Delete);
     }
 
     public byte[] ReadFinalTrace()
@@ -835,7 +1101,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         WriteNew(manifestPartial, manifestBytes);
         File.Move(manifestPartial, manifestFinal, overwrite: false);
         MoveOwnedFile(manifestPartial, manifestFinal);
-        AgentPlaytestManifestCodec.ValidateCanonical(File.ReadAllBytes(manifestFinal));
+        AgentPlaytestManifestCodec.ValidateCanonical(ReadAllOwnedBytes(manifestFinal));
         _completed = true;
     }
 
@@ -892,7 +1158,11 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
 
     private void WriteNew(string path, ReadOnlySpan<byte> bytes)
     {
-        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        using var stream = new FileStream(
+            path,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.Read | FileShare.Delete);
         TrackOwnedFile(path);
         stream.Write(bytes);
         stream.Flush(flushToDisk: true);
@@ -905,6 +1175,18 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         (_rootLease as IAgentPlaytestTrackedRootLease)?.MoveOwnedFile(
             Path.GetFileName(sourcePath),
             Path.GetFileName(destinationPath));
+
+    private static byte[] ReadAllOwnedBytes(string path)
+    {
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read | FileShare.Delete);
+        using var copy = new MemoryStream();
+        stream.CopyTo(copy);
+        return copy.ToArray();
+    }
 
     private void EnsureCanAdd(long byteCount, int? sequence)
     {

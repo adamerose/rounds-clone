@@ -202,10 +202,10 @@ public sealed class AgentPlaytestTests
         Assert.True(File.Exists(Path.Combine(root, "trace.jsonl")));
         Assert.True(File.Exists(Path.Combine(root, "manifest.json")));
         Assert.False(File.Exists(Path.Combine(root, "trace.jsonl.partial")));
-        var storedTrace = File.ReadAllBytes(Path.Combine(root, "trace.jsonl"));
+        var storedTrace = ReadAllWithDeleteShare(Path.Combine(root, "trace.jsonl"));
         var parsedTrace = AgentPlaytestTraceCodec.ParseCanonical(storedTrace, requireTerminal: true);
         AgentPlaytestSession.VerifyFreshReplay(parsedTrace);
-        var manifestBytes = File.ReadAllBytes(Path.Combine(root, "manifest.json"));
+        var manifestBytes = ReadAllWithDeleteShare(Path.Combine(root, "manifest.json"));
         AgentPlaytestManifestCodec.ValidateCanonical(manifestBytes);
         using (var manifest = JsonDocument.Parse(manifestBytes))
         {
@@ -248,7 +248,7 @@ public sealed class AgentPlaytestTests
 
         Assert.Equal(0, exitCode);
         Assert.Equal(string.Empty, diagnostics.ToString());
-        using var manifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root, "manifest.json")));
+        using var manifest = JsonDocument.Parse(ReadAllWithDeleteShare(Path.Combine(root, "manifest.json")));
         Assert.False(manifest.RootElement.GetProperty("complete").GetBoolean());
         Assert.Empty(manifest.RootElement.GetProperty("causalityReceipts").EnumerateArray());
         owner.Dispose();
@@ -420,7 +420,7 @@ public sealed class AgentPlaytestTests
             Assert.True(File.Exists(published.Response.FramePath));
             Assert.False(File.Exists(published.Response.FramePath + ".partial"));
             Assert.Equal(Convert.ToHexString(SHA256.HashData(encoded)).ToLowerInvariant(), published.Response.FrameSha256);
-            Assert.Equal(encoded, File.ReadAllBytes(published.Response.FramePath));
+            Assert.Equal(encoded, ReadAllWithDeleteShare(published.Response.FramePath));
             Assert.Equal(8, published.Observation.PixelBytes.Length);
             Assert.Throws<AgentPlaytestFailure>(() => owner.PublishFrame(0, encoded, decoder, terminal: false));
 
@@ -547,6 +547,31 @@ public sealed class AgentPlaytestTests
         owner.Dispose();
         Assert.Equal("foreign", File.ReadAllText(sentinel));
         Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
+    public void PublishedRegisteredFileReplacementRefusesCleanupAndPreservesForeignBytes()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rounds-agent-playtest-file-race-" + Guid.NewGuid().ToString("N"));
+        var owner = AgentPlaytestArtifactOwner.Create(root);
+        var published = owner.PublishFrame(
+            0,
+            Encoding.ASCII.GetBytes("owned-frame"),
+            new FixedDecoder(),
+            terminal: false);
+        var displacedOwnedFile = published.Response.FramePath + ".displaced-owned";
+
+        File.Move(published.Response.FramePath, displacedOwnedFile);
+        File.WriteAllText(published.Response.FramePath, "foreign replacement");
+
+        Assert.Equal("foreign replacement", Encoding.UTF8.GetString(ReadAllWithDeleteShare(published.Response.FramePath)));
+        Assert.Throws<IOException>(() => owner.CleanupFailedRun());
+        Assert.Equal("foreign replacement", Encoding.UTF8.GetString(ReadAllWithDeleteShare(published.Response.FramePath)));
+        Assert.False(File.Exists(displacedOwnedFile));
+
+        owner.Dispose();
+        File.Delete(published.Response.FramePath);
+        Directory.Delete(root);
     }
 
     [Fact]
@@ -861,6 +886,18 @@ public sealed class AgentPlaytestTests
         Assert.InRange(action.Move, (sbyte)-1, (sbyte)1);
         Assert.InRange(action.AimX, -1.0, 1.0);
         Assert.InRange(action.AimY, -1.0, 1.0);
+    }
+
+    private static byte[] ReadAllWithDeleteShare(string path)
+    {
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        using var copy = new MemoryStream();
+        stream.CopyTo(copy);
+        return copy.ToArray();
     }
 
     private sealed class FixedDecoder : IAgentPlaytestRgba8Decoder
