@@ -37,12 +37,10 @@ public sealed class StatCardDefinition
     public StatCardDefinition(
         string id,
         string displayName,
-        string summary,
         IEnumerable<StatEffect> effects)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(summary);
         ArgumentNullException.ThrowIfNull(effects);
         var effectArray = effects.ToArray();
         if (effectArray.Length == 0)
@@ -52,15 +50,12 @@ public sealed class StatCardDefinition
 
         Id = id;
         DisplayName = displayName;
-        Summary = summary;
         _effects = Array.AsReadOnly(effectArray);
     }
 
     public string Id { get; }
 
     public string DisplayName { get; }
-
-    public string Summary { get; }
 
     public IReadOnlyList<StatEffect> Effects => _effects;
 }

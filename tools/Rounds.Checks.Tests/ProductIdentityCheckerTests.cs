@@ -47,6 +47,24 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         Assert.Contains(failures, failure => failure.StartsWith("IDN009 supported card `bouncy`", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void UnsupportedLiveDiagnosticsAndRuntimeCardSummariesAreRejected()
+    {
+        CopyIdentityFixture();
+        var main = Path.Combine(_fixture, "game", "Main.cs");
+        File.AppendAllText(main, "\n// card.Summary BLOCK READY _world.Arena.Id _world.Bullets.Count\n");
+        var definition = Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardDefinition.cs");
+        File.AppendAllText(definition, "\n// public string Summary { get; }\n");
+        var catalog = Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardCatalog.cs");
+        File.AppendAllText(catalog, "\n// SummaryFor(id)\n");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.StartsWith("IDN011", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.StartsWith("IDN012", StringComparison.Ordinal));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_fixture))
@@ -73,6 +91,7 @@ public sealed class ProductIdentityCheckerTests : IDisposable
             "spec/schema/measurements.schema.json",
             "spec/schema/mechanics.schema.json",
             "spec/schema/source-index.schema.json",
+            "src/Rounds.Sim/Cards/StatCardDefinition.cs",
             "src/Rounds.Sim/Cards/StatCardCatalog.cs",
         })
         {

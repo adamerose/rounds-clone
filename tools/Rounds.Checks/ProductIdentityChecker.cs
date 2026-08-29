@@ -49,6 +49,7 @@ public static partial class ProductIdentityChecker
 
         CheckSchemas(repository, failures);
         CheckSupportedCardNames(repository, failures);
+        CheckUnsupportedLiveUiIsAbsent(repository, failures);
         return failures;
     }
 
@@ -140,6 +141,62 @@ public static partial class ProductIdentityChecker
         }
     }
 
+    private static void CheckUnsupportedLiveUiIsAbsent(string repository, List<string> failures)
+    {
+        var main = ReadRequired(repository, Path.Combine("game", "Main.cs"), failures);
+        var definition = ReadRequired(
+            repository,
+            Path.Combine("src", "Rounds.Sim", "Cards", "StatCardDefinition.cs"),
+            failures);
+        var catalog = ReadRequired(
+            repository,
+            Path.Combine("src", "Rounds.Sim", "Cards", "StatCardCatalog.cs"),
+            failures);
+        if (main is not null)
+        {
+            var forbiddenMainTokens = new[]
+            {
+                ".Arena.Id",
+                ".BouncesRemaining",
+                ".Bullets.Count",
+                ".DuelNumber",
+                "AimDirection.X",
+                "AimDirection.Y",
+                "_world.Phase.ToString",
+                "_match.Phase.ToString",
+                "BlockTicksRemaining",
+                "BLOCK READY",
+                "blockText",
+                "card.Summary",
+                "card.Effects",
+                "EffectLine(",
+            };
+            foreach (var token in forbiddenMainTokens)
+            {
+                if (main.Contains(token, StringComparison.Ordinal))
+                {
+                    failures.Add($"IDN010 game/Main.cs exposes unsupported live UI through `{token}`.");
+                }
+            }
+            if (RenderedPhaseInterpolation().IsMatch(main))
+            {
+                failures.Add("IDN010 game/Main.cs directly renders an internal duel or match phase value.");
+            }
+            if (!main.Contains("card.DisplayName", StringComparison.Ordinal))
+            {
+                failures.Add("IDN010 game/Main.cs no longer renders exact sourced draft-card display names.");
+            }
+        }
+        if (definition is not null && SummaryIdentifier().IsMatch(definition))
+        {
+            failures.Add("IDN011 StatCardDefinition.cs reintroduces a runtime card summary surface.");
+        }
+        if (catalog is not null && SummaryIdentifier().IsMatch(catalog))
+        {
+            failures.Add("IDN012 StatCardCatalog.cs reintroduces a hard-coded runtime card summary catalog.");
+        }
+    }
+
     private static string? ReadRequired(string repository, string relativePath, List<string> failures)
     {
         var path = Path.Combine(repository, relativePath);
@@ -162,4 +219,10 @@ public static partial class ProductIdentityChecker
 
     [GeneratedRegex("\"([^\"]+)\"\\s*=>\\s*\"([^\"]+)\"", RegexOptions.CultureInvariant)]
     private static partial Regex OriginalNamePair();
+
+    [GeneratedRegex(@"\{\s*_?(?:world|match)\.Phase(?:\s*[,}:])", RegexOptions.CultureInvariant)]
+    private static partial Regex RenderedPhaseInterpolation();
+
+    [GeneratedRegex(@"\bSummary(?:For)?\b", RegexOptions.CultureInvariant)]
+    private static partial Regex SummaryIdentifier();
 }

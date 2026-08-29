@@ -29,6 +29,9 @@ public sealed class StatCardTests
                 "Steady Shot", "Tank", "Wind Up",
             },
             catalog.Cards.Select(card => card.DisplayName));
+        Assert.Equal(
+            new[] { "Id", "DisplayName", "Effects" },
+            typeof(StatCardDefinition).GetProperties().Select(static property => property.Name));
     }
 
     [Fact]
@@ -375,7 +378,6 @@ public sealed class StatCardTests
         return StatCardCatalog.CreateForTesting(new StatCardDefinition(
             card.Id,
             card.DisplayName,
-            card.Summary,
             effects));
     }
 

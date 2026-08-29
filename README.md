@@ -45,7 +45,7 @@ $godot = Get-ChildItem .tools/godot-4.7.1 -Filter '*mono_win64_console.exe' -Rec
 The live shell starts with player one's five-card opening choice, then player two's, and plays through the first full round.
 Left/right movement wraps the active five-card selection and jump confirms after both controls have been released once.
 At the first loser draft it displays an incomplete-fidelity boundary and accepts no further match input, so a second card or later simulation step is unreachable in the shipped shell.
-The score, half points, sourced card names, effect summaries, opening card stacks, arena ID, and live bullet bounce budgets remain visible around the same pure-simulation combat.
+The score, half points, sourced card names, opening card stacks, health, and ammunition remain visible around the same pure-simulation combat.
 Player one uses A/D, Space, mouse aim, Mouse1 fire, and Mouse2 block. Player two uses Left/Right, Up, I/J/K/L aim, O fire, and P block.
 The protected `base-combat-v1` replay remains a standalone duel format.
 Current movement, jumping, damage, fire, reload, recoil, block tuning, projectile speed/rendering, arena reconstruction, card stacking, menus, effects, audio, controller input, settings, persistence, match replay, self-play, packaging, and reel output are scaffolds or missing until their owning fidelity tickets close.

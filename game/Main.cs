@@ -415,21 +415,6 @@ public partial class Main : Node2D
         {
             DrawMatchScore(_match);
         }
-
-        var matchDebug = _match is null ? string.Empty : $"   match {_match.Phase}   arena {_world.Arena.Id}";
-        var bounceDebug = _world.Bullets.Count == 0
-            ? "-"
-            : string.Join(',', _world.Bullets.Select(static bullet => bullet.BouncesRemaining));
-        var debug = FormattableString.Invariant(
-            $"P1 aim {_world.Players[0].AimDirection.X:0.00},{_world.Players[0].AimDirection.Y:0.00}   P2 aim {_world.Players[1].AimDirection.X:0.00},{_world.Players[1].AimDirection.Y:0.00}   bullets {_world.Bullets.Count}   bounces {bounceDebug}   duel {_world.DuelNumber}   phase {_world.Phase}{matchDebug}");
-        DrawString(
-            ThemeDB.FallbackFont,
-            new Vector2(380.0f, 1035.0f),
-            debug,
-            HorizontalAlignment.Center,
-            1160.0f,
-            18,
-            Paper.Darkened(0.2f));
     }
 
     private void DrawPlayerHud(int playerIndex, Vector2 anchor, Color color, HorizontalAlignment alignment)
@@ -452,19 +437,6 @@ public partial class Main : Node2D
                 8.0f,
                 loaded ? Paper : Ink.Lightened(0.18f));
         }
-
-        var blockText = player.BlockPhase == BlockPhase.Ready
-            ? "BLOCK READY"
-            : $"BLOCK {player.BlockPhase.ToString().ToUpperInvariant()} {player.BlockTicksRemaining}";
-        var textX = alignment == HorizontalAlignment.Left ? anchor.X : anchor.X - 260.0f;
-        DrawString(
-            ThemeDB.FallbackFont,
-            new Vector2(textX, anchor.Y + 90.0f),
-            blockText,
-            alignment,
-            260.0f,
-            18,
-            color);
     }
 
     private void DrawMatchScore(Match match)
@@ -552,22 +524,6 @@ public partial class Main : Node2D
                 bounds.Size.X - 40.0f,
                 25,
                 selected ? pickerColor : Paper);
-            DrawString(
-                ThemeDB.FallbackFont,
-                new Vector2(bounds.Position.X + 22.0f, bounds.Position.Y + 150.0f),
-                card.Summary,
-                HorizontalAlignment.Center,
-                bounds.Size.X - 44.0f,
-                16,
-                Paper.Darkened(0.05f));
-            DrawString(
-                ThemeDB.FallbackFont,
-                new Vector2(bounds.Position.X + 22.0f, bounds.Position.Y + 252.0f),
-                EffectLine(card),
-                HorizontalAlignment.Center,
-                bounds.Size.X - 44.0f,
-                14,
-                Paper.Darkened(0.22f));
         }
     }
 
@@ -592,16 +548,6 @@ public partial class Main : Node2D
             1400.0f,
             fontSize,
             color);
-
-    private static string EffectLine(StatCardDefinition card) =>
-        string.Join("  ", card.Effects.Select(effect => (effect.Target, effect.Operation) switch
-        {
-            (_, StatOperation.Multiply) => $"×{effect.Value:0.##}",
-            (StatTarget.ProjectileBounces, StatOperation.AddCount) => $"{effect.Value:+0;-0;0} bounces",
-            (StatTarget.Ammunition, StatOperation.AddCount) => $"{effect.Value:+0;-0;0} ammo",
-            (StatTarget.ReloadTime, StatOperation.AddFlat) => $"+{effect.Value:0.##}s reload",
-            _ => $"{effect.Value:+0;-0;0}%",
-        }));
 
     private readonly record struct CameraTransform(double Scale, double CenterX, double CenterY)
     {

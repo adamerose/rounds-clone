@@ -76,7 +76,6 @@ public sealed class StatCardCatalog
             cards.Add(new StatCardDefinition(
                 id,
                 originalName,
-                SummaryFor(id),
                 effects));
         }
 
@@ -332,24 +331,4 @@ public sealed class StatCardCatalog
         }
     }
 
-    private static string SummaryFor(string id) => id switch
-    {
-        "bouncy" => "Two ricochets; damage up",
-        "careful-planning" => "Damage up; fire and reload slow",
-        "combine" => "Damage up; one-round magazine",
-        "defender" => "Health up; block recovers faster",
-        "fast-forward" => "Bullet and reload speed up",
-        "fastball" => "Bullet speed up; handling slow",
-        "glass-cannon" => "Double damage; half health",
-        "huge" => "Eighty percent more health",
-        "leech" => "Health and damage healing",
-        "mayhem" => "Five ricochets; damage down",
-        "quick-reload" => "Reload at thirty percent",
-        "quick-shot" => "Bullet speed up; reload slow",
-        "spray" => "Rapid fire; large magazine; damage down",
-        "steady-shot" => "Health and bullet speed up",
-        "tank" => "Double health; slower fire",
-        "wind-up" => "Damage and speed up; fire slow",
-        _ => throw new InvalidDataException($"Stat card `{id}` has no effect summary."),
-    };
 }
