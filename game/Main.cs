@@ -26,17 +26,22 @@ public partial class Main : Node2D
         PlaceWindowOnPreferredScreen();
         Engine.PhysicsTicksPerSecond = World.TickRate;
         var arguments = OS.GetCmdlineUserArgs();
-        if (arguments.Length > 0)
+        StartupRoute route;
+        try
         {
-            if (arguments.Length != 2 || arguments[0] != "--replay")
-            {
-                FailReplay("Usage: Rounds.Game -- --replay <path>");
-                return;
-            }
+            route = StartupRoute.Parse(arguments, OS.IsDebugBuild());
+        }
+        catch (ArgumentException)
+        {
+            FailReplay(StartupRoute.Usage);
+            return;
+        }
 
+        if (route.Mode == StartupMode.Replay)
+        {
             try
             {
-                using var stream = File.OpenRead(arguments[1]);
+                using var stream = File.OpenRead(route.ReplayPath!);
                 _replay = new ReplayPlayback(ReplayCodec.Load(stream));
                 _world = _replay.World;
             }
@@ -46,6 +51,12 @@ public partial class Main : Node2D
                 return;
             }
         }
+        else if (route.Mode == StartupMode.DebugIncompleteFidelityEvidence)
+        {
+            _matchShell = DebugEvidenceMatchFactory.CreateIncompleteFidelityBoundary();
+            _match = _matchShell.Match;
+            _world = _match.World;
+        }
         else
         {
             _match = Match.Create(1UL);
@@ -53,6 +64,10 @@ public partial class Main : Node2D
             _world = _match.World;
         }
         QueueRedraw();
+        if (!route.RunsContinuousPhysics)
+        {
+            SetPhysicsProcess(false);
+        }
     }
 
     private static void PlaceWindowOnPreferredScreen()

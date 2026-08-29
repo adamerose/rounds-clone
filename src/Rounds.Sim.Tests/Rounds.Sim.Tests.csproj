@@ -26,6 +26,8 @@
     <ProjectReference Include="..\Rounds.Sim\Rounds.Sim.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\game\DebugEvidenceMatchFactory.cs" Link="Game\DebugEvidenceMatchFactory.cs" />
     <Compile Include="..\..\game\FaithfulSubsetMatchShell.cs" Link="Game\FaithfulSubsetMatchShell.cs" />
+    <Compile Include="..\..\game\StartupRoute.cs" Link="Game\StartupRoute.cs" />
   </ItemGroup>
 </Project>

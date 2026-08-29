@@ -1059,3 +1059,9 @@ After verifying both exact paths, the worktree received an ignored junction to t
 One ticket-checker discovery probe guessed a plugin-root `scripts` directory that does not exist; recursive inventory found the actual `checks/scripts/check-tickets.mjs`, which passed across all registered worktrees and the local branch.
 The first attempt to remove the exact generated `.tmp` verification directory was rejected by command policy before execution despite its path guard.
 The same absolute-path and worktree-containment checks followed by the runtime directory API removed only that verified directory and proved it absent; the ignored shared-tool junction and Godot cache remain available for review.
+
+## 2026-08-29 — A release-only build rewrote pinned lock-file formatting
+
+The first focused correction build targeted the Godot project alone in Release configuration, which removed the editor-only package entry from its working lock file even though no dependency changed.
+A force-evaluated solution restore reinstated that entry but normalized final-newline formatting in every lock file.
+All seven tool-attributable lock-file changes were restored exactly from the known clean candidate before staging; the correction does not change a package version, lock byte, simulation input, or shipped route.
