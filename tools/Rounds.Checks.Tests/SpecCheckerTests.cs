@@ -111,6 +111,115 @@ public sealed class SpecCheckerTests : IDisposable
     }
 
     [Fact]
+    public void FixedProjectileFrameSpanMeasurementsPass()
+    {
+        CreateRepositoryFromCommittedSpec();
+
+        Assert.Empty(SpecChecker.CheckRepository(_repository));
+    }
+
+    [Theory]
+    [InlineData("m-projectile-speed-ssag-track-a")]
+    [InlineData("m-projectile-speed-ssag-track-b")]
+    public void ProjectileFrameSpanRequiresElapsedFrames(string measurementId)
+    {
+        CreateRepositoryFromCommittedSpec();
+        MutateProjectileFrameSpan(measurementId, measurement =>
+            measurement["pixelMeasurements"]!.AsObject().Remove("elapsedFrames"));
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC057 measurements.json", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("m-projectile-speed-ssag-track-a")]
+    [InlineData("m-projectile-speed-ssag-track-b")]
+    public void ProjectileFrameSpanRejectsOneFrameDenominator(string measurementId)
+    {
+        CreateRepositoryFromCommittedSpec();
+        MutateProjectileFrameSpan(measurementId, measurement =>
+            measurement["pixelMeasurements"]!["elapsedFrames"] = 1);
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC058 measurements.json", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("m-projectile-speed-ssag-track-a")]
+    [InlineData("m-projectile-speed-ssag-track-b")]
+    public void ProjectileFrameSpanMustMatchSourceFrameEndpoints(string measurementId)
+    {
+        CreateRepositoryFromCommittedSpec();
+        MutateProjectileFrameSpan(measurementId, measurement =>
+            measurement["pixelMeasurements"]!["elapsedFrames"] =
+                measurement["pixelMeasurements"]!["elapsedFrames"]!.GetValue<int>() + 1);
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC058 measurements.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ProjectileFrameSpanMustUseItsExplicitDivideDerivation()
+    {
+        CreateRepositoryFromCommittedSpec();
+        MutateProjectileFrameSpan("m-projectile-speed-ssag-track-a", measurement =>
+            measurement["derivation"]!["operation"] = "multiply");
+
+        var failures = SpecChecker.CheckRepository(_repository);
+
+        Assert.Contains(failures, failure => failure.StartsWith("SPEC058 measurements.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void UnrelatedMeasurementMayRetainOneFrameFieldWithoutProjectileRules()
+    {
+        CreateRepositoryFromCommittedSpec();
+        var path = Path.Combine(_repository, "spec", "measurements.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        var unrelated = document["measurements"]!.AsArray()
+            .Single(item => item!["id"]!.GetValue<string>() == "m-projectile-speed-wcg-contaminated")!;
+
+        Assert.Null(unrelated["measurementType"]);
+        Assert.Equal(1, unrelated["pixelMeasurements"]!["elapsedFrames"]!.GetValue<int>());
+
+        Assert.Empty(SpecChecker.CheckRepository(_repository));
+    }
+
+    [Fact]
+    public void CorrectedFixedTracksRejectCurrentSpeedAndShareCandidateSpeed()
+    {
+        var trackA = new ProjectileFrameSpanEvidence(
+            92, 54.5, 152, 114.5,
+            181, 105, 181, 105,
+            18, 6, 2,
+            0.5, 0.5, 1, 0);
+        var trackB = new ProjectileFrameSpanEvidence(
+            372, 84.5, 485.5, 120.5,
+            181, 105, 181, 105,
+            18, 9, 2,
+            0.5, 0.5, 1, 0);
+
+        var intervalA = trackA.NormalizedSpeedInterval();
+        var intervalB = trackB.NormalizedSpeedInterval();
+
+        Assert.False(intervalA.Contains(2.4));
+        Assert.False(intervalB.Contains(2.4));
+        const double trackAPointEstimate = 0.3928371;
+        const double trackBPointEstimate = 0.3675076;
+        var combinedEstimate = (trackAPointEstimate + trackBPointEstimate) / 2;
+        var combinedCandidate = Math.Round(combinedEstimate, 2, MidpointRounding.AwayFromZero);
+        Assert.Equal(trackAPointEstimate, trackA.NormalizedSpeed, 7);
+        Assert.Equal(trackBPointEstimate, trackB.NormalizedSpeed, 7);
+        Assert.Equal(0.38017235, combinedEstimate, 8);
+        Assert.Equal(0.38, combinedCandidate);
+        Assert.True(intervalA.Contains(combinedCandidate));
+        Assert.True(intervalB.Contains(combinedCandidate));
+    }
+
+    [Fact]
     public void AcceptedMeasurementMustHaveACoverageContract()
     {
         CreateValidRepository();
@@ -609,6 +718,23 @@ public sealed class SpecCheckerTests : IDisposable
         WriteMaps();
     }
 
+    private void CreateRepositoryFromCommittedSpec()
+    {
+        var packagedSpec = Path.Combine(AppContext.BaseDirectory, "spec");
+        var destinationSpec = Path.Combine(_repository, "spec");
+        var destinationSchema = Path.Combine(destinationSpec, "schema");
+        Directory.CreateDirectory(destinationSchema);
+        foreach (var source in Directory.EnumerateFiles(packagedSpec, "*.json"))
+        {
+            File.Copy(source, Path.Combine(destinationSpec, Path.GetFileName(source)));
+        }
+
+        foreach (var source in Directory.EnumerateFiles(Path.Combine(packagedSpec, "schema"), "*.json"))
+        {
+            File.Copy(source, Path.Combine(destinationSchema, Path.GetFileName(source)));
+        }
+    }
+
     private void WriteCards()
     {
         static JsonObject Provenance() => new()
@@ -781,6 +907,16 @@ public sealed class SpecCheckerTests : IDisposable
               }]
             }
             """);
+    }
+
+    private void MutateProjectileFrameSpan(string measurementId, Action<JsonNode> mutation)
+    {
+        var path = Path.Combine(_repository, "spec", "measurements.json");
+        var document = JsonNode.Parse(File.ReadAllText(path))!;
+        var measurement = document["measurements"]!.AsArray()
+            .Single(item => item!["id"]!.GetValue<string>() == measurementId)!;
+        mutation(measurement);
+        File.WriteAllText(path, document.ToJsonString());
     }
 
     private void WriteMaps()

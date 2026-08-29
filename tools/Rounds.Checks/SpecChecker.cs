@@ -19,6 +19,16 @@ public static class SpecChecker
         "camera-out-of-bounds-result-delay",
     ];
 
+    private const string ProjectileFrameSpanType = "projectile-frame-span";
+    private const string ProjectileSourceSha256 = "D6383E0C7A10EC4CE89C4E551FA7D1817A5D0D120BF17B025FA553442973C36C";
+
+    private static readonly IReadOnlyDictionary<string, (int FirstFrame, int LastFrame, string FirstTimestamp, string LastTimestamp)> RequiredProjectileFrameSpans =
+        new Dictionary<string, (int FirstFrame, int LastFrame, string FirstTimestamp, string LastTimestamp)>(StringComparer.Ordinal)
+        {
+            ["m-projectile-speed-ssag-track-a"] = (838, 844, "00:00:27.933", "00:00:28.133"),
+            ["m-projectile-speed-ssag-track-b"] = (972, 981, "00:00:32.400", "00:00:32.700"),
+        };
+
     private static readonly IReadOnlyDictionary<string, string> RequiredDocuments = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["sources.json"] = "source-index.schema.json",
@@ -223,6 +233,7 @@ public static class SpecChecker
 
         var measurementRoot = documents["measurements.json"].RootElement;
         var measurementIds = new HashSet<string>(StringComparer.Ordinal);
+        var projectileFrameSpanIds = new HashSet<string>(StringComparer.Ordinal);
         var measuredSources = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         foreach (var measurement in measurementRoot.GetProperty("measurements").EnumerateArray())
         {
@@ -258,6 +269,12 @@ public static class SpecChecker
             var pixelMeasurements = measurement.GetProperty("pixelMeasurements");
             ValidateRecordedSpan(pixelMeasurements, "startCenterX", "endCenterX", "distancePixels", measurementId, failures);
             ValidateRecordedSpan(pixelMeasurements, "startCenterY", "apexCenterY", "verticalRisePixels", measurementId, failures);
+            if (measurement.TryGetProperty("measurementType", out var measurementType) &&
+                measurementType.GetString() == ProjectileFrameSpanType)
+            {
+                projectileFrameSpanIds.Add(measurementId);
+                ValidateProjectileFrameSpan(measurement, measurementId, failures);
+            }
 
             var derivation = measurement.GetProperty("derivation");
             var operation = derivation.GetProperty("operation").GetString()!;
@@ -297,6 +314,14 @@ public static class SpecChecker
             if (!double.IsFinite(recomputed) || Math.Abs(recomputed - recorded) > 0.0001)
             {
                 failures.Add($"SPEC009 measurements.json measurement `{measurementId}` records {recorded} but its derivation recomputes to {recomputed:F6}.");
+            }
+        }
+
+        if (factIds.Contains("combat-projectile-speed"))
+        {
+            foreach (var requiredId in RequiredProjectileFrameSpans.Keys.Where(id => !projectileFrameSpanIds.Contains(id)))
+            {
+                failures.Add($"SPEC061 measurements.json omits required projectile frame-span measurement `{requiredId}`.");
             }
         }
 
@@ -995,6 +1020,140 @@ public static class SpecChecker
         if (Math.Abs(recomputed - recorded) > 0.0001)
         {
             failures.Add($"SPEC017 measurements.json measurement `{measurementId}` records {spanField} as {recorded} but its endpoints recompute to {recomputed:F6}.");
+        }
+    }
+
+    private static void ValidateProjectileFrameSpan(JsonElement measurement, string measurementId, List<string> failures)
+    {
+        var requiredTopLevelFields = new[]
+        {
+            "sourceEndTimestamp",
+            "sourceSha256",
+            "sourceFrameIndexConvention",
+        };
+        var missingTopLevelFields = requiredTopLevelFields
+            .Where(field => !measurement.TryGetProperty(field, out _))
+            .ToArray();
+        var pixelMeasurements = measurement.GetProperty("pixelMeasurements");
+        var requiredRawFields = new[]
+        {
+            "firstSourceFrame",
+            "lastSourceFrame",
+            "elapsedFrames",
+            "sourceWidthPixels",
+            "sourceHeightPixels",
+            "sourceFps",
+            "ticksPerSourceFrame",
+            "projectileStartCenterX",
+            "projectileStartCenterY",
+            "projectileEndCenterX",
+            "projectileEndCenterY",
+            "stableReferenceStartX",
+            "stableReferenceStartY",
+            "stableReferenceEndX",
+            "stableReferenceEndY",
+            "euclideanDisplacementPixels",
+            "playerDiameterPixels",
+            "coreCenterUncertaintyPixels",
+            "stableReferenceUncertaintyPixels",
+            "playerDiameterUncertaintyPixels",
+            "frameTimingUncertaintyFrames",
+            "intervalMinimum",
+            "intervalMaximum",
+        };
+        var missingRawFields = requiredRawFields
+            .Where(field => !pixelMeasurements.TryGetProperty(field, out _))
+            .ToArray();
+        if (missingTopLevelFields.Length > 0 || missingRawFields.Length > 0)
+        {
+            var missing = missingTopLevelFields.Concat(missingRawFields.Select(field => $"pixelMeasurements.{field}"));
+            failures.Add($"SPEC057 measurements.json measurement `{measurementId}` omits required projectile frame-span field(s): {string.Join(", ", missing)}.");
+            return;
+        }
+
+        var firstFrame = pixelMeasurements.GetProperty("firstSourceFrame").GetInt32();
+        var lastFrame = pixelMeasurements.GetProperty("lastSourceFrame").GetInt32();
+        var elapsedFrames = pixelMeasurements.GetProperty("elapsedFrames").GetDouble();
+        var expectedElapsedFrames = lastFrame - firstFrame;
+        if (elapsedFrames <= 1 || Math.Abs(elapsedFrames - expectedElapsedFrames) > 0.0001)
+        {
+            failures.Add($"SPEC058 measurements.json measurement `{measurementId}` records elapsedFrames as {elapsedFrames} but source-frame endpoints require {expectedElapsedFrames}.");
+        }
+
+        if (!RequiredProjectileFrameSpans.TryGetValue(measurementId, out var requiredFrames) ||
+            firstFrame != requiredFrames.FirstFrame ||
+            lastFrame != requiredFrames.LastFrame ||
+            measurement.GetProperty("metricFactId").GetString() != "combat-projectile-speed" ||
+            measurement.GetProperty("source").GetString() != "footage-ssag" ||
+            measurement.GetProperty("sourceTimestamp").GetString() != requiredFrames.FirstTimestamp ||
+            measurement.GetProperty("sourceEndTimestamp").GetString() != requiredFrames.LastTimestamp ||
+            measurement.GetProperty("sourceSha256").GetString() != ProjectileSourceSha256 ||
+            !measurement.GetProperty("countsTowardCoverage").GetBoolean() ||
+            !measurement.GetProperty("activeCards").EnumerateArray().Select(card => card.GetString()).SequenceEqual(new[] { "Tank", "Leech" }, StringComparer.Ordinal) ||
+            pixelMeasurements.GetProperty("sourceWidthPixels").GetInt32() != 640 ||
+            pixelMeasurements.GetProperty("sourceHeightPixels").GetInt32() != 360 ||
+            pixelMeasurements.GetProperty("sourceFps").GetDouble() != 30 ||
+            pixelMeasurements.GetProperty("ticksPerSourceFrame").GetDouble() != 2)
+        {
+            failures.Add($"SPEC061 measurements.json measurement `{measurementId}` does not match its fixed retained-source frame-span contract.");
+        }
+
+        var ticksPerSourceFrame = pixelMeasurements.GetProperty("ticksPerSourceFrame").GetDouble();
+        var observedTicks = measurement.GetProperty("observedFrameIntervalTicks").GetDouble();
+        if (Math.Abs(observedTicks - ticksPerSourceFrame) > 0.0001)
+        {
+            failures.Add($"SPEC058 measurements.json measurement `{measurementId}` records {observedTicks} ticks per source-frame interval but cadence requires {ticksPerSourceFrame:F6}.");
+        }
+
+        var derivation = measurement.GetProperty("derivation");
+        var operation = derivation.GetProperty("operation").GetString();
+        var operands = derivation.GetProperty("operands")
+            .EnumerateArray()
+            .Select(operand => operand.GetString()!)
+            .ToArray();
+        var requiredOperands = new[]
+        {
+            "pixelMeasurements.euclideanDisplacementPixels",
+            "pixelMeasurements.playerDiameterPixels",
+            "pixelMeasurements.elapsedFrames",
+            "pixelMeasurements.ticksPerSourceFrame",
+        };
+        if (operation != "divide" || !operands.SequenceEqual(requiredOperands, StringComparer.Ordinal))
+        {
+            failures.Add($"SPEC058 measurements.json measurement `{measurementId}` must divide by player diameter, elapsedFrames, and ticksPerSourceFrame in that order.");
+        }
+
+        var evidence = new ProjectileFrameSpanEvidence(
+            pixelMeasurements.GetProperty("projectileStartCenterX").GetDouble(),
+            pixelMeasurements.GetProperty("projectileStartCenterY").GetDouble(),
+            pixelMeasurements.GetProperty("projectileEndCenterX").GetDouble(),
+            pixelMeasurements.GetProperty("projectileEndCenterY").GetDouble(),
+            pixelMeasurements.GetProperty("stableReferenceStartX").GetDouble(),
+            pixelMeasurements.GetProperty("stableReferenceStartY").GetDouble(),
+            pixelMeasurements.GetProperty("stableReferenceEndX").GetDouble(),
+            pixelMeasurements.GetProperty("stableReferenceEndY").GetDouble(),
+            pixelMeasurements.GetProperty("playerDiameterPixels").GetDouble(),
+            elapsedFrames,
+            ticksPerSourceFrame,
+            pixelMeasurements.GetProperty("coreCenterUncertaintyPixels").GetDouble(),
+            pixelMeasurements.GetProperty("stableReferenceUncertaintyPixels").GetDouble(),
+            pixelMeasurements.GetProperty("playerDiameterUncertaintyPixels").GetDouble(),
+            pixelMeasurements.GetProperty("frameTimingUncertaintyFrames").GetDouble());
+        var recordedDistance = pixelMeasurements.GetProperty("euclideanDisplacementPixels").GetDouble();
+        if (Math.Abs(evidence.EuclideanDisplacementPixels - recordedDistance) > 0.0001)
+        {
+            failures.Add($"SPEC059 measurements.json measurement `{measurementId}` records Euclidean displacement as {recordedDistance} but its camera-compensated endpoints recompute to {evidence.EuclideanDisplacementPixels:F6}.");
+        }
+
+        var interval = evidence.NormalizedSpeedInterval();
+        var recordedMinimum = pixelMeasurements.GetProperty("intervalMinimum").GetDouble();
+        var recordedMaximum = pixelMeasurements.GetProperty("intervalMaximum").GetDouble();
+        if (!double.IsFinite(interval.Minimum) ||
+            !double.IsFinite(interval.Maximum) ||
+            Math.Abs(interval.Minimum - recordedMinimum) > 0.000001 ||
+            Math.Abs(interval.Maximum - recordedMaximum) > 0.000001)
+        {
+            failures.Add($"SPEC060 measurements.json measurement `{measurementId}` records interval [{recordedMinimum}, {recordedMaximum}] but uncertainty recomputes to [{interval.Minimum:F6}, {interval.Maximum:F6}].");
         }
     }
 }

@@ -20,6 +20,7 @@
     <ProjectReference Include="..\Rounds.Checks\Rounds.Checks.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="..\..\spec\*.json" Link="spec\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\spec\schema\*.json" Link="spec\schema\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,125 @@
+{
+  "format": 1,
+  "measurementType": "projectile-frame-span",
+  "source": {
+    "id": "footage-ssag",
+    "externalLocator": "%USERPROFILE%\\.claude\\yt\\SSagJXOL1kw\\video.mp4",
+    "byteLength": 25239253,
+    "sha256": "D6383E0C7A10EC4CE89C4E551FA7D1817A5D0D120BF17B025FA553442973C36C",
+    "stream": {
+      "widthPixels": 640,
+      "heightPixels": 360,
+      "constantFramesPerSecond": 30,
+      "decodedTimeBase": "1/30",
+      "frameIndexConvention": "zero-based decoded video frame / PTS"
+    }
+  },
+  "reproduction": {
+    "decoderIdentity": "ffmpeg version 8.1 Copyright (c) 2000-2026 the FFmpeg developers, distributed with Bitwig Studio",
+    "decoderExecutableObservedAt": "C:\\Program Files\\Bitwig Studio\\bin\\ffmpeg.exe",
+    "distinctFrameCommand": "ffmpeg -hide_banner -loglevel error -i <external-video> -vf select='between(n,<first>,<last>)' -vsync 0 -f framemd5 -",
+    "coordinateMethod": "Use the centroid of the compact bright projectile-core component only; exclude glow and trail. Coordinates below are bounded to half pixels. Subtract the upper-left corner of the upper-left central horizontal platform at (181,105) at both endpoints before taking Euclidean length.",
+    "playerNormalization": "The visible circular torso in the same scene is 18 pixels in diameter; crown, arm, gun, nameplate, glow, and trail are excluded.",
+    "uncertaintyMethod": "Each projectile-core endpoint coordinate and each stable-reference endpoint coordinate has ±0.5 px uncertainty. Each compensated axis therefore has ±2 px worst-case uncertainty. Player diameter is 18±1 px. Decoded endpoint indices, 30-fps cadence, and the two-ticks-per-source-frame conversion are exact here, so frameTimingUncertaintyFrames is 0. Interval minimum uses reduced axis lengths, 19 px diameter, and the maximum elapsed span; interval maximum uses expanded axis lengths, 17 px diameter, and the minimum elapsed span."
+  },
+  "tracks": [
+    {
+      "id": "m-projectile-speed-ssag-track-a",
+      "sourceFrameSpan": {
+        "first": 838,
+        "last": 844,
+        "elapsedFrames": 6,
+        "firstTimestampSeconds": 27.933333333333334,
+        "lastTimestampSeconds": 28.133333333333333
+      },
+      "decodedFrames": [
+        { "frame": 838, "pts": 838, "rawFrameMd5": "23ce6c70920cb857e15ea8d74bf0512a" },
+        { "frame": 839, "pts": 839, "rawFrameMd5": "6115af5d1c121fc7f357c184b4ac1f67" },
+        { "frame": 840, "pts": 840, "rawFrameMd5": "4ec41aed257e7c6ad300a18c5494e6ca" },
+        { "frame": 841, "pts": 841, "rawFrameMd5": "03026c877a7e9e31de1e422a7c742daa" },
+        { "frame": 842, "pts": 842, "rawFrameMd5": "2e86217d6ec0540651949023d984be50" },
+        { "frame": 843, "pts": 843, "rawFrameMd5": "d6df91699838d4dd6c9f5eaac5d58c4a" },
+        { "frame": 844, "pts": 844, "rawFrameMd5": "41629af4ab861461afa114655fbba3df" }
+      ],
+      "projectileCore": {
+        "startCenter": { "x": 92.0, "y": 54.5 },
+        "endCenter": { "x": 152.0, "y": 114.5 },
+        "centerUncertaintyPixels": 0.5
+      },
+      "stableSceneReference": {
+        "description": "upper-left corner of upper-left central horizontal platform",
+        "start": { "x": 181.0, "y": 105.0 },
+        "end": { "x": 181.0, "y": 105.0 },
+        "coordinateUncertaintyPixels": 0.5
+      },
+      "calculation": {
+        "cameraCompensatedDeltaX": 60.0,
+        "cameraCompensatedDeltaY": 60.0,
+        "euclideanDisplacementPixels": 84.8528137423857,
+        "playerDiameterPixels": 18,
+        "playerDiameterUncertaintyPixels": 1,
+        "ticksPerSourceFrame": 2,
+        "frameTimingUncertaintyFrames": 0,
+        "normalizedPlayerDiametersPerTick": 0.392837100659193,
+        "intervalMinimum": 0.359756081656314,
+        "intervalMaximum": 0.429810004250647
+      }
+    },
+    {
+      "id": "m-projectile-speed-ssag-track-b",
+      "sourceFrameSpan": {
+        "first": 972,
+        "last": 981,
+        "elapsedFrames": 9,
+        "firstTimestampSeconds": 32.4,
+        "lastTimestampSeconds": 32.7
+      },
+      "decodedFrames": [
+        { "frame": 972, "pts": 972, "rawFrameMd5": "f7988bb0a474f7afaa5e38861f3e5b0d" },
+        { "frame": 973, "pts": 973, "rawFrameMd5": "b061daefca12be90cf078afc47d4e588" },
+        { "frame": 974, "pts": 974, "rawFrameMd5": "595f736e22e39a481d98f1d4b7322031" },
+        { "frame": 975, "pts": 975, "rawFrameMd5": "bc9cea42083f225966431797da457436" },
+        { "frame": 976, "pts": 976, "rawFrameMd5": "a9183f890a8576200d42595391766821" },
+        { "frame": 977, "pts": 977, "rawFrameMd5": "0f3a480409da442744c8412a6d227acd" },
+        { "frame": 978, "pts": 978, "rawFrameMd5": "ed97dfa1f7e6dc9eedbf734eead23038" },
+        { "frame": 979, "pts": 979, "rawFrameMd5": "b382bd39151a9811463ca47e7d1df1c8" },
+        { "frame": 980, "pts": 980, "rawFrameMd5": "0bbf26fe8536377491a93b1f04486285" },
+        { "frame": 981, "pts": 981, "rawFrameMd5": "cc267997e628f3818fc4707289a057ab" }
+      ],
+      "projectileCore": {
+        "startCenter": { "x": 372.0, "y": 84.5 },
+        "endCenter": { "x": 485.5, "y": 120.5 },
+        "centerUncertaintyPixels": 0.5
+      },
+      "stableSceneReference": {
+        "description": "upper-left corner of upper-left central horizontal platform",
+        "start": { "x": 181.0, "y": 105.0 },
+        "end": { "x": 181.0, "y": 105.0 },
+        "coordinateUncertaintyPixels": 0.5
+      },
+      "calculation": {
+        "cameraCompensatedDeltaX": 113.5,
+        "cameraCompensatedDeltaY": 36.0,
+        "euclideanDisplacementPixels": 119.072456932743,
+        "playerDiameterPixels": 18,
+        "playerDiameterUncertaintyPixels": 1,
+        "ticksPerSourceFrame": 2,
+        "frameTimingUncertaintyFrames": 0,
+        "normalizedPlayerDiametersPerTick": 0.367507583125751,
+        "intervalMinimum": 0.340844003805855,
+        "intervalMaximum": 0.397354579325956
+      }
+    }
+  ],
+  "comparisonBoundary": {
+    "currentBindingValue": 2.4,
+    "currentBindingInsideTrackA": false,
+    "currentBindingInsideTrackB": false,
+    "combinationMethod": "arithmetic mean of the two fixed-track point estimates, rounded to the binding precision of two decimal places",
+    "unroundedCombinedEstimate": 0.38017235,
+    "candidateCommonSpeed": 0.38,
+    "candidateInsideTrackA": true,
+    "candidateInsideTrackB": true,
+    "phaseOneBehaviorChange": false
+  }
+}

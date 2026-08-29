@@ -26,6 +26,7 @@ Each measurement's `activeCards` field lists every card visible in that duel, wh
 
 The selected YouTube uploads expose native 60 fps formats, but the current media service rejected every complete and partial 60 fps download with HTTP 403.
 Frame analysis therefore used 640×360 previews at 29.97 fps and 30 fps, which resolve time at approximately two simulation ticks per frame.
+The retained SSAG file is a constant 30-fps stream with SHA-256 `D6383E0C7A10EC4CE89C4E551FA7D1817A5D0D120BF17B025FA553442973C36C`; `research/evidence/projectile-speed-ssag-frame-spans.json` records its external locator, decoder identity, distinct decoded-frame hashes, coordinates, and arithmetic without committing source media.
 Every timing derived from those previews carries a tolerance wide enough to cover that quantization.
 No downloaded video or source frame is committed.
 
@@ -57,15 +58,21 @@ Speeds use player diameters per tick.
 | Sustained horizontal speed | 0.10 diameters/tick | ±0.04 | low | 0.0965 collision-free trajectory; a shot-contaminated 0.0666 comparison is excluded |
 | Jump apex height | 4.5 diameters | ±1.0 | low | 4.5078 collision-free grounded-to-apex rise; a shot-contaminated comparison is excluded |
 | Jump apex time | 36 ticks | ±8 | low | 36-tick collision-free grounded-to-apex rise; a shot-contaminated comparison is excluded |
-| Projectile speed | 2.4 diameters/tick | ±0.7 | low | 2.3333 from one controlled loadout; the second source is excluded |
+| Projectile speed evidence | 0.38 diameters/tick combined candidate | track A 0.359756–0.429810; track B 0.340844–0.397355 | medium for retained-source arithmetic | 0.392837 across frames 838..844 and 0.367508 across 972..981; the modified second source is excluded |
 | Projectile radius | 0.08 diameters | ±0.03 | low | 0.0833 bright-core radius from one controlled loadout |
 | Shot recoil | 0.10 diameters/tick | ±0.06 | low | 0.0500 and 0.1422 isolated velocity changes |
 | Active block window | 12 ticks | ±4 | medium | 10.01 and 14-tick shield samples |
 | Camera horizontal span | 35 diameters | ±5 | medium | 35.5556 and 36.5714 diameter frame spans |
 | Out-of-bounds result delay | 6 ticks | ±4 | low | 6.006 ticks from the one clean loss transition |
 
+The corrected projectile tracks use zero-based decoded indices and elapsed endpoint differences, never inclusive frame counts: `844 - 838 = 6` and `981 - 972 = 9`.
+Track A subtracts an unchanged platform reference from `(92.0,54.5)` to `(152.0,114.5)`, giving `sqrt(60² + 60²) = 84.852814 px`, then divides by `18 px × 6 frames × 2 ticks/frame = 216` for `0.392837` diameters/tick.
+Track B uses `(372.0,84.5)` to `(485.5,120.5)` against the same unchanged reference, giving `sqrt(113.5² + 36²) = 119.072457 px`, then divides by `18 × 9 × 2 = 324` for `0.367508`.
+Worst-case propagation of ±0.5 px per core and stable-reference coordinate, ±1 px player diameter, and exact endpoint timing yields the table's two intervals. The arithmetic mean of the two point estimates is `0.38017235`; rounded to the binding's two-decimal precision, the principled common candidate is `0.38`. The current `2.4` binding is outside both intervals, while `0.38` is inside both. This first evidence phase does not change the binding combat spec or runtime behavior.
+
 `spec/measurements.json` preserves each source timestamp, observed interval, named raw fields, normalized result, visible active cards, modifier control, tolerance, confidence, and method.
 Every result carries a machine-readable arithmetic derivation that references those raw fields by name, and the repository gate rejects missing operands or a false recomputation.
+Projectile frame spans are an explicit `projectile-frame-span` measurement type whose checker additionally requires `elapsedFrames = lastSourceFrame - firstSourceFrame`, camera-compensated Euclidean endpoints, the fixed source hash/cadence, and reproducible uncertainty intervals. Measurements without that type retain the generic contract.
 The coverage contract requires two independent sources for body scale, recoil, blocking, and camera framing.
 Movement, jumping, projectile speed, projectile radius, and out-of-bounds timing retain explicit single-source limitations because the independent WCG movement and jump comparisons contain shots, the WCG projectile has visible trajectory cards, and only one clean out-of-bounds transition was available.
 Broad tolerances reflect motion-streak ambiguity, partial jump arcs, possible acceleration, and approximately two-tick temporal sampling rather than expected gameplay variability.
@@ -110,7 +117,7 @@ The current build is still the binding target, and any later direct runtime obse
 ## Implementation status
 
 These notes describe the ROUNDS target, not proof that the current clone already matches it.
-The present movement, jump, damage, fire, reload, recoil, block, projectile, and arena values remain development scaffolding until direct installed-build comparisons under tickets 016–018 replace or validate them.
+The present movement, jump, damage, fire, reload, recoil, block, projectile, and arena values remain development scaffolding until direct installed-build comparisons under tickets 016–018 replace or validate them. Ticket 030's evidence phase has corrected the retained projectile measurement, but `spec/combat.json` deliberately remains at `2.4` until the later behavior-change phase updates the binding and its replay consequences together.
 Ticket 019 verifies the current 16 cards before the shipped shell can pass its first loser-draft boundary; ticket 025 owns the remaining 51 cataloged cards.
 Tickets 020–024 own presentation, controller/menu input, match replay and internal self-play, settings/persistence/shipping, and nightly evidence respectively.
 
