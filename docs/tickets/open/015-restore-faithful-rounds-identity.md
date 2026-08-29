@@ -1,0 +1,71 @@
+---
+format: 3
+status: ready
+created: 2026-08-29T02:23:31Z
+origin: human-request
+tags: ["product-fidelity", "presentation", "cards"]
+value: 10
+risk: 4
+sessions:
+  - codex:01a0492f-57bc-7f32-87fa-1fbe5d483893
+execution: unattended
+depends-on: [14]
+supersedes: []
+split-from: []
+---
+
+# Restore faithful ROUNDS identity
+
+The playable build presents an invented `RICOCHET` identity even though the governing goal is a faithful clone of ROUNDS, and earlier guidance explicitly encouraged original replacement names and presentation. The user has clarified that incomplete slices are acceptable but intentional divergence is not: every implemented slice must match ROUNDS, while unfinished behavior remains visibly unfinished instead of being replaced by invented content.
+
+## Outcome
+
+- The Godot window, in-match title, README, and active visual guidance identify the game as `ROUNDS`, with the README clearly describing it as an unofficial in-progress clone.
+- Ticket 014's already-correct baseline is preserved: every card available in the current 16-card draft pool uses its exact sourced ROUNDS display name. The game exposes no invented substitute card or skill name; unsupported cards are absent rather than renamed or approximated as new abilities.
+- Authoritative architecture and visual guidance state a faithful-subset invariant: partial delivery may omit ROUNDS content, but implemented titles, names, mechanics, tuning, map geometry/behavior, controls, and presentation must target observed ROUNDS behavior and may not deliberately diverge for originality.
+- The clean-room boundary continues to forbid copied source code and extracted proprietary art, audio, logos, or other asset bytes. It does not justify changing observable gameplay, sourced short names, or the requested game title.
+- The three generated `RICOCHET` concept PNGs remain byte-preserved as superseded historical concepts, but `docs/design/visual-system.md` no longer treats them or their invented names/style as acceptance references. New visual acceptance must come from direct comparison with ROUNDS under ticket 020.
+- The current build is described as development scaffolding, not accepted faithful content, wherever direct comparison is still missing. Known gaps include 51 unimplemented cataloged cards; provisional card stacking; 62 playable static arenas reconstructed from previews rather than direct play; missing hazard/dynamic arena behavior; provisional movement, jump, damage, fire, reload, recoil, and block tuning; the user-reported projectile speed mismatch; invented projectile rendering; and incomplete menus, effects, audio, presentation, controller input, settings, persistence, match replay/self-play verification, packaging, and nightly reel evidence. Tickets 016–025 own those corrections; ticket 025 specifically owns the remaining 51 cards. This ticket does not claim they are complete.
+- `GOAL.md` no longer requires a player-visible bot mode that ROUNDS itself does not expose. Bots remain headless test drivers under ticket 022; they may exercise the faithful game but do not create a new shipped mode.
+- The shipped Godot flow prevents the first loser draft from selecting a second card while duplicate and cross-card composition remain unverified. It stops at an explicit incomplete-fidelity boundary after the first full round instead of making provisional combinations reachable; ticket 019 removes or advances that gate only as direct evidence permits.
+
+## Decisions
+
+- The user's 2026-08-28 clarification is binding: “You can obviously start with a subset of Rounds and work towards a full clone, but dont intentionally ever diverge from it.” This supersedes the 2026-08-14 decisions to use the `RICOCHET` title and wholly original draft names.
+- Historical decision and closed-ticket bytes remain append-only evidence. A new decision records the supersession; old entries are not rewritten.
+- Use exact ROUNDS gameplay identifiers and short display names when known. If a source fact is uncertain, mark it unresolved and obtain stronger evidence; do not invent a different mechanic, value, map, name, or visual target and call that fidelity.
+- Treat deterministic tests as necessary regression evidence, never as proof of fidelity by themselves. Each user-visible or feel-sensitive slice needs a comparison signal against the installed public target build or equally direct captured evidence.
+- Keep this correction bounded to identity, policy, current-name verification, truthful gap reporting, and the minimal shipped-flow gate that prevents unverified second-card composition. It may change only the Godot match-driving/presentation boundary and its direct tests for that gate; it does not change card formulas, catalog data, simulation mechanics, tuning, maps, or replays. Projectile speed/color/shape, base feel, current-card verification, card expansion, and map reconstruction require follow-up tickets with direct comparison evidence rather than guesses inside this identity change.
+- Active identity and direction surfaces are `GOAL.md`, `README.md`, `game/project.godot`, the live HUD in `game/Main.cs`, `docs/architecture.md`, `docs/design/visual-system.md`, `research/notes/core-rules.md`, and the human-readable `title` fields in `spec/schema/*.json`. They use `ROUNDS`; schema `$id` values remain stable. Append-only decisions, closed tickets, recovery records, progress reports, `docs/design-docs/postmortems.md`, Git history, and the preserved concept PNG bytes retain historical wording. Ordinary use of “ricochet” as a projectile mechanic is not a product-title violation.
+- This ticket explicitly authorizes changing only the human-readable `title` field in exactly the five existing `spec/schema/*.json` files from `RICOCHET` to `ROUNDS`. Those are product metadata, not researched gameplay facts; all `$id`, validation, schema, and research bytes remain exact. The superseding decision and architecture record this narrow exception to the ordinary read-only `spec/` rule.
+- Ticket 015 does not alter card catalog, card mechanic, tuning, map, replay, or simulation code. Its only gameplay-path mutation is the shell-owned incomplete-fidelity gate before a second card can be selected; its draft screenshot is evidence only of exact displayed names, not mechanics fidelity.
+
+## Evidence required
+
+- A repository check proves every enumerated active identity surface uses `ROUNDS` and contains no `RICOCHET` product title or invented implemented-card name. The check explicitly exempts only the named historical records and concept-image bytes, leaves schema `$id` values stable, and does not reject ordinary ricochet-mechanic prose.
+- Existing catalog tests prove the exact 16 current IDs map to the exact `originalName` values in `spec/cards.json`, and the runtime pool remains a subset of the 67-row sourced catalog rather than a parallel invented catalog. Inspection proves no card catalog or mechanics byte changed in this ticket.
+- A shell-level regression reaches the first loser draft with one owned card, proves no second selection or simulation step can occur, and displays an explicit incomplete-fidelity message that points to current-card verification rather than inventing a ROUNDS result. Opening drafts and the first full round remain playable.
+- Bounded inspection proves GOAL, README, architecture, visual guidance, and core-rules notes state the same faithful-subset rule; the concept PNGs are clearly superseded; tickets 016–025 own every named correction; player-visible bot mode is removed from the completion bar; and no document claims the clone or any unverified scaffold is faithful already.
+- The supported zero-warning build, repository checks, focused catalog tests, ticket checker, and `git diff --check` pass. The only `spec/` diffs are the exact five `title` token replacements authorized above; replay bytes, golden hashes, dependency versions, and simulation behavior remain unchanged.
+- A native verification run places the exact Godot window on monitor 4 before showing it, verifies the window center is on that monitor, and captures the `ROUNDS` window/HUD title plus at least one draft containing only exact sourced card names. No project window appears on monitors 1 through 3.
+
+## Work log
+
+- 2026-08-29T02:23:31Z stage design start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Replacing the invented-identity direction with the user's explicit faithful-subset rule and bounding the first corrective product slice.
+- 2026-08-29T02:31:59Z stage correction start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Closing the concept-screen, gap-ownership, active-surface, preserved-card-baseline, and risk loopholes found by the fresh contract challenge.
+- 2026-08-29T02:33:55Z stage correction end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Retired the three divergent concept screens as acceptance references, enumerated active and historical identity surfaces, preserved the already-correct card names, raised risk to 4, and assigned every known fidelity gap to tickets 016–020.
+- 2026-08-29T02:33:55Z stage design end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Completed a cold-reader contract for faithful identity and durable no-intentional-divergence guidance without claiming the remaining mechanics, map, or presentation corrections are done.
+- 2026-08-29T02:34:50Z stage admission start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04b5e-4e3a-79a3-a3bb-b7d5e8f08726 — Freshly judging the corrected faithful-identity contract and every sibling idea record that durably owns the disclosed base-feel, projectile, arena, card, and presentation gaps.
+- 2026-08-29T02:39:43Z stage admission end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04b5e-4e3a-79a3-a3bb-b7d5e8f08726 — Rejected unresolved raw-capture storage, reachable card-composition, historical exemption, gap ownership, and cross-ticket dependency loopholes.
+- 2026-08-29T02:40:49Z stage correction start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Making comparison artifacts clean-room safe, excluding unverified reachable card combinations, preserving historical postmortems, assigning infrastructure gaps, and correcting dependencies.
+- 2026-08-29T02:43:03Z stage correction end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Required clean-room-safe evidence manifests, made all unresolved card combinations unreachable, exempted historical postmortems, corrected projectile/presentation dependencies, removed shipped bot divergence, and assigned controls, replay/self-play, settings/shipping, and reel outcomes to tickets 021–024.
+- 2026-08-29T02:43:03Z stage admission start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04b65-cdbc-7cc1-b35e-acff2a4350c8 — Freshly judging the complete faithful-subset policy and all nine sibling outcome records after every prior admission finding was corrected.
+- 2026-08-29T02:49:05Z stage admission end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04b65-cdbc-7cc1-b35e-acff2a4350c8 — Rejected because ordinary play could still reach provisional second-card composition and the card-expansion ticket required self-play owned only by a later dependent ticket.
+- 2026-08-29T02:50:41Z stage correction start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Adding an immediate shell-owned incomplete-fidelity gate and splitting current-card verification from expansion so self-play lands between them.
+- 2026-08-29T02:52:25Z stage correction end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Made second-card selection unreachable in the shipped shell until verified, limited ticket 019 to scripted current-subset audit/gating, kept ticket 022 as the self-play owner, and moved all catalog expansion after it to ticket 025.
+- 2026-08-29T02:52:25Z stage admission start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04b6e-588f-7063-a973-fddec8fd17b8 — Freshly judging the faithful-identity correction, immediate unverified-composition gate, and all ten dependent outcome records with the delivery graph repaired.
+- 2026-08-29T03:02:32Z stage admission end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04b6e-588f-7063-a973-fddec8fd17b8 — Rejected contradictory schema-title scope, the missing ticket-025 owner range, presentation dependency gaps, and ticket 018's undecidable complete-arena ownership.
+- 2026-08-29T03:03:26Z stage correction start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Authorizing only five schema title-token edits, completing the owner range, ordering all presentation consumers, and making ticket 018 the full arena-catalog umbrella.
+- 2026-08-29T03:04:41Z stage correction end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Reconciled the five metadata-only schema title edits with the spec freeze, named ticket 025 as card-expansion owner, ordered current cards/controllers/expansion after their presentation dependencies, and bound all 70 arena rows to ticket 018's umbrella completion audit.
+- 2026-08-29T03:04:41Z stage admission start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04b79-a058-7b90-a61f-04b58182b416 — Freshly judging the complete risk-4 identity/gating contract and all ten dependency-safe fidelity outcome records after every prior finding was addressed.
+- 2026-08-29T03:10:04Z stage admission end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04b79-a058-7b90-a61f-04b58182b416 — Approved at risk 4 with no findings; the reviewer independently verified the exact active-surface scope, five-schema metadata exception, current 16-name baseline, second-card shell boundary, complete gap ownership, acyclic dependencies, and clean-room evidence constraints.
