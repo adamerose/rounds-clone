@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ricochet.local/schema/mechanics.schema.json",
-  "title": "RICOCHET sourced mechanics specification",
+  "title": "ROUNDS sourced mechanics specification",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "targetBuild", "facts"],

@@ -1,8 +1,18 @@
 # Goal
 
-Build a faithful, playable clone of Rounds (Landfall, 2020) in this repository, and keep working until it is finished.
+Build a faithful, playable clone of ROUNDS (Landfall, 2020) in this repository, and keep working until it is finished.
 Nobody will answer questions, unblock you, or review your work.
 Decide, record the decision, and keep going.
+
+## Faithful-subset rule
+
+An incomplete subset is allowed; an intentional substitute is not.
+Every implemented title, name, mechanic, tuning value, map, control, and presentation choice targets observed ROUNDS behavior.
+When direct evidence is missing, leave the content absent or mark the development scaffold visibly unfinished instead of inventing a replacement.
+Deterministic tests protect repeatability, but only comparison with the installed public target or equally direct evidence can establish fidelity.
+
+Clean-room implementation forbids copied source code and extracted proprietary logo, art, audio, or other asset bytes.
+It does not require changing observable gameplay, sourced short names, or the requested `ROUNDS` title.
 
 ## Read first, and treat as binding
 
@@ -53,7 +63,7 @@ Do the earliest thing that isn't done.
 3. **Simulation core and the regression net.**
    Fixed 60 Hz `Step`, kinematic character controller, swept-circle bullets, level geometry, damage, round lifecycle, per `docs/design/physics-and-maps.md`.
    Then the harness: record a match as seed plus input stream, replay it, compare state hashes.
-   Then bots and headless self-play at volume.
+   Then internal bot drivers and headless self-play at volume.
    Then replay-to-video, because it is the only visibility a person has into this project and it will never get built later if it isn't built now.
 
 4. **Cards.**
@@ -66,7 +76,7 @@ Do the earliest thing that isn't done.
    Tune against footage, not intuition.
 
 6. **The game around the match.**
-   Menus, character select, the card draft screen, local multiplayer, bot opponents, settings, persistence.
+   Menus, character select, the card draft screen, local multiplayer, settings, persistence.
 
 ## Rules that don't bend
 
@@ -99,7 +109,7 @@ The clone is finished when all of these hold at once:
 - Every card in `spec/` is implemented with the stacking behavior the spec states.
 - 10,000 headless self-play matches run with no crash, no assertion failure, and every match terminating inside the round cap.
 - The sim's measurements match `spec/measurements.json` within the stated tolerance.
-- A person can launch the game, play a full match against another local player and against bots, draft cards between rounds, and reach a win screen, using only the menus.
+- A person can launch the game, play a full local match against another player, draft cards between rounds, and reach a win screen using only the menus.
 - The nightly reel renders and shows a real match.
 
 When that holds, stop adding scope.

@@ -1,12 +1,14 @@
-# RICOCHET
+# ROUNDS
 
-RICOCHET is an original, deterministic reimplementation of the short-round platform-shooter structure popularized by Rounds.
-It keeps simulation rules in a pure .NET library and uses Godot only for input, presentation, and menus.
-Exact sourced gameplay identifiers and short names are used where fidelity and unambiguous validation require them.
-Original source code, logo, card art or other extracted art, audio, and longer expressive or flavor text are not included.
+This repository is an unofficial, clean-room, in-progress clone of ROUNDS.
+It contains no copied source code or extracted proprietary logo, art, audio, or other asset bytes.
+Implemented behavior and short names target the public game; missing or unverified behavior stays absent or visibly unfinished instead of being replaced with original content.
 
-The current build provides a complete deterministic local match: two opening picks, short duels, half-point scoring, loser drafts, persistent stat builds, arena rotation, and a first-to-five winner.
-The deterministic draft pool contains the initial 12 passive cards plus Bouncy, Fast Forward, Mayhem, and Spray, including bounded geometry ricochets and their composed combat stats; animated hazards, bots, controllers, audio, and production presentation remain in progress.
+The current Godot build is development scaffolding, not a completed faithful match.
+It plays both opening drafts and one full round, then stops before the losing player can select a second card because duplicate and cross-card composition have not yet been verified directly against ROUNDS.
+Its 16-card draft pool uses the exact sourced names Bouncy, Careful Planning, Combine, Defender, Fast Forward, Fastball, Glass Cannon, Huge, Leech, Mayhem, Quick Reload, Quick Shot, Spray, Steady Shot, Tank, and Wind Up.
+
+Known gaps are explicitly owned by tickets 016–025: base movement and combat feel (016), projectile presentation (017), all 70 arenas and their behavior (018), verification and gating of the current 16 cards (019), presentation (020), controller and menu input (021), match replay and internal headless self-play (022), settings/persistence/shipping (023), nightly reel evidence (024), and the remaining 51 cataloged cards (025).
 
 ## Quick start on Windows
 
@@ -40,11 +42,13 @@ $godot = Get-ChildItem .tools/godot-4.7.1 -Filter '*mono_win64_console.exe' -Rec
 & $godot --path game
 ```
 
-The live shell starts with player one's five-card opening choice, then player two's, and plays through the complete first-to-five match.
+The live shell starts with player one's five-card opening choice, then player two's, and plays through the first full round.
 Left/right movement wraps the active five-card selection and jump confirms after both controls have been released once.
-The full score, half points, sourced card names, effect summaries, card stacks, arena ID, live bullet bounce budgets, loser drafts, and final winner remain visible around the same pure-simulation combat.
+At the first loser draft it displays an incomplete-fidelity boundary and accepts no further match input, so a second card or later simulation step is unreachable in the shipped shell.
+The score, half points, sourced card names, effect summaries, opening card stacks, arena ID, and live bullet bounce budgets remain visible around the same pure-simulation combat.
 Player one uses A/D, Space, mouse aim, Mouse1 fire, and Mouse2 block. Player two uses Left/Right, Up, I/J/K/L aim, O fire, and P block.
-The protected `base-combat-v1` replay remains a standalone duel format; match replay, bots, controller defaults, sound, dynamic map behavior, and production presentation remain later milestones.
+The protected `base-combat-v1` replay remains a standalone duel format.
+Current movement, jumping, damage, fire, reload, recoil, block tuning, projectile speed/rendering, arena reconstruction, card stacking, menus, effects, audio, controller input, settings, persistence, match replay, self-play, packaging, and reel output are scaffolds or missing until their owning fidelity tickets close.
 
 ## Project map
 

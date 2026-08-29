@@ -25,4 +25,7 @@
     <ProjectReference Include="..\Rounds.Replay\Rounds.Replay.csproj" />
     <ProjectReference Include="..\Rounds.Sim\Rounds.Sim.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\game\FaithfulSubsetMatchShell.cs" Link="Game\FaithfulSubsetMatchShell.cs" />
+  </ItemGroup>
 </Project>

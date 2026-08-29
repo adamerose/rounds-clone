@@ -17,6 +17,7 @@ public partial class Main : Node2D
     private readonly PlayerInput[] _inputs = new PlayerInput[2];
     private readonly StatCardCatalog _displayCards = StatCardCatalog.LoadEmbedded();
     private Match? _match;
+    private FaithfulSubsetMatchShell? _matchShell;
     private ReplayPlayback? _replay;
     private World _world = null!;
 
@@ -48,6 +49,7 @@ public partial class Main : Node2D
         else
         {
             _match = Match.Create(1UL);
+            _matchShell = new FaithfulSubsetMatchShell(_match);
             _world = _match.World;
         }
         QueueRedraw();
@@ -96,7 +98,7 @@ public partial class Main : Node2D
             Godot.Input.IsKeyPressed(Key.O),
             Godot.Input.IsKeyPressed(Key.P),
             ReadKeyboardAim());
-        _match!.Step(_inputs);
+        _matchShell!.Step(_inputs);
         QueueRedraw();
     }
 
@@ -180,7 +182,11 @@ public partial class Main : Node2D
         }
 
         DrawHud();
-        if (_match?.Phase is MatchPhase.OpeningDraft or MatchPhase.LoserDraft)
+        if (_matchShell?.IsAtIncompleteFidelityBoundary == true)
+        {
+            DrawIncompleteFidelityBoundary();
+        }
+        else if (_match?.Phase is MatchPhase.OpeningDraft or MatchPhase.LoserDraft)
         {
             DrawDraft(_match);
         }
@@ -325,7 +331,7 @@ public partial class Main : Node2D
         DrawString(
             ThemeDB.FallbackFont,
             new Vector2(710.0f, 62.0f),
-            $"{match.FullPoints[0]}   RICOCHET   {match.FullPoints[1]}",
+            $"{match.FullPoints[0]}   ROUNDS   {match.FullPoints[1]}",
             HorizontalAlignment.Center,
             500.0f,
             32,
@@ -422,6 +428,27 @@ public partial class Main : Node2D
                 14,
                 Paper.Darkened(0.22f));
         }
+    }
+
+    private void DrawIncompleteFidelityBoundary()
+    {
+        DrawRect(new Rect2(0.0f, 250.0f, 1920.0f, 560.0f), Ink with { A = 0.96f });
+        DrawString(
+            ThemeDB.FallbackFont,
+            new Vector2(360.0f, 480.0f),
+            FaithfulSubsetMatchShell.IncompleteFidelityMessage,
+            HorizontalAlignment.Center,
+            1200.0f,
+            32,
+            Paper);
+        DrawString(
+            ThemeDB.FallbackFont,
+            new Vector2(460.0f, 560.0f),
+            "THE OPENING CARDS AND FIRST FULL ROUND ARE THE CURRENT PLAYABLE SUBSET",
+            HorizontalAlignment.Center,
+            1000.0f,
+            22,
+            Paper.Darkened(0.1f));
     }
 
     private static string EffectLine(StatCardDefinition card) =>

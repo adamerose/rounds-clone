@@ -1039,3 +1039,23 @@ The first path-limited snapshot transplant used `git restore` and was refused be
 An index-free, path-limited `git diff --binary | git apply` transplant succeeded, and later blob hashes proved that all ten selected file snapshots were exact.
 The first ordinary locked NuGet restore also attempted the unavailable vulnerability-audit endpoint and reported `NU1900`; it changed no tracked file, lock file, selected dependency, ref, registration, or frozen artifact.
 Repeating the same locked restore with audit disabled for offline verification preserved the lock and dependency graph, after which the zero-warning build and complete 270-test suite passed.
+
+## 2026-08-29 — Internal consistency gates allowed product fidelity to drift
+
+The project goal said “faithful clone,” but active visual guidance separately authorized an original `RICOCHET` identity, invented draft names, and a custom screen-printed presentation.
+Low-confidence footage estimates and preview-derived maps were then promoted into deterministic fixtures, so reviews could prove that the implementation was stable and internally consistent without proving that it matched ROUNDS.
+That mismatch also let the playable shell expose provisional card composition as though a complete match were already supported.
+
+The correction makes the user's faithful-subset rule binding across the goal, architecture, README, visual guidance, research notes, schema metadata, and live title.
+It retires the generated concepts as authority, adds a repository identity and sourced-card-name check, and stops the shipped shell before any unverified second-card selection.
+Tickets 016–025 now require direct target comparison for the outstanding feel, projectile, arena, card, presentation, input, infrastructure, shipping, and catalog work rather than treating deterministic scaffolding as fidelity evidence.
+
+The first focused test command assumed the delivery worktree contained the root checkout's ignored `.tools` cache and failed before building because that executable path did not exist.
+No GUI or process was launched and no tracked file was changed by the failed probe; subsequent checks use the verified shared tool path from the integration root.
+The next focused build caught a shell-wrapper collection type that did not match `Match.Step`'s span boundary, and the new identity check incorrectly rejected ordinary lowercase “ricochet” mechanics prose because its first comparison ignored case.
+Changing the wrapper to accept `ReadOnlySpan<PlayerInput>` and limiting the product-title rejection to the exact uppercase token fixed both issues without changing simulation behavior or weakening the intended identity check.
+The first full test run then showed that golden-history fixture scripts also resolve the repository-local `.tools` path, so four tests failed before exercising their intended assertions.
+After verifying both exact paths, the worktree received an ignored junction to the root checkout's pinned shared tool cache; no dependency or tracked byte changed.
+One ticket-checker discovery probe guessed a plugin-root `scripts` directory that does not exist; recursive inventory found the actual `checks/scripts/check-tickets.mjs`, which passed across all registered worktrees and the local branch.
+The first attempt to remove the exact generated `.tmp` verification directory was rejected by command policy before execution despite its path guard.
+The same absolute-path and worktree-containment checks followed by the runtime directory API removed only that verified directory and proved it absent; the ignored shared-tool junction and Godot cache remain available for review.

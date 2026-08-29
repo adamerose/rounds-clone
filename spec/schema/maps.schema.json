@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ricochet.local/schema/maps.schema.json",
-  "title": "RICOCHET clean-room vanilla arena catalog",
+  "title": "ROUNDS clean-room vanilla arena catalog",
   "type": "object",
   "additionalProperties": false,
   "required": ["$schema", "schemaVersion", "targetBuild", "targetVersion", "catalogCount", "units", "geometryVocabulary", "reconciliation", "representativeExamples", "maps"],

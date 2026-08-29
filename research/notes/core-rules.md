@@ -4,7 +4,7 @@ This note explains the machine-readable target in `spec/` and preserves the reas
 
 ## Target build
 
-RICOCHET targets the current public Windows build `21020021`, identified by the live menu as `v1.1.2.a75ee335a`.
+This ROUNDS clone targets the current public Windows build `21020021`, identified by the live menu as `v1.1.2.a75ee335a`.
 The local Steam app manifest identifies depot manifest `3274682947036329080`, and SteamDB independently reports the same public Build ID.
 The official store lists the release date as 2021-04-01, so the founding goal's “2020” label is treated as a naming error rather than a separate historical ruleset.
 Later cross-play, rendering, options, and platform fixes remain in scope when they affect the current public executable.
@@ -106,6 +106,13 @@ They must be retuned against clone-generated controlled captures instead of bein
 
 The 2021 and 2022 footage predates the current build, but official later updates describe cross-play, rendering, options, bullet scaling, and platform fixes rather than a wholesale base-movement retune.
 The current build is still the binding target, and any later direct runtime observation overrides the older recordings.
+
+## Implementation status
+
+These notes describe the ROUNDS target, not proof that the current clone already matches it.
+The present movement, jump, damage, fire, reload, recoil, block, projectile, and arena values remain development scaffolding until direct installed-build comparisons under tickets 016–018 replace or validate them.
+Ticket 019 verifies the current 16 cards before the shipped shell can pass its first loser-draft boundary; ticket 025 owns the remaining 51 cataloged cards.
+Tickets 020–024 own presentation, controller/menu input, match replay and internal self-play, settings/persistence/shipping, and nightly evidence respectively.
 
 ## Gate behavior
 

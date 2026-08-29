@@ -378,3 +378,15 @@ Fresh headless verification and independent review decide whether that reconstru
 This decision supersedes only the 2026-08-14 identity decision's blanket prohibition on exact UI text: exact sourced gameplay identifiers and short names are allowed when fidelity and unambiguous validation require them.
 The clean-room boundary still forbids copied source code, the original logo, card art or other extracted art, audio, and longer expressive or flavor text; ticket 014 updates the README and architecture policy sentences to state that narrower rule.
 Fresh reviewer `codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a049d9-8546-74f0-8f4d-4cd29e32dc1f` admitted the corrected ticket at risk 4 with no findings after independently verifying the selected snapshots, exact two-hunk presentation boundary, native-work separation, recorded hashes, clean-room policy, immutable artifacts, and single-ticket delivery workaround.
+
+## 2026-08-29 — Implement faithful ROUNDS subsets instead of original substitutes
+
+The user's binding direction is that partial progress may omit ROUNDS content but must never intentionally diverge from it.
+This supersedes the 2026-08-14 decisions to ship the `RICOCHET` title and five wholly original draft choices, and retires the three generated concept screens as visual acceptance references while preserving their bytes as historical evidence.
+The active product title and exact sourced short card names are `ROUNDS` fidelity requirements; the clean-room boundary still forbids copied source code and extracted proprietary logo, art, audio, or other asset bytes.
+
+Deterministic tests remain required but cannot establish fidelity without a comparison signal against the installed public target or equally direct evidence.
+The current simulation, maps, tuning, composition rules, and presentation remain explicitly provisional under tickets 016–025.
+Because second-card composition is not verified, the shipped Godot shell now stops after the first full round before any loser-draft selection or later simulation step, while the pure `Match` scaffold remains available for internal deterministic testing.
+
+As a narrow metadata-only exception to the ordinary `spec/` freeze, ticket 015 changes only the human-readable `title` field in the five existing schema files from the superseded product title to `ROUNDS`; their stable `$id` values and all validation and research bytes remain unchanged.

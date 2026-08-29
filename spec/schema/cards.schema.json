@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ricochet.local/schema/cards.schema.json",
-  "title": "RICOCHET clean-room vanilla card catalog",
+  "title": "ROUNDS clean-room vanilla card catalog",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "targetBuild", "targetVersion", "catalogCount", "reconciliation", "patchHistory", "evaluationOrder", "sourceExclusions", "stackingCases", "cards"],

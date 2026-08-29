@@ -9,8 +9,18 @@ Markdown renderers ignore single newlines, so it looks the same, and it keeps di
 
 ## What we're building
 
-A faithful reimplementation of Rounds (Landfall, 2020): a 1v1 2D platform shooter played in short duels and comeback-driven rounds.
+A faithful reimplementation of ROUNDS (Landfall, 2020): a 1v1 2D platform shooter played in short duels and comeback-driven rounds.
 Both players open with one card; each full-round loser picks another persistent card; stat combinations build until one player reaches five points.
+
+### Faithful subsets, never substitutes
+
+Partial delivery may omit ROUNDS content, but implemented titles, names, mechanics, tuning, map geometry and behavior, controls, and presentation must target observed ROUNDS behavior.
+Unverified content is absent or visibly marked as development scaffolding; it is never replaced with an original product name, ability, map, rule, or art direction.
+Clean-room work excludes copied source code and extracted proprietary logo, art, audio, and other asset bytes, not observable behavior, sourced short names, or the `ROUNDS` title.
+Determinism is necessary regression evidence, not fidelity evidence by itself: every feel-sensitive or user-visible slice needs a direct comparison signal from the installed public target or equally direct captured evidence.
+
+Tickets 016–025 own the disclosed gaps: base feel, projectile presentation, the complete 70-arena catalog, current-card verification, presentation, controller/menu input, match replay and internal self-play, settings/persistence/shipping, nightly reel evidence, and the remaining 51 cards.
+Until ticket 019 verifies card composition, the shipped Godot shell stops before the first loser can select a second card; the pure deterministic `Match` remains available to internal tests without claiming that its provisional combinations are faithful.
 Mechanics are reimplemented from research.
 Exact sourced gameplay identifiers and short names are allowed where fidelity and unambiguous validation require them.
 Original source code, logo, card art or other extracted art, audio, and longer expressive or flavor text remain excluded.
@@ -123,6 +133,7 @@ An agent that cannot make one pass must record why in `docs/decisions.md` and fi
 3. **`spec/` is read-only to implementation work.**
    Changing a researched value requires re-deriving it from a source, not reasoning about it.
    Commits that touch both `spec/` and `src/` fail.
+   Ticket 015's metadata-only correction is the sole recorded exception: it changes only the human-readable `title` token in the five existing `spec/schema/*.json` files from the superseded product title to `ROUNDS`, while every `$id`, validation rule, researched value, and other spec byte remains stable.
 4. **Self-play is green.**
    N headless matches complete with no crash, no assertion failure, and every match terminates inside the round cap.
 5. **Dependency versions are pinned exactly.**
@@ -198,7 +209,8 @@ Combat reads that profile at the owning player boundary; a spawned bullet copies
 Geometry reflection consumes only an available geometry bounce, while block reflection retains the budget and transfers ownership through the existing bounded contact path.
 
 The catalog records sourced single-copy values but leaves most duplicate formulas unresolved.
-The match slice therefore names one provisional composition rule per supported target, tests acquisition-order independence and every one-copy result, and keeps acquired IDs in the hash even if a combination folds to vanilla values.
+The internal match scaffold therefore names one provisional composition rule per supported target, tests acquisition-order independence and every one-copy result, and keeps acquired IDs in the hash even if a combination folds to vanilla values.
+Those tests prove deterministic composition, not ROUNDS fidelity, so the shipped shell does not expose a second-card choice while ticket 019 verifies the rules directly.
 All-vanilla profiles append nothing to `Sim.Hash`, preserving the version-1 replay hash exactly; any custom profile appends a fixed marker and every player's full profile.
 
 Future hook-driven behavior cards will add a small typed surface only when the first owning card needs it; the recovered ricochet cards extend the shared profile and collision path instead.

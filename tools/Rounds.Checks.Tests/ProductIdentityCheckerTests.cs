@@ -1,0 +1,94 @@
+using Rounds.Checks;
+
+namespace Rounds.Checks.Tests;
+
+public sealed class ProductIdentityCheckerTests : IDisposable
+{
+    private readonly string _fixture = Path.Combine(
+        Path.GetTempPath(),
+        $"rounds-identity-check-{Guid.NewGuid():N}");
+
+    [Fact]
+    public void CurrentRepositoryPassesIdentityBoundary()
+    {
+        Assert.Empty(ProductIdentityChecker.CheckRepository(FindRepository()));
+    }
+
+    [Fact]
+    public void SupersededProductTitleOnActiveSurfaceIsRejected()
+    {
+        CopyIdentityFixture();
+        var readme = Path.Combine(_fixture, "README.md");
+        File.AppendAllText(readme, "\nRICOCHET\n");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN002 README.md", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ChangedSchemaIdAndInventedSupportedCardNameAreRejected()
+    {
+        CopyIdentityFixture();
+        var schema = Path.Combine(_fixture, "spec", "schema", "cards.schema.json");
+        File.WriteAllText(schema, File.ReadAllText(schema).Replace(
+            "https://ricochet.local/schema/cards.schema.json",
+            "https://rounds.invalid/schema/cards.schema.json",
+            StringComparison.Ordinal));
+        var catalog = Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardCatalog.cs");
+        File.WriteAllText(catalog, File.ReadAllText(catalog).Replace(
+            "\"bouncy\" => \"Bouncy\"",
+            "\"bouncy\" => \"Rebound\"",
+            StringComparison.Ordinal));
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN003", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.StartsWith("IDN009 supported card `bouncy`", StringComparison.Ordinal));
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_fixture))
+        {
+            Directory.Delete(_fixture, recursive: true);
+        }
+    }
+
+    private void CopyIdentityFixture()
+    {
+        var repository = FindRepository();
+        foreach (var relativePath in new[]
+        {
+            "GOAL.md",
+            "README.md",
+            "game/project.godot",
+            "game/Main.cs",
+            "docs/architecture.md",
+            "docs/design/visual-system.md",
+            "research/notes/core-rules.md",
+            "spec/cards.json",
+            "spec/schema/cards.schema.json",
+            "spec/schema/maps.schema.json",
+            "spec/schema/measurements.schema.json",
+            "spec/schema/mechanics.schema.json",
+            "spec/schema/source-index.schema.json",
+            "src/Rounds.Sim/Cards/StatCardCatalog.cs",
+        })
+        {
+            var destination = Path.Combine(_fixture, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(Path.Combine(repository, relativePath.Replace('/', Path.DirectorySeparatorChar)), destination);
+        }
+    }
+
+    private static string FindRepository()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Rounds.sln")))
+        {
+            current = current.Parent;
+        }
+        return current?.FullName ?? throw new InvalidOperationException("Repository root was not found.");
+    }
+}

@@ -1,95 +1,50 @@
-# Visual system
+# ROUNDS visual fidelity
 
-The accepted visual direction is defined by three generated concept screens:
+## Authority
+
+The installed public ROUNDS build and clean-room observations of its visible output are the visual acceptance authority.
+Ticket 020 owns direct screen-by-screen comparison and the production visual system after tickets 016–019 establish the underlying feel, projectile, arena, and current-card behavior.
+Until then, current colors, shapes, typography, layout, effects, and motion are development scaffolding, not accepted faithful presentation.
+
+The three generated concept screens are preserved byte-for-byte only as superseded historical evidence:
 
 - `docs/design/concepts/main-menu.png`
 - `docs/design/concepts/gameplay-primary.png`
 - `docs/design/concepts/card-draft-v2.png`
 
-They are the visual acceptance references, not runtime UI assets.
-The game recreates their system with original reusable assets, code-native text, and live simulation state.
+They do not define acceptance, and their invented product title, card names, screen-printed style, layout, tokens, or motion values must not guide new work.
+Do not edit or ship the concept PNGs.
 
-## Direction
+## Faithful-subset invariant
 
-`RICOCHET` is a tactile screen-printed arena game: sparse charcoal space, warm paper platforms and cards, bright team colors, heavy condensed type, and explosive ink-like effects.
-The arena stays visually quiet until movement, firing, blocking, or impact adds a short burst of energy.
-The result should remain readable from a couch and in chaotic late-match card combinations.
+An incomplete screen or asset set may omit ROUNDS content, but implemented titles, card names, controls, geometry, silhouettes, colors, timing, effects, and screen flow must target direct ROUNDS evidence.
+When evidence is missing, mark the element unresolved or leave it absent rather than inventing a substitute.
+Deterministic rendering and internal consistency are regression signals only; visual acceptance requires comparison with the public target.
 
-## Tokens
+Clean-room work must recreate behavior and presentation without copying source code or extracting proprietary logo, art, audio, fonts, or other asset bytes.
+The plain-text `ROUNDS` title and exact sourced short card names are allowed and required; the original logo artwork and card artwork are not.
 
-| Role | Value |
-|---|---|
-| Arena background | `#10131c` |
-| Arena depth | `#080c13` |
-| Paper/platform | `#f2f0e8` |
-| Ink | `#171923` |
-| Muted ink | `#777b83` |
-| Red team | `#ff625f` |
-| Blue team | `#48a9ff` |
-| Impact | `#ffd34e` |
-| Focus | Current player color, otherwise paper |
+## Current boundary and ownership
 
-Paper and background texture are subtle monochrome noise at low opacity.
-No color wash or decorative gradient sits over gameplay.
-Shadows are short, hard, dark offsets rather than soft floating-card shadows.
+The shipped shell currently exposes only the two opening drafts and first full round.
+At the first loser draft it shows an incomplete-fidelity notice and accepts no second-card selection until ticket 019 verifies current-card composition.
+Any visual evidence from this shell proves only that the `ROUNDS` title and exact sourced card names render; it does not prove mechanics or presentation fidelity.
 
-## Typography
+The remaining visual dependencies are explicit:
 
-Use a bundled open-license condensed display face for the title, headings, score, and primary actions.
-Use a bundled open-license condensed sans-serif for labels, effects, prompts, and settings.
-Title and headings are uppercase with tight line height; body copy uses sentence case and enough weight for television viewing.
-Every control defines its size and weight explicitly; no engine-default typography ships.
+- Ticket 016 calibrates base movement and combat feel.
+- Ticket 017 calibrates base projectile presentation.
+- Ticket 018 reconstructs and audits the complete 70-arena catalog and behavior.
+- Ticket 019 verifies and gates the current 16 cards.
+- Ticket 020 replaces the scaffold with presentation derived from direct ROUNDS comparison.
+- Ticket 021 matches controller and menu input.
+- Ticket 022 adds match replay and internal headless self-play.
+- Ticket 023 completes settings, persistence, and shipping behavior.
+- Ticket 024 supplies nightly replay-reel evidence.
+- Ticket 025 implements the remaining 51 cataloged cards after the verification infrastructure exists.
 
-## Containers and components
+## Display safety
 
-- Menus use open alignment and underlines, not rounded panels.
-- Player setup is aligned directly on the background with team-colored rules and focus marks.
-- Draft choices use five warm-paper cards, one illustration region, one title, and one short effect line.
-- Selected elements gain a team-colored outline, a small scale increase, and a hard offset shadow.
-- HUD scoring uses circles and short rules rather than boxes.
-- Prompts use simple controller/keyboard glyphs and plain labels along the bottom edge.
-
-## Gameplay assets
-
-- Fighters are small round bodies with dark outlines, dot eyes, short limbs, and separate aiming arms.
-- State is communicated by squash, stretch, lean, limb pose, eye direction, and team color.
-- Platforms are warm-paper oriented rectangles with sparse ink speckles and dark contact edges.
-- Bullets are bright paper circles with short textured trails; special bullets change silhouette before color.
-- Blocks are angular translucent shields with a paper edge, team tint, and a brief impact fracture effect.
-- Hits use small wedges, flecks, rings, smoke puffs, and screen shake; they do not leave persistent clutter.
-- Background depth comes from two very subtle texture layers and edge vignetting, not scenery.
-
-Collision shapes remain code-owned and are tuned to the visible silhouettes.
-Production fighter states, platform texture, block shield, card illustrations, impact particles, and background layers receive their own asset pass before final visual implementation.
-
-## Motion
-
-Menu focus snaps in roughly 90 ms with a small overshoot.
-Cards settle in roughly 160 ms.
-Gameplay uses short hit-stop, camera impulse, trail decay, particle bursts, and fighter squash/stretch driven from simulation events.
-Reduced-motion mode removes camera shake and overshoot while keeping state changes visible.
-
-## Screen inventory
-
-The initial product path is main menu, local match setup, arena gameplay, card draft for the trailing player, repeated rounds, and win screen.
-Settings and how-to-play are secondary menu screens in the same open layout.
-The win screen reuses the arena and HUD motifs instead of introducing a new component family.
-
-## Allowed first-viewport copy
-
-The menu may show only `RICOCHET`, `PLAY`, `HOW TO PLAY`, `SETTINGS`, `QUIT`, `LOCAL MATCH`, `PLAYER 1`, `PLAYER 2`, `HUMAN`, `BOT`, `START`, `SELECT`, and `BACK` above the fold.
-The arena uses score marks, the first-to-five target, and the tiny `RICOCHET` watermark shown in the gameplay concept.
-The draft uses the selected player's color/name, `PICK ONE`, five card titles and effect lines from live card data, `CHOOSE`, and `DETAILS`.
-
-## Responsive and display behavior
-
-The native design viewport is 1680 × 945, a 16:9 reference.
-Gameplay preserves a 16:9 safe region with letterboxing on wider or taller displays.
-Menus reflow at narrow widths by placing match setup below the navigation while keeping minimum couch-readable type sizes.
-The desktop game supports 1280 × 720 through 3840 × 2160 and scales code-native UI from a 1920 × 1080 logical canvas.
-
-## Intentional constraints
-
-The generated concepts contain rasterized text and illustrative character poses, but the implementation must not ship the screenshots as UI.
-The exact paper distress is a texture target, not a pixel-perfect source asset.
-Original Rounds art, audio, logo, card names, and exact UI wording remain prohibited.
+The game retains a 1920 × 1080 logical canvas and the project-wide monitor-4 placement rule while fidelity work continues.
+Those development safeguards do not establish the target game's responsive behavior.
+Every future native capture must verify the exact project window is centered on monitor 4 before it is shown or recorded.

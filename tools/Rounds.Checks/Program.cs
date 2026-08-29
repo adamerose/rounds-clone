@@ -8,6 +8,7 @@ internal static class Program
         var failures = DeterminismBoundaryChecker.CheckSimulation(
                 Path.Combine(repository, "src", "Rounds.Sim"))
             .Concat(SpecChecker.CheckRepository(repository))
+            .Concat(ProductIdentityChecker.CheckRepository(repository))
             .ToArray();
         if (failures.Length > 0)
         {

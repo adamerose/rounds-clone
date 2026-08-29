@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ricochet.local/schema/source-index.schema.json",
-  "title": "RICOCHET fidelity source index",
+  "title": "ROUNDS fidelity source index",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "accessedOn", "sources"],

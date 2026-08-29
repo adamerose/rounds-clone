@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ricochet.local/schema/measurements.schema.json",
-  "title": "RICOCHET frame measurement log",
+  "title": "ROUNDS frame measurement log",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "targetBuild", "coverage", "measurements"],
