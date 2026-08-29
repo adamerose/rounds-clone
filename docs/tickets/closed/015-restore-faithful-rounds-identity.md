@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-29T02:23:31Z
 origin: human-request
 tags: ["product-fidelity", "presentation", "cards"]
@@ -89,3 +89,5 @@ The playable build presents an invented `RICOCHET` identity even though the gove
 - 2026-08-29T05:22:40Z stage correction end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Closed the review finding with direct rendered evidence from the real frozen first-loser boundary and a reusable lightweight visual sandbox path that cannot run in release routing or alter ordinary/replay play.
 - 2026-08-29T05:24:13Z stage review start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04bf9-57f9-7fa3-b2a8-63710fa3769e — Freshly reviewing exact corrected range `6c3463c3b222406f3ff46b0f71ac7a300ed3040a..226c57d3c63f0f7bb73800f3683018427b74a52c`, including original-detail inspection of the renderer-owned boundary PNG and independent reproduction of the complete risk-4 evidence contract.
 - 2026-08-29T05:32:36Z stage review verdict session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04bf9-57f9-7fa3-b2a8-63710fa3769e — Approved with no findings. The reviewer reproduced the zero-warning build, 279-test full gate, 45 focused route/shell/card tests, replay/golden/history/smoke and Godot checks, both no-output negative sandbox lifecycles, ticket/diff checks, title-only five-schema scope, stable IDs, exact names, and protected bytes; original-detail PNG inspection independently confirmed the exact hash, `1 ROUNDS 0`, `Quick Shot`, `Fast Forward`, and the complete centered warning/subtitle with no clipping. The canonical review-end delivery line remains reserved for Ivy's closing transaction.
+- 2026-08-29T05:43:45Z stage review end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a04bf9-57f9-7fa3-b2a8-63710fa3769e — approved candidate 6c3463c3b222406f3ff46b0f71ac7a300ed3040a..b4603373ca3d174a5c565301ab856332abb91a2a
+- 2026-08-29T05:43:45Z stage integration end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — integrated b4603373ca3d174a5c565301ab856332abb91a2a as b4603373ca3d174a5c565301ab856332abb91a2a
