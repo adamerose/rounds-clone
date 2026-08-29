@@ -48,21 +48,91 @@ public sealed class ProductIdentityCheckerTests : IDisposable
     }
 
     [Fact]
-    public void UnsupportedLiveDiagnosticsAndRuntimeCardSummariesAreRejected()
+    public void RuntimeCardSummaryMembersAreRejected()
+    {
+        CopyIdentityFixture();
+        var definition = Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardDefinition.cs");
+        InsertBeforeFinalBrace(definition, "\n    public string Summary { get; } = string.Empty;\n");
+        var catalog = Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardCatalog.cs");
+        InsertBeforeFinalBrace(catalog, "\n    private static string SummaryFor(string id) => id;\n");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN011", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.StartsWith("IDN012", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("Convert.ToString(_world.Phase)", false)]
+    [InlineData("$\"{_world.Phase}\"", false)]
+    [InlineData("Convert.ToString(_world.Players[0].AimDirection.X)", true)]
+    [InlineData("_world.Arena.Id", false)]
+    [InlineData("Convert.ToString(_world.Bullets.Count)", false)]
+    [InlineData("Convert.ToString(_world.Bullets[0].BouncesRemaining)", true)]
+    [InlineData("Convert.ToString(_world.Players[0].BlockPhase)", false)]
+    [InlineData("Convert.ToString(_world.Players[0].BlockTicksRemaining)", true)]
+    public void AlternateCompilableLiveTextFlowsAreRejected(string expression, bool throughAlias)
     {
         CopyIdentityFixture();
         var main = Path.Combine(_fixture, "game", "Main.cs");
-        File.AppendAllText(main, "\n// card.Summary BLOCK READY _world.Arena.Id _world.Bullets.Count\n");
-        var definition = Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardDefinition.cs");
-        File.AppendAllText(definition, "\n// public string Summary { get; }\n");
-        var catalog = Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardCatalog.cs");
-        File.AppendAllText(catalog, "\n// SummaryFor(id)\n");
+        var source = File.ReadAllText(main);
+        var marker = "    private readonly record struct CameraTransform";
+        var rendered = throughAlias ? "rendered" : expression;
+        var alias = throughAlias ? $"        var rendered = {expression};\n" : string.Empty;
+        var method = $$"""
+            private void DrawUnsupportedFixture()
+            {
+        {{alias}}        DrawString(
+                    ThemeDB.FallbackFont,
+                    Vector2.Zero,
+                    {{rendered}},
+                    HorizontalAlignment.Left,
+                    200.0f,
+                    16,
+                    Paper);
+            }
+
+        """;
+        Assert.Contains(marker, source, StringComparison.Ordinal);
+        File.WriteAllText(main, source.Replace(marker, method + marker, StringComparison.Ordinal));
 
         var failures = ProductIdentityChecker.CheckRepository(_fixture);
 
         Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
-        Assert.Contains(failures, failure => failure.StartsWith("IDN011", StringComparison.Ordinal));
-        Assert.Contains(failures, failure => failure.StartsWith("IDN012", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DisplayNameMustStillComeFromTheDraftCardDefinition()
+    {
+        CopyIdentityFixture();
+        var main = Path.Combine(_fixture, "game", "Main.cs");
+        File.WriteAllText(main, File.ReadAllText(main).Replace(
+            "var card = match.CurrentOffer[index];",
+            "var card = new { DisplayName = Convert.ToString(_world.Phase) };",
+            StringComparison.Ordinal));
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ForbiddenWordsInCommentsDoNotCreateLiveTextOrRuntimeSummaryFailures()
+    {
+        CopyIdentityFixture();
+        File.AppendAllText(Path.Combine(_fixture, "game", "Main.cs"),
+            "\n// DrawString card.Summary BLOCK READY _world.Phase AimDirection.X Arena.Id Bullets.Count\n");
+        File.AppendAllText(Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardDefinition.cs"),
+            "\n// Summary\n");
+        File.AppendAllText(Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardCatalog.cs"),
+            "\n// SummaryFor\n");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.DoesNotContain(failures, failure =>
+            failure.StartsWith("IDN010", StringComparison.Ordinal) ||
+            failure.StartsWith("IDN011", StringComparison.Ordinal) ||
+            failure.StartsWith("IDN012", StringComparison.Ordinal));
     }
 
     public void Dispose()
@@ -99,6 +169,14 @@ public sealed class ProductIdentityCheckerTests : IDisposable
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(Path.Combine(repository, relativePath.Replace('/', Path.DirectorySeparatorChar)), destination);
         }
+    }
+
+    private static void InsertBeforeFinalBrace(string path, string insertion)
+    {
+        var source = File.ReadAllText(path);
+        var finalBrace = source.LastIndexOf('}');
+        Assert.True(finalBrace >= 0);
+        File.WriteAllText(path, source.Insert(finalBrace, insertion));
     }
 
     private static string FindRepository()
