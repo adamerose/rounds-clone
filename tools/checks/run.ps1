@@ -60,7 +60,7 @@ try {
     }
     $completeOutput = @(& $godot --headless --path 'game' --fixed-fps 60 --quit-after 600 -- --replay $replayPath 2>&1)
     $completeExit = $LASTEXITCODE
-    $completion = 'REPLAY_COMPLETE id=base-combat-006-seed-1 ticks=600 hash=b91f86b6f1dc6b10 frames=600'
+    $completion = 'REPLAY_COMPLETE id=base-combat-006-seed-1 ticks=600 hash=033f39aa612bf67b frames=600'
     if ($completeExit -ne 0 -or @($completeOutput | Where-Object { $_ -ceq $completion }).Count -ne 1) {
         throw 'Godot did not complete the full golden replay with its exact marker.'
     }

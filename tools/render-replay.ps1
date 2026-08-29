@@ -188,7 +188,7 @@ if ($decoded[1].Red -lt 1000 -or $decoded[1].Blue -lt 1000) {
     throw "Replay first frame does not show both players after independent decode: red=$($decoded[1].Red) blue=$($decoded[1].Blue)."
 }
 
-$isCanonicalGolden = $replayId -ceq 'base-combat-006-seed-1' -and $totalTicks -eq 600 -and $expectedHash -ceq 'b91f86b6f1dc6b10'
+$isCanonicalGolden = $replayId -ceq 'base-combat-006-seed-1' -and $totalTicks -eq 600 -and $expectedHash -ceq '033f39aa612bf67b'
 if ($isCanonicalGolden) {
     foreach ($frameNumber in @(1, 62, 100, 181, 300, 600)) {
         if (-not $decoded.ContainsKey($frameNumber)) { $decoded[$frameNumber] = Measure-DecodedFrame $frameNumber }

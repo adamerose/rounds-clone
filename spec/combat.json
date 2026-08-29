@@ -61,14 +61,14 @@
     },
     {
       "id": "combat-projectile-speed",
-      "statement": "An unmodified bullet travels about 2.4 player diameters per tick.",
+      "statement": "The two retained fixed projectile tracks support an unmodified bullet speed of about 0.38 player diameters per tick.",
       "status": "estimate",
-      "value": 2.4,
+      "value": 0.38,
       "unit": "player diameters per tick",
       "confidence": "low",
-      "tolerance": { "kind": "absolute", "value": 0.7, "unit": "player diameters per tick" },
-      "method": "Measured muzzle-to-impact pixel travel across two-tick source frames and normalized by body diameter.",
-      "sources": ["footage-wcg", "footage-ssag"]
+      "tolerance": { "kind": "absolute", "value": 0.05, "unit": "player diameters per tick" },
+      "method": "Computed camera-compensated Euclidean core displacement for retained footage-ssag frames 838..844 and 972..981, divided by the same-scene 18-pixel player diameter, elapsed spans 6 and 9, and two simulation ticks per 30-fps source frame, then rounded the mean of 0.3928371 and 0.3675076 to two decimals.",
+      "sources": ["footage-ssag"]
     },
     {
       "id": "combat-projectile-radius",
