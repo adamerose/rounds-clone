@@ -112,14 +112,20 @@
     }
   ],
   "comparisonBoundary": {
-    "currentBindingValue": 2.4,
-    "currentBindingInsideTrackA": false,
-    "currentBindingInsideTrackB": false,
+    "recordedAtPhase": "pre-binding evidence phase",
+    "preChangeBindingValue": 2.4,
+    "preChangeBindingInsideTrackA": false,
+    "preChangeBindingInsideTrackB": false,
     "combinationMethod": "arithmetic mean of the two fixed-track point estimates, rounded to the binding precision of two decimal places",
     "unroundedCombinedEstimate": 0.38017235,
     "candidateCommonSpeed": 0.38,
     "candidateInsideTrackA": true,
     "candidateInsideTrackB": true,
-    "phaseOneBehaviorChange": false
+    "phaseOneBehaviorChange": false,
+    "finalBindingOutcome": {
+      "value": 0.38,
+      "appliedAfterEvidencePhase": true,
+      "goldenReplayFinalHash": "033f39aa612bf67b"
+    }
   }
 }
