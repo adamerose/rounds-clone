@@ -47,6 +47,12 @@ public sealed class Win32EvidenceBuildCreateImageTests
         Assert.Equal('\0', call.UnicodeEnvironmentBlock[^1]);
         Assert.Equal('\0', call.UnicodeEnvironmentBlock[^2]);
         Assert.NotEqual(call.CommandLineAddress, call.EnvironmentAddress);
+        Assert.Equal(checked((nuint)call.MutableCommandLine.Length * sizeof(char)), call.CommandLineBytes);
+        Assert.Equal(checked((nuint)call.UnicodeEnvironmentBlock.Length * sizeof(char)), call.EnvironmentBytes);
+        Assert.Equal(1, api.PinAddressReads["command"]);
+        Assert.Equal(1, api.PinAddressReads["environment"]);
+        Assert.Equal(1, api.PinCountReads["command"]);
+        Assert.Equal(1, api.PinCountReads["environment"]);
         Assert.Equal(ExpectedIdentity(), process.MatchedIdentity);
         process.Borrow(borrow =>
         {
@@ -56,7 +62,7 @@ public sealed class Win32EvidenceBuildCreateImageTests
             Assert.True(borrow.PreResumeArmed);
         });
         Assert.True(api.Events.IndexOf("invoke") < api.Events.IndexOf("dispose-pin:environment"));
-        Assert.True(api.Events.IndexOf("free:500") < api.Events.IndexOf("close:10"));
+        Assert.True(api.Events.IndexOf("free:65536") < api.Events.IndexOf("close:10"));
         Assert.True(api.Events.IndexOf("close:31") < api.Events.IndexOf("image-open"));
         Assert.Equal(2, api.ImageReads);
         Assert.Equal(0, api.TerminateCalls);
@@ -103,12 +109,12 @@ public sealed class Win32EvidenceBuildCreateImageTests
 
     [Theory]
     [InlineData("list-allocate", "")]
-    [InlineData("initialize", "free:500")]
-    [InlineData("value-allocate", "delete,free:500")]
-    [InlineData("write", "delete,free:600,free:500")]
-    [InlineData("update", "delete,free:600,free:500")]
-    [InlineData("command-pin", "delete,free:600,free:500")]
-    [InlineData("environment-pin", "dispose-pin:command,delete,free:600,free:500")]
+    [InlineData("initialize", "dispose-pin:environment,dispose-pin:command,free:131072,free:65536")]
+    [InlineData("value-allocate", "free:65536")]
+    [InlineData("write", "dispose-pin:environment,dispose-pin:command,delete,free:131072,free:65536")]
+    [InlineData("update", "dispose-pin:environment,dispose-pin:command,delete,free:131072,free:65536")]
+    [InlineData("command-pin", "free:131072,free:65536")]
+    [InlineData("environment-pin", "dispose-pin:command,free:131072,free:65536")]
     public void AttributeAndPinFailuresUseExactReverseCleanup(string failure, string cleanupCsv)
     {
         var api = new FakeApi { Failure = failure };
@@ -142,8 +148,8 @@ public sealed class Win32EvidenceBuildCreateImageTests
         Assert.Contains("dispose-pin:command", api.Events);
         Assert.Equal(failure.StartsWith("environment", StringComparison.Ordinal),
             api.Events.Contains("dispose-pin:environment"));
-        Assert.Equal(api.Events.IndexOf("delete"), api.Events.IndexOf("free:600") - 1);
-        Assert.True(api.Events.IndexOf("free:600") < api.Events.IndexOf("free:500"));
+        Assert.DoesNotContain("delete", api.Events);
+        Assert.True(api.Events.IndexOf("free:131072") < api.Events.IndexOf("free:65536"));
     }
 
     [Fact]
@@ -169,6 +175,121 @@ public sealed class Win32EvidenceBuildCreateImageTests
         Assert.Contains((nint)201, api.CloseCalls);
         Assert.Contains((nint)200, api.CloseCalls);
         Assert.DoesNotContain("image-open", api.Events);
+    }
+
+    [Fact]
+    public void MutablePinGettersAreReadOnceAndInvokeUsesOnlyFrozenAddressAndLengthSnapshots()
+    {
+        var api = new FakeApi
+        {
+            Failure = "command-pin-address-drift,command-pin-count-drift," +
+                "environment-pin-address-drift,environment-pin-count-drift",
+        };
+        using var executable = Executable(api);
+        using var pipes = Pipes(api);
+
+        using var process = Factory(api).Create(Frozen(), executable, pipes);
+
+        var call = Assert.IsType<EvidenceBuildRawCreateCall>(api.LastCall);
+        Assert.Equal(api.CommandAddress, call.CommandLineAddress);
+        Assert.Equal(api.EnvironmentAddress, call.EnvironmentAddress);
+        Assert.Equal(checked((nuint)call.MutableCommandLine.Length * sizeof(char)), call.CommandLineBytes);
+        Assert.Equal(checked((nuint)call.UnicodeEnvironmentBlock.Length * sizeof(char)), call.EnvironmentBytes);
+        Assert.All(api.PinAddressReads.Values, reads => Assert.Equal(1, reads));
+        Assert.All(api.PinCountReads.Values, reads => Assert.Equal(1, reads));
+    }
+
+    [Theory]
+    [InlineData("list-zero")]
+    [InlineData("list-minus-one")]
+    [InlineData("list-negative")]
+    [InlineData("list-overflow")]
+    [InlineData("value-zero")]
+    [InlineData("value-minus-one")]
+    [InlineData("value-negative")]
+    [InlineData("value-overflow")]
+    [InlineData("command-zero")]
+    [InlineData("command-minus-one")]
+    [InlineData("command-negative")]
+    [InlineData("command-overflow")]
+    [InlineData("environment-zero")]
+    [InlineData("environment-minus-one")]
+    [InlineData("environment-negative")]
+    [InlineData("environment-overflow")]
+    public void InvalidOrOverflowingPointerRegionsRefuseBeforeInitializationWriteUpdateOrInvoke(string scenario)
+    {
+        var request = Frozen();
+        var api = new FakeApi();
+        ConfigureInvalidRegion(api, request, scenario);
+        using var executable = Executable(api);
+        using var pipes = Pipes(api);
+
+        Assert.ThrowsAny<Exception>(() => Factory(api).Create(request, executable, pipes));
+
+        Assert.DoesNotContain(api.Events, item => item.StartsWith("initialize:", StringComparison.Ordinal));
+        Assert.DoesNotContain(api.Events, item => item.StartsWith("write:", StringComparison.Ordinal));
+        Assert.DoesNotContain(api.Events, item => item.StartsWith("update:", StringComparison.Ordinal));
+        Assert.DoesNotContain("invoke", api.Events);
+        Assert.Equal(api.FreeCalls.Distinct().Count(), api.FreeCalls.Count);
+    }
+
+    public static IEnumerable<object[]> EveryOverlapDirection()
+    {
+        foreach (var pair in new[]
+        {
+            "list-value", "list-command", "list-environment",
+            "value-command", "value-environment", "command-environment",
+        })
+        {
+            yield return [pair, "equal"];
+            yield return [pair, "right-inside-left"];
+            yield return [pair, "left-inside-right"];
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(EveryOverlapDirection))]
+    public void EveryExactOrPartialPointerOverlapDirectionRefusesBeforeConfigurationOrInvoke(
+        string pair,
+        string direction)
+    {
+        var api = new FakeApi();
+        ConfigureOverlap(api, pair, direction);
+        using var executable = Executable(api);
+        using var pipes = Pipes(api);
+
+        Assert.ThrowsAny<Exception>(() => Factory(api).Create(Frozen(), executable, pipes));
+
+        Assert.DoesNotContain(api.Events, item => item.StartsWith("initialize:", StringComparison.Ordinal));
+        Assert.DoesNotContain(api.Events, item => item.StartsWith("write:", StringComparison.Ordinal));
+        Assert.DoesNotContain(api.Events, item => item.StartsWith("update:", StringComparison.Ordinal));
+        Assert.DoesNotContain("invoke", api.Events);
+        Assert.Equal(api.FreeCalls.Distinct().Count(), api.FreeCalls.Count);
+        if (pair == "list-value")
+        {
+            Assert.Single(api.FreeCalls);
+            Assert.Equal(api.ListAddress, api.FreeCalls[0]);
+        }
+    }
+
+    [Fact]
+    public void FourExactlyAdjacentHalfOpenRegionsAreAccepted()
+    {
+        var request = Frozen();
+        var api = new FakeApi { ListAddress = 65536 };
+        api.ValueAddress = checked(api.ListAddress + 128);
+        api.CommandAddress = checked(api.ValueAddress + EvidenceBuildCreatePolicy.HandleListBytesX64);
+        var commandBytes = checked((request.CommandLine.Length + 1) * sizeof(char));
+        api.EnvironmentAddress = checked(api.CommandAddress + commandBytes);
+        using var executable = Executable(api);
+        using var pipes = Pipes(api);
+
+        using var process = Factory(api).Create(request, executable, pipes);
+
+        Assert.NotNull(api.LastCall);
+        Assert.Equal(api.ListAddress, api.LastCall!.StartupInfo.AttributeList);
+        Assert.Equal(api.CommandAddress, api.LastCall.CommandLineAddress);
+        Assert.Equal(api.EnvironmentAddress, api.LastCall.EnvironmentAddress);
     }
 
     [Theory]
@@ -315,6 +436,73 @@ public sealed class Win32EvidenceBuildCreateImageTests
     private static EvidenceBuildSuspendedCreateImageFactory Factory(FakeApi api) =>
         new(api, new FakeKernelOwner(), new FakeProcessOwner());
 
+    private static void ConfigureInvalidRegion(
+        FakeApi api,
+        EvidenceFrozenBuildProcessRequest request,
+        string scenario)
+    {
+        var commandBytes = checked((request.CommandLine.Length + 1) * sizeof(char));
+        var environmentBytes = checked(request.UnicodeEnvironmentBlock.Length * sizeof(char));
+        switch (scenario)
+        {
+            case "list-zero": api.ListAddress = 0; break;
+            case "list-minus-one": api.ListAddress = -1; break;
+            case "list-negative": api.ListAddress = -2; break;
+            case "list-overflow": api.ListAddress = OverflowingStart(128); break;
+            case "value-zero": api.ValueAddress = 0; break;
+            case "value-minus-one": api.ValueAddress = -1; break;
+            case "value-negative": api.ValueAddress = -2; break;
+            case "value-overflow": api.ValueAddress = OverflowingStart(24); break;
+            case "command-zero": api.CommandAddress = 0; break;
+            case "command-minus-one": api.CommandAddress = -1; break;
+            case "command-negative": api.CommandAddress = -2; break;
+            case "command-overflow": api.CommandAddress = OverflowingStart(commandBytes); break;
+            case "environment-zero": api.EnvironmentAddress = 0; break;
+            case "environment-minus-one": api.EnvironmentAddress = -1; break;
+            case "environment-negative": api.EnvironmentAddress = -2; break;
+            case "environment-overflow": api.EnvironmentAddress = OverflowingStart(environmentBytes); break;
+            default: throw new InvalidOperationException($"Unknown invalid-region scenario {scenario}.");
+        }
+    }
+
+    private static nint OverflowingStart(int byteLength) =>
+        checked((nint)(long.MaxValue - byteLength + 1));
+
+    private static void ConfigureOverlap(FakeApi api, string pair, string direction)
+    {
+        static (nint Left, nint Right) Addresses(nint left, nint right, string mode) => mode switch
+        {
+            "equal" => (left, left),
+            "right-inside-left" => (left, checked(left + 1)),
+            "left-inside-right" => (checked(right + 1), right),
+            _ => throw new InvalidOperationException($"Unknown overlap direction {mode}."),
+        };
+
+        switch (pair)
+        {
+            case "list-value":
+                (api.ListAddress, api.ValueAddress) = Addresses(api.ListAddress, api.ValueAddress, direction);
+                break;
+            case "list-command":
+                (api.ListAddress, api.CommandAddress) = Addresses(api.ListAddress, api.CommandAddress, direction);
+                break;
+            case "list-environment":
+                (api.ListAddress, api.EnvironmentAddress) = Addresses(api.ListAddress, api.EnvironmentAddress, direction);
+                break;
+            case "value-command":
+                (api.ValueAddress, api.CommandAddress) = Addresses(api.ValueAddress, api.CommandAddress, direction);
+                break;
+            case "value-environment":
+                (api.ValueAddress, api.EnvironmentAddress) = Addresses(api.ValueAddress, api.EnvironmentAddress, direction);
+                break;
+            case "command-environment":
+                (api.CommandAddress, api.EnvironmentAddress) = Addresses(
+                    api.CommandAddress, api.EnvironmentAddress, direction);
+                break;
+            default: throw new InvalidOperationException($"Unknown overlap pair {pair}.");
+        }
+    }
+
     private static IEnumerable<Exception> Flatten(Exception exception)
     {
         if (exception is AggregateException aggregate)
@@ -441,18 +629,50 @@ public sealed class Win32EvidenceBuildCreateImageTests
         public void Retain(EvidenceBuildSuspendedProcessOwner owner, Exception failure) { }
     }
 
-    private sealed class FakePin(FakeApi api, string name, nint address, int count) :
-        IEvidenceBuildPinnedCharacterLease
+    private sealed class FakePin : IEvidenceBuildPinnedCharacterLease
     {
+        private readonly FakeApi _api;
+        private readonly string _name;
+        private readonly nint _address;
+        private readonly int _count;
         private bool _disposed;
-        public nint Address => !_disposed ? address : throw new ObjectDisposedException(nameof(FakePin));
-        public int CharacterCount => count;
+
+        internal FakePin(FakeApi api, string name, nint address, int count)
+        {
+            _api = api;
+            _name = name;
+            _address = address;
+            _count = count;
+            _api.PinAddressReads[name] = 0;
+            _api.PinCountReads[name] = 0;
+        }
+
+        public nint Address
+        {
+            get
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                var read = ++_api.PinAddressReads[_name];
+                return read > 1 && _api.HasFailure($"{_name}-pin-address-drift") ? 0 : _address;
+            }
+        }
+
+        public int CharacterCount
+        {
+            get
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                var read = ++_api.PinCountReads[_name];
+                return read > 1 && _api.HasFailure($"{_name}-pin-count-drift") ? _count - 1 : _count;
+            }
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
-            api.Events.Add($"dispose-pin:{name}");
-            if (api.HasFailure($"{name}-dispose")) throw new IOException($"{name} dispose");
+            _api.Events.Add($"dispose-pin:{_name}");
+            if (_api.HasFailure($"{_name}-dispose")) throw new IOException($"{_name} dispose");
         }
     }
 
@@ -503,7 +723,14 @@ public sealed class Win32EvidenceBuildCreateImageTests
         private readonly HashSet<nint> _allocations = [];
         internal List<string> Events { get; } = [];
         internal List<nint> CloseCalls { get; } = [];
+        internal List<nint> FreeCalls { get; } = [];
         internal HashSet<nint> CloseFailures { get; } = [];
+        internal Dictionary<string, int> PinAddressReads { get; } = [];
+        internal Dictionary<string, int> PinCountReads { get; } = [];
+        internal nint ListAddress { get; set; } = 65536;
+        internal nint ValueAddress { get; set; } = 131072;
+        internal nint CommandAddress { get; set; } = 196608;
+        internal nint EnvironmentAddress { get; set; } = 262144;
         internal string? Failure { get; init; }
         internal string? ImageFailure { get; init; }
         internal bool GateInvoke { get; init; }
@@ -540,7 +767,7 @@ public sealed class Win32EvidenceBuildCreateImageTests
             _allocation++;
             if (HasFailure("list-allocate") && _allocation == 1 ||
                 HasFailure("value-allocate") && _allocation == 2) return 0;
-            var handle = _allocation == 1 ? (nint)500 : 600;
+            var handle = _allocation == 1 ? ListAddress : ValueAddress;
             _allocations.Add(handle);
             return handle;
         }
@@ -548,8 +775,9 @@ public sealed class Win32EvidenceBuildCreateImageTests
         public void Free(nint memory)
         {
             Events.Add($"free:{memory}");
+            FreeCalls.Add(memory);
             _allocations.Remove(memory);
-            if (HasFailure("free-value") && memory == 600 || HasFailure("free-list") && memory == 500)
+            if (HasFailure("free-value") && memory == 131072 || HasFailure("free-list") && memory == 65536)
             {
                 throw new IOException("free failure");
             }
@@ -593,10 +821,10 @@ public sealed class Win32EvidenceBuildCreateImageTests
             var name = _pin == 1 ? "command" : "environment";
             Events.Add($"pin:{name}:{characters.Length}");
             if (HasFailure($"{name}-pin")) throw new IOException($"{name} pin");
-            var address = _pin == 1 ? (nint)700 : 800;
+            var address = _pin == 1 ? CommandAddress : EnvironmentAddress;
             var count = characters.Length;
             if (HasFailure($"{name}-pin-zero")) address = 0;
-            if (HasFailure("environment-pin-alias")) address = 700;
+            if (HasFailure("environment-pin-alias")) address = CommandAddress;
             if (HasFailure($"{name}-pin-count")) count--;
             return new FakePin(this, name, address, count);
         }
@@ -605,10 +833,12 @@ public sealed class Win32EvidenceBuildCreateImageTests
         {
             Events.Add("invoke");
             LastCall = request;
-            Assert.True(_allocations.SetEquals([500, 600]));
-            Assert.Equal((nint)500, request.StartupInfo.AttributeList);
-            Assert.Equal((nint)700, request.CommandLineAddress);
-            Assert.Equal((nint)800, request.EnvironmentAddress);
+            Assert.True(_allocations.SetEquals([ListAddress, ValueAddress]));
+            Assert.Equal(ListAddress, request.StartupInfo.AttributeList);
+            Assert.Equal(CommandAddress, request.CommandLineAddress);
+            Assert.Equal(EnvironmentAddress, request.EnvironmentAddress);
+            Assert.Equal(checked((nuint)request.MutableCommandLine.Length * sizeof(char)), request.CommandLineBytes);
+            Assert.Equal(checked((nuint)request.UnicodeEnvironmentBlock.Length * sizeof(char)), request.EnvironmentBytes);
             if (GateInvoke)
             {
                 InvokeEntered.Set();
