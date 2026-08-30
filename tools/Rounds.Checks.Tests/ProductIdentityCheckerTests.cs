@@ -72,8 +72,8 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         var failures = ProductIdentityChecker.CheckRepository(_fixture);
 
         Assert.Contains(failures, failure => failure ==
-            "IDN010 the complete live presentation boundary changed; " +
-            "deliberately review every included source and update ExpectedLivePresentationBoundarySha256.");
+            "IDN010 the complete shipped runtime/build boundary changed; " +
+            "deliberately review every included input and update ExpectedShippedRuntimeBoundarySha256.");
     }
 
     [Theory]
@@ -112,6 +112,91 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         File.WriteAllText(
             Path.Combine(_fixture, "game", "UnreviewedLabel.cs"),
             "public sealed class UnreviewedLabel { public const string Text = \"MATCH PHASE\"; }");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RootBuildInjectionRequiresRuntimeBoundaryReview()
+    {
+        CopyIdentityFixture();
+        var buildProps = Path.Combine(_fixture, "Directory.Build.props");
+        File.WriteAllText(
+            buildProps,
+            File.ReadAllText(buildProps).Replace(
+                "</Project>",
+            """
+              <ItemGroup Condition="'$(MSBuildProjectName)' == 'Rounds.Game'">
+                <Compile Include="$(MSBuildThisFileDirectory)InjectedMain.cs" Link="InjectedMain.cs" />
+              </ItemGroup>
+            </Project>
+            """,
+                StringComparison.Ordinal));
+        File.WriteAllText(
+            Path.Combine(_fixture, "InjectedMain.cs"),
+            """
+            using Godot;
+            namespace Rounds.Game;
+            public sealed partial class Main
+            {
+                public override void _EnterTree()
+                {
+                    AddChild(new Label { Text = "MATCH PHASE" });
+                }
+            }
+            """);
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NewRootSourceRequiresRuntimeBoundaryReview()
+    {
+        CopyIdentityFixture();
+        File.WriteAllText(
+            Path.Combine(_fixture, "InjectedMain.cs"),
+            "namespace Rounds.Game; public sealed partial class Main { }");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NewRepositoryBuildControlRequiresRuntimeBoundaryReview()
+    {
+        CopyIdentityFixture();
+        var buildDirectory = Path.Combine(_fixture, "eng");
+        Directory.CreateDirectory(buildDirectory);
+        File.WriteAllText(Path.Combine(buildDirectory, "Injected.targets"), "<Project />");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SimulationSourceMutationRequiresRuntimeBoundaryReview()
+    {
+        CopyIdentityFixture();
+        File.AppendAllText(Path.Combine(_fixture, "src", "Rounds.Sim", "MatchPhase.cs"), "\n// changed\n");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NewReplaySourceRequiresRuntimeBoundaryReview()
+    {
+        CopyIdentityFixture();
+        File.WriteAllText(
+            Path.Combine(_fixture, "src", "Rounds.Replay", "InjectedReplay.cs"),
+            "namespace Rounds.Replay; public static class InjectedReplay { }");
 
         var failures = ProductIdentityChecker.CheckRepository(_fixture);
 
@@ -175,13 +260,23 @@ public sealed class ProductIdentityCheckerTests : IDisposable
     }
 
     [Theory]
-    [InlineData(".godot")]
-    [InlineData("bin")]
-    [InlineData("obj")]
-    public void GeneratedGameDirectoryFilesDoNotChangeLivePresentationBoundary(string directory)
+    [InlineData("game", ".godot")]
+    [InlineData("game", "bin")]
+    [InlineData("game", "obj")]
+    [InlineData("src/Rounds.Sim", ".godot")]
+    [InlineData("src/Rounds.Sim", "bin")]
+    [InlineData("src/Rounds.Sim", "obj")]
+    [InlineData("src/Rounds.Replay", ".godot")]
+    [InlineData("src/Rounds.Replay", "bin")]
+    [InlineData("src/Rounds.Replay", "obj")]
+    public void GeneratedRuntimeDirectoryFilesDoNotChangeRuntimeBoundary(string root, string directory)
     {
         CopyIdentityFixture();
-        var generatedDirectory = Path.Combine(_fixture, "game", directory, "nested");
+        var generatedDirectory = Path.Combine(
+            _fixture,
+            root.Replace('/', Path.DirectorySeparatorChar),
+            directory,
+            "nested");
         Directory.CreateDirectory(generatedDirectory);
         File.WriteAllText(Path.Combine(generatedDirectory, "generated.txt"), "not shipped source");
 
@@ -217,7 +312,7 @@ public sealed class ProductIdentityCheckerTests : IDisposable
     private void CopyIdentityFixture()
     {
         var repository = FindRepository();
-        CopyGameBoundary(repository);
+        CopyRuntimeBoundary(repository);
         foreach (var relativePath in new[]
         {
             "GOAL.md",
@@ -231,8 +326,6 @@ public sealed class ProductIdentityCheckerTests : IDisposable
             "spec/schema/measurements.schema.json",
             "spec/schema/mechanics.schema.json",
             "spec/schema/source-index.schema.json",
-            "src/Rounds.Sim/Cards/StatCardDefinition.cs",
-            "src/Rounds.Sim/Cards/StatCardCatalog.cs",
         })
         {
             var destination = Path.Combine(_fixture, relativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -241,16 +334,50 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         }
     }
 
-    private void CopyGameBoundary(string repository)
+    private void CopyRuntimeBoundary(string repository)
     {
-        var sourceRoot = Path.Combine(repository, "game");
+        foreach (var relativeRoot in new[] { "game", "src/Rounds.Sim", "src/Rounds.Replay" })
+        {
+            CopyRuntimeRoot(repository, relativeRoot);
+        }
+
+        foreach (var source in EnumerateRepositoryFiles(repository))
+        {
+            var extension = Path.GetExtension(source);
+            var filename = Path.GetFileName(source);
+            if (extension.Equals(".props", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".targets", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".rsp", StringComparison.OrdinalIgnoreCase) ||
+                filename.Equals("global.json", StringComparison.OrdinalIgnoreCase) ||
+                filename.Equals("NuGet.Config", StringComparison.OrdinalIgnoreCase))
+            {
+                CopyRepositoryFile(repository, source);
+            }
+        }
+
+        foreach (var source in Directory.EnumerateFiles(repository, "*", SearchOption.TopDirectoryOnly))
+        {
+            if (Path.GetExtension(source) is var extension &&
+                (extension.Equals(".cs", StringComparison.OrdinalIgnoreCase) ||
+                 extension.Equals(".fs", StringComparison.OrdinalIgnoreCase) ||
+                 extension.Equals(".vb", StringComparison.OrdinalIgnoreCase) ||
+                 extension.Equals(".csx", StringComparison.OrdinalIgnoreCase)))
+            {
+                CopyRepositoryFile(repository, source);
+            }
+        }
+    }
+
+    private void CopyRuntimeRoot(string repository, string relativeRoot)
+    {
+        var sourceRoot = Path.Combine(repository, relativeRoot.Replace('/', Path.DirectorySeparatorChar));
         var pending = new Stack<string>();
         pending.Push(sourceRoot);
         while (pending.TryPop(out var directory))
         {
             foreach (var childDirectory in Directory.EnumerateDirectories(directory))
             {
-                if (Path.GetFileName(childDirectory) is not (".godot" or "bin" or "obj"))
+                if (!IsExcludedGeneratedDirectory(childDirectory))
                 {
                     pending.Push(childDirectory);
                 }
@@ -258,12 +385,48 @@ public sealed class ProductIdentityCheckerTests : IDisposable
 
             foreach (var source in Directory.EnumerateFiles(directory))
             {
-                var relative = Path.GetRelativePath(sourceRoot, source);
-                var destination = Path.Combine(_fixture, "game", relative);
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                File.Copy(source, destination);
+                CopyRepositoryFile(repository, source);
             }
         }
+    }
+
+    private static IEnumerable<string> EnumerateRepositoryFiles(string repository)
+    {
+        var pending = new Stack<string>();
+        pending.Push(repository);
+        while (pending.TryPop(out var directory))
+        {
+            foreach (var childDirectory in Directory.EnumerateDirectories(directory))
+            {
+                var name = Path.GetFileName(childDirectory);
+                if (!name.Equals(".git", StringComparison.OrdinalIgnoreCase) &&
+                    !name.Equals(".ivy", StringComparison.OrdinalIgnoreCase) &&
+                    !IsExcludedGeneratedDirectory(childDirectory))
+                {
+                    pending.Push(childDirectory);
+                }
+            }
+
+            foreach (var file in Directory.EnumerateFiles(directory))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    private void CopyRepositoryFile(string repository, string source)
+    {
+        var destination = Path.Combine(_fixture, Path.GetRelativePath(repository, source));
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        File.Copy(source, destination, overwrite: true);
+    }
+
+    private static bool IsExcludedGeneratedDirectory(string directory)
+    {
+        var name = Path.GetFileName(directory);
+        return name.Equals(".godot", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("obj", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void InsertBeforeFinalBrace(string path, string insertion)

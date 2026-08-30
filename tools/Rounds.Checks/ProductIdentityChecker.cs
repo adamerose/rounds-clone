@@ -8,21 +8,53 @@ namespace Rounds.Checks;
 
 public static partial class ProductIdentityChecker
 {
-    private const string ExpectedLivePresentationBoundarySha256 =
-        "e68b263cb7683663af7a7969a2ec69db6129246a36ab52a58ad3cede35a0aaa7";
+    private const string ExpectedShippedRuntimeBoundarySha256 =
+        "a1ed93a3495a2c0f9dfccdcc1a32f6b3df74aed54a5c692d285da647e8eb99a3";
 
-    private static readonly string[] ExternalLivePresentationPaths =
+    private static readonly string[] ShippedRuntimeRoots =
     [
-        "src/Rounds.Sim/Cards/StatCardCatalog.cs",
-        "src/Rounds.Sim/Cards/StatCardDefinition.cs",
+        "game",
+        "src/Rounds.Sim",
+        "src/Rounds.Replay",
     ];
 
-    private static readonly HashSet<string> GeneratedGameDirectoryNames =
-        new(StringComparer.Ordinal)
+    private static readonly HashSet<string> GeneratedRuntimeDirectoryNames =
+        new(StringComparer.OrdinalIgnoreCase)
         {
             ".godot",
             "bin",
             "obj",
+        };
+
+    private static readonly HashSet<string> RepositoryTraversalExclusions =
+        new(GeneratedRuntimeDirectoryNames, StringComparer.OrdinalIgnoreCase)
+        {
+            ".git",
+            ".ivy",
+        };
+
+    private static readonly HashSet<string> BuildControlExtensions =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".props",
+            ".targets",
+            ".rsp",
+        };
+
+    private static readonly HashSet<string> AutomaticBuildControlNames =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "global.json",
+            "NuGet.Config",
+        };
+
+    private static readonly HashSet<string> RootSourceExtensions =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".cs",
+            ".fs",
+            ".vb",
+            ".csx",
         };
 
     private static readonly string[] ActiveIdentityPaths =
@@ -171,12 +203,12 @@ public static partial class ProductIdentityChecker
             repository,
             Path.Combine("src", "Rounds.Sim", "Cards", "StatCardCatalog.cs"),
             failures);
-        var actualBoundarySha256 = ComputeLivePresentationBoundarySha256(repository);
-        if (actualBoundarySha256 != ExpectedLivePresentationBoundarySha256)
+        var actualBoundarySha256 = ComputeShippedRuntimeBoundarySha256(repository);
+        if (actualBoundarySha256 != ExpectedShippedRuntimeBoundarySha256)
         {
             failures.Add(
-                "IDN010 the complete live presentation boundary changed; " +
-                "deliberately review every included source and update ExpectedLivePresentationBoundarySha256.");
+                "IDN010 the complete shipped runtime/build boundary changed; " +
+                "deliberately review every included input and update ExpectedShippedRuntimeBoundarySha256.");
         }
         if (definition is not null && SummaryIdentifier().IsMatch(MaskComments(definition)))
         {
@@ -188,11 +220,9 @@ public static partial class ProductIdentityChecker
         }
     }
 
-    private static string ComputeLivePresentationBoundarySha256(string repository)
+    private static string ComputeShippedRuntimeBoundarySha256(string repository)
     {
-        var relativePaths = EnumerateLivePresentationBoundaryFiles(repository)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        var relativePaths = EnumerateShippedRuntimeBoundaryFiles(repository);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var contentBuffer = new byte[81920];
         foreach (var relativePath in relativePaths)
@@ -215,41 +245,80 @@ public static partial class ProductIdentityChecker
         return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
-    private static IEnumerable<string> EnumerateLivePresentationBoundaryFiles(string repository)
+    private static IReadOnlyList<string> EnumerateShippedRuntimeBoundaryFiles(string repository)
     {
-        var gameRoot = Path.Combine(repository, "game");
-        if (Directory.Exists(gameRoot))
+        var relativePaths = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var runtimeRootRelativePath in ShippedRuntimeRoots)
         {
-            var pending = new Stack<string>();
-            pending.Push(gameRoot);
-            while (pending.TryPop(out var directory))
+            var runtimeRoot = Path.Combine(
+                repository,
+                runtimeRootRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!Directory.Exists(runtimeRoot))
             {
-                foreach (var childDirectory in Directory.EnumerateDirectories(directory))
-                {
-                    if (!GeneratedGameDirectoryNames.Contains(Path.GetFileName(childDirectory)))
-                    {
-                        pending.Push(childDirectory);
-                    }
-                }
+                continue;
+            }
 
-                foreach (var file in Directory.EnumerateFiles(directory))
-                {
-                    yield return Path.GetRelativePath(repository, file)
-                        .Replace(Path.DirectorySeparatorChar, '/');
-                }
+            AddFilesRecursively(
+                repository,
+                runtimeRoot,
+                GeneratedRuntimeDirectoryNames,
+                _ => true,
+                relativePaths);
+        }
+
+        AddFilesRecursively(
+            repository,
+            repository,
+            RepositoryTraversalExclusions,
+            IsRepositoryBuildControl,
+            relativePaths);
+
+        foreach (var file in Directory.EnumerateFiles(repository, "*", SearchOption.TopDirectoryOnly))
+        {
+            if (RootSourceExtensions.Contains(Path.GetExtension(file)))
+            {
+                relativePaths.Add(ToCanonicalRelativePath(repository, file));
             }
         }
 
-        foreach (var relativePath in ExternalLivePresentationPaths)
+        return relativePaths.Order(StringComparer.Ordinal).ToArray();
+    }
+
+    private static void AddFilesRecursively(
+        string repository,
+        string root,
+        IReadOnlySet<string> excludedDirectoryNames,
+        Func<string, bool> includeFile,
+        ISet<string> relativePaths)
+    {
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.TryPop(out var directory))
         {
-            if (File.Exists(Path.Combine(
-                repository,
-                relativePath.Replace('/', Path.DirectorySeparatorChar))))
+            foreach (var childDirectory in Directory.EnumerateDirectories(directory))
             {
-                yield return relativePath;
+                if (!excludedDirectoryNames.Contains(Path.GetFileName(childDirectory)))
+                {
+                    pending.Push(childDirectory);
+                }
+            }
+
+            foreach (var file in Directory.EnumerateFiles(directory))
+            {
+                if (includeFile(file))
+                {
+                    relativePaths.Add(ToCanonicalRelativePath(repository, file));
+                }
             }
         }
     }
+
+    private static bool IsRepositoryBuildControl(string path) =>
+        BuildControlExtensions.Contains(Path.GetExtension(path)) ||
+        AutomaticBuildControlNames.Contains(Path.GetFileName(path));
+
+    private static string ToCanonicalRelativePath(string repository, string path) =>
+        Path.GetRelativePath(repository, path).Replace(Path.DirectorySeparatorChar, '/');
 
     private static void AppendInt64(IncrementalHash hash, long value)
     {
