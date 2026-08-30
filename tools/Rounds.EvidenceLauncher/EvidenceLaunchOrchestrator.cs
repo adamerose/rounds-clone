@@ -159,17 +159,28 @@ internal interface IEvidenceLaunchHandleLease : IDisposable
 internal abstract class EvidenceProcessLease : IDisposable
 {
     private bool _disposed;
-    private bool _terminationTransferredToJob;
+    private bool _assignedToKillOnCloseJob;
+    private bool _terminationFallbackDisarmed;
 
     public void MarkAssignedToKillOnCloseJob()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_terminationTransferredToJob)
+        if (_assignedToKillOnCloseJob)
         {
             throw new InvalidOperationException("Process termination ownership was already transferred.");
         }
-        _terminationTransferredToJob = true;
+        _assignedToKillOnCloseJob = true;
         OnTerminationTransferredToJob();
+    }
+
+    public void DisarmTerminationFallbackAfterVerifiedExitAndEmptyJob()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_assignedToKillOnCloseJob)
+        {
+            throw new InvalidOperationException("Process was not assigned to the kill-on-close job.");
+        }
+        _terminationFallbackDisarmed = true;
     }
 
     public void Dispose()
@@ -181,9 +192,9 @@ internal abstract class EvidenceProcessLease : IDisposable
         _disposed = true;
         try
         {
-            if (!_terminationTransferredToJob)
+            if (!_terminationFallbackDisarmed)
             {
-                TerminateUnassignedSuspendedProcess();
+                TerminateAndWaitForExit();
             }
         }
         finally
@@ -192,7 +203,7 @@ internal abstract class EvidenceProcessLease : IDisposable
         }
     }
 
-    protected abstract void TerminateUnassignedSuspendedProcess();
+    protected abstract void TerminateAndWaitForExit();
 
     protected virtual void OnTerminationTransferredToJob()
     {
@@ -485,6 +496,7 @@ internal sealed class EvidenceLaunchOrchestrator(
             {
                 return ForcedFailure("job-not-empty", plan);
             }
+            process.DisarmTerminationFallbackAfterVerifiedExitAndEmptyJob();
             if (foregroundObserver.StopAndReadSawJobWindow())
             {
                 return EvidenceLaunchResult.Failed("foreground-activation", plan.OutputRoot);

@@ -65,6 +65,7 @@ public sealed class EvidenceLaunchOrchestratorTests
             events.IndexOf("process-create-suspended"));
         Assert.True(events.IndexOf("foreground-start") < events.IndexOf("resume-and-deadline"));
         Assert.True(events.IndexOf("job-wait-empty") < events.IndexOf("foreground-stop-read"));
+        Assert.DoesNotContain("process-terminate-fallback", events);
     }
 
     [Fact]
@@ -188,11 +189,11 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         Assert.False(result.Success);
         Assert.Equal("native-boundary", result.Code);
-        Assert.Contains("process-terminate-unassigned", events);
+        Assert.Contains("process-terminate-fallback", events);
         Assert.DoesNotContain("resume-and-deadline", events);
         if (failureStage != "job-create")
         {
-            Assert.True(events.IndexOf("job-dispose") < events.IndexOf("process-terminate-unassigned"));
+            Assert.True(events.IndexOf("job-dispose") < events.IndexOf("process-terminate-fallback"));
         }
     }
 
@@ -387,11 +388,32 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         Assert.False(result.Success);
         Assert.Contains("job-dispose", events);
-        Assert.Contains("process-terminate-unassigned", events);
+        Assert.Contains("process-terminate-fallback", events);
         Assert.Contains("process-dispose", events);
         Assert.Contains("handles-dispose", events);
         Assert.Contains("godot-executable-dispose", events);
         Assert.Contains("desktop-dispose", events);
+    }
+
+    [Fact]
+    public void Assigned_resumed_process_uses_explicit_fallback_when_job_close_throws_before_empty_proof()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan)
+        {
+            Protocol = ValidProtocol(plan) with { TimedOut = true },
+            DisposeFailure = "job",
+        };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Contains("process-transfer-to-job", events);
+        Assert.Contains("resume-and-deadline", events);
+        Assert.Contains("job-dispose", events);
+        Assert.Contains("process-terminate-fallback", events);
+        Assert.True(events.IndexOf("job-dispose") < events.IndexOf("process-terminate-fallback"));
     }
 
     [Theory]
@@ -446,7 +468,7 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.False(result.Success);
         Assert.Equal("child-image-identity", result.Code);
         Assert.Contains("child-image-match", events);
-        Assert.Contains("process-terminate-unassigned", events);
+        Assert.Contains("process-terminate-fallback", events);
         Assert.DoesNotContain("resume-and-deadline", events);
     }
 
@@ -923,8 +945,8 @@ public sealed class EvidenceLaunchOrchestratorTests
             protected override void OnTerminationTransferredToJob() =>
                 events.Add("process-transfer-to-job");
 
-            protected override void TerminateUnassignedSuspendedProcess() =>
-                events.Add("process-terminate-unassigned");
+            protected override void TerminateAndWaitForExit() =>
+                events.Add("process-terminate-fallback");
 
             protected override void ReleaseProcessAndThreadHandles() =>
                 AddDisposeEvent();
