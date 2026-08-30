@@ -89,6 +89,18 @@ internal interface IWin32ForegroundObserverWaiter
     bool Wait(ManualResetEventSlim signal, TimeSpan timeout);
 }
 
+internal interface IWin32ForegroundObserverStartupCleanupOwner
+{
+    void Retain(Win32ForegroundObserverLease lease);
+}
+
+internal interface IWin32ForegroundObserverReaperScheduler
+{
+    void Start(ThreadStart operation);
+
+    void Backoff(TimeSpan duration);
+}
+
 internal sealed class Win32ForegroundObserverWaiter : IWin32ForegroundObserverWaiter
 {
     public bool Wait(ManualResetEventSlim signal, TimeSpan timeout) => signal.Wait(timeout);
@@ -97,6 +109,88 @@ internal sealed class Win32ForegroundObserverWaiter : IWin32ForegroundObserverWa
 internal sealed class Win32ForegroundObserverThreadFactory : IWin32ForegroundObserverThreadFactory
 {
     public IWin32ForegroundObserverThread Create() => new Win32ForegroundObserverThread();
+}
+
+internal sealed class Win32ForegroundObserverReaperScheduler : IWin32ForegroundObserverReaperScheduler
+{
+    public void Start(ThreadStart operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        var thread = new Thread(operation)
+        {
+            IsBackground = true,
+            Name = "Rounds evidence foreground observer startup reaper",
+        };
+        thread.Start();
+    }
+
+    public void Backoff(TimeSpan duration) => Thread.Sleep(duration);
+}
+
+internal sealed class Win32ForegroundObserverStartupCleanupOwner : IWin32ForegroundObserverStartupCleanupOwner
+{
+    internal static readonly Win32ForegroundObserverStartupCleanupOwner Shared = new(
+        new Win32ForegroundObserverReaperScheduler());
+    internal static readonly TimeSpan RequiredRetryBackoff = TimeSpan.FromSeconds(1);
+
+    private readonly IWin32ForegroundObserverReaperScheduler _scheduler;
+    private readonly object _gate = new();
+    private readonly HashSet<Win32ForegroundObserverLease> _retained = [];
+    private int _completedCleanupCount;
+
+    internal Win32ForegroundObserverStartupCleanupOwner(IWin32ForegroundObserverReaperScheduler scheduler)
+    {
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+    }
+
+    internal int RetainedCount
+    {
+        get
+        {
+            lock (_gate) return _retained.Count;
+        }
+    }
+
+    internal int CompletedCleanupCount => Volatile.Read(ref _completedCleanupCount);
+
+    public void Retain(Win32ForegroundObserverLease lease)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        lock (_gate)
+        {
+            if (!_retained.Add(lease)) return;
+        }
+
+        try
+        {
+            _scheduler.Start(() => ReapUntilComplete(lease));
+        }
+        catch (Exception exception)
+        {
+            // The strong set remains the explicit owner. A permanently broken scheduler can only
+            // fall back to process exit; it must never lose the worker, hook, root, or signals.
+            lease.RecordStartupCleanupFailure(exception);
+        }
+    }
+
+    private void ReapUntilComplete(Win32ForegroundObserverLease lease)
+    {
+        try
+        {
+            while (!lease.TryReapAbandonedStartup())
+            {
+                _scheduler.Backoff(RequiredRetryBackoff);
+            }
+            lock (_gate) _retained.Remove(lease);
+            Interlocked.Increment(ref _completedCleanupCount);
+        }
+        catch (Exception exception)
+        {
+            // No exception may escape the background reaper. Retaining the lease keeps ownership
+            // explicit if even the injected backoff/scheduler boundary fails.
+            lease.RecordStartupCleanupFailure(exception);
+        }
+    }
 }
 
 internal sealed class Win32ForegroundObserverThread : IWin32ForegroundObserverThread
@@ -132,21 +226,67 @@ internal sealed class Win32ForegroundObserverThread : IWin32ForegroundObserverTh
     }
 }
 
-internal sealed class Win32ForegroundObserverFactory(
-    IWin32ForegroundObserverApi api,
-    IWin32ForegroundObserverThreadFactory threadFactory,
-    IWin32ForegroundObserverWaiter waiter)
+internal sealed class Win32ForegroundObserverFactory
 {
+    private readonly IWin32ForegroundObserverApi _api;
+    private readonly IWin32ForegroundObserverThreadFactory _threadFactory;
+    private readonly IWin32ForegroundObserverWaiter _waiter;
+    private readonly IWin32ForegroundObserverStartupCleanupOwner _startupCleanupOwner;
+
+    internal Win32ForegroundObserverFactory(
+        IWin32ForegroundObserverApi api,
+        IWin32ForegroundObserverThreadFactory threadFactory,
+        IWin32ForegroundObserverWaiter waiter)
+        : this(api, threadFactory, waiter, Win32ForegroundObserverStartupCleanupOwner.Shared)
+    {
+    }
+
+    internal Win32ForegroundObserverFactory(
+        IWin32ForegroundObserverApi api,
+        IWin32ForegroundObserverThreadFactory threadFactory,
+        IWin32ForegroundObserverWaiter waiter,
+        IWin32ForegroundObserverStartupCleanupOwner startupCleanupOwner)
+    {
+        _api = api ?? throw new ArgumentNullException(nameof(api));
+        _threadFactory = threadFactory ?? throw new ArgumentNullException(nameof(threadFactory));
+        _waiter = waiter ?? throw new ArgumentNullException(nameof(waiter));
+        _startupCleanupOwner = startupCleanupOwner ?? throw new ArgumentNullException(nameof(startupCleanupOwner));
+    }
+
     internal Win32ForegroundObserverLease Start(Win32JobLease job)
     {
         ArgumentNullException.ThrowIfNull(job);
         var lease = new Win32ForegroundObserverLease(
-            api,
-            threadFactory.Create(),
-            waiter,
+            _api,
+            _threadFactory.Create(),
+            _waiter,
             job);
-        lease.StartAndWaitUntilReady();
-        return lease;
+        try
+        {
+            lease.StartAndWaitUntilReady();
+            return lease;
+        }
+        catch (Exception startupException)
+        {
+            if (lease.AbandonedStartupNeedsOwner)
+            {
+                try
+                {
+                    _startupCleanupOwner.Retain(lease);
+                }
+                catch (Exception ownerException)
+                {
+                    lease.RecordStartupCleanupFailure(ownerException);
+                    if (!ReferenceEquals(_startupCleanupOwner, Win32ForegroundObserverStartupCleanupOwner.Shared))
+                    {
+                        Win32ForegroundObserverStartupCleanupOwner.Shared.Retain(lease);
+                    }
+                    throw new AggregateException(startupException, ownerException);
+                }
+            }
+            ExceptionDispatchInfo.Capture(startupException).Throw();
+            throw;
+        }
     }
 }
 
@@ -176,6 +316,7 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
     private bool _callbackDrainActive;
     private bool _sawJobWindow;
     private bool _readySucceeded;
+    private bool _startupAbandoned;
     private bool _terminationProven;
     private bool _threadDisposed;
     private bool _signalsDisposed;
@@ -186,6 +327,9 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
     internal bool CallbackRootAllocated => _callbackRoot.IsAllocated;
 
     internal bool HookIdentityRetained => _hook != 0;
+
+    internal bool AbandonedStartupNeedsOwner =>
+        Volatile.Read(ref _startupAbandoned) && _thread.Started && !Volatile.Read(ref _terminationProven);
 
     internal Win32ForegroundObserverLease(
         IWin32ForegroundObserverApi api,
@@ -223,6 +367,7 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
             failure = exception;
         }
 
+        Volatile.Write(ref _startupAbandoned, true);
         var terminationProven = StopWorkerBestEffort(ref failure);
         if (!_thread.Started)
         {
@@ -232,6 +377,10 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
         {
             _terminationProven = true;
             ReapAfterJoin(ref failure);
+        }
+        else
+        {
+            RecordFailure(failure!);
         }
         ExceptionDispatchInfo.Capture(failure!).Throw();
     }
@@ -287,6 +436,7 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
             {
                 throw new Win32Exception(queueError, "PeekMessageW could not establish the foreground observer message queue.");
             }
+            if (Volatile.Read(ref _startupAbandoned)) return;
 
             Win32WinEventCallback callback = ReceiveUnmanagedEvent;
             _callbackRoot = GCHandle.Alloc(callback, GCHandleType.Normal);
@@ -303,6 +453,7 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
             _hook = hook;
             lock (_failureGate) _readySucceeded = true;
             _ready.Set();
+            if (Volatile.Read(ref _startupAbandoned)) return;
 
             while (true)
             {
@@ -519,6 +670,41 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
         }
         return joinProven;
     }
+
+    internal bool TryReapAbandonedStartup()
+    {
+        lock (_stopGate)
+        {
+            if (!Volatile.Read(ref _startupAbandoned))
+            {
+                RecordFailure(new InvalidOperationException("Startup reaper received an observer whose startup was not abandoned."));
+                return true;
+            }
+            Exception? failure = null;
+            if (_terminationProven)
+            {
+                ReapAfterJoin(ref failure);
+            }
+            else
+            {
+                var terminationProven = StopWorkerBestEffort(ref failure);
+                if (!_thread.Started)
+                {
+                    _terminationProven = true;
+                    DisposeNeverStartedResources(ref failure);
+                }
+                else if (terminationProven)
+                {
+                    _terminationProven = true;
+                    ReapAfterJoin(ref failure);
+                }
+            }
+            if (failure is not null) RecordFailure(failure);
+            return _terminationProven && !_callbackRoot.IsAllocated && _threadDisposed && _signalsDisposed;
+        }
+    }
+
+    internal void RecordStartupCleanupFailure(Exception exception) => RecordFailure(exception);
 
     private void ReapAfterJoin(ref Exception? failure)
     {

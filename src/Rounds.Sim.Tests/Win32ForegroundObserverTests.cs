@@ -150,7 +150,6 @@ public sealed class Win32ForegroundObserverTests
     [Theory]
     [InlineData("queue")]
     [InlineData("install")]
-    [InlineData("readiness")]
     [InlineData("thread-start")]
     public void Startup_failure_is_bounded_and_never_returns_a_lease(string failure)
     {
@@ -159,21 +158,130 @@ public sealed class Win32ForegroundObserverTests
         {
             case "queue": rig.Api.FailQueue = true; break;
             case "install": rig.Api.FailInstall = true; break;
-            case "readiness": rig.Waiter.ForceTimeout = true; rig.Thread.NoRun = true; break;
             case "thread-start": rig.Thread.ThrowOnStart = true; break;
         }
 
         Assert.ThrowsAny<Exception>(() => rig.Start());
 
         Assert.Equal(0, rig.Api.UnhookCount);
-        if (failure == "readiness")
+        Assert.Equal(1, rig.Thread.DisposeCount);
+        Assert.Equal(0, rig.StartupCleanupOwner.RetainedCount);
+    }
+
+    [Fact]
+    public void Timed_out_late_worker_observes_abandonment_before_install_and_reaper_proves_cleanup()
+    {
+        using var rig = new Rig();
+        rig.Waiter.ForceTimeout = true;
+        rig.Thread.BeforeOperationGate.Reset();
+        rig.Thread.JoinWithoutWaiting = true;
+
+        Assert.ThrowsAny<Exception>(() => rig.Start());
+
+        Assert.Equal(1, rig.StartupCleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.ReaperScheduler.StartCount);
+        Assert.Equal(0, rig.Thread.DisposeCount);
+        Assert.Equal(0, rig.Api.InstallCount);
+        Assert.False(rig.Thread.Exited.IsSet);
+
+        try
         {
-            Assert.Equal(0, rig.Thread.DisposeCount);
+            rig.ReaperScheduler.OnBackoff = () =>
+            {
+                rig.Thread.JoinWithoutWaiting = false;
+                rig.Thread.BeforeOperationGate.Set();
+            };
+            rig.ReaperScheduler.RunScheduled();
         }
-        else
+        finally
         {
-            Assert.Equal(1, rig.Thread.DisposeCount);
+            rig.Thread.JoinWithoutWaiting = false;
+            rig.Thread.BeforeOperationGate.Set();
+            rig.Thread.Exited.Wait(TimeSpan.FromSeconds(2));
         }
+
+        Assert.True(rig.Thread.Exited.IsSet);
+        Assert.Null(rig.Thread.UnhandledFailure);
+        Assert.Equal(0, rig.Api.InstallCount);
+        Assert.Equal(0, rig.Api.UnhookCount);
+        Assert.Equal(1, rig.Thread.DisposeCount);
+        Assert.Equal(0, rig.StartupCleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.StartupCleanupOwner.CompletedCleanupCount);
+        Assert.Equal(1, rig.ReaperScheduler.BackoffCount);
+    }
+
+    [Fact]
+    public void Timed_out_install_race_observes_abandonment_before_loop_then_owner_joins_and_unhooks()
+    {
+        using var rig = new Rig();
+        rig.Api.InstallRelease.Reset();
+        rig.Waiter.ForceTimeout = true;
+        rig.Waiter.BeforeForcedTimeout = () =>
+            Assert.True(rig.Api.InstallEntered.Wait(TimeSpan.FromSeconds(2)));
+        rig.Thread.JoinWithoutWaiting = true;
+
+        Assert.ThrowsAny<Exception>(() => rig.Start());
+
+        Assert.Equal(1, rig.StartupCleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.Api.InstallCount);
+        Assert.Equal(0, rig.Api.UnhookCount);
+        Assert.DoesNotContain("get-message", rig.Api.Events);
+
+        try
+        {
+            rig.Thread.JoinWithoutWaiting = false;
+            rig.Api.InstallRelease.Set();
+            rig.ReaperScheduler.RunScheduled();
+        }
+        finally
+        {
+            rig.Thread.JoinWithoutWaiting = false;
+            rig.Api.InstallRelease.Set();
+            rig.Thread.Exited.Wait(TimeSpan.FromSeconds(2));
+        }
+
+        Assert.True(rig.Thread.Exited.IsSet);
+        Assert.Null(rig.Thread.UnhandledFailure);
+        Assert.Equal(1, rig.Api.InstallCount);
+        Assert.Equal(1, rig.Api.UnhookCount);
+        Assert.Equal(rig.Api.InstallManagedThreadId, rig.Api.UnhookManagedThreadId);
+        Assert.DoesNotContain("get-message", rig.Api.Events);
+        Assert.False(rig.Api.CallbackIsRetained);
+        Assert.Equal(1, rig.Thread.DisposeCount);
+        Assert.Equal(0, rig.StartupCleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.StartupCleanupOwner.CompletedCleanupCount);
+    }
+
+    [Fact]
+    public void Reaper_scheduling_failure_retains_explicit_ownership_and_late_worker_self_exits()
+    {
+        using var rig = new Rig();
+        rig.Waiter.ForceTimeout = true;
+        rig.Thread.BeforeOperationGate.Reset();
+        rig.Thread.JoinWithoutWaiting = true;
+        rig.ReaperScheduler.ThrowOnStart = true;
+
+        Assert.ThrowsAny<Exception>(() => rig.Start());
+
+        Assert.Equal(1, rig.StartupCleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.ReaperScheduler.StartCount);
+        Assert.Equal(0, rig.Thread.DisposeCount);
+        try
+        {
+            rig.Thread.BeforeOperationGate.Set();
+            Assert.True(rig.Thread.Exited.Wait(TimeSpan.FromSeconds(2)));
+        }
+        finally
+        {
+            rig.Thread.BeforeOperationGate.Set();
+        }
+
+        Assert.Null(rig.Thread.UnhandledFailure);
+        Assert.Equal(0, rig.Api.InstallCount);
+        Assert.Equal(0, rig.Api.UnhookCount);
+        Assert.Equal(0, rig.Thread.DisposeCount);
+        Assert.Equal(1, rig.StartupCleanupOwner.RetainedCount);
+        Assert.Equal(0, rig.StartupCleanupOwner.CompletedCleanupCount);
     }
 
     [Theory]
@@ -394,17 +502,24 @@ public sealed class Win32ForegroundObserverTests
         internal FakeApi Api { get; } = new();
         internal FakeThread Thread { get; }
         internal FakeWaiter Waiter { get; } = new();
+        internal FakeReaperScheduler ReaperScheduler { get; } = new();
+        internal Win32ForegroundObserverStartupCleanupOwner StartupCleanupOwner { get; }
         internal Win32JobLease Job { get; }
 
         internal Rig()
         {
             Thread = new FakeThread(Api.Events);
             Thread.OnJoinProven = Api.NotifyInstallingThreadExitProven;
+            StartupCleanupOwner = new Win32ForegroundObserverStartupCleanupOwner(ReaperScheduler);
             Job = new Win32JobLease(Api, 303);
         }
 
         internal Win32ForegroundObserverLease Start() =>
-            new Win32ForegroundObserverFactory(Api, new FakeThreadFactory(Thread), Waiter).Start(Job);
+            new Win32ForegroundObserverFactory(
+                Api,
+                new FakeThreadFactory(Thread),
+                Waiter,
+                StartupCleanupOwner).Start(Job);
 
         public void Dispose()
         {
@@ -417,12 +532,47 @@ public sealed class Win32ForegroundObserverTests
     private sealed class FakeWaiter : IWin32ForegroundObserverWaiter
     {
         internal bool ForceTimeout { get; set; }
+        internal Action? BeforeForcedTimeout { get; set; }
         internal TimeSpan ObservedTimeout { get; private set; }
 
         public bool Wait(ManualResetEventSlim signal, TimeSpan timeout)
         {
             ObservedTimeout = timeout;
-            return !ForceTimeout && signal.Wait(TimeSpan.FromSeconds(2));
+            if (!ForceTimeout) return signal.Wait(TimeSpan.FromSeconds(2));
+            BeforeForcedTimeout?.Invoke();
+            return false;
+        }
+    }
+
+    private sealed class FakeReaperScheduler : IWin32ForegroundObserverReaperScheduler
+    {
+        private ThreadStart? _scheduled;
+
+        internal int StartCount { get; private set; }
+        internal int BackoffCount { get; private set; }
+        internal Action? OnBackoff { get; set; }
+        internal bool ThrowOnStart { get; set; }
+
+        public void Start(ThreadStart operation)
+        {
+            Assert.Null(_scheduled);
+            StartCount++;
+            if (ThrowOnStart) throw new IOException("injected startup reaper scheduling failure");
+            _scheduled = operation;
+        }
+
+        public void Backoff(TimeSpan duration)
+        {
+            Assert.Equal(Win32ForegroundObserverStartupCleanupOwner.RequiredRetryBackoff, duration);
+            BackoffCount++;
+            OnBackoff?.Invoke();
+        }
+
+        internal void RunScheduled()
+        {
+            var scheduled = _scheduled ?? throw new InvalidOperationException("No startup reaper was scheduled.");
+            _scheduled = null;
+            scheduled();
         }
     }
 
@@ -435,7 +585,6 @@ public sealed class Win32ForegroundObserverTests
     {
         private Thread? _thread;
 
-        internal bool NoRun { get; set; }
         internal bool ThrowOnStart { get; set; }
         internal bool ReportJoinFailure { get; set; }
         internal bool JoinWithoutWaiting { get; set; }
@@ -443,6 +592,7 @@ public sealed class Win32ForegroundObserverTests
         internal int DisposeCount { get; private set; }
         internal TimeSpan? LastJoinTimeout { get; private set; }
         internal ManualResetEventSlim Exited { get; } = new(false);
+        internal ManualResetEventSlim BeforeOperationGate { get; } = new(true);
         internal Exception? UnhandledFailure { get; private set; }
         internal Action? OnJoinProven { get; set; }
         public bool Started { get; private set; }
@@ -452,11 +602,11 @@ public sealed class Win32ForegroundObserverTests
             events.Enqueue("thread-start");
             if (ThrowOnStart) throw new InvalidOperationException("injected thread start failure");
             Started = true;
-            if (NoRun) return;
             _thread = new Thread(() =>
             {
                 try
                 {
+                    BeforeOperationGate.Wait();
                     operation();
                 }
                 catch (Exception exception)
@@ -512,6 +662,7 @@ public sealed class Win32ForegroundObserverTests
         internal uint EventMaximum { get; private set; }
         internal uint HookFlags { get; private set; }
         internal int InstallManagedThreadId { get; private set; }
+        internal int InstallCount { get; private set; }
         internal int UnhookManagedThreadId { get; private set; }
         internal bool CallbackPresentAtUnhook { get; private set; }
         internal int UnhookCount { get; private set; }
@@ -534,6 +685,8 @@ public sealed class Win32ForegroundObserverTests
         internal int DispatchManagedThreadId { get; private set; }
         internal bool CallbackIsRetained => _callback is not null;
         internal int PostQuitCount { get; private set; }
+        internal ManualResetEventSlim InstallEntered { get; } = new(false);
+        internal ManualResetEventSlim InstallRelease { get; } = new(true);
 
         internal void MapWindow(nint window, uint processId, bool inJob)
         {
@@ -599,6 +752,9 @@ public sealed class Win32ForegroundObserverTests
             out int error)
         {
             Events.Enqueue("install");
+            InstallCount++;
+            InstallEntered.Set();
+            InstallRelease.Wait();
             InstallManagedThreadId = Environment.CurrentManagedThreadId;
             EventMinimum = eventMinimum;
             EventMaximum = eventMaximum;
@@ -748,6 +904,8 @@ public sealed class Win32ForegroundObserverTests
         public void Dispose()
         {
             _messages.Dispose();
+            InstallEntered.Dispose();
+            InstallRelease.Dispose();
             MembershipEntered.Dispose();
             MembershipRelease.Dispose();
         }
