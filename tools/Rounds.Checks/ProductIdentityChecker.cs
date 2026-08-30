@@ -9,7 +9,7 @@ namespace Rounds.Checks;
 public static partial class ProductIdentityChecker
 {
     private const string ExpectedLivePresentationBoundarySha256 =
-        "eb6dd5e2e91d76ee64df84099c303e091e047f9a1bcaeef264839f0406de0c31";
+        "e68b263cb7683663af7a7969a2ec69db6129246a36ab52a58ad3cede35a0aaa7";
 
     private static readonly string[] ExternalLivePresentationPaths =
     [

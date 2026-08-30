@@ -519,7 +519,7 @@ public partial class Main : Node2D
             DrawString(
                 ThemeDB.FallbackFont,
                 new Vector2(bounds.Position.X + 20.0f, bounds.Position.Y + 68.0f),
-                card.DisplayName,
+                _displayCards.GetRequired(card.Id).DisplayName,
                 HorizontalAlignment.Center,
                 bounds.Size.X - 40.0f,
                 25,

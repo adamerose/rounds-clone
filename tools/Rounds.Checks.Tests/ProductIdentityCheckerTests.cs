@@ -159,6 +159,21 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void DraftOfferMustResolveItsDisplayNameThroughTheCanonicalCatalog()
+    {
+        CopyIdentityFixture();
+        var main = Path.Combine(_fixture, "game", "Main.cs");
+        File.WriteAllText(main, File.ReadAllText(main).Replace(
+            "_displayCards.GetRequired(card.Id).DisplayName",
+            "card.DisplayName",
+            StringComparison.Ordinal));
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData(".godot")]
     [InlineData("bin")]
