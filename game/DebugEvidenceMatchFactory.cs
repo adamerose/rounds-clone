@@ -1,10 +1,13 @@
 using Rounds.Sim;
+using Rounds.Sim.Maps;
+using SimVector = Rounds.Sim.Math.Vec2;
 
 namespace Rounds.Game;
 
 internal static class DebugEvidenceMatchFactory
 {
     private const ulong EvidenceSeed = 14;
+    private const ulong BaseProjectileEvidenceSeed = 35;
     private const int EvidenceWinner = 0;
     private const int TransitionStepLimit = 200;
 
@@ -21,6 +24,39 @@ internal static class DebugEvidenceMatchFactory
             throw new InvalidOperationException("Debug evidence did not reach the incomplete-fidelity boundary.");
         }
         return shell;
+    }
+
+    public static World CreateBaseProjectileEvidence()
+    {
+        var world = World.CreateMatch(
+            BaseProjectileEvidenceSeed,
+            ArenaCatalog.LoadEmbedded().GetRequired("arena-006"),
+            PlayerTuning.Vanilla,
+            CombatTuning.Vanilla,
+            [PlayerCombatProfile.Vanilla, PlayerCombatProfile.Vanilla]);
+        var inputs = new PlayerInput[world.Players.Count];
+        for (var tick = 0; tick < world.Combat.SpawnLockTicks && world.Phase == DuelPhase.Spawning; tick++)
+        {
+            Rounds.Sim.Sim.Step(world, inputs);
+        }
+
+        inputs[0] = new PlayerInput(
+            MoveAxis: 0,
+            JumpHeld: false,
+            FireHeld: true,
+            BlockHeld: false,
+            AimDirection: new SimVector(0.0, 1.0));
+        Rounds.Sim.Sim.Step(world, inputs);
+
+        if (world.Phase != DuelPhase.Active ||
+            world.Arena.Id != "arena-006" ||
+            world.Bullets.Count != 1 ||
+            world.Bullets[0].OwnerId != 0 ||
+            world.Players.Any(static player => player.CombatProfile != PlayerCombatProfile.Vanilla))
+        {
+            throw new InvalidOperationException("Debug base-projectile evidence did not reach its required vanilla state.");
+        }
+        return world;
     }
 
     private static void ArmAndConfirmCurrentOffer(FaithfulSubsetMatchShell shell)

@@ -60,6 +60,10 @@ public partial class Main : Node2D
             _match = _matchShell.Match;
             _world = _match.World;
         }
+        else if (route.Mode == StartupMode.DebugBaseProjectileEvidence)
+        {
+            _world = DebugEvidenceMatchFactory.CreateBaseProjectileEvidence();
+        }
         else if (route.Mode == StartupMode.DebugAgentPlaytest)
         {
             _agentPlaytest = new AgentPlaytestSession();
@@ -135,6 +139,7 @@ public partial class Main : Node2D
             return;
         }
 
+        string? temporaryPngPath = null;
         try
         {
             if (DisplayServer.GetName() == "headless")
@@ -157,15 +162,30 @@ public partial class Main : Node2D
             var windowSize = DisplayServer.WindowGetSize();
             if (screen != PreferredScreen)
             {
-                GD.Print(DebugEvidenceCaptureProtocol.WrongScreenMarker(screen, PreferredScreen));
+                GD.Print(_startupMode == StartupMode.DebugBaseProjectileEvidence
+                    ? DebugEvidenceCaptureProtocol.BaseProjectileWrongScreenMarker(screen, PreferredScreen)
+                    : DebugEvidenceCaptureProtocol.WrongScreenMarker(screen, PreferredScreen));
                 GetTree().Quit(1);
                 return;
             }
 
-            var error = image.SavePng(outputPath);
+            temporaryPngPath = Path.Combine(
+                Path.GetDirectoryName(outputPath)!,
+                $".{Path.GetFileNameWithoutExtension(outputPath)}.{Guid.NewGuid():N}.tmp.png");
+            var error = image.SavePng(temporaryPngPath);
             if (error != Error.Ok)
             {
                 FinishDebugEvidenceWithError("save-png", (int)error);
+                return;
+            }
+            try
+            {
+                DebugEvidenceCaptureProtocol.PublishPngCreateNew(temporaryPngPath, outputPath);
+                temporaryPngPath = null;
+            }
+            catch (IOException) when (File.Exists(outputPath))
+            {
+                FinishDebugEvidenceWithError("output-exists", 0);
                 return;
             }
 
@@ -177,18 +197,47 @@ public partial class Main : Node2D
                 windowSize.Y,
                 image.GetWidth(),
                 image.GetHeight());
-            GD.Print(DebugEvidenceCaptureProtocol.CompleteMarker(attestation));
+            if (_startupMode == StartupMode.DebugBaseProjectileEvidence)
+            {
+                var bullet = _world.Bullets.Single();
+                GD.Print(DebugEvidenceCaptureProtocol.BaseProjectileCompleteMarker(
+                    new DebugBaseProjectileEvidenceAttestation(
+                        Rounds.Sim.Sim.Hash(_world),
+                        bullet.Id,
+                        bullet.OwnerId,
+                        attestation)));
+            }
+            else
+            {
+                GD.Print(DebugEvidenceCaptureProtocol.CompleteMarker(attestation));
+            }
             GetTree().Quit();
         }
         catch (Exception)
         {
             FinishDebugEvidenceWithError("capture", 1);
         }
+        finally
+        {
+            if (temporaryPngPath is not null)
+            {
+                try
+                {
+                    File.Delete(temporaryPngPath);
+                }
+                catch (IOException)
+                {
+                    // Preserve the route's deterministic failure marker; the exact temp path remains process-owned.
+                }
+            }
+        }
     }
 
     private void FinishDebugEvidenceWithError(string stage, int code)
     {
-        GD.Print(DebugEvidenceCaptureProtocol.ErrorMarker(stage, code));
+        GD.Print(_startupMode == StartupMode.DebugBaseProjectileEvidence
+            ? DebugEvidenceCaptureProtocol.BaseProjectileErrorMarker(stage, code)
+            : DebugEvidenceCaptureProtocol.ErrorMarker(stage, code));
         GetTree().Quit(1);
     }
 

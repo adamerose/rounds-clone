@@ -11,10 +11,18 @@ internal readonly record struct DebugEvidenceCaptureAttestation(
     int ViewportWidth,
     int ViewportHeight);
 
+internal readonly record struct DebugBaseProjectileEvidenceAttestation(
+    ulong StateHash,
+    long BulletId,
+    int OwnerId,
+    DebugEvidenceCaptureAttestation Capture);
+
 internal static class DebugEvidenceCaptureProtocol
 {
     internal const string CompletePrefix = "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_COMPLETE";
     internal const string ErrorPrefix = "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR";
+    internal const string BaseProjectileCompletePrefix = "DEBUG_BASE_PROJECTILE_EVIDENCE_COMPLETE";
+    internal const string BaseProjectileErrorPrefix = "DEBUG_BASE_PROJECTILE_EVIDENCE_ERROR";
 
     public static bool IsValidOutputPath(string? path)
     {
@@ -47,4 +55,29 @@ internal static class DebugEvidenceCaptureProtocol
         string.Create(
             CultureInfo.InvariantCulture,
             $"{ErrorPrefix} stage=wrong-screen screen={screen} expectedScreen={expectedScreen}");
+
+    public static string BaseProjectileCompleteMarker(DebugBaseProjectileEvidenceAttestation attestation) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{BaseProjectileCompletePrefix} stateHash={attestation.StateHash:x16} bulletId={attestation.BulletId} ownerId={attestation.OwnerId} screen={attestation.Capture.Screen} windowX={attestation.Capture.WindowX} windowY={attestation.Capture.WindowY} windowWidth={attestation.Capture.WindowWidth} windowHeight={attestation.Capture.WindowHeight} viewportWidth={attestation.Capture.ViewportWidth} viewportHeight={attestation.Capture.ViewportHeight}");
+
+    public static string BaseProjectileErrorMarker(string stage, int code) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{BaseProjectileErrorPrefix} stage={stage} code={code}");
+
+    public static string BaseProjectileWrongScreenMarker(int screen, int expectedScreen) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{BaseProjectileErrorPrefix} stage=wrong-screen screen={screen} expectedScreen={expectedScreen}");
+
+    public static void PublishPngCreateNew(string temporaryPngPath, string outputPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(temporaryPngPath);
+        if (!IsValidOutputPath(outputPath))
+        {
+            throw new ArgumentException("Evidence output must be an absolute PNG path.", nameof(outputPath));
+        }
+        File.Move(temporaryPngPath, outputPath, overwrite: false);
+    }
 }

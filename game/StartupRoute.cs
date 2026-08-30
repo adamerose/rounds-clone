@@ -5,6 +5,7 @@ internal enum StartupMode
     Match,
     Replay,
     DebugIncompleteFidelityEvidence,
+    DebugBaseProjectileEvidence,
     DebugAgentPlaytest,
 }
 
@@ -17,10 +18,15 @@ internal readonly record struct StartupRoute(
     internal const string Usage = "Usage: Rounds.Game -- --replay <path>";
     internal const string DebugIncompleteFidelityEvidenceArgument =
         "--debug-incomplete-fidelity-evidence";
+    internal const string DebugBaseProjectileEvidenceArgument =
+        "--debug-base-projectile-evidence";
     internal const string DebugAgentPlaytestArgument = "--debug-agent-playtest";
 
     public bool RunsContinuousPhysics =>
-        Mode is not (StartupMode.DebugIncompleteFidelityEvidence or StartupMode.DebugAgentPlaytest);
+        Mode is not (
+            StartupMode.DebugIncompleteFidelityEvidence or
+            StartupMode.DebugBaseProjectileEvidence or
+            StartupMode.DebugAgentPlaytest);
 
     public static StartupRoute Parse(ReadOnlySpan<string> arguments, bool allowDebugEvidence)
     {
@@ -38,6 +44,13 @@ internal readonly record struct StartupRoute(
             DebugEvidenceCaptureProtocol.IsValidOutputPath(arguments[1]))
         {
             return new StartupRoute(StartupMode.DebugIncompleteFidelityEvidence, null, arguments[1]);
+        }
+        if (allowDebugEvidence &&
+            arguments.Length == 2 &&
+            arguments[0] == DebugBaseProjectileEvidenceArgument &&
+            DebugEvidenceCaptureProtocol.IsValidOutputPath(arguments[1]))
+        {
+            return new StartupRoute(StartupMode.DebugBaseProjectileEvidence, null, arguments[1]);
         }
         if (allowDebugEvidence &&
             arguments.Length == 2 &&

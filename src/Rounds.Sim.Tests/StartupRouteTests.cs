@@ -142,6 +142,64 @@ public sealed class StartupRouteTests
     }
 
     [Fact]
+    public void BaseProjectileEvidenceArgumentIsDebugOnlyAbsoluteFrozenAndMutuallyExclusive()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), "rounds-base-projectile-evidence.png");
+        var arguments = new[] { StartupRoute.DebugBaseProjectileEvidenceArgument, outputPath };
+
+        var debug = StartupRoute.Parse(arguments, allowDebugEvidence: true);
+
+        Assert.Equal(StartupMode.DebugBaseProjectileEvidence, debug.Mode);
+        Assert.Null(debug.ReplayPath);
+        Assert.Equal(outputPath, debug.DebugEvidenceOutputPath);
+        Assert.Null(debug.DebugAgentPlaytestOutputRoot);
+        Assert.False(debug.RunsContinuousPhysics);
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(arguments, allowDebugEvidence: false));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { StartupRoute.DebugBaseProjectileEvidenceArgument },
+            allowDebugEvidence: true));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { StartupRoute.DebugBaseProjectileEvidenceArgument, "relative.png" },
+            allowDebugEvidence: true));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { StartupRoute.DebugBaseProjectileEvidenceArgument, Path.ChangeExtension(outputPath, ".jpg") },
+            allowDebugEvidence: true));
+        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
+            new[] { "--replay", "x", StartupRoute.DebugBaseProjectileEvidenceArgument, outputPath },
+            allowDebugEvidence: true));
+
+        var ordinary = StartupRoute.Parse(Array.Empty<string>(), allowDebugEvidence: false);
+        var replay = StartupRoute.Parse(new[] { "--replay", "x" }, allowDebugEvidence: false);
+        Assert.Equal(StartupMode.Match, ordinary.Mode);
+        Assert.Equal(StartupMode.Replay, replay.Mode);
+        Assert.True(ordinary.RunsContinuousPhysics);
+        Assert.True(replay.RunsContinuousPhysics);
+    }
+
+    [Fact]
+    public void BaseProjectileEvidenceReadyPathReusesFrozenCaptureBeforeAnyInputRead()
+    {
+        var main = File.ReadAllText(Path.Combine(FindRepository(), "game", "Main.cs"));
+        var readyStart = main.IndexOf("public override void _Ready()", StringComparison.Ordinal);
+        var readyEnd = main.IndexOf("private void RefuseUnavailableAgentPlaytestRenderer", StringComparison.Ordinal);
+        Assert.True(readyStart >= 0 && readyEnd > readyStart);
+        var ready = main[readyStart..readyEnd];
+
+        Assert.Contains(
+            "_world = DebugEvidenceMatchFactory.CreateBaseProjectileEvidence();",
+            ready,
+            StringComparison.Ordinal);
+        Assert.Contains("SetPhysicsProcess(false);", ready, StringComparison.Ordinal);
+        Assert.Equal(
+            1,
+            ready.Split(
+                "CaptureDebugEvidenceAsync(route.DebugEvidenceOutputPath!)",
+                StringSplitOptions.None).Length - 1);
+        Assert.DoesNotContain("Godot.Input", ready, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetGlobalMousePosition", ready, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RendererCaptureMarkersAreExactAndInvariant()
     {
         Assert.Equal(
@@ -157,6 +215,50 @@ public sealed class StartupRouteTests
         Assert.Equal(
             "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR stage=wrong-screen screen=1 expectedScreen=3",
             DebugEvidenceCaptureProtocol.WrongScreenMarker(1, 3));
+        Assert.Equal(
+            "DEBUG_BASE_PROJECTILE_EVIDENCE_COMPLETE stateHash=0123456789abcdef bulletId=0 ownerId=0 screen=3 windowX=811 windowY=-878 windowWidth=821 windowHeight=486 viewportWidth=1920 viewportHeight=1080",
+            DebugEvidenceCaptureProtocol.BaseProjectileCompleteMarker(
+                new DebugBaseProjectileEvidenceAttestation(
+                    0x0123456789abcdefUL,
+                    0,
+                    0,
+                    new DebugEvidenceCaptureAttestation(3, 811, -878, 821, 486, 1920, 1080))));
+        Assert.Equal(
+            "DEBUG_BASE_PROJECTILE_EVIDENCE_ERROR stage=save-png code=12",
+            DebugEvidenceCaptureProtocol.BaseProjectileErrorMarker("save-png", 12));
+        Assert.Equal(
+            "DEBUG_BASE_PROJECTILE_EVIDENCE_ERROR stage=wrong-screen screen=1 expectedScreen=3",
+            DebugEvidenceCaptureProtocol.BaseProjectileWrongScreenMarker(1, 3));
+    }
+
+    [Fact]
+    public void EvidencePngPublicationCreatesANewDestinationAndNeverOverwrites()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "rounds-evidence-publish-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var temporary = Path.Combine(directory, "temporary.png");
+            var output = Path.Combine(directory, "evidence.png");
+            File.WriteAllText(temporary, "new-pixels");
+            File.WriteAllText(output, "existing-pixels");
+
+            Assert.Throws<IOException>(() =>
+                DebugEvidenceCaptureProtocol.PublishPngCreateNew(temporary, output));
+            Assert.Equal("existing-pixels", File.ReadAllText(output));
+            Assert.Equal("new-pixels", File.ReadAllText(temporary));
+
+            File.Delete(output);
+            DebugEvidenceCaptureProtocol.PublishPngCreateNew(temporary, output);
+            Assert.False(File.Exists(temporary));
+            Assert.Equal("new-pixels", File.ReadAllText(output));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     [Fact]
@@ -185,5 +287,43 @@ public sealed class StartupRouteTests
         Assert.Equal(frozenHash, Match.Hash(first.Match));
         Assert.Equal(frozenTick, first.Match.World.Tick);
         Assert.Single(first.Match.AcquiredCardsFor(1));
+    }
+
+    [Fact]
+    public void BaseProjectileEvidenceUsesOneDeterministicVanillaSimulationProjectile()
+    {
+        var first = DebugEvidenceMatchFactory.CreateBaseProjectileEvidence();
+        var second = DebugEvidenceMatchFactory.CreateBaseProjectileEvidence();
+        var firstHash = Sim.Hash(first);
+
+        Assert.Equal(firstHash, Sim.Hash(second));
+        Assert.Equal(0x6a25f798f6582a29UL, firstHash);
+        Assert.Equal("arena-006", first.Arena.Id);
+        Assert.Equal(DuelPhase.Active, first.Phase);
+        Assert.Equal(PlayerTuning.Vanilla, first.Tuning);
+        Assert.Equal(CombatTuning.Vanilla, first.Combat);
+        Assert.All(first.Players, player => Assert.Same(PlayerCombatProfile.Vanilla, player.CombatProfile));
+
+        var bullet = Assert.Single(first.Bullets);
+        Assert.Equal(0, bullet.Id);
+        Assert.Equal(0, bullet.OwnerId);
+        Assert.Equal(CombatTuning.Vanilla.ProjectileRadius, bullet.Radius);
+        Assert.Equal(PlayerCombatProfile.Vanilla.BulletDamage, bullet.Damage);
+        Assert.Equal(PlayerCombatProfile.Vanilla.ProjectileBounces, bullet.BouncesRemaining);
+        Assert.Equal(PlayerCombatProfile.Vanilla.ProjectileSpeed, bullet.Velocity.Length, 12);
+        Assert.True(bullet.Velocity.Y > 0.0);
+        Assert.Equal(1, bullet.SweepsCompleted);
+        Assert.Equal(1, first.NextBulletId);
+        Assert.Equal(firstHash, Sim.Hash(first));
+    }
+
+    private static string FindRepository()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Rounds.sln")))
+        {
+            current = current.Parent;
+        }
+        return current?.FullName ?? throw new InvalidOperationException("Repository root was not found.");
     }
 }
