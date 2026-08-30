@@ -277,18 +277,118 @@ public sealed class Win32EvidencePipeCaptureTests
         AssertParentReadsClosedExactlyOnce(api, handles);
     }
 
-    [Fact]
-    public async Task Zero_byte_data_is_EOF_and_never_spins()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public async Task Zero_byte_activity_does_not_prove_EOF_and_explicit_broken_pipe_completes(
+        int zeroByteActivities)
     {
         var api = new FakePipeApi();
-        api.ZeroByteData(402);
+        api.Bytes(402, MarkerBytes());
+        for (var index = 0; index < zeroByteActivities; index++) api.ZeroByteData(402);
+        api.Eof(402);
         api.ZeroByteData(404);
+        api.Eof(404);
         var handles = ReadyHandles(api);
 
-        await Assert.ThrowsAsync<InvalidDataException>(() => Capture(api, handles));
+        var capture = await Capture(api, handles);
 
-        Assert.Equal(1, api.PollCount(402));
-        Assert.Equal(1, api.PollCount(404));
+        Assert.True(capture.StandardOutputEof);
+        Assert.True(capture.StandardErrorEof);
+        Assert.False(capture.Protocol.TimedOut);
+        Assert.Equal(zeroByteActivities + 2, api.PollCount(402));
+        Assert.Equal(2, api.PollCount(404));
+        AssertParentReadsClosedExactlyOnce(api, handles);
+    }
+
+    [Fact]
+    public async Task Zero_byte_activity_without_later_EOF_reaches_shared_deadline()
+    {
+        var api = new FakePipeApi();
+        api.Bytes(402, MarkerBytes());
+        api.ZeroByteData(402);
+        api.Eof(404);
+        var clock = new FakeClock(TimeSpan.FromSeconds(30) - TimeSpan.FromMilliseconds(5));
+        var handles = ReadyHandles(api);
+
+        var capture = await Capture(api, handles, clock: clock);
+
+        Assert.True(capture.Protocol.TimedOut);
+        Assert.False(capture.StandardOutputEof);
+        Assert.True(api.PollCount(402) >= 2);
+        AssertParentReadsClosedExactlyOnce(api, handles);
+    }
+
+    [Fact]
+    public void Native_adapter_treats_successful_zero_byte_read_as_no_progress()
+    {
+        var native = new FakeNativePipeApi();
+        native.Peek(success: true, available: 1, error: 0);
+        native.Read(success: true, read: 0, error: 0);
+
+        var poll = new Win32PipeReadApi(native).Poll(402, 1);
+
+        Assert.Equal(Win32PipePollKind.NoData, poll.Kind);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Native_adapter_treats_ERROR_NO_DATA_as_no_progress_not_EOF(bool duringRead)
+    {
+        var native = new FakeNativePipeApi();
+        if (duringRead)
+        {
+            native.Peek(success: true, available: 1, error: 0);
+            native.Read(success: false, read: 0, error: 232);
+        }
+        else
+        {
+            native.Peek(success: false, available: 0, error: 232);
+        }
+
+        var poll = new Win32PipeReadApi(native).Poll(402, 1);
+
+        Assert.Equal(Win32PipePollKind.NoData, poll.Kind);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Native_adapter_accepts_only_ERROR_BROKEN_PIPE_as_EOF(bool duringRead)
+    {
+        var native = new FakeNativePipeApi();
+        if (duringRead)
+        {
+            native.Peek(success: true, available: 1, error: 0);
+            native.Read(success: false, read: 0, error: 109);
+        }
+        else
+        {
+            native.Peek(success: false, available: 0, error: 109);
+        }
+
+        var poll = new Win32PipeReadApi(native).Poll(402, 1);
+
+        Assert.Equal(Win32PipePollKind.EndOfFile, poll.Kind);
+    }
+
+    [Fact]
+    public async Task Synchronous_second_drain_start_failure_cancels_and_observes_first_before_close()
+    {
+        var api = new FakePipeApi();
+        var starter = new FailSecondDrainStarter(api);
+        var handles = ReadyHandles(api);
+
+        var failure = await Assert.ThrowsAsync<IOException>(() =>
+            Capture(api, handles, drainStarter: starter));
+
+        Assert.Equal("injected second drain start failure", failure.Message);
+        Assert.True(starter.FirstDrainCompleted);
+        Assert.True(starter.FirstDrainSawOpenHandles);
+        Assert.NotNull(starter.FirstDrainTask);
+        Assert.True(starter.FirstDrainTask.IsCompletedSuccessfully);
+        Assert.Empty(api.Writes);
         AssertParentReadsClosedExactlyOnce(api, handles);
     }
 
@@ -333,8 +433,12 @@ public sealed class Win32EvidencePipeCaptureTests
         FakePipeApi api,
         Win32LaunchHandleLease handles,
         FakeClock? clock = null,
+        IWin32PipeDrainStarter? drainStarter = null,
         CancellationToken cancellationToken = default) =>
-        new Win32BoundedPipeCapture(api, clock ?? new FakeClock(TimeSpan.Zero)).CaptureAsync(
+        new Win32BoundedPipeCapture(
+            api,
+            clock ?? new FakeClock(TimeSpan.Zero),
+            drainStarter).CaptureAsync(
             handles,
             new Win32JobDeadline(100, TimeSpan.FromSeconds(30)),
             Win32BoundedPipeCapture.RequiredStandardOutputCapBytes,
@@ -412,6 +516,62 @@ public sealed class Win32EvidencePipeCaptureTests
         {
             lock (_gate) _elapsed += duration;
             OnDelay?.Invoke();
+        }
+    }
+
+    private sealed class FailSecondDrainStarter(FakePipeApi api) : IWin32PipeDrainStarter
+    {
+        private int _startCount;
+
+        internal Task? FirstDrainTask { get; private set; }
+        internal bool FirstDrainCompleted { get; private set; }
+        internal bool FirstDrainSawOpenHandles { get; private set; }
+
+        public Task<T> Start<T>(Func<T> operation, CancellationToken stopToken)
+        {
+            if (Interlocked.Increment(ref _startCount) == 2)
+            {
+                throw new IOException("injected second drain start failure");
+            }
+
+            var task = Task.Run(() =>
+            {
+                Assert.True(stopToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(2)));
+                FirstDrainSawOpenHandles = api.CloseCount(402) == 0 && api.CloseCount(404) == 0;
+                var result = operation();
+                FirstDrainCompleted = true;
+                return result;
+            });
+            FirstDrainTask = task;
+            return task;
+        }
+    }
+
+    private sealed class FakeNativePipeApi : IWin32PipeNativeApi
+    {
+        private readonly Queue<(bool Success, uint Available, int Error)> _peek = new();
+        private readonly Queue<(bool Success, uint Read, int Error)> _read = new();
+
+        internal void Peek(bool success, uint available, int error) =>
+            _peek.Enqueue((success, available, error));
+
+        internal void Read(bool success, uint read, int error) =>
+            _read.Enqueue((success, read, error));
+
+        public bool Peek(nint handle, out uint available, out int error)
+        {
+            var result = _peek.Dequeue();
+            available = result.Available;
+            error = result.Error;
+            return result.Success;
+        }
+
+        public bool Read(nint handle, byte[] buffer, out uint read, out int error)
+        {
+            var result = _read.Dequeue();
+            read = result.Read;
+            error = result.Error;
+            return result.Success;
         }
     }
 

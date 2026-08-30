@@ -29,6 +29,20 @@ internal interface IWin32PipeReadApi
     Win32PipePoll Poll(nint handle, int maximumBytes);
 }
 
+internal interface IWin32PipeDrainStarter
+{
+    Task<T> Start<T>(Func<T> operation, CancellationToken stopToken);
+}
+
+internal sealed class Win32PipeDrainStarter : IWin32PipeDrainStarter
+{
+    public Task<T> Start<T>(Func<T> operation, CancellationToken stopToken)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        return Task.Run(operation, CancellationToken.None);
+    }
+}
+
 internal sealed class Win32ProtocolReadHandleLease : IDisposable
 {
     private readonly IWin32KernelHandleCloser _closer;
@@ -99,9 +113,7 @@ internal sealed record Win32BoundedProtocolCapture(
     bool StandardErrorEof,
     EvidenceProtocolCapture Protocol);
 
-internal sealed class Win32BoundedPipeCapture(
-    IWin32PipeReadApi pipeApi,
-    IWin32MonotonicClock clock)
+internal sealed class Win32BoundedPipeCapture
 {
     internal const int RequiredStandardOutputCapBytes = 8_192;
     internal const int RequiredStandardErrorCapBytes = 65_536;
@@ -111,6 +123,19 @@ internal sealed class Win32BoundedPipeCapture(
     private static readonly UTF8Encoding StrictUtf8 = new(
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
+    private readonly IWin32PipeReadApi _pipeApi;
+    private readonly IWin32MonotonicClock _clock;
+    private readonly IWin32PipeDrainStarter _drainStarter;
+
+    internal Win32BoundedPipeCapture(
+        IWin32PipeReadApi pipeApi,
+        IWin32MonotonicClock clock,
+        IWin32PipeDrainStarter? drainStarter = null)
+    {
+        _pipeApi = pipeApi ?? throw new ArgumentNullException(nameof(pipeApi));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _drainStarter = drainStarter ?? new Win32PipeDrainStarter();
+    }
 
     internal async Task<Win32BoundedProtocolCapture> CaptureAsync(
         Win32LaunchHandleLease launchHandles,
@@ -135,22 +160,45 @@ internal sealed class Win32BoundedPipeCapture(
         {
             readHandles = launchHandles.TransferProtocolReadHandles();
             using var stop = new CancellationTokenSource();
-            var standardOutputTask = Task.Run(
-                () => Drain(
-                    readHandles.StandardOutputRead,
-                    standardOutputCapBytes,
-                    deadline,
-                    stop,
-                    cancellationToken),
-                CancellationToken.None);
-            var standardErrorTask = Task.Run(
-                () => Drain(
-                    readHandles.StandardErrorRead,
-                    standardErrorCapBytes,
-                    deadline,
-                    stop,
-                    cancellationToken),
-                CancellationToken.None);
+            Task<Win32PipeDrainResult>? standardOutputTask = null;
+            Task<Win32PipeDrainResult>? standardErrorTask = null;
+            try
+            {
+                standardOutputTask = _drainStarter.Start(
+                    () => Drain(
+                        readHandles.StandardOutputRead,
+                        standardOutputCapBytes,
+                        deadline,
+                        stop,
+                        cancellationToken),
+                    stop.Token);
+                standardErrorTask = _drainStarter.Start(
+                    () => Drain(
+                        readHandles.StandardErrorRead,
+                        standardErrorCapBytes,
+                        deadline,
+                        stop,
+                        cancellationToken),
+                    stop.Token);
+            }
+            catch (Exception startFailure)
+            {
+                stop.Cancel();
+                if (standardOutputTask is not null)
+                {
+                    startFailure = await ObserveStartedDrainAsync(
+                        standardOutputTask,
+                        startFailure).ConfigureAwait(false);
+                }
+                if (standardErrorTask is not null)
+                {
+                    startFailure = await ObserveStartedDrainAsync(
+                        standardErrorTask,
+                        startFailure).ConfigureAwait(false);
+                }
+                ExceptionDispatchInfo.Capture(startFailure).Throw();
+                throw new InvalidOperationException("Unreachable after drain startup failure.");
+            }
             await Task.WhenAll(standardOutputTask, standardErrorTask).ConfigureAwait(false);
             standardOutput = standardOutputTask.Result;
             standardError = standardErrorTask.Result;
@@ -223,7 +271,7 @@ internal sealed class Win32BoundedPipeCapture(
                     return Win32PipeDrainResult.Stopped(bytes.ToArray(), observed);
                 }
 
-                var elapsed = clock.GetElapsedTime(deadline.StartingTimestamp);
+                var elapsed = _clock.GetElapsedTime(deadline.StartingTimestamp);
                 if (elapsed >= deadline.Timeout)
                 {
                     stop.Cancel();
@@ -235,7 +283,7 @@ internal sealed class Win32BoundedPipeCapture(
                 // cap+1 while retaining only the exact capped prefix, never unbounded output.
                 var retained = checked((int)bytes.Length);
                 var maximumPollBytes = Math.Min(MaximumReadBytes, checked(capBytes - retained + 1));
-                var read = pipeApi.Poll(handle, maximumPollBytes);
+                var read = _pipeApi.Poll(handle, maximumPollBytes);
                 switch (read.Kind)
                 {
                     case Win32PipePollKind.NoData:
@@ -246,7 +294,8 @@ internal sealed class Win32BoundedPipeCapture(
                     case Win32PipePollKind.Data:
                         if (read.Data.Length == 0)
                         {
-                            return Win32PipeDrainResult.Eof(bytes.ToArray(), observed);
+                            DelayWithinDeadline(deadline);
+                            break;
                         }
                         if (read.Data.Length > maximumPollBytes)
                         {
@@ -275,10 +324,25 @@ internal sealed class Win32BoundedPipeCapture(
 
     private void DelayWithinDeadline(Win32JobDeadline deadline)
     {
-        var elapsed = clock.GetElapsedTime(deadline.StartingTimestamp);
+        var elapsed = _clock.GetElapsedTime(deadline.StartingTimestamp);
         if (elapsed >= deadline.Timeout) return;
         var remaining = deadline.Timeout - elapsed;
-        clock.Delay(remaining < PollDelay ? remaining : PollDelay);
+        _clock.Delay(remaining < PollDelay ? remaining : PollDelay);
+    }
+
+    private static async Task<Exception> ObserveStartedDrainAsync(
+        Task startedDrain,
+        Exception startFailure)
+    {
+        try
+        {
+            await startedDrain.ConfigureAwait(false);
+            return startFailure;
+        }
+        catch (Exception drainFailure)
+        {
+            return new AggregateException(startFailure, drainFailure);
+        }
     }
 
     private static string DecodeStrict(byte[] bytes, string stream)
@@ -335,41 +399,71 @@ internal sealed class Win32PipeReadApi : IWin32PipeReadApi
     private const int ErrorBrokenPipe = 109;
     private const int ErrorNoData = 232;
 
+    private readonly IWin32PipeNativeApi _nativeApi;
+
+    internal Win32PipeReadApi(IWin32PipeNativeApi? nativeApi = null)
+    {
+        _nativeApi = nativeApi ?? new Win32PipeNativeApi();
+    }
+
     public Win32PipePoll Poll(nint handle, int maximumBytes)
     {
         if (maximumBytes <= 0) throw new ArgumentOutOfRangeException(nameof(maximumBytes));
-        if (!Win32PipeNativeMethods.PeekNamedPipe(
-                handle,
-                0,
-                0,
-                out _,
-                out var available,
-                out _))
+        if (!_nativeApi.Peek(handle, out var available, out var peekError))
         {
-            return EndOfFileOrThrow("PeekNamedPipe");
+            return PollFailureOrThrow(peekError, "PeekNamedPipe");
         }
         if (available == 0) return Win32PipePoll.NoData();
 
         var bytes = new byte[Math.Min(maximumBytes, checked((int)available))];
-        if (!Win32PipeNativeMethods.ReadFile(
-                handle,
-                bytes,
-                checked((uint)bytes.Length),
-                out var read,
-                0))
+        if (!_nativeApi.Read(handle, bytes, out var read, out var readError))
         {
-            return EndOfFileOrThrow("ReadFile");
+            return PollFailureOrThrow(readError, "ReadFile");
         }
-        if (read == 0) return Win32PipePoll.EndOfFile();
+        if (read == 0) return Win32PipePoll.NoData();
         if (read != bytes.Length) Array.Resize(ref bytes, checked((int)read));
         return Win32PipePoll.Bytes(bytes);
     }
 
-    private static Win32PipePoll EndOfFileOrThrow(string operation)
+    private static Win32PipePoll PollFailureOrThrow(int error, string operation)
     {
-        var error = Marshal.GetLastPInvokeError();
-        if (error is ErrorBrokenPipe or ErrorNoData) return Win32PipePoll.EndOfFile();
+        if (error == ErrorBrokenPipe) return Win32PipePoll.EndOfFile();
+        if (error == ErrorNoData) return Win32PipePoll.NoData();
         throw new Win32Exception(error, $"{operation} failed for an evidence protocol pipe.");
+    }
+}
+
+internal interface IWin32PipeNativeApi
+{
+    bool Peek(nint handle, out uint available, out int error);
+    bool Read(nint handle, byte[] buffer, out uint read, out int error);
+}
+
+internal sealed class Win32PipeNativeApi : IWin32PipeNativeApi
+{
+    public bool Peek(nint handle, out uint available, out int error)
+    {
+        var success = Win32PipeNativeMethods.PeekNamedPipe(
+            handle,
+            0,
+            0,
+            out _,
+            out available,
+            out _);
+        error = success ? 0 : Marshal.GetLastPInvokeError();
+        return success;
+    }
+
+    public bool Read(nint handle, byte[] buffer, out uint read, out int error)
+    {
+        var success = Win32PipeNativeMethods.ReadFile(
+            handle,
+            buffer,
+            checked((uint)buffer.Length),
+            out read,
+            0);
+        error = success ? 0 : Marshal.GetLastPInvokeError();
+        return success;
     }
 }
 
