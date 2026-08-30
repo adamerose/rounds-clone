@@ -10,6 +10,7 @@ internal static class Win32EvidenceConstants
 {
     internal const uint ProcThreadAttributeHandleList = 0x00020002;
     internal const uint HandleFlagInherit = 0x00000001;
+    internal const uint StartfUseStdHandles = 0x00000100;
     internal const uint DesktopCreateWindow = 0x0002;
     internal const uint DesktopReadObjects = 0x0001;
     internal const uint DesktopWriteObjects = 0x0080;
@@ -354,6 +355,11 @@ internal sealed class Win32LaunchHandleLease : IEvidenceLaunchHandleLease
             standardErrorWrite,
             acknowledgementRead,
         };
+        ChildHandleValues = new Win32ChildHandleValues(
+            standardInputRead,
+            standardOutputWrite,
+            standardErrorWrite,
+            acknowledgementRead);
         AcknowledgementReadHandleValue = ((nuint)acknowledgementRead).ToString(CultureInfo.InvariantCulture);
         _acknowledgementWrite = acknowledgementWrite;
     }
@@ -370,6 +376,10 @@ internal sealed class Win32LaunchHandleLease : IEvidenceLaunchHandleLease
     public bool ParentEndpointsAreNonInheritable => true;
 
     public string AcknowledgementReadHandleValue { get; }
+
+    internal Win32ChildHandleValues ChildHandleValues { get; }
+
+    internal bool ReadyForProcessCreation => !_disposed && !_processCreationCompleted;
 
     public void CompleteSuccessfulProcessCreation()
     {
@@ -518,7 +528,7 @@ internal static class Win32EvidenceNativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool CreateProcessW(
         string applicationName,
-        char[] commandLine,
+        nint commandLine,
         nint processAttributes,
         nint threadAttributes,
         [MarshalAs(UnmanagedType.Bool)] bool inheritHandles,
