@@ -71,6 +71,7 @@ internal sealed record EvidenceBuildAttestation(
     EvidenceBuildInvocation Invocation,
     EvidenceCandidateIdentity Candidate,
     EvidenceOpenedExecutableIdentity MsBuild,
+    EvidenceOpenedExecutableIdentity BuildProcessImage,
     EvidenceRuntimeAssemblyIdentity RuntimeAssembly,
     bool ZeroWarnings,
     bool DeletedPriorOutput);
@@ -104,7 +105,11 @@ internal sealed record EvidenceRuntimeAssemblyIdentity(
 
 internal interface IEvidenceBuildDriver
 {
-    EvidenceBuildAttestation RebuildAndAttest(EvidenceBuildInvocation required);
+    IEvidenceExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required);
+
+    EvidenceBuildAttestation RebuildAndAttest(
+        EvidenceBuildInvocation required,
+        IEvidenceExecutableLease msBuildExecutable);
 }
 
 [Flags]
@@ -133,6 +138,11 @@ internal sealed record EvidenceChildHandleDescriptor(
 internal interface IEvidenceDesktopLease : IDisposable
 {
     string Name { get; }
+}
+
+internal interface IEvidenceExecutableLease : IDisposable
+{
+    EvidenceOpenedExecutableIdentity Identity { get; }
 }
 
 internal interface IEvidenceLaunchHandleLease : IDisposable
@@ -252,6 +262,8 @@ internal interface IEvidenceNativeBoundary
 
     EvidenceNativePreflight RevalidatePreflight(BaseProjectileEvidenceLaunchPlan plan);
 
+    IEvidenceExecutableLease OpenGodotExecutable(BaseProjectileEvidenceLaunchPlan plan);
+
     IEvidenceDesktopLease CreatePrivateDesktop(string name);
 
     IEvidenceLaunchHandleLease CreateHandleAllowlist();
@@ -260,7 +272,11 @@ internal interface IEvidenceNativeBoundary
         BaseProjectileEvidenceLaunchPlan plan,
         IEvidenceDesktopLease desktop,
         IEvidenceLaunchHandleLease handles,
+        IEvidenceExecutableLease executable,
         EvidenceCreateProcessContract contract);
+
+    EvidenceOpenedExecutableIdentity ReadSuspendedProcessImageIdentity(
+        EvidenceProcessLease process);
 
     IEvidenceJobLease CreateJob();
 
@@ -327,16 +343,33 @@ internal sealed class EvidenceLaunchOrchestrator(
     {
         ArgumentNullException.ThrowIfNull(plan);
         var requiredBuild = EvidenceBuildContract.Create(plan);
-        EvidenceBuildAttestation attestation;
+        EvidenceBuildAttestation? attestation = null;
+        IEvidenceExecutableLease? msBuildExecutable = null;
+        EvidenceOpenedExecutableIdentity? msBuildLeaseIdentity = null;
         try
         {
-            attestation = build.RebuildAndAttest(requiredBuild);
+            msBuildExecutable = build.OpenMsBuildExecutable(requiredBuild);
+            msBuildLeaseIdentity = msBuildExecutable.Identity;
+            attestation = build.RebuildAndAttest(requiredBuild, msBuildExecutable);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return EvidenceLaunchResult.Failed("build-driver");
         }
-        if (!BuildMatches(plan, requiredBuild, attestation))
+        finally
+        {
+            try
+            {
+                msBuildExecutable?.Dispose();
+            }
+            catch (Exception)
+            {
+                // A build lease cleanup failure leaves attribution untrustworthy.
+                attestation = null;
+            }
+        }
+        if (attestation is null || msBuildLeaseIdentity is null ||
+            !BuildMatches(plan, requiredBuild, msBuildLeaseIdentity, attestation))
         {
             return EvidenceLaunchResult.Failed("build-attribution");
         }
@@ -344,16 +377,16 @@ internal sealed class EvidenceLaunchOrchestrator(
         var executionState = new EvidenceExecutionState();
         try
         {
-            return native.RunOnDedicatedWorker(() => ExecuteNative(plan, attestation, executionState));
+            var result = native.RunOnDedicatedWorker(() => ExecuteNative(plan, attestation, executionState));
+            return executionState.CleanupFailures.Count == 0
+                ? result
+                : EvidenceLaunchResult.Failed("cleanup", ResidueFor(executionState, plan));
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return EvidenceLaunchResult.Failed(
-                "native-boundary",
-                executionState.AcknowledgementMayHaveReleasedLeases ||
-                (executionState.Resumed && !executionState.TerminationObserved)
-                    ? plan.OutputRoot
-                    : null);
+                executionState.CleanupFailures.Count == 0 ? "native-boundary" : "cleanup",
+                ResidueFor(executionState, plan));
         }
     }
 
@@ -364,6 +397,7 @@ internal sealed class EvidenceLaunchOrchestrator(
     {
         IEvidenceDesktopLease? desktop = null;
         IEvidenceLaunchHandleLease? handles = null;
+        IEvidenceExecutableLease? executable = null;
         EvidenceProcessLease? process = null;
         IEvidenceJobLease? job = null;
         IEvidenceForegroundObserverLease? foregroundObserver = null;
@@ -380,11 +414,12 @@ internal sealed class EvidenceLaunchOrchestrator(
             {
                 return EvidenceLaunchResult.Failed("handle-allowlist");
             }
+            executable = native.OpenGodotExecutable(plan);
 
             // This identity/topology snapshot is deliberately the final operation
             // before direct suspended process creation.
             var preflight = native.RevalidatePreflight(plan);
-            if (!PreflightMatches(plan, buildAttestation, inputDesktopBefore, preflight))
+            if (!PreflightMatches(plan, buildAttestation, executable, inputDesktopBefore, preflight))
             {
                 return EvidenceLaunchResult.Failed("preflight");
             }
@@ -396,7 +431,11 @@ internal sealed class EvidenceLaunchOrchestrator(
                 CreateProcessEnvironment(plan, handles),
                 UseShell: false,
                 Array.AsReadOnly(RequiredHandles));
-            process = native.CreateSuspendedProcess(plan, desktop, handles, processContract);
+            process = native.CreateSuspendedProcess(plan, desktop, handles, executable, processContract);
+            if (native.ReadSuspendedProcessImageIdentity(process) != executable.Identity)
+            {
+                return EvidenceLaunchResult.Failed("child-image-identity");
+            }
             job = native.CreateJob();
             native.ConfigureJob(job, plan.JobLimits);
             native.AssignProcess(job, process);
@@ -473,11 +512,14 @@ internal sealed class EvidenceLaunchOrchestrator(
             // Closing the kill-on-close job is always the first cleanup after it exists.
             // No output cleanup operation is exposed by this boundary: resumed failures
             // with unproven ownership report the exact residue for attended recovery.
-            job?.Dispose();
-            foregroundObserver?.Dispose();
-            process?.Dispose();
-            handles?.Dispose();
-            desktop?.Dispose();
+            DisposeAllBestEffort(
+                executionState,
+                job,
+                foregroundObserver,
+                process,
+                handles,
+                executable,
+                desktop);
         }
     }
 
@@ -489,10 +531,13 @@ internal sealed class EvidenceLaunchOrchestrator(
     private static bool BuildMatches(
         BaseProjectileEvidenceLaunchPlan plan,
         EvidenceBuildInvocation required,
+        EvidenceOpenedExecutableIdentity msBuildLeaseIdentity,
         EvidenceBuildAttestation actual) =>
         InvocationMatches(required, actual.Invocation) &&
         ValidCandidate(plan, actual.Candidate) &&
+        actual.MsBuild == msBuildLeaseIdentity &&
         ValidMsBuild(actual.MsBuild, required.Executable) &&
+        actual.BuildProcessImage == actual.MsBuild &&
         ValidRuntimeAssembly(plan, actual.RuntimeAssembly) &&
         actual.DeletedPriorOutput && actual.ZeroWarnings;
 
@@ -508,6 +553,7 @@ internal sealed class EvidenceLaunchOrchestrator(
     private static bool PreflightMatches(
         BaseProjectileEvidenceLaunchPlan plan,
         EvidenceBuildAttestation buildAttestation,
+        IEvidenceExecutableLease executable,
         string inputDesktopBefore,
         EvidenceNativePreflight actual) =>
         string.Equals(inputDesktopBefore, plan.InputDesktopIdentity, StringComparison.Ordinal) &&
@@ -518,7 +564,7 @@ internal sealed class EvidenceLaunchOrchestrator(
         actual.Monitor.PhysicalBounds.Contains(plan.WindowBounds) && actual.OutputRootAbsent &&
         actual.OutputAncestors.SequenceEqual(plan.OutputAncestors) &&
         actual.Candidate == buildAttestation.Candidate && ValidCandidate(plan, actual.Candidate) &&
-        ValidGodot(plan, actual.Godot) &&
+        actual.Godot == executable.Identity && ValidGodot(plan, actual.Godot) &&
         actual.RuntimeAssembly == buildAttestation.RuntimeAssembly &&
         ValidRuntimeAssembly(plan, actual.RuntimeAssembly);
 
@@ -610,6 +656,76 @@ internal sealed class EvidenceLaunchOrchestrator(
         frame.RootIdentityBound && frame.FrameIdentityBound &&
         frame.RootLeaseObserved && frame.FrameLeaseObserved && frame.ContainsOnlyExpectedFrame;
 
+    private static string? ResidueFor(
+        EvidenceExecutionState state,
+        BaseProjectileEvidenceLaunchPlan plan) =>
+        state.AcknowledgementMayHaveReleasedLeases ||
+        (state.Resumed && !state.TerminationObserved)
+            ? plan.OutputRoot
+            : null;
+
+    private static void DisposeAllBestEffort(
+        EvidenceExecutionState state,
+        IEvidenceJobLease? job,
+        IEvidenceForegroundObserverLease? foregroundObserver,
+        EvidenceProcessLease? process,
+        IEvidenceLaunchHandleLease? handles,
+        IEvidenceExecutableLease? executable,
+        IEvidenceDesktopLease? desktop)
+    {
+        try
+        {
+            DisposeOne(state, "job", job);
+        }
+        finally
+        {
+            try
+            {
+                DisposeOne(state, "foreground-observer", foregroundObserver);
+            }
+            finally
+            {
+                try
+                {
+                    DisposeOne(state, "process", process);
+                }
+                finally
+                {
+                    try
+                    {
+                        DisposeOne(state, "handles", handles);
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            DisposeOne(state, "executable", executable);
+                        }
+                        finally
+                        {
+                            DisposeOne(state, "desktop", desktop);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void DisposeOne(
+        EvidenceExecutionState state,
+        string name,
+        IDisposable? disposable)
+    {
+        try
+        {
+            disposable?.Dispose();
+        }
+        catch (Exception)
+        {
+            state.CleanupFailures.Add(name);
+        }
+    }
+
     private sealed class EvidenceExecutionState
     {
         public bool Resumed { get; set; }
@@ -617,5 +733,7 @@ internal sealed class EvidenceLaunchOrchestrator(
         public bool TerminationObserved { get; set; }
 
         public bool AcknowledgementMayHaveReleasedLeases { get; set; }
+
+        public List<string> CleanupFailures { get; } = new();
     }
 }

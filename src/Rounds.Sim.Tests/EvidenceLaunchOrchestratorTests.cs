@@ -22,12 +22,13 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal(
             new[]
             {
-                "build", "worker-enter", "input-desktop", "desktop-create", "handles-create",
-                "preflight", "process-create-suspended", "job-create", "job-configure",
+                "build-executable-open", "build", "build-executable-dispose", "worker-enter",
+                "input-desktop", "desktop-create", "handles-create", "godot-executable-open",
+                "preflight", "process-create-suspended", "child-image-match", "job-create", "job-configure",
                 "job-assign", "process-transfer-to-job", "foreground-start", "resume-and-deadline", "capture-protocol", "frame-validate",
                 "ack-close:06", "process-wait", "job-wait-empty", "foreground-stop-read",
                 "input-desktop", "job-dispose", "foreground-dispose", "process-dispose", "handles-dispose",
-                "desktop-dispose", "worker-exit",
+                "godot-executable-dispose", "desktop-dispose", "worker-exit",
             },
             events);
         var contract = Assert.IsType<EvidenceCreateProcessContract>(native.ProcessContract);
@@ -80,7 +81,7 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         Assert.False(result.Success);
         Assert.Equal("build-attribution", result.Code);
-        Assert.Equal(new[] { "build" }, events);
+        Assert.Equal(new[] { "build-executable-open", "build", "build-executable-dispose" }, events);
     }
 
     [Theory]
@@ -89,6 +90,7 @@ public sealed class EvidenceLaunchOrchestratorTests
     [InlineData("msbuild-version")]
     [InlineData("msbuild-handle")]
     [InlineData("runtime")]
+    [InlineData("process-image")]
     public void Build_identity_mismatch_refuses_before_native_worker(string field)
     {
         var events = new List<string>();
@@ -101,6 +103,7 @@ public sealed class EvidenceLaunchOrchestratorTests
             "msbuild-version" => valid with { MsBuild = valid.MsBuild with { FileVersion = "17.0" } },
             "msbuild-handle" => valid with { MsBuild = valid.MsBuild with { OpenedHandleIdentity = "" } },
             "runtime" => valid with { RuntimeAssembly = valid.RuntimeAssembly with { Mvid = new string('0', 32) } },
+            "process-image" => valid with { BuildProcessImage = valid.BuildProcessImage with { OpenedHandleIdentity = "replacement" } },
             _ => throw new InvalidOperationException("unknown test field"),
         };
 
@@ -110,7 +113,24 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         Assert.False(result.Success);
         Assert.Equal("build-attribution", result.Code);
-        Assert.Equal(new[] { "build" }, events);
+        Assert.Equal(new[] { "build-executable-open", "build", "build-executable-dispose" }, events);
+    }
+
+    [Fact]
+    public void Build_process_is_bound_to_the_retained_opened_msbuild_lease()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var build = new FakeBuild(events, plan)
+        {
+            LeaseIdentityOverride = ValidMsBuild() with { OpenedHandleIdentity = "replacement" },
+        };
+
+        var result = new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("build-attribution", result.Code);
+        Assert.DoesNotContain("worker-enter", events);
     }
 
     [Fact]
@@ -327,6 +347,54 @@ public sealed class EvidenceLaunchOrchestratorTests
     }
 
     [Theory]
+    [InlineData("job")]
+    [InlineData("foreground")]
+    [InlineData("process")]
+    [InlineData("handles")]
+    [InlineData("desktop")]
+    [InlineData("executable")]
+    public void Disposal_failure_never_skips_later_owned_lease_cleanup(string lease)
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan) { DisposeFailure = lease };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("cleanup", result.Code);
+        Assert.Equal(plan.OutputRoot, result.PreservedUnprovenResidueRoot);
+        Assert.Contains("job-dispose", events);
+        Assert.Contains("foreground-dispose", events);
+        Assert.Contains("process-dispose", events);
+        Assert.Contains("handles-dispose", events);
+        Assert.Contains("godot-executable-dispose", events);
+        Assert.Contains("desktop-dispose", events);
+    }
+
+    [Fact]
+    public void Failed_assignment_still_terminates_process_when_job_disposal_throws()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan)
+        {
+            FailureStage = "job-assign",
+            DisposeFailure = "job",
+        };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Contains("job-dispose", events);
+        Assert.Contains("process-terminate-unassigned", events);
+        Assert.Contains("process-dispose", events);
+        Assert.Contains("handles-dispose", events);
+        Assert.Contains("godot-executable-dispose", events);
+        Assert.Contains("desktop-dispose", events);
+    }
+
+    [Theory]
     [InlineData("output")]
     [InlineData("candidate")]
     [InlineData("godot-identity")]
@@ -358,9 +426,28 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal("preflight", result.Code);
         Assert.Contains("desktop-create", events);
         Assert.Contains("handles-create", events);
-        Assert.Equal("preflight", events[^4]);
+        Assert.True(events.IndexOf("godot-executable-open") < events.IndexOf("preflight"));
         Assert.DoesNotContain("process-create-suspended", events);
         Assert.Equal("worker-exit", events[^1]);
+    }
+
+    [Fact]
+    public void Suspended_child_image_replacement_refuses_before_resume_and_terminates_process()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan)
+        {
+            SuspendedProcessImage = ValidGodot(plan) with { OpenedHandleIdentity = "replacement" },
+        };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("child-image-identity", result.Code);
+        Assert.Contains("child-image-match", events);
+        Assert.Contains("process-terminate-unassigned", events);
+        Assert.DoesNotContain("resume-and-deadline", events);
     }
 
     [Theory]
@@ -431,6 +518,7 @@ public sealed class EvidenceLaunchOrchestratorTests
         new(
             EvidenceBuildContract.Create(plan),
             ValidCandidate(plan),
+            ValidMsBuild(),
             ValidMsBuild(),
             ValidRuntimeAssembly(plan),
             ZeroWarnings: true,
@@ -526,11 +614,43 @@ public sealed class EvidenceLaunchOrchestratorTests
     {
         public EvidenceBuildAttestation? Override { get; init; }
 
-        public EvidenceBuildAttestation RebuildAndAttest(EvidenceBuildInvocation required)
+        public EvidenceOpenedExecutableIdentity? LeaseIdentityOverride { get; init; }
+
+        public IEvidenceExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required)
+        {
+            events.Add("build-executable-open");
+            return new FakeExecutableLease(
+                events,
+                LeaseIdentityOverride ?? ValidMsBuild(),
+                "build-executable-dispose",
+                throwOnDispose: false);
+        }
+
+        public EvidenceBuildAttestation RebuildAndAttest(
+            EvidenceBuildInvocation required,
+            IEvidenceExecutableLease msBuildExecutable)
         {
             events.Add("build");
             var attestation = Override ?? ValidBuild(plan);
             return attestation with { Invocation = required };
+        }
+    }
+
+    private sealed class FakeExecutableLease(
+        List<string> events,
+        EvidenceOpenedExecutableIdentity identity,
+        string disposeEvent,
+        bool throwOnDispose) : IEvidenceExecutableLease
+    {
+        public EvidenceOpenedExecutableIdentity Identity { get; } = identity;
+
+        public void Dispose()
+        {
+            events.Add(disposeEvent);
+            if (throwOnDispose)
+            {
+                throw new InvalidOperationException("fake executable disposal failure");
+            }
         }
     }
 
@@ -572,6 +692,10 @@ public sealed class EvidenceLaunchOrchestratorTests
         public bool ThrowDuringForegroundStop { get; init; }
 
         public bool ThrowAfterWorkerOperation { get; init; }
+
+        public string? DisposeFailure { get; init; }
+
+        public EvidenceOpenedExecutableIdentity? SuspendedProcessImage { get; init; }
 
         public IReadOnlyList<EvidenceChildHandleDescriptor> Handles { get; init; } =
             Array.AsReadOnly(new[]
@@ -625,27 +749,50 @@ public sealed class EvidenceLaunchOrchestratorTests
             return Preflight;
         }
 
+        public IEvidenceExecutableLease OpenGodotExecutable(BaseProjectileEvidenceLaunchPlan plan)
+        {
+            _events.Add("godot-executable-open");
+            return new FakeExecutableLease(
+                _events,
+                ValidGodot(plan),
+                "godot-executable-dispose",
+                DisposeFailure == "executable");
+        }
+
         public IEvidenceDesktopLease CreatePrivateDesktop(string name)
         {
             _events.Add("desktop-create");
-            return new FakeDesktop(_events, name);
+            return new FakeDesktop(_events, name, DisposeFailure == "desktop");
         }
 
         public IEvidenceLaunchHandleLease CreateHandleAllowlist()
         {
             _events.Add("handles-create");
-            return new FakeHandles(_events, Handles, AcknowledgementHandleValue);
+            return new FakeHandles(
+                _events,
+                Handles,
+                AcknowledgementHandleValue,
+                DisposeFailure == "handles");
         }
 
         public EvidenceProcessLease CreateSuspendedProcess(
             BaseProjectileEvidenceLaunchPlan plan,
             IEvidenceDesktopLease desktop,
             IEvidenceLaunchHandleLease handles,
+            IEvidenceExecutableLease executable,
             EvidenceCreateProcessContract contract)
         {
             _events.Add("process-create-suspended");
+            Assert.Equal(ValidGodot(plan), executable.Identity);
             ProcessContract = contract;
-            return new FakeProcess(_events);
+            return new FakeProcess(_events, DisposeFailure == "process");
+        }
+
+        public EvidenceOpenedExecutableIdentity ReadSuspendedProcessImageIdentity(
+            EvidenceProcessLease process)
+        {
+            _events.Add("child-image-match");
+            return SuspendedProcessImage ?? ValidGodot(_plan);
         }
 
         public IEvidenceJobLease CreateJob()
@@ -655,7 +802,7 @@ public sealed class EvidenceLaunchOrchestratorTests
             {
                 throw new InvalidOperationException("fake job create failure");
             }
-            return new FakeJob(_events);
+            return new FakeJob(_events, DisposeFailure == "job");
         }
 
         public void ConfigureJob(IEvidenceJobLease job, BaseProjectileEvidenceJobLimits limits)
@@ -683,7 +830,8 @@ public sealed class EvidenceLaunchOrchestratorTests
             return new FakeForegroundObserver(
                 _events,
                 SawForegroundWindow,
-                ThrowDuringForegroundStop);
+                ThrowDuringForegroundStop,
+                DisposeFailure == "foreground");
         }
 
         public EvidenceDeadlineToken ResumePrimaryThreadAndStartDeadline(
@@ -734,17 +882,25 @@ public sealed class EvidenceLaunchOrchestratorTests
             return JobEmpty;
         }
 
-        private sealed class FakeDesktop(List<string> events, string name) : IEvidenceDesktopLease
+        private sealed class FakeDesktop(
+            List<string> events,
+            string name,
+            bool throwOnDispose) : IEvidenceDesktopLease
         {
             public string Name { get; } = name;
 
-            public void Dispose() => events.Add("desktop-dispose");
+            public void Dispose()
+            {
+                events.Add("desktop-dispose");
+                if (throwOnDispose) throw new InvalidOperationException("fake desktop disposal failure");
+            }
         }
 
         private sealed class FakeHandles(
             List<string> events,
             IReadOnlyList<EvidenceChildHandleDescriptor> handles,
-            string acknowledgementHandleValue) : IEvidenceLaunchHandleLease
+            string acknowledgementHandleValue,
+            bool throwOnDispose) : IEvidenceLaunchHandleLease
         {
             public IReadOnlyList<EvidenceChildHandleDescriptor> ChildHandles { get; } = handles;
 
@@ -755,10 +911,14 @@ public sealed class EvidenceLaunchOrchestratorTests
             public void WriteAcknowledgementAndClose(byte value) =>
                 events.Add($"ack-close:{value:x2}");
 
-            public void Dispose() => events.Add("handles-dispose");
+            public void Dispose()
+            {
+                events.Add("handles-dispose");
+                if (throwOnDispose) throw new InvalidOperationException("fake handle disposal failure");
+            }
         }
 
-        private sealed class FakeProcess(List<string> events) : EvidenceProcessLease
+        private sealed class FakeProcess(List<string> events, bool throwOnDispose) : EvidenceProcessLease
         {
             protected override void OnTerminationTransferredToJob() =>
                 events.Add("process-transfer-to-job");
@@ -767,18 +927,29 @@ public sealed class EvidenceLaunchOrchestratorTests
                 events.Add("process-terminate-unassigned");
 
             protected override void ReleaseProcessAndThreadHandles() =>
+                AddDisposeEvent();
+
+            private void AddDisposeEvent()
+            {
                 events.Add("process-dispose");
+                if (throwOnDispose) throw new InvalidOperationException("fake process disposal failure");
+            }
         }
 
-        private sealed class FakeJob(List<string> events) : IEvidenceJobLease
+        private sealed class FakeJob(List<string> events, bool throwOnDispose) : IEvidenceJobLease
         {
-            public void Dispose() => events.Add("job-dispose");
+            public void Dispose()
+            {
+                events.Add("job-dispose");
+                if (throwOnDispose) throw new InvalidOperationException("fake job disposal failure");
+            }
         }
 
         private sealed class FakeForegroundObserver(
             List<string> events,
             bool sawForegroundWindow,
-            bool throwDuringStop) : IEvidenceForegroundObserverLease
+            bool throwDuringStop,
+            bool throwOnDispose) : IEvidenceForegroundObserverLease
         {
             public bool StopAndReadSawJobWindow()
             {
@@ -790,7 +961,11 @@ public sealed class EvidenceLaunchOrchestratorTests
                 return sawForegroundWindow;
             }
 
-            public void Dispose() => events.Add("foreground-dispose");
+            public void Dispose()
+            {
+                events.Add("foreground-dispose");
+                if (throwOnDispose) throw new InvalidOperationException("fake foreground disposal failure");
+            }
         }
     }
 }
