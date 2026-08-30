@@ -80,6 +80,54 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
         Assert.Equal(api.CloseCalls.Distinct().Count(), api.CloseCalls.Count);
     }
 
+    [Theory]
+    [InlineData("partial-read", 2)]
+    [InlineData("partial-write", 2)]
+    [InlineData("partial-both", 3)]
+    public void FailedCreatePipeStillOwnsEveryValidPartialEndpointBeforeRefusal(
+        string partialFailure,
+        int expectedCloseCount)
+    {
+        var api = new FakePipeApi { Failure = partialFailure };
+
+        var failure = Assert.ThrowsAny<Exception>(() =>
+            new EvidenceBuildPipeHandleFactory(api, new FakeCleanupOwner()).Create());
+
+        Assert.Contains("CreatePipe failed", failure.ToString(), StringComparison.Ordinal);
+        Assert.Equal(expectedCloseCount, api.CloseCalls.Count);
+        Assert.Equal(api.CloseCalls.Distinct().Count(), api.CloseCalls.Count);
+        Assert.Contains((nint)10, api.CloseCalls);
+    }
+
+    [Fact]
+    public void FailedCreatePipePreservesPrimaryErrorWithPartialEndpointCleanupFailure()
+    {
+        var api = new FakePipeApi { Failure = "partial-both" };
+        api.CloseFailures.Add(21);
+        var owner = new FakeCleanupOwner();
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            new EvidenceBuildPipeHandleFactory(api, owner).Create()).Flatten();
+
+        Assert.Contains(failure.InnerExceptions, exception => exception.Message.Contains("CreatePipe failed", StringComparison.Ordinal));
+        Assert.Contains(failure.InnerExceptions, exception => exception.Message.Contains("CloseHandle failed", StringComparison.Ordinal));
+        Assert.Single(owner.Retained);
+        Assert.Equal((nint)21, owner.Retained[0].Handle);
+        Assert.Equal(1, api.CloseCalls.Count(handle => handle == 21));
+    }
+
+    [Fact]
+    public void DifferentCurrentEndpointsAliasingDifferentPriorHandlesAreBothDisarmed()
+    {
+        var api = new FakePipeApi { Anomaly = "different-prior" };
+
+        Assert.Throws<InvalidDataException>(() =>
+            new EvidenceBuildPipeHandleFactory(api, new FakeCleanupOwner()).Create());
+
+        Assert.Equal(new nint[] { 21, 20, 10 }, api.CloseCalls);
+        Assert.Equal(api.CloseCalls.Distinct().Count(), api.CloseCalls.Count);
+    }
+
     [Fact]
     public void AmbiguousMilestoneClosesTransferStronglyAndNeverRetriesRawHandle()
     {
@@ -115,6 +163,24 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
         Assert.Equal(new nint[] { 31, 30, 21, 20, 10 }, api.CloseCalls);
         bundle.Dispose();
         Assert.Equal(5, api.CloseCalls.Count);
+    }
+
+    [Fact]
+    public void StaticFallbackOwnsAmbiguousBundleHandleBeforeInjectedOwnerThrows()
+    {
+        var api = new FakePipeApi();
+        api.CloseFailures.Add(21);
+        var owner = new FakeCleanupOwner { ThrowAfterRetain = true };
+        var bundle = new EvidenceBuildPipeHandleFactory(api, owner).Create();
+
+        var failure = Assert.Throws<AggregateException>(
+            bundle.CloseParentChildEndsAfterSuccessfulProcessCreation).Flatten();
+
+        Assert.Equal(2, failure.InnerExceptions.Count);
+        Assert.True(owner.SawStaticFallbackBeforeRetain);
+        Assert.True(EvidenceBuildProcessExitHandleRetention.Contains(21));
+        bundle.Dispose();
+        Assert.Equal(1, api.CloseCalls.Count(handle => handle == 21));
     }
 
     [Theory]
@@ -240,7 +306,7 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
         Assert.False(result.TimedOut);
         Assert.Equal(exitCode, result.ExitCode);
         Assert.Equal(success, result.Successful);
-        Assert.Equal(["origin", "elapsed", "wait:300000", "exit"], events);
+        Assert.Equal(["origin", "elapsed", "wait:300000", "elapsed", "exit"], events);
     }
 
     [Fact]
@@ -272,6 +338,56 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
 
         Assert.True(result.TimedOut);
         Assert.Equal(["origin", "elapsed", "wait:2"], events);
+    }
+
+    [Fact]
+    public void RoundedNearBoundarySignalReobservesUnderDeadlineBeforeExitQuery()
+    {
+        var events = new List<string>();
+        var clock = new FakeClock(events, TimeSpan.Zero);
+        clock.ElapsedScript.Enqueue(TimeSpan.FromMinutes(5) - TimeSpan.FromTicks(10_001));
+        clock.ElapsedScript.Enqueue(TimeSpan.FromMinutes(5) - TimeSpan.FromTicks(1));
+        var api = new FakeCompletionApi(events) { WaitResult = 0, ExitCode = 0 };
+        using var lease = Completion(api, clock);
+
+        var result = lease.WaitForCompletion();
+
+        Assert.True(result.Successful);
+        Assert.Equal(["origin", "elapsed", "wait:2", "elapsed", "exit"], events);
+    }
+
+    [Fact]
+    public void SignalAtExactDeadlineBecomesTimeoutAndNeverQueriesExit()
+    {
+        var events = new List<string>();
+        var clock = new FakeClock(events, TimeSpan.Zero);
+        clock.ElapsedScript.Enqueue(TimeSpan.FromMinutes(5) - TimeSpan.FromMilliseconds(1));
+        clock.ElapsedScript.Enqueue(TimeSpan.FromMinutes(5));
+        var api = new FakeCompletionApi(events) { WaitResult = 0, ExitCode = 0 };
+        using var lease = Completion(api, clock);
+
+        var result = lease.WaitForCompletion();
+
+        Assert.True(result.TimedOut);
+        Assert.False(result.Signaled);
+        Assert.Equal(0, api.ExitCalls);
+        Assert.Equal(["origin", "elapsed", "wait:1", "elapsed"], events);
+    }
+
+    [Fact]
+    public void ClockRollbackAfterSignalRefusesBeforeExitQuery()
+    {
+        var events = new List<string>();
+        var clock = new FakeClock(events, TimeSpan.Zero);
+        clock.ElapsedScript.Enqueue(TimeSpan.FromSeconds(2));
+        clock.ElapsedScript.Enqueue(TimeSpan.FromSeconds(1));
+        var api = new FakeCompletionApi(events) { WaitResult = 0, ExitCode = 0 };
+        using var lease = Completion(api, clock);
+
+        Assert.Throws<InvalidOperationException>(lease.WaitForCompletion);
+
+        Assert.Equal(0, api.ExitCalls);
+        Assert.Equal(["origin", "elapsed", "wait:298000", "elapsed"], events);
     }
 
     [Theory]
@@ -329,6 +445,24 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
         Assert.Equal((nint)90, owner.Retained[0].Handle);
     }
 
+    [Fact]
+    public void StaticFallbackOwnsAmbiguousProcessHandleBeforeInjectedOwnerThrows()
+    {
+        var events = new List<string>();
+        var api = new FakeCompletionApi(events) { CloseSuccess = false, CloseError = 6 };
+        var owner = new FakeCleanupOwner { ThrowAfterRetain = true };
+        var deadline = EvidenceBuildRunDeadline.Arm(new FakeClock(events, TimeSpan.Zero), TimeSpan.FromMinutes(5));
+        var lease = new EvidenceBuildProcessCompletionLease(api, owner, 90, deadline);
+
+        var failure = Assert.Throws<AggregateException>(lease.Dispose).Flatten();
+        lease.Dispose();
+
+        Assert.Equal(2, failure.InnerExceptions.Count);
+        Assert.True(owner.SawStaticFallbackBeforeRetain);
+        Assert.True(EvidenceBuildProcessExitHandleRetention.Contains(90));
+        Assert.Equal(1, api.CloseCalls);
+    }
+
     private static EvidenceBuildProcessCompletionLease Completion(
         FakeCompletionApi api,
         FakeClock clock) =>
@@ -341,11 +475,15 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
     private sealed class FakeCleanupOwner : IEvidenceBuildKernelHandleCleanupOwner
     {
         internal List<EvidenceBuildAmbiguousKernelHandle> Retained { get; } = [];
+        internal bool ThrowAfterRetain { get; init; }
+        internal bool SawStaticFallbackBeforeRetain { get; private set; }
 
         public void Retain(EvidenceBuildAmbiguousKernelHandle handle, Exception failure)
         {
             Assert.NotNull(failure);
+            SawStaticFallbackBeforeRetain = EvidenceBuildProcessExitHandleRetention.Contains(handle);
             Retained.Add(handle);
+            if (ThrowAfterRetain) throw new IOException("injected cleanup owner scheduling failure");
         }
     }
 
@@ -385,6 +523,15 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
             _pipeOrdinal++;
             Calls.Add($"pipe:{size}:{security.Length}:{(security.InheritHandle ? 1 : 0)}");
             var failureName = $"pipe{_pipeOrdinal}";
+            if (_pipeOrdinal == 1 && Failure is "partial-read" or "partial-write" or "partial-both")
+            {
+                readHandle = Failure == "partial-write" ? 0 : 20;
+                writeHandle = Failure == "partial-read" ? 0 : 21;
+                if (readHandle != 0) _flags[readHandle] = 1;
+                if (writeHandle != 0) _flags[writeHandle] = 1;
+                error = 123;
+                return false;
+            }
             if (Failure == failureName)
             {
                 readHandle = 0;
@@ -394,6 +541,11 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
             }
             readHandle = _pipeOrdinal == 1 ? 20 : 30;
             writeHandle = _pipeOrdinal == 1 ? 21 : 31;
+            if (Anomaly == "different-prior" && _pipeOrdinal == 2)
+            {
+                readHandle = 10;
+                writeHandle = 21;
+            }
             if (Anomaly == "invalid" && _pipeOrdinal == 1) readHandle = 0;
             if (Anomaly == "duplicate" && _pipeOrdinal == 1) writeHandle = readHandle;
             if (readHandle != 0) _flags[readHandle] = 1;

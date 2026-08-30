@@ -73,8 +73,6 @@ internal interface IEvidenceBuildKernelHandleCleanupOwner
 internal sealed class EvidenceBuildKernelHandleCleanupOwner : IEvidenceBuildKernelHandleCleanupOwner
 {
     internal static EvidenceBuildKernelHandleCleanupOwner Instance { get; } = new();
-    private static readonly ConcurrentQueue<(EvidenceBuildAmbiguousKernelHandle Handle, Exception Failure)>
-        RetainedUntilProcessExit = new();
 
     private EvidenceBuildKernelHandleCleanupOwner() { }
 
@@ -82,8 +80,21 @@ internal sealed class EvidenceBuildKernelHandleCleanupOwner : IEvidenceBuildKern
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(failure);
-        RetainedUntilProcessExit.Enqueue((handle, failure));
     }
+}
+
+internal static class EvidenceBuildProcessExitHandleRetention
+{
+    private static readonly ConcurrentQueue<(EvidenceBuildAmbiguousKernelHandle Handle, Exception Failure)>
+        Retained = new();
+
+    internal static void Retain(EvidenceBuildAmbiguousKernelHandle handle, Exception failure) =>
+        Retained.Enqueue((handle, failure));
+
+    internal static bool Contains(nint handle) => Retained.Any(item => item.Handle.Handle == handle);
+
+    internal static bool Contains(EvidenceBuildAmbiguousKernelHandle handle) =>
+        Retained.Any(item => ReferenceEquals(item.Handle, handle));
 }
 
 internal sealed class EvidenceBuildPipeHandleFactory(
@@ -116,11 +127,22 @@ internal sealed class EvidenceBuildPipeHandleFactory(
                 "build stdin NUL");
 
             security = InheritableSecurity();
-            if (!_api.CreatePipe(out var stdoutRead, out var stdoutWrite, ref security, 0, out var stdoutError))
+            var stdoutCreated = _api.CreatePipe(
+                out var stdoutRead,
+                out var stdoutWrite,
+                ref security,
+                0,
+                out var stdoutError);
+            var stdoutIdentityFailure = RecordPipePair(
+                stdoutRead, stdoutWrite, handles, 1, 2, "build stdout");
+            if (!stdoutCreated)
             {
-                throw new Win32Exception(stdoutError, "CreatePipe failed for build stdout.");
+                var createFailure = new Win32Exception(stdoutError, "CreatePipe failed for build stdout.");
+                throw stdoutIdentityFailure is null
+                    ? createFailure
+                    : new AggregateException(createFailure, stdoutIdentityFailure);
             }
-            RecordPipePair(stdoutRead, stdoutWrite, handles, 1, 2, "build stdout");
+            if (stdoutIdentityFailure is not null) ExceptionDispatchInfo.Capture(stdoutIdentityFailure).Throw();
             if (!_api.SetHandleInformation(
                     handles[1],
                     EvidenceBuildHandlePolicy.HandleFlagInherit,
@@ -131,11 +153,22 @@ internal sealed class EvidenceBuildPipeHandleFactory(
             }
 
             security = InheritableSecurity();
-            if (!_api.CreatePipe(out var stderrRead, out var stderrWrite, ref security, 0, out var stderrError))
+            var stderrCreated = _api.CreatePipe(
+                out var stderrRead,
+                out var stderrWrite,
+                ref security,
+                0,
+                out var stderrError);
+            var stderrIdentityFailure = RecordPipePair(
+                stderrRead, stderrWrite, handles, 3, 4, "build stderr");
+            if (!stderrCreated)
             {
-                throw new Win32Exception(stderrError, "CreatePipe failed for build stderr.");
+                var createFailure = new Win32Exception(stderrError, "CreatePipe failed for build stderr.");
+                throw stderrIdentityFailure is null
+                    ? createFailure
+                    : new AggregateException(createFailure, stderrIdentityFailure);
             }
-            RecordPipePair(stderrRead, stderrWrite, handles, 3, 4, "build stderr");
+            if (stderrIdentityFailure is not null) ExceptionDispatchInfo.Capture(stderrIdentityFailure).Throw();
             if (!_api.SetHandleInformation(
                     handles[3],
                     EvidenceBuildHandlePolicy.HandleFlagInherit,
@@ -218,7 +251,7 @@ internal sealed class EvidenceBuildPipeHandleFactory(
         return handle;
     }
 
-    private static void RecordPipePair(
+    private static Exception? RecordPipePair(
         nint readHandle,
         nint writeHandle,
         nint[] owned,
@@ -226,25 +259,35 @@ internal sealed class EvidenceBuildPipeHandleFactory(
         int writeIndex,
         string identity)
     {
-        if (readHandle is not 0 and not -1) owned[readIndex] = readHandle;
-        if (writeHandle is not 0 and not -1 && writeHandle != readHandle) owned[writeIndex] = writeHandle;
-        if (readHandle is 0 or -1 || writeHandle is 0 or -1)
+        var failures = new List<string>();
+        var readValid = readHandle is not 0 and not -1;
+        var writeValid = writeHandle is not 0 and not -1;
+        if (!readValid) failures.Add("reader was invalid");
+        if (!writeValid) failures.Add("writer was invalid");
+
+        var readAliasesPrior = readValid && PriorContains(owned, readIndex, readHandle);
+        var writeAliasesPrior = writeValid && PriorContains(owned, readIndex, writeHandle);
+        var endpointsAlias = readValid && writeValid && readHandle == writeHandle;
+        if (readAliasesPrior) failures.Add("reader aliased a prior handle");
+        if (writeAliasesPrior) failures.Add("writer aliased a prior handle");
+        if (endpointsAlias) failures.Add("reader and writer identities were equal");
+
+        if (readValid && !readAliasesPrior) owned[readIndex] = readHandle;
+        if (writeValid && !writeAliasesPrior && !endpointsAlias) owned[writeIndex] = writeHandle;
+        if (endpointsAlias) owned[writeIndex] = 0;
+
+        return failures.Count == 0
+            ? null
+            : new InvalidDataException($"{identity} identity refusal: {string.Join("; ", failures)}.");
+    }
+
+    private static bool PriorContains(nint[] owned, int exclusiveEnd, nint handle)
+    {
+        for (var index = 0; index < exclusiveEnd; index++)
         {
-            throw new InvalidDataException($"{identity} returned an invalid handle.");
+            if (owned[index] == handle) return true;
         }
-        for (var index = 0; index < readIndex; index++)
-        {
-            if (owned[index] == readHandle || owned[index] == writeHandle)
-            {
-                if (owned[index] == readHandle) owned[readIndex] = 0;
-                if (owned[index] == writeHandle) owned[writeIndex] = 0;
-                throw new InvalidDataException($"{identity} returned a duplicate prior handle identity.");
-            }
-        }
-        if (readHandle == writeHandle)
-        {
-            throw new InvalidDataException($"{identity} reader and writer identities were equal.");
-        }
+        return false;
     }
 
     private static void CloseReverse(
@@ -282,6 +325,7 @@ internal sealed class EvidenceBuildPipeHandleFactory(
                 $"CloseHandle threw for {identity}; ownership is ambiguous.",
                 exception);
             var thrownRetained = new EvidenceBuildAmbiguousKernelHandle(handle, identity, closeError);
+            EvidenceBuildProcessExitHandleRetention.Retain(thrownRetained, thrownClose);
             Exception? thrownRetainFailure = null;
             try { owner.Retain(thrownRetained, thrownClose); }
             catch (Exception retainException) { thrownRetainFailure = retainException; }
@@ -292,6 +336,7 @@ internal sealed class EvidenceBuildPipeHandleFactory(
 
         var closeFailure = new Win32Exception(closeError, $"CloseHandle failed for {identity}; ownership is ambiguous.");
         var retained = new EvidenceBuildAmbiguousKernelHandle(handle, identity, closeError);
+        EvidenceBuildProcessExitHandleRetention.Retain(retained, closeFailure);
         Exception? retainFailure = null;
         try { owner.Retain(retained, closeFailure); }
         catch (Exception exception) { retainFailure = exception; }
@@ -505,6 +550,11 @@ internal sealed class EvidenceBuildProcessCompletionLease : IDisposable
             switch (wait)
             {
                 case WaitObject0:
+                    var signaledObservation = _deadline.Observe();
+                    if (signaledObservation.Expired)
+                    {
+                        return _completion = new EvidenceBuildProcessCompletion(false, true, null);
+                    }
                     if (!_api.GetExitCodeProcess(_process, out var exitCode, out var exitError))
                     {
                         throw new Win32Exception(exitError, "GetExitCodeProcess failed for the build process.");
