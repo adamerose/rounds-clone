@@ -1,5 +1,6 @@
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Collections.ObjectModel;
 using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using Rounds.Game;
@@ -11,7 +12,14 @@ internal sealed record EvidenceBuildInputIdentity(
     bool Exists,
     bool IdentityBound,
     bool ReparseFreeAncestors,
-    string Sha256);
+    string Sha256,
+    EvidenceBuildContentHashKind HashKind);
+
+internal enum EvidenceBuildContentHashKind
+{
+    RawBytesSha256,
+    RepositoryAndPackageRootNormalizedJsonSha256,
+}
 
 internal sealed record EvidenceBuildPackageIdentity(
     string PackageId,
@@ -31,12 +39,82 @@ internal sealed record EvidenceBuildPrerequisiteAttestation(
     string SdkDirectory,
     bool SdkDirectoryExists,
     bool SdkDirectoryIdentityBound,
+    string SdkContentSha256,
+    string SdkTreeHashAlgorithm,
     string ReferencePackDirectory,
     string ReferencePackVersion,
     bool ReferencePackDirectoryExists,
     bool ReferencePackDirectoryIdentityBound,
+    string ReferencePackContentSha256,
+    string ReferencePackTreeHashAlgorithm,
     IReadOnlyList<EvidenceBuildInputIdentity> RequiredInputs,
     IReadOnlyList<EvidenceBuildPackageIdentity> RequiredPackages);
+
+internal sealed record EvidenceTrustedDirectoryIdentity(
+    string RequestedPath,
+    string CanonicalPath,
+    bool Exists,
+    bool IdentityBound,
+    bool ReparseFreeAncestors,
+    string OpenedHandleIdentity);
+
+internal sealed record EvidenceBuildProvenanceSnapshot(
+    EvidenceCandidateIdentity Candidate,
+    string RetainedInputsIdentity);
+
+internal static class EvidenceBuildManifest
+{
+    internal const string SdkTreeSha256 = "6eb01c93e060c47279dae895a8635d5758aba49fbd9de68f716786496d92c093";
+    internal const string ReferencePackTreeSha256 = "6a711682d9729183e36aa0c5878af274a62285e1cd516637912861c63651434f";
+    internal const string ExactTreeHashAlgorithm = "ordinal-relative-path-nul-raw-bytes-sha256-v1";
+    private const string GlobalJsonSha256 = "248c17bb46fd7ff31402c62dc1870e90005fc1d9bcbc9a31cefcc78691149d76";
+
+    private static readonly IReadOnlyList<(string Path, string Sha256)> Inputs = Array.AsReadOnly(
+    new (string Path, string Sha256)[]
+    {
+        ("global.json", GlobalJsonSha256),
+        (@"game\Rounds.Game.csproj", "e32100c13c6e55c3aadcb3c0aeba5b2a090b742e452c9ed7c699db2ae3ebc8d4"),
+        (@"game\packages.lock.json", "a51a8e19de69f77ccb5c087d49124a5663cc09a413d9b249212fdfd157fc1ca7"),
+        (@"game\.godot\mono\temp\obj\project.assets.json", "5a5952fe97201dad1c0c5cf7356b109e178ed8f5af77a0ee3b7219520a0ffae9"),
+        (@"src\Rounds.Replay\Rounds.Replay.csproj", "49ccf48dabec7660e4257ff89138cb137f9fa745cedbecf0df071e4109ccc8a4"),
+        (@"src\Rounds.Replay\packages.lock.json", "dff17049cec93587e8253599f209cf95e55c83ed75d4fe3a5eebc9ae3385ee1e"),
+        (@"src\Rounds.Replay\obj\project.assets.json", "f5660f35d8bb445bec208532dfebe33904eb8ffd5446d245bffe4d4151f15b35"),
+        (@"src\Rounds.Sim\Rounds.Sim.csproj", "5b480ec4dbd8edf9f9aa00c75b488ca6bd525964ab8d6e4d899b0d12319f8262"),
+        (@"src\Rounds.Sim\packages.lock.json", "22308ad23ccd417b5d96020fb92e203b85fad8c3788b3feadb2ca403d8ad596c"),
+        (@"src\Rounds.Sim\obj\project.assets.json", "b3c494940b89d446f397e9062613f8cd498c0e180016af5c22ab00467fb0caf3"),
+    });
+
+    private static readonly IReadOnlyList<(string Id, string Sha256)> Packages = Array.AsReadOnly(
+    new (string Id, string Sha256)[]
+    {
+        ("Godot.NET.Sdk", "1f93837c9b8df052596203a0882818381cb5d64cd7f86f9a46cb67184d8287ff"),
+        ("Godot.SourceGenerators", "6b3e98ab8e94bad4d2f65de559bdcf0637fd6ca084cdf0ac1a6d8a17542bb4f1"),
+        ("GodotSharp", "f0b366029c9859355cacc25ccc2e4f19bd2dee7e16d5c22b82d7c736ff208068"),
+        ("GodotSharpEditor", "8ced4bfd55968cf4f835035b7e8d8149ff535e4bf200496491f8e8d93a91b682"),
+    });
+
+    internal static EvidenceBuildPrerequisiteAttestation Create(string exactRepositoryRoot)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(exactRepositoryRoot));
+        var inputs = Inputs.Select(value => new EvidenceBuildInputIdentity(
+            Path.GetFullPath(Path.Combine(root, value.Path)), true, true, true, value.Sha256,
+            value.Path.EndsWith("project.assets.json", StringComparison.Ordinal)
+                ? EvidenceBuildContentHashKind.RepositoryAndPackageRootNormalizedJsonSha256
+                : EvidenceBuildContentHashKind.RawBytesSha256)).ToArray();
+        var packages = Packages.Select(value => new EvidenceBuildPackageIdentity(
+            value.Id,
+            "4.7.1",
+            Path.GetFullPath(Path.Combine(root, @".tools\nuget-packages", value.Id.ToLowerInvariant(), "4.7.1", $"{value.Id.ToLowerInvariant()}.4.7.1.nupkg")),
+            true, true, true, value.Sha256)).ToArray();
+        return new EvidenceBuildPrerequisiteAttestation(
+            "8.0.423", GlobalJsonSha256, true, true, true,
+            Path.GetFullPath(Path.Combine(root, @".tools\dotnet\sdk\8.0.423\Sdks")), true, true,
+            SdkTreeSha256, ExactTreeHashAlgorithm,
+            Path.GetFullPath(Path.Combine(root, @".tools\dotnet\packs\Microsoft.NETCore.App.Ref\8.0.29\ref\net8.0")),
+            "8.0.29", true, true, ReferencePackTreeSha256, ExactTreeHashAlgorithm,
+            Array.AsReadOnly(inputs), Array.AsReadOnly(packages));
+    }
+}
 
 internal sealed record EvidenceBuildOutputState(
     string Path,
@@ -46,10 +124,13 @@ internal sealed record EvidenceBuildOutputState(
     bool ReparseFreeAncestors,
     string OpenedHandleIdentity,
     long Length,
-    long ChangeTime)
+    long ChangeTime,
+    bool DeletePending,
+    uint LinkCount,
+    bool Directory)
 {
     internal static EvidenceBuildOutputState Missing(string path) =>
-        new(path, false, false, false, false, string.Empty, 0, 0);
+        new(path, false, false, false, false, string.Empty, 0, 0, false, 0, false);
 }
 
 internal sealed record EvidenceBuildJobLimits(
@@ -96,19 +177,32 @@ internal interface IEvidenceMsBuildExecutableFactory
     IEvidenceExecutableLease OpenPinnedMsBuild();
 }
 
-internal interface IEvidenceBuildRepositoryInspector
+internal interface IEvidenceBuildProvenanceLease : IDisposable
 {
-    EvidenceCandidateIdentity ReadCleanCandidate(string exactRepositoryRoot);
+    EvidenceCandidateIdentity Candidate { get; }
+
+    EvidenceBuildPrerequisiteAttestation Prerequisites { get; }
+
+    EvidenceTrustedDirectoryIdentity SystemRoot { get; }
+
+    EvidenceTrustedDirectoryIdentity TemporaryDirectory { get; }
+
+    bool RetainsExactRepositoryInputAndOutputAncestorChains { get; }
+
+    EvidenceBuildProvenanceSnapshot Revalidate();
 }
 
-internal interface IEvidenceBuildPrerequisiteInspector
+internal interface IEvidenceBuildProvenanceFactory
 {
-    EvidenceBuildPrerequisiteAttestation Read(string exactRepositoryRoot);
+    IEvidenceBuildProvenanceLease OpenRetained(string exactRepositoryRoot);
 }
 
 internal interface IEvidenceBuildEnvironmentFactory
 {
-    IReadOnlyDictionary<string, string> CreateSanitized(EvidenceBuildInvocation required);
+    IReadOnlyDictionary<string, string> CreateSanitized(
+        EvidenceBuildInvocation required,
+        EvidenceTrustedDirectoryIdentity systemRoot,
+        EvidenceTrustedDirectoryIdentity temporaryDirectory);
 }
 
 internal interface IEvidenceBuildOutputApi
@@ -138,7 +232,12 @@ internal interface IEvidenceRuntimeAssemblyFactory
 {
     IEvidenceRuntimeAssemblyLease OpenRecreatedClosure(
         IReadOnlyList<string> exactRuntimeAssemblyPaths,
-        string priorOpenedHandleIdentity);
+        IReadOnlyList<string> priorOpenedHandleIdentities);
+}
+
+internal interface IWin32RuntimeStreamApi
+{
+    IReadOnlyList<Win32PublishedStreamEntry> EnumerateStreams(nint retainedFileHandle);
 }
 
 internal interface IEvidenceRuntimeAncestorLease : IDisposable
@@ -160,8 +259,7 @@ internal sealed class Win32MsBuildExecutableFactory(Win32ExecutableIdentityFacto
 
 internal sealed class Win32EvidenceBuildDriver(
     IEvidenceMsBuildExecutableFactory executables,
-    IEvidenceBuildRepositoryInspector repository,
-    IEvidenceBuildPrerequisiteInspector prerequisites,
+    IEvidenceBuildProvenanceFactory provenance,
     IEvidenceBuildEnvironmentFactory environments,
     IEvidenceBuildOutputApi outputs,
     IEvidenceBuildProcessRunner processes,
@@ -203,105 +301,114 @@ internal sealed class Win32EvidenceBuildDriver(
         ValidateInvocation(required);
         ArgumentNullException.ThrowIfNull(msBuildExecutable);
         ValidateMsBuildIdentity(msBuildExecutable.Identity, required.Executable);
-
-        var candidateBefore = repository.ReadCleanCandidate(required.WorkingDirectory);
-        ValidateCandidate(candidateBefore, required.WorkingDirectory);
-        ValidatePrerequisites(prerequisites.Read(required.WorkingDirectory), required);
-        var effectiveEnvironment = environments.CreateSanitized(required);
-        ValidateEffectiveEnvironment(effectiveEnvironment, required);
-
-        var runtimePath = Path.GetFullPath(Path.Combine(
-            required.WorkingDirectory,
-            @"game\.godot\mono\temp\bin\Debug\Rounds.Game.dll"));
-        var prior = outputs.Read(runtimePath);
-        ValidatePriorOutput(prior, runtimePath);
-        outputs.Delete(runtimePath);
-        var deleted = outputs.Read(runtimePath);
-        if (deleted.Exists || !string.Equals(deleted.Path, runtimePath, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("The prior runtime assembly was not proven absent before rebuild.");
-        }
-
-        var candidateBeforeSpawn = repository.ReadCleanCandidate(required.WorkingDirectory);
-        ValidateCandidate(candidateBeforeSpawn, required.WorkingDirectory);
-        if (candidateBeforeSpawn != candidateBefore)
-        {
-            throw new InvalidOperationException("Candidate identity changed before build process creation.");
-        }
-
-        var request = new EvidenceBuildProcessRequest(
-            required,
-            effectiveEnvironment,
-            InheritAmbientEnvironment: false,
-            StartSuspended: true,
-            new EvidenceBuildJobLimits(
-                0x3,
-                1,
-                768L * 1024 * 1024,
-                1024L * 1024 * 1024,
-                KillOnJobClose: true),
-            UseShellExecute: false,
-            CreateNoWindow: true,
-            HiddenWindow: true,
-            BelowNormalPriority: true,
-            ExactBuildDeadline,
-            ExactOutputCapBytes,
-            ExactErrorCapBytes);
-        var result = processes.Run(request, msBuildExecutable);
-        ValidateProcessResult(result, msBuildExecutable.Identity, effectiveEnvironment);
-
-        var candidateAfter = repository.ReadCleanCandidate(required.WorkingDirectory);
-        ValidateCandidate(candidateAfter, required.WorkingDirectory);
-        if (candidateAfter != candidateBefore)
-        {
-            throw new InvalidOperationException("Candidate identity changed during the immediate rebuild.");
-        }
-
-        var recreated = outputs.Read(runtimePath);
-        ValidateRecreatedOutput(recreated, prior, runtimePath);
-        string[] runtimePaths =
-        [
-            runtimePath,
-            Path.Combine(Path.GetDirectoryName(runtimePath)!, "Rounds.Replay.dll"),
-            Path.Combine(Path.GetDirectoryName(runtimePath)!, "Rounds.Sim.dll"),
-        ];
-        var runtimeLease = runtimeAssemblies.OpenRecreatedClosure(
-            runtimePaths,
-            prior.OpenedHandleIdentity);
+        IEvidenceBuildProvenanceLease? provenanceLease = null;
+        IEvidenceRuntimeAssemblyLease? runtimeLease = null;
         try
         {
+            provenanceLease = provenance.OpenRetained(required.WorkingDirectory);
+            var candidateBefore = provenanceLease.Candidate;
+            ValidateCandidate(candidateBefore, required.WorkingDirectory);
+            ValidatePrerequisites(provenanceLease.Prerequisites, required);
+            ValidateTrustedDirectory(provenanceLease.SystemRoot, "SystemRoot");
+            ValidateTrustedDirectory(provenanceLease.TemporaryDirectory, "TEMP");
+            if (!provenanceLease.RetainsExactRepositoryInputAndOutputAncestorChains)
+            {
+                throw new InvalidOperationException("Repository, build-input, and output ancestor chains were not retained continuously.");
+            }
+            var baseline = provenanceLease.Revalidate();
+            ValidateProvenanceSnapshot(baseline, candidateBefore);
+
+            var effectiveEnvironment = FreezeEnvironment(environments.CreateSanitized(
+                required, provenanceLease.SystemRoot, provenanceLease.TemporaryDirectory));
+            ValidateEffectiveEnvironment(
+                effectiveEnvironment, required, provenanceLease.SystemRoot, provenanceLease.TemporaryDirectory);
+
+            var runtimeDirectory = Path.GetFullPath(Path.Combine(
+                required.WorkingDirectory, @"game\.godot\mono\temp\bin\Debug"));
+            string[] runtimePaths =
+            [
+                Path.Combine(runtimeDirectory, "Rounds.Game.dll"),
+                Path.Combine(runtimeDirectory, "Rounds.Replay.dll"),
+                Path.Combine(runtimeDirectory, "Rounds.Sim.dll"),
+            ];
+            var prior = runtimePaths.Select(outputs.Read).ToArray();
+            for (var index = 0; index < runtimePaths.Length; index++)
+            {
+                ValidatePriorOutput(prior[index], runtimePaths[index]);
+            }
+            if (prior.Select(value => value.OpenedHandleIdentity).Distinct(StringComparer.Ordinal).Count() != runtimePaths.Length)
+            {
+                throw new InvalidOperationException("Prior runtime outputs did not have three distinct exact identities.");
+            }
+            RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+            foreach (var path in runtimePaths) outputs.Delete(path);
+            foreach (var path in runtimePaths)
+            {
+                var deleted = outputs.Read(path);
+                if (deleted.Exists || !string.Equals(deleted.Path, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("Every prior runtime assembly was not proven absent before rebuild.");
+                }
+            }
+            RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+
+            var request = new EvidenceBuildProcessRequest(
+                required,
+                effectiveEnvironment,
+                InheritAmbientEnvironment: false,
+                StartSuspended: true,
+                new EvidenceBuildJobLimits(0x3, 1, 768L * 1024 * 1024, 1024L * 1024 * 1024, true),
+                UseShellExecute: false,
+                CreateNoWindow: true,
+                HiddenWindow: true,
+                BelowNormalPriority: true,
+                ExactBuildDeadline,
+                ExactOutputCapBytes,
+                ExactErrorCapBytes);
+            var result = processes.Run(request, msBuildExecutable);
+            ValidateProcessResult(result, msBuildExecutable.Identity, effectiveEnvironment);
+            RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+
+            var recreated = runtimePaths.Select(outputs.Read).ToArray();
+            for (var index = 0; index < runtimePaths.Length; index++)
+            {
+                ValidateRecreatedOutput(recreated[index], prior[index], runtimePaths[index]);
+            }
+            if (recreated.Select(value => value.OpenedHandleIdentity).Distinct(StringComparer.Ordinal).Count() != runtimePaths.Length)
+            {
+                throw new InvalidOperationException("Recreated runtime outputs did not have three distinct identities.");
+            }
+            RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+            runtimeLease = runtimeAssemblies.OpenRecreatedClosure(
+                runtimePaths, prior.Select(value => value.OpenedHandleIdentity).ToArray());
             var runtime = runtimeLease.Identity;
-            if (!ValidRuntime(runtime, recreated, runtimePath) ||
+            if (!ValidRuntime(runtime, recreated[0], runtimePaths[0]) ||
                 !runtimeLease.ReparseFreeAncestorChains ||
-                !ValidRuntimeClosure(runtimeLease.RuntimeClosure, runtimePaths))
+                !ValidRuntimeClosure(runtimeLease.RuntimeClosure, runtimePaths) ||
+                !runtimeLease.RuntimeClosure.Select((value, index) =>
+                    value.OpenedHandleIdentity == recreated[index].OpenedHandleIdentity).All(value => value))
             {
                 throw new InvalidOperationException("Recreated runtime assembly closure did not match its retained files.");
             }
+            RequireStableProvenance(provenanceLease, baseline, candidateBefore);
 
             var attestation = new EvidenceBuildAttestation(
-                required,
-                effectiveEnvironment,
-                candidateAfter,
-                msBuildExecutable.Identity,
-                result.ProcessImage,
-                runtime,
-                runtimeLease.RuntimeClosure,
-                ZeroWarnings: true,
-                DeletedPriorOutput: true);
-            return new Win32EvidenceBuildAttestationLease(runtimeLease, attestation);
+                required, effectiveEnvironment, candidateBefore,
+                msBuildExecutable.Identity, result.ProcessImage, runtime,
+                Array.AsReadOnly(runtimeLease.RuntimeClosure.ToArray()), true, true);
+            var completed = new Win32EvidenceBuildAttestationLease(runtimeLease, provenanceLease, attestation);
+            runtimeLease = null;
+            provenanceLease = null;
+            return completed;
         }
         catch (Exception failure)
         {
-            try
-            {
-                runtimeLease.Dispose();
-            }
-            catch (Exception cleanup)
-            {
-                throw new AggregateException(failure, cleanup);
-            }
-            ExceptionDispatchInfo.Capture(failure).Throw();
-            throw;
+            Exception? cleanup = null;
+            try { runtimeLease?.Dispose(); }
+            catch (Exception exception) { cleanup = exception; }
+            try { provenanceLease?.Dispose(); }
+            catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
+            throw cleanup is null ? failure : new AggregateException(failure, cleanup);
         }
     }
 
@@ -372,54 +479,50 @@ internal sealed class Win32EvidenceBuildDriver(
         EvidenceBuildPrerequisiteAttestation actual,
         EvidenceBuildInvocation required)
     {
-        var expectedSdk = required.Environment["MSBuildSDKsPath"];
-        var packRoot = Path.GetFullPath(Path.Combine(
-            required.WorkingDirectory,
-            @".tools\dotnet\packs\Microsoft.NETCore.App.Ref"));
-        var reference = Path.GetFullPath(actual.ReferencePackDirectory);
-        var relativeReference = Path.GetRelativePath(packRoot, reference);
-        string[] requiredRelativeInputs =
-        [
-            "global.json",
-            @"game\Rounds.Game.csproj",
-            @"game\packages.lock.json",
-            @"game\obj\project.assets.json",
-            @"src\Rounds.Replay\Rounds.Replay.csproj",
-            @"src\Rounds.Replay\packages.lock.json",
-            @"src\Rounds.Replay\obj\project.assets.json",
-            @"src\Rounds.Sim\Rounds.Sim.csproj",
-            @"src\Rounds.Sim\packages.lock.json",
-            @"src\Rounds.Sim\obj\project.assets.json",
-        ];
-        string[] requiredPackages = ["Godot.NET.Sdk", "Godot.SourceGenerators", "GodotSharp", "GodotSharpEditor"];
-        if (!string.Equals(actual.GlobalJsonSdkVersion, BaseProjectileEvidenceLaunchPlanner.SdkVersion, StringComparison.Ordinal) ||
-            !LowerSha(actual.GlobalJsonSha256) ||
-            !actual.RollForwardDisabled || !actual.AllowPrereleaseDisabled || !actual.GlobalJsonIdentityBound ||
-            !string.Equals(Path.GetFullPath(actual.SdkDirectory), expectedSdk, StringComparison.OrdinalIgnoreCase) ||
-            !actual.SdkDirectoryExists || !actual.SdkDirectoryIdentityBound ||
-            Path.IsPathFullyQualified(relativeReference) || relativeReference == ".." ||
-            relativeReference.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
-            !reference.EndsWith(Path.Combine("ref", "net8.0"), StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(actual.ReferencePackVersion, "8.0.29", StringComparison.Ordinal) ||
-            !actual.ReferencePackDirectoryExists || !actual.ReferencePackDirectoryIdentityBound ||
-            actual.RequiredInputs.Count != requiredRelativeInputs.Length ||
-            requiredRelativeInputs.Any(relative => !actual.RequiredInputs.Any(input =>
-                string.Equals(input.Path, Path.GetFullPath(Path.Combine(required.WorkingDirectory, relative)), StringComparison.OrdinalIgnoreCase) &&
-                input.Exists && input.IdentityBound && input.ReparseFreeAncestors && LowerSha(input.Sha256))) ||
-            actual.RequiredPackages.Count != requiredPackages.Length ||
-            requiredPackages.Any(id => !actual.RequiredPackages.Any(package =>
-                string.Equals(package.PackageId, id, StringComparison.Ordinal) &&
-                string.Equals(package.Version, "4.7.1", StringComparison.Ordinal) &&
-                Path.IsPathFullyQualified(package.CachePath) && package.Exists && package.IdentityBound &&
-                package.ReparseFreeAncestors && LowerSha(package.Sha256))))
+        var expected = EvidenceBuildManifest.Create(required.WorkingDirectory);
+        if (!SamePrerequisites(actual, expected))
         {
             throw new InvalidOperationException("Locked SDK, reference-pack, or assets prerequisites were not exact.");
         }
     }
 
+    private static bool SamePrerequisites(
+        EvidenceBuildPrerequisiteAttestation actual,
+        EvidenceBuildPrerequisiteAttestation expected) =>
+        actual.GlobalJsonSdkVersion == expected.GlobalJsonSdkVersion &&
+        actual.GlobalJsonSha256 == expected.GlobalJsonSha256 &&
+        actual.RollForwardDisabled && actual.AllowPrereleaseDisabled && actual.GlobalJsonIdentityBound &&
+        ExactPath(actual.SdkDirectory, expected.SdkDirectory) && actual.SdkDirectoryExists &&
+        actual.SdkDirectoryIdentityBound && actual.SdkContentSha256 == expected.SdkContentSha256 &&
+        actual.SdkTreeHashAlgorithm == expected.SdkTreeHashAlgorithm &&
+        ExactPath(actual.ReferencePackDirectory, expected.ReferencePackDirectory) &&
+        actual.ReferencePackVersion == expected.ReferencePackVersion &&
+        actual.ReferencePackDirectoryExists && actual.ReferencePackDirectoryIdentityBound &&
+        actual.ReferencePackContentSha256 == expected.ReferencePackContentSha256 &&
+        actual.ReferencePackTreeHashAlgorithm == expected.ReferencePackTreeHashAlgorithm &&
+        SameInputs(actual.RequiredInputs, expected.RequiredInputs) &&
+        SamePackages(actual.RequiredPackages, expected.RequiredPackages);
+
+    private static bool SameInputs(
+        IReadOnlyList<EvidenceBuildInputIdentity> actual,
+        IReadOnlyList<EvidenceBuildInputIdentity> expected) =>
+        actual.Count == expected.Count && expected.All(item => actual.Count(candidate =>
+            ExactPath(candidate.Path, item.Path) && candidate.Sha256 == item.Sha256 && candidate.HashKind == item.HashKind &&
+            candidate.Exists && candidate.IdentityBound && candidate.ReparseFreeAncestors) == 1);
+
+    private static bool SamePackages(
+        IReadOnlyList<EvidenceBuildPackageIdentity> actual,
+        IReadOnlyList<EvidenceBuildPackageIdentity> expected) =>
+        actual.Count == expected.Count && expected.All(item => actual.Count(candidate =>
+            candidate.PackageId == item.PackageId && candidate.Version == item.Version &&
+            ExactPath(candidate.CachePath, item.CachePath) && candidate.Sha256 == item.Sha256 &&
+            candidate.Exists && candidate.IdentityBound && candidate.ReparseFreeAncestors) == 1);
+
     private static void ValidateEffectiveEnvironment(
         IReadOnlyDictionary<string, string> actual,
-        EvidenceBuildInvocation required)
+        EvidenceBuildInvocation required,
+        EvidenceTrustedDirectoryIdentity systemRoot,
+        EvidenceTrustedDirectoryIdentity temporaryDirectory)
     {
         string[] exactKeys =
         [
@@ -432,8 +535,10 @@ internal sealed class Win32EvidenceBuildDriver(
         var root = required.WorkingDirectory;
         if (actual.Count != exactKeys.Length || exactKeys.Any(key => !actual.ContainsKey(key)) ||
             required.Environment.Any(pair => !actual.TryGetValue(pair.Key, out var value) || value != pair.Value) ||
-            string.IsNullOrWhiteSpace(actual["SystemRoot"]) || actual["SystemRoot"] != actual["WINDIR"] ||
-            string.IsNullOrWhiteSpace(actual["TEMP"]) || actual["TEMP"] != actual["TMP"] ||
+            !ExactPath(actual["SystemRoot"], systemRoot.CanonicalPath) ||
+            !ExactPath(actual["WINDIR"], systemRoot.CanonicalPath) ||
+            !ExactPath(actual["TEMP"], temporaryDirectory.CanonicalPath) ||
+            !ExactPath(actual["TMP"], temporaryDirectory.CanonicalPath) ||
             actual["DOTNET_CLI_UI_LANGUAGE"] != "en-US" || actual["VSLANG"] != "1033" ||
             actual["NUGET_PACKAGES"] != Path.GetFullPath(Path.Combine(root, @".tools\nuget-packages")) ||
             actual["DOTNET_CLI_HOME"] != Path.GetFullPath(Path.Combine(root, @".tools\dotnet-home")) ||
@@ -443,11 +548,63 @@ internal sealed class Win32EvidenceBuildDriver(
         }
     }
 
+    private static IReadOnlyDictionary<string, string> FreezeEnvironment(
+        IReadOnlyDictionary<string, string> source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var frozen = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in source)
+        {
+            if (string.IsNullOrEmpty(pair.Key) || pair.Value is null || !frozen.TryAdd(pair.Key, pair.Value))
+            {
+                throw new InvalidOperationException("Sanitized build environment was mutable, duplicate, or malformed.");
+            }
+        }
+        return new ReadOnlyDictionary<string, string>(frozen);
+    }
+
+    private static void ValidateTrustedDirectory(EvidenceTrustedDirectoryIdentity value, string label)
+    {
+        if (!value.Exists || !value.IdentityBound || !value.ReparseFreeAncestors ||
+            string.IsNullOrWhiteSpace(value.OpenedHandleIdentity) ||
+            !Path.IsPathFullyQualified(value.RequestedPath) || !Path.IsPathFullyQualified(value.CanonicalPath) ||
+            !ExactPath(value.RequestedPath, value.CanonicalPath))
+        {
+            throw new InvalidOperationException($"Trusted {label} directory identity was not exact and retained.");
+        }
+    }
+
+    private static void ValidateProvenanceSnapshot(
+        EvidenceBuildProvenanceSnapshot snapshot,
+        EvidenceCandidateIdentity candidate)
+    {
+        if (snapshot.Candidate != candidate || string.IsNullOrWhiteSpace(snapshot.RetainedInputsIdentity))
+        {
+            throw new InvalidOperationException("Retained build provenance snapshot was incomplete.");
+        }
+    }
+
+    private static void RequireStableProvenance(
+        IEvidenceBuildProvenanceLease lease,
+        EvidenceBuildProvenanceSnapshot baseline,
+        EvidenceCandidateIdentity candidate)
+    {
+        var current = lease.Revalidate();
+        ValidateProvenanceSnapshot(current, candidate);
+        if (current != baseline)
+        {
+            throw new InvalidOperationException("Retained candidate or build-input provenance changed during rebuild.");
+        }
+    }
+
+    private static bool ExactPath(string actual, string expected) =>
+        string.Equals(Path.GetFullPath(actual), Path.GetFullPath(expected), StringComparison.OrdinalIgnoreCase);
+
     private static void ValidatePriorOutput(EvidenceBuildOutputState prior, string path)
     {
         if (!prior.Exists || !prior.IdentityBound || prior.IsReparsePoint ||
-            !prior.ReparseFreeAncestors ||
-            string.IsNullOrWhiteSpace(prior.OpenedHandleIdentity) || prior.Length <= 0 ||
+            !prior.ReparseFreeAncestors || prior.Directory || prior.DeletePending || prior.LinkCount != 1 ||
+            string.IsNullOrWhiteSpace(prior.OpenedHandleIdentity) || prior.Length <= 0 || prior.ChangeTime <= 0 ||
             !string.Equals(prior.Path, path, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Prior runtime output was not an exact identity-bound file.");
@@ -459,9 +616,10 @@ internal sealed class Win32EvidenceBuildDriver(
         EvidenceOpenedExecutableIdentity expectedImage,
         IReadOnlyDictionary<string, string> expectedEnvironment)
     {
+        var actualEnvironment = FreezeEnvironment(result.EffectiveEnvironment);
         if (result.ProcessImage != expectedImage ||
-            result.EffectiveEnvironment.Count != expectedEnvironment.Count ||
-            expectedEnvironment.Any(pair => !result.EffectiveEnvironment.TryGetValue(pair.Key, out var value) || value != pair.Value) ||
+            actualEnvironment.Count != expectedEnvironment.Count ||
+            expectedEnvironment.Any(pair => !actualEnvironment.TryGetValue(pair.Key, out var value) || value != pair.Value) ||
             result.ExitCode != 0 || result.TimedOut ||
             !result.StandardOutputReachedEof || !result.StandardErrorReachedEof ||
             result.StandardOutputExceededCap || result.StandardErrorExceededCap ||
@@ -481,8 +639,8 @@ internal sealed class Win32EvidenceBuildDriver(
         string path)
     {
         if (!recreated.Exists || !recreated.IdentityBound || recreated.IsReparsePoint ||
-            !recreated.ReparseFreeAncestors ||
-            recreated.Length <= 0 || string.IsNullOrWhiteSpace(recreated.OpenedHandleIdentity) ||
+            !recreated.ReparseFreeAncestors || recreated.Directory || recreated.DeletePending || recreated.LinkCount != 1 ||
+            recreated.Length <= 0 || recreated.ChangeTime <= 0 || string.IsNullOrWhiteSpace(recreated.OpenedHandleIdentity) ||
             string.Equals(recreated.OpenedHandleIdentity, prior.OpenedHandleIdentity, StringComparison.Ordinal) ||
             !string.Equals(recreated.Path, path, StringComparison.OrdinalIgnoreCase))
         {
@@ -521,17 +679,18 @@ internal sealed class Win32EvidenceBuildDriver(
 
 internal sealed class Win32RuntimeAssemblyFactory(
     IWin32RetainedFileApi api,
-    IEvidenceRuntimeAncestorFactory ancestors) :
+    IEvidenceRuntimeAncestorFactory ancestors,
+    IWin32RuntimeStreamApi streams) :
     IEvidenceRuntimeAssemblyFactory
 {
     internal const long MaximumRuntimeAssemblyBytes = 512L * 1024 * 1024;
 
     public IEvidenceRuntimeAssemblyLease OpenRecreatedClosure(
         IReadOnlyList<string> exactRuntimeAssemblyPaths,
-        string priorOpenedHandleIdentity)
+        IReadOnlyList<string> priorOpenedHandleIdentities)
     {
         ArgumentNullException.ThrowIfNull(exactRuntimeAssemblyPaths);
-        if (exactRuntimeAssemblyPaths.Count != 3)
+        if (exactRuntimeAssemblyPaths.Count != 3 || priorOpenedHandleIdentities.Count != 3)
         {
             throw new ArgumentException("Runtime closure must contain Game, Replay, and Sim assemblies.", nameof(exactRuntimeAssemblyPaths));
         }
@@ -548,7 +707,7 @@ internal sealed class Win32RuntimeAssemblyFactory(
             {
                 leases.Add(OpenOne(
                     exactRuntimeAssemblyPaths[index],
-                    index == 0 ? priorOpenedHandleIdentity : string.Empty));
+                    priorOpenedHandleIdentities[index]));
             }
             return new Win32RuntimeAssemblyClosureLease(leases, ancestorLease);
         }
@@ -582,6 +741,12 @@ internal sealed class Win32RuntimeAssemblyFactory(
         {
             var before = api.ReadSnapshot(handle);
             ValidateSnapshot(before, expected);
+            var alternateStreams = streams.EnumerateStreams(handle);
+            if (alternateStreams.Count != 1 || alternateStreams[0].Name != "::$DATA" ||
+                alternateStreams[0].Length != before.Length)
+            {
+                throw new InvalidOperationException("Runtime assembly contained an alternate data stream.");
+            }
             var openedIdentity = FormatIdentity(before);
             if (string.Equals(openedIdentity, priorOpenedHandleIdentity, StringComparison.Ordinal))
             {
@@ -743,11 +908,23 @@ internal sealed class Win32RuntimeAssemblyClosureLease : IEvidenceRuntimeAssembl
 
 internal sealed class Win32EvidenceBuildAttestationLease(
     IEvidenceRuntimeAssemblyLease runtime,
+    IEvidenceBuildProvenanceLease provenance,
     EvidenceBuildAttestation attestation) : IEvidenceBuildAttestationLease
 {
     private IEvidenceRuntimeAssemblyLease? _runtime = runtime;
+    private IEvidenceBuildProvenanceLease? _provenance = provenance;
 
     public EvidenceBuildAttestation Attestation { get; } = attestation;
 
-    public void Dispose() => Interlocked.Exchange(ref _runtime, null)?.Dispose();
+    public void Dispose()
+    {
+        var runtimeLease = Interlocked.Exchange(ref _runtime, null);
+        var provenanceLease = Interlocked.Exchange(ref _provenance, null);
+        Exception? failure = null;
+        try { runtimeLease?.Dispose(); }
+        catch (Exception exception) { failure = exception; }
+        try { provenanceLease?.Dispose(); }
+        catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
 }

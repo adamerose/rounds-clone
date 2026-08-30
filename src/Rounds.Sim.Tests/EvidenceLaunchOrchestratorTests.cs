@@ -189,6 +189,85 @@ public sealed class EvidenceLaunchOrchestratorTests
     }
 
     [Fact]
+    public void Build_cancellation_aggregates_attestation_and_msbuild_cleanup_failures()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var build = new FakeBuild(events, plan)
+        {
+            ThrowCancellationOnAttestationRead = true,
+            ThrowOnAttestationDispose = true,
+            ThrowOnExecutableDispose = true,
+        };
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan));
+
+        Assert.Equal(3, failure.Flatten().InnerExceptions.Count);
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
+        Assert.Equal(1, events.Count(value => value == "build-attestation-dispose"));
+        Assert.Equal(1, events.Count(value => value == "build-executable-dispose"));
+        Assert.DoesNotContain("worker-enter", events);
+    }
+
+    [Fact]
+    public void Throwing_attestation_collection_disposes_lease_once_and_refuses_native()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var invalid = ValidBuild(plan) with
+        {
+            RuntimeClosure = new ThrowingReadOnlyList<EvidenceRuntimeAssemblyIdentity>(),
+        };
+
+        var result = new EvidenceLaunchOrchestrator(
+            new FakeBuild(events, plan) { Override = invalid },
+            new FakeNative(events, plan)).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("build-driver", result.Code);
+        Assert.Equal(1, events.Count(value => value == "build-attestation-dispose"));
+        Assert.DoesNotContain("worker-enter", events);
+    }
+
+    [Fact]
+    public void Throwing_effective_environment_disposes_lease_once_and_refuses_native()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var invalid = ValidBuild(plan) with
+        {
+            EffectiveEnvironment = new ThrowingReadOnlyDictionary(),
+        };
+
+        var result = new EvidenceLaunchOrchestrator(
+            new FakeBuild(events, plan) { Override = invalid },
+            new FakeNative(events, plan)).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("build-driver", result.Code);
+        Assert.Equal(1, events.Count(value => value == "build-attestation-dispose"));
+        Assert.DoesNotContain("worker-enter", events);
+    }
+
+    [Fact]
+    public void Mutable_attestation_collection_is_snapshotted_before_validation_and_native_use()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var mutable = new OneShotReadOnlyList<EvidenceRuntimeAssemblyIdentity>(ValidRuntimeClosure(plan));
+        var attestation = ValidBuild(plan) with { RuntimeClosure = mutable };
+
+        var result = new EvidenceLaunchOrchestrator(
+            new FakeBuild(events, plan) { Override = attestation },
+            new FakeNative(events, plan)).Execute(plan);
+
+        Assert.True(result.Success);
+        Assert.Empty(mutable);
+        Assert.Equal(1, events.Count(value => value == "build-attestation-dispose"));
+    }
+
+    [Fact]
     public void Invalid_handle_allowlist_refuses_before_process_and_disposes_owned_leases()
     {
         var events = new List<string>();
@@ -798,6 +877,8 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         public bool ThrowOnExecutableDispose { get; init; }
 
+        public bool ThrowCancellationOnAttestationRead { get; init; }
+
         public IEvidenceExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required)
         {
             events.Add("build-executable-open");
@@ -817,17 +898,21 @@ public sealed class EvidenceLaunchOrchestratorTests
             return new FakeBuildAttestationLease(
                 events,
                 attestation with { Invocation = required },
-                ThrowOnAttestationDispose);
+                ThrowOnAttestationDispose,
+                ThrowCancellationOnAttestationRead);
         }
     }
 
     private sealed class FakeBuildAttestationLease(
         List<string> events,
         EvidenceBuildAttestation attestation,
-        bool throwOnDispose) : IEvidenceBuildAttestationLease
+        bool throwOnDispose,
+        bool throwCancellationOnRead) : IEvidenceBuildAttestationLease
     {
         private bool _disposed;
-        public EvidenceBuildAttestation Attestation { get; } = attestation;
+        public EvidenceBuildAttestation Attestation => throwCancellationOnRead
+            ? throw new OperationCanceledException("fake attestation cancellation")
+            : attestation;
 
         public void Dispose()
         {
@@ -836,6 +921,41 @@ public sealed class EvidenceLaunchOrchestratorTests
             events.Add("build-attestation-dispose");
             if (throwOnDispose) throw new InvalidOperationException("fake build-attestation disposal failure");
         }
+    }
+
+    private sealed class ThrowingReadOnlyList<T> : IReadOnlyList<T>
+    {
+        public int Count => 3;
+        public T this[int index] => throw new InvalidOperationException("hostile attestation indexer");
+        public IEnumerator<T> GetEnumerator() => throw new InvalidOperationException("hostile attestation enumeration");
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private sealed class ThrowingReadOnlyDictionary : IReadOnlyDictionary<string, string>
+    {
+        public int Count => 13;
+        public IEnumerable<string> Keys => throw new InvalidOperationException("hostile keys");
+        public IEnumerable<string> Values => throw new InvalidOperationException("hostile values");
+        public string this[string key] => throw new InvalidOperationException("hostile indexer");
+        public bool ContainsKey(string key) => throw new InvalidOperationException("hostile lookup");
+        public bool TryGetValue(string key, out string value) => throw new InvalidOperationException("hostile lookup");
+        public IEnumerator<KeyValuePair<string, string>> GetEnumerator() =>
+            throw new InvalidOperationException("hostile attestation enumeration");
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private sealed class OneShotReadOnlyList<T>(IEnumerable<T> values) : IReadOnlyList<T>
+    {
+        private readonly List<T> _values = values.ToList();
+        public int Count => _values.Count;
+        public T this[int index] => _values[index];
+        public IEnumerator<T> GetEnumerator()
+        {
+            var snapshot = _values.ToArray();
+            _values.Clear();
+            return ((IEnumerable<T>)snapshot).GetEnumerator();
+        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private sealed class FakeExecutableLease(

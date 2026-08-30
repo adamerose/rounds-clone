@@ -8,6 +8,8 @@ public sealed class Win32EvidenceBuildDriverTests
 {
     private const string Root = @"C:\repo";
     private const string RuntimePath = @"C:\repo\game\.godot\mono\temp\bin\Debug\Rounds.Game.dll";
+    private const string ReplayPath = @"C:\repo\game\.godot\mono\temp\bin\Debug\Rounds.Replay.dll";
+    private const string SimPath = @"C:\repo\game\.godot\mono\temp\bin\Debug\Rounds.Sim.dll";
 
     [Fact]
     public void Exact_rebuild_retains_runtime_closure_until_attestation_lease_disposal()
@@ -23,9 +25,12 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.DoesNotContain("runtime-dispose", rig.Events);
         Assert.Equal(
         [
-            "msbuild-open", "candidate", "prerequisites", "environment",
-            "output-read:0", "output-delete", "output-read:1", "candidate",
-            "process", "candidate", "output-read:2", "runtime-open",
+            "msbuild-open", "provenance-open", "candidate", "prerequisites", "candidate", "environment",
+            "output-read:0", "output-read:1", "output-read:2", "candidate",
+            "output-delete", "output-delete", "output-delete",
+            "output-read:3", "output-read:4", "output-read:5", "candidate",
+            "process", "candidate", "output-read:6", "output-read:7", "output-read:8",
+            "candidate", "runtime-open", "candidate",
         ], rig.Events);
         var request = Assert.IsType<EvidenceBuildProcessRequest>(rig.Process.Request);
         Assert.False(request.InheritAmbientEnvironment);
@@ -47,6 +52,7 @@ public sealed class Win32EvidenceBuildDriverTests
         lease.Dispose();
 
         Assert.Equal(1, rig.Events.Count(value => value == "runtime-dispose"));
+        Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
     }
 
     [Fact]
@@ -81,10 +87,18 @@ public sealed class Win32EvidenceBuildDriverTests
     [InlineData("input-ancestor")]
     [InlineData("package-version")]
     [InlineData("package-hash")]
+    [InlineData("global-hash")]
+    [InlineData("sdk-hash")]
+    [InlineData("ref-hash")]
+    [InlineData("ref-path")]
+    [InlineData("input-path")]
+    [InlineData("package-path")]
+    [InlineData("input-hash-kind")]
+    [InlineData("tree-hash-algorithm")]
     public void Locked_prerequisite_drift_refuses_before_output_deletion(string mutation)
     {
         var rig = new Rig();
-        rig.Prerequisites.Value = MutatePrerequisites(ValidPrerequisites(), mutation);
+        rig.Provenance.PrerequisitesValue = MutatePrerequisites(ValidPrerequisites(), mutation);
         using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
 
         Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
@@ -112,6 +126,74 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
 
         Assert.DoesNotContain("output-delete", rig.Events);
+    }
+
+    [Fact]
+    public void Trusted_os_and_temp_paths_require_exact_canonical_retained_identities()
+    {
+        var rig = new Rig();
+        rig.Provenance.SystemRoot = rig.Provenance.SystemRoot with { CanonicalPath = @"C:\OtherWindows" };
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.DoesNotContain("environment", rig.Events);
+        Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
+    }
+
+    [Fact]
+    public void Mutable_environment_source_is_frozen_before_process_run()
+    {
+        var rig = new Rig();
+        var mutable = new Dictionary<string, string>(ValidEnvironment(), StringComparer.OrdinalIgnoreCase);
+        rig.Environment.Value = mutable;
+        rig.Process.BeforeReturn = () => mutable["NUGET_PACKAGES"] = @"C:\hostile";
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        using var lease = rig.Driver.RebuildAndAttest(rig.Invocation, msbuild);
+
+        Assert.Equal(@"C:\repo\.tools\nuget-packages", rig.Process.Request!.EffectiveEnvironment["NUGET_PACKAGES"]);
+    }
+
+    [Fact]
+    public void Unretained_or_changed_and_restored_input_chain_refuses_before_spawn()
+    {
+        var rig = new Rig();
+        rig.Provenance.InputIdentities[1] = "temporarily-changed";
+        rig.Provenance.InputIdentities[2] = "inputs-id";
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.DoesNotContain("process", rig.Events);
+        Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
+    }
+
+    [Fact]
+    public void Missing_continuous_repository_and_ancestor_ownership_refuses_before_delete()
+    {
+        var rig = new Rig();
+        rig.Provenance.RetainsChains = false;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.DoesNotContain("output-delete", rig.Events);
+    }
+
+    [Fact]
+    public void Build_cancellation_aggregates_provenance_cleanup_failure()
+    {
+        var rig = new Rig();
+        rig.Process.Failure = new OperationCanceledException("cancel build");
+        rig.Provenance.ThrowOnDispose = true;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message.Contains("provenance", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -150,9 +232,52 @@ public sealed class Win32EvidenceBuildDriverTests
     {
         var rig = new Rig();
         if (mutation == "prior-missing") rig.Output.States[0] = EvidenceBuildOutputState.Missing(RuntimePath);
-        if (mutation == "delete-still-present") rig.Output.States[1] = PriorOutput();
-        if (mutation == "recreated-same-id") rig.Output.States[2] = RecreatedOutput() with { OpenedHandleIdentity = "old-id" };
-        if (mutation == "recreated-reparse") rig.Output.States[2] = RecreatedOutput() with { IsReparsePoint = true };
+        if (mutation == "delete-still-present") rig.Output.States[3] = PriorOutput(RuntimePath, "old-game-id");
+        if (mutation == "recreated-same-id") rig.Output.States[6] = RecreatedOutput(RuntimePath, "old-game-id");
+        if (mutation == "recreated-reparse") rig.Output.States[6] = RecreatedOutput(RuntimePath, "game-id") with { IsReparsePoint = true };
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Every_game_replay_and_sim_prior_output_must_exist_and_be_deleted(int closureIndex)
+    {
+        var rig = new Rig();
+        rig.Output.States[closureIndex] = EvidenceBuildOutputState.Missing(
+            new[] { RuntimePath, ReplayPath, SimPath }[closureIndex]);
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+    }
+
+    [Fact]
+    public void Prior_output_alias_or_hardlink_identity_is_refused_before_deletion()
+    {
+        var rig = new Rig();
+        rig.Output.States[1] = rig.Output.States[1] with { OpenedHandleIdentity = "old-game-id" };
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.DoesNotContain("output-delete", rig.Events);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Every_game_replay_and_sim_recreation_must_have_a_new_identity(int closureIndex)
+    {
+        var rig = new Rig();
+        var staleIds = new[] { "old-game-id", "old-replay-id", "old-sim-id" };
+        rig.Output.States[6 + closureIndex] = rig.Output.States[6 + closureIndex] with
+        {
+            OpenedHandleIdentity = staleIds[closureIndex],
+        };
         using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
 
         Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
@@ -160,11 +285,11 @@ public sealed class Win32EvidenceBuildDriverTests
 
     [Theory]
     [InlineData(1, false)]
-    [InlineData(2, true)]
+    [InlineData(3, true)]
     public void Candidate_drift_before_spawn_or_after_build_refuses(int readIndex, bool processRan)
     {
         var rig = new Rig();
-        rig.Repository.Values[readIndex] = ValidCandidate() with { Commit = new string('b', 40) };
+        rig.Provenance.Values[readIndex] = ValidCandidate() with { Commit = new string('b', 40) };
         using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
 
         Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
@@ -195,8 +320,8 @@ public sealed class Win32EvidenceBuildDriverTests
         files.Add(paths[1], File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Rounds.Replay.dll")), 102, '2');
         files.Add(paths[2], File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Rounds.Sim.dll")), 103, '3');
 
-        var lease = new Win32RuntimeAssemblyFactory(files, ancestors)
-            .OpenRecreatedClosure(paths, "old-id");
+        var lease = new Win32RuntimeAssemblyFactory(files, ancestors, files)
+            .OpenRecreatedClosure(paths, ["old-1", "old-2", "old-3"]);
 
         Assert.Equal(paths, lease.RuntimeClosure.Select(value => value.Path));
         Assert.All(lease.RuntimeClosure, value =>
@@ -223,7 +348,7 @@ public sealed class Win32EvidenceBuildDriverTests
         files.Add(paths[1], tests, 102, '2');
 
         Assert.Throws<InvalidOperationException>(() =>
-            new Win32RuntimeAssemblyFactory(files, ancestors).OpenRecreatedClosure(paths, "old-id"));
+            new Win32RuntimeAssemblyFactory(files, ancestors, files).OpenRecreatedClosure(paths, ["old-1", "old-2", "old-3"]));
 
         Assert.Equal(["close:102", "close:101", "ancestors-dispose"], files.Events.TakeLast(3));
     }
@@ -237,7 +362,7 @@ public sealed class Win32EvidenceBuildDriverTests
         files.Add(paths[0], File.ReadAllBytes(typeof(Win32EvidenceBuildDriverTests).Assembly.Location), 101, '1');
 
         Assert.Throws<InvalidOperationException>(() =>
-            new Win32RuntimeAssemblyFactory(files, ancestors).OpenRecreatedClosure(paths, "old-id"));
+            new Win32RuntimeAssemblyFactory(files, ancestors, files).OpenRecreatedClosure(paths, ["old-1", "old-2", "old-3"]));
 
         Assert.Equal(["close:101", "ancestors-dispose"], files.Events.TakeLast(2));
     }
@@ -249,10 +374,31 @@ public sealed class Win32EvidenceBuildDriverTests
         var ancestors = new FakeAncestors(files.Events) { Exact = false };
 
         Assert.Throws<InvalidOperationException>(() =>
-            new Win32RuntimeAssemblyFactory(files, ancestors)
-                .OpenRecreatedClosure(RuntimeFixturePaths(), "old-id"));
+            new Win32RuntimeAssemblyFactory(files, ancestors, files)
+                .OpenRecreatedClosure(RuntimeFixturePaths(), ["old-1", "old-2", "old-3"]));
 
         Assert.DoesNotContain(files.Events, value => value.StartsWith("open:", StringComparison.Ordinal));
+        Assert.Contains("ancestors-dispose", files.Events);
+    }
+
+    [Theory]
+    [InlineData(101)]
+    [InlineData(102)]
+    [InlineData(103)]
+    public void Runtime_factory_refuses_alternate_stream_on_every_closure_member(int adsHandle)
+    {
+        var files = new FakeRetainedFiles { AlternateStreamHandle = adsHandle };
+        var ancestors = new FakeAncestors(files.Events);
+        var paths = RuntimeFixturePaths();
+        files.Add(paths[0], File.ReadAllBytes(typeof(Win32EvidenceBuildDriverTests).Assembly.Location), 101, '1');
+        files.Add(paths[1], File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Rounds.Replay.dll")), 102, '2');
+        files.Add(paths[2], File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Rounds.Sim.dll")), 103, '3');
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new Win32RuntimeAssemblyFactory(files, ancestors, files)
+                .OpenRecreatedClosure(paths, ["old-1", "old-2", "old-3"]));
+
+        Assert.Contains($"close:{adsHandle}", files.Events);
         Assert.Contains("ancestors-dispose", files.Events);
     }
 
@@ -261,8 +407,7 @@ public sealed class Win32EvidenceBuildDriverTests
         internal List<string> Events { get; } = [];
         internal EvidenceBuildInvocation Invocation { get; } = ValidInvocation();
         internal FakeMsBuild MsBuild { get; }
-        internal FakeRepository Repository { get; }
-        internal FakePrerequisites Prerequisites { get; }
+        internal FakeProvenance Provenance { get; }
         internal FakeEnvironment Environment { get; }
         internal FakeOutput Output { get; }
         internal FakeProcess Process { get; }
@@ -272,14 +417,13 @@ public sealed class Win32EvidenceBuildDriverTests
         internal Rig()
         {
             MsBuild = new FakeMsBuild(Events);
-            Repository = new FakeRepository(Events);
-            Prerequisites = new FakePrerequisites(Events);
+            Provenance = new FakeProvenance(Events);
             Environment = new FakeEnvironment(Events);
             Output = new FakeOutput(Events);
             Process = new FakeProcess(Events);
             Runtime = new FakeRuntime(Events);
             Driver = new Win32EvidenceBuildDriver(
-                MsBuild, Repository, Prerequisites, Environment, Output, Process, Runtime);
+                MsBuild, Provenance, Environment, Output, Process, Runtime);
         }
     }
 
@@ -306,35 +450,68 @@ public sealed class Win32EvidenceBuildDriverTests
         }
     }
 
-    private sealed class FakeRepository(List<string> events) : IEvidenceBuildRepositoryInspector
+    private sealed class FakeProvenance(List<string> events) :
+        IEvidenceBuildProvenanceFactory,
+        IEvidenceBuildProvenanceLease
     {
         internal EvidenceCandidateIdentity[] Values { get; } =
-            [ValidCandidate(), ValidCandidate(), ValidCandidate()];
+            Enumerable.Repeat(ValidCandidate(), 6).ToArray();
+        internal EvidenceBuildPrerequisiteAttestation PrerequisitesValue { get; set; } = ValidPrerequisites();
+        internal bool RetainsChains { get; set; } = true;
+        internal bool ThrowOnDispose { get; set; }
+        internal string[] InputIdentities { get; } = Enumerable.Repeat("inputs-id", 6).ToArray();
         private int _read;
-        public EvidenceCandidateIdentity ReadCleanCandidate(string exactRepositoryRoot)
+
+        public EvidenceCandidateIdentity Candidate
+        {
+            get
+            {
+                events.Add("candidate");
+                return Values[0];
+            }
+        }
+        public EvidenceBuildPrerequisiteAttestation Prerequisites
+        {
+            get
+            {
+                events.Add("prerequisites");
+                return PrerequisitesValue;
+            }
+        }
+        public EvidenceTrustedDirectoryIdentity SystemRoot { get; set; } = Trusted(@"C:\Windows", "windows-id");
+        public EvidenceTrustedDirectoryIdentity TemporaryDirectory { get; set; } = Trusted(@"C:\Temp", "temp-id");
+        public bool RetainsExactRepositoryInputAndOutputAncestorChains => RetainsChains;
+        public IEvidenceBuildProvenanceLease OpenRetained(string exactRepositoryRoot)
+        {
+            events.Add("provenance-open");
+            Assert.Equal(Root, exactRepositoryRoot);
+            return this;
+        }
+        public EvidenceBuildProvenanceSnapshot Revalidate()
         {
             events.Add("candidate");
-            Assert.Equal(Root, exactRepositoryRoot);
-            return Values[_read++];
+            var index = System.Math.Min(_read, Values.Length - 1);
+            _read++;
+            return new EvidenceBuildProvenanceSnapshot(Values[index], InputIdentities[index]);
         }
-    }
-
-    private sealed class FakePrerequisites(List<string> events) : IEvidenceBuildPrerequisiteInspector
-    {
-        internal EvidenceBuildPrerequisiteAttestation Value { get; set; } = ValidPrerequisites();
-        public EvidenceBuildPrerequisiteAttestation Read(string exactRepositoryRoot)
+        public void Dispose()
         {
-            events.Add("prerequisites");
-            return Value;
+            events.Add("provenance-dispose");
+            if (ThrowOnDispose) throw new InvalidOperationException("provenance cleanup failed");
         }
     }
 
     private sealed class FakeEnvironment(List<string> events) : IEvidenceBuildEnvironmentFactory
     {
         internal IReadOnlyDictionary<string, string> Value { get; set; } = ValidEnvironment();
-        public IReadOnlyDictionary<string, string> CreateSanitized(EvidenceBuildInvocation required)
+        public IReadOnlyDictionary<string, string> CreateSanitized(
+            EvidenceBuildInvocation required,
+            EvidenceTrustedDirectoryIdentity systemRoot,
+            EvidenceTrustedDirectoryIdentity temporaryDirectory)
         {
             events.Add("environment");
+            Assert.Equal(@"C:\Windows", systemRoot.CanonicalPath);
+            Assert.Equal(@"C:\Temp", temporaryDirectory.CanonicalPath);
             return Value;
         }
     }
@@ -342,7 +519,17 @@ public sealed class Win32EvidenceBuildDriverTests
     private sealed class FakeOutput(List<string> events) : IEvidenceBuildOutputApi
     {
         internal EvidenceBuildOutputState[] States { get; } =
-            [PriorOutput(), EvidenceBuildOutputState.Missing(RuntimePath), RecreatedOutput()];
+        [
+            PriorOutput(RuntimePath, "old-game-id"),
+            PriorOutput(ReplayPath, "old-replay-id"),
+            PriorOutput(SimPath, "old-sim-id"),
+            EvidenceBuildOutputState.Missing(RuntimePath),
+            EvidenceBuildOutputState.Missing(ReplayPath),
+            EvidenceBuildOutputState.Missing(SimPath),
+            RecreatedOutput(RuntimePath, "game-id"),
+            RecreatedOutput(ReplayPath, "replay-id"),
+            RecreatedOutput(SimPath, "sim-id"),
+        ];
         private int _read;
         public EvidenceBuildOutputState Read(string exactRuntimeAssemblyPath)
         {
@@ -356,6 +543,8 @@ public sealed class Win32EvidenceBuildDriverTests
     {
         internal EvidenceBuildProcessRequest? Request { get; private set; }
         internal EvidenceBuildProcessResult Result { get; set; } = ValidProcessResult();
+        internal Action? BeforeReturn { get; set; }
+        internal Exception? Failure { get; set; }
         public EvidenceBuildProcessResult Run(
             EvidenceBuildProcessRequest request,
             IEvidenceExecutableLease retainedExecutable)
@@ -363,6 +552,8 @@ public sealed class Win32EvidenceBuildDriverTests
             events.Add("process");
             Request = request;
             Assert.Equal(ValidMsBuild(), retainedExecutable.Identity);
+            BeforeReturn?.Invoke();
+            if (Failure is not null) throw Failure;
             return Result;
         }
     }
@@ -372,10 +563,10 @@ public sealed class Win32EvidenceBuildDriverTests
         internal EvidenceRuntimeAssemblyIdentity[] Closure { get; } = ValidRuntimeClosure();
         public IEvidenceRuntimeAssemblyLease OpenRecreatedClosure(
             IReadOnlyList<string> exactRuntimeAssemblyPaths,
-            string priorOpenedHandleIdentity)
+            IReadOnlyList<string> priorOpenedHandleIdentities)
         {
             events.Add("runtime-open");
-            Assert.Equal("old-id", priorOpenedHandleIdentity);
+            Assert.Equal(["old-game-id", "old-replay-id", "old-sim-id"], priorOpenedHandleIdentities);
             Assert.Equal(
                 [RuntimePath, Path.Combine(Path.GetDirectoryName(RuntimePath)!, "Rounds.Replay.dll"), Path.Combine(Path.GetDirectoryName(RuntimePath)!, "Rounds.Sim.dll")],
                 exactRuntimeAssemblyPaths);
@@ -413,7 +604,7 @@ public sealed class Win32EvidenceBuildDriverTests
         public void Dispose() => events.Add("ancestors-dispose");
     }
 
-    private sealed class FakeRetainedFiles : IWin32RetainedFileApi
+    private sealed class FakeRetainedFiles : IWin32RetainedFileApi, IWin32RuntimeStreamApi
     {
         private sealed record Entry(string Path, byte[] Bytes, nint Handle, string FileId);
         private readonly Dictionary<string, Entry> _byPath = new(StringComparer.OrdinalIgnoreCase);
@@ -421,6 +612,7 @@ public sealed class Win32EvidenceBuildDriverTests
         private readonly Dictionary<nint, int> _snapshotReads = [];
         internal List<string> Events { get; } = [];
         internal bool DriftAfterRead { get; set; }
+        internal nint AlternateStreamHandle { get; set; }
 
         internal void Add(string path, byte[] bytes, nint handle, char fileId)
         {
@@ -454,6 +646,11 @@ public sealed class Win32EvidenceBuildDriverTests
         }
 
         public Stream OpenReadStream(nint handle) => new MemoryStream(_byHandle[handle].Bytes, writable: false);
+        public IReadOnlyList<Win32PublishedStreamEntry> EnumerateStreams(nint retainedFileHandle) =>
+            retainedFileHandle == AlternateStreamHandle
+                ? [new Win32PublishedStreamEntry("::$DATA", _byHandle[retainedFileHandle].Bytes.Length),
+                    new Win32PublishedStreamEntry(":hostile:$DATA", 1)]
+                : [new Win32PublishedStreamEntry("::$DATA", _byHandle[retainedFileHandle].Bytes.Length)];
         public Win32RetainedFileVersion ReadVersion(nint retainedHandle, string normalizedFinalPath) =>
             throw new NotSupportedException();
         public bool CloseKernelHandle(nint handle)
@@ -493,28 +690,7 @@ public sealed class Win32EvidenceBuildDriverTests
             ["MSBuildUserExtensionsPath"] = @"C:\repo\.tools\empty\msbuild-user",
         });
 
-    private static EvidenceBuildPrerequisiteAttestation ValidPrerequisites()
-    {
-        string[] relatives =
-        [
-            "global.json", @"game\Rounds.Game.csproj", @"game\packages.lock.json",
-            @"game\obj\project.assets.json", @"src\Rounds.Replay\Rounds.Replay.csproj",
-            @"src\Rounds.Replay\packages.lock.json", @"src\Rounds.Replay\obj\project.assets.json",
-            @"src\Rounds.Sim\Rounds.Sim.csproj", @"src\Rounds.Sim\packages.lock.json",
-            @"src\Rounds.Sim\obj\project.assets.json",
-        ];
-        var inputs = relatives.Select(relative => new EvidenceBuildInputIdentity(
-            Path.Combine(Root, relative), true, true, true, new string('a', 64))).ToArray();
-        var packages = new[] { "Godot.NET.Sdk", "Godot.SourceGenerators", "GodotSharp", "GodotSharpEditor" }
-            .Select((id, index) => new EvidenceBuildPackageIdentity(
-                id, "4.7.1", $@"C:\repo\.tools\nuget-packages\{id.ToLowerInvariant()}\4.7.1",
-                true, true, true, new string((char)('a' + index), 64))).ToArray();
-        return new EvidenceBuildPrerequisiteAttestation(
-            "8.0.423", new string('a', 64), true, true, true,
-            @"C:\repo\.tools\dotnet\sdk\8.0.423\Sdks", true, true,
-            @"C:\repo\.tools\dotnet\packs\Microsoft.NETCore.App.Ref\8.0.29\ref\net8.0",
-            "8.0.29", true, true, inputs, packages);
-    }
+    private static EvidenceBuildPrerequisiteAttestation ValidPrerequisites() => EvidenceBuildManifest.Create(Root);
 
     private static EvidenceBuildPrerequisiteAttestation MutatePrerequisites(
         EvidenceBuildPrerequisiteAttestation value,
@@ -526,6 +702,14 @@ public sealed class Win32EvidenceBuildDriverTests
             "input-ancestor" => value with { RequiredInputs = value.RequiredInputs.Select((item, index) => index == 0 ? item with { ReparseFreeAncestors = false } : item).ToArray() },
             "package-version" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { Version = "4.7.0" } : item).ToArray() },
             "package-hash" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { Sha256 = "bad" } : item).ToArray() },
+            "global-hash" => value with { GlobalJsonSha256 = new string('0', 64) },
+            "sdk-hash" => value with { SdkContentSha256 = new string('0', 64) },
+            "ref-hash" => value with { ReferencePackContentSha256 = new string('0', 64) },
+            "ref-path" => value with { ReferencePackDirectory = @"C:\repo\.tools\dotnet\packs\Microsoft.NETCore.App.Ref\8.0.28\ref\net8.0" },
+            "input-path" => value with { RequiredInputs = value.RequiredInputs.Select((item, index) => index == 0 ? item with { Path = @"C:\repo\decoy\global.json" } : item).ToArray() },
+            "package-path" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { CachePath = @"C:\host-cache\godot.net.sdk.4.7.1.nupkg" } : item).ToArray() },
+            "input-hash-kind" => value with { RequiredInputs = value.RequiredInputs.Select((item, index) => index == 3 ? item with { HashKind = EvidenceBuildContentHashKind.RawBytesSha256 } : item).ToArray() },
+            "tree-hash-algorithm" => value with { ReferencePackTreeHashAlgorithm = "different" },
             _ => throw new ArgumentOutOfRangeException(nameof(mutation)),
         };
 
@@ -538,11 +722,14 @@ public sealed class Win32EvidenceBuildDriverTests
         BaseProjectileEvidenceLaunchPlanner.MsBuildFileVersion,
         BaseProjectileEvidenceLaunchPlanner.MsBuildProductVersion);
 
-    private static EvidenceBuildOutputState PriorOutput() =>
-        new(RuntimePath, true, true, false, true, "old-id", 100, 10);
+    private static EvidenceBuildOutputState PriorOutput(string path, string identity) =>
+        new(path, true, true, false, true, identity, 100, 10, false, 1, false);
 
-    private static EvidenceBuildOutputState RecreatedOutput() =>
-        new(RuntimePath, true, true, false, true, "game-id", 200, 20);
+    private static EvidenceBuildOutputState RecreatedOutput(string path, string identity) =>
+        new(path, true, true, false, true, identity, 200, 20, false, 1, false);
+
+    private static EvidenceTrustedDirectoryIdentity Trusted(string path, string identity) =>
+        new(path, path, true, true, true, identity);
 
     private static EvidenceRuntimeAssemblyIdentity[] ValidRuntimeClosure()
     {

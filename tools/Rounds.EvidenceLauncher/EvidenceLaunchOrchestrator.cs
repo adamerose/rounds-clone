@@ -419,13 +419,13 @@ internal sealed class EvidenceLaunchOrchestrator(
         EvidenceOpenedExecutableIdentity? msBuildLeaseIdentity = null;
         Exception? buildFailure = null;
         OperationCanceledException? buildCancellation = null;
-        var msBuildCleanupFailed = false;
+        Exception? msBuildCleanupFailure = null;
         try
         {
             msBuildExecutable = build.OpenMsBuildExecutable(requiredBuild);
             msBuildLeaseIdentity = msBuildExecutable.Identity;
             buildAttestationLease = build.RebuildAndAttest(requiredBuild, msBuildExecutable);
-            attestation = buildAttestationLease.Attestation;
+            attestation = FreezeBuildAttestation(buildAttestationLease.Attestation);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -441,26 +441,29 @@ internal sealed class EvidenceLaunchOrchestrator(
             {
                 msBuildExecutable?.Dispose();
             }
-            catch (Exception)
+            catch (Exception cleanup)
             {
                 // A build lease cleanup failure leaves attribution untrustworthy.
                 attestation = null;
-                msBuildCleanupFailed = true;
+                msBuildCleanupFailure = cleanup;
             }
         }
         if (buildCancellation is not null)
         {
+            var failures = new List<Exception> { buildCancellation };
             try
             {
                 buildAttestationLease?.Dispose();
             }
             catch (Exception cleanup)
             {
-                throw new AggregateException(buildCancellation, cleanup);
+                failures.Add(cleanup);
             }
+            if (msBuildCleanupFailure is not null) failures.Add(msBuildCleanupFailure);
+            if (failures.Count > 1) throw new AggregateException(failures);
             ExceptionDispatchInfo.Capture(buildCancellation).Throw();
         }
-        if (buildFailure is not null || msBuildCleanupFailed)
+        if (buildFailure is not null || msBuildCleanupFailure is not null)
         {
             try
             {
@@ -470,10 +473,19 @@ internal sealed class EvidenceLaunchOrchestrator(
             {
                 return EvidenceLaunchResult.Failed("cleanup");
             }
-            return EvidenceLaunchResult.Failed(msBuildCleanupFailed ? "cleanup" : "build-driver");
+            return EvidenceLaunchResult.Failed(msBuildCleanupFailure is not null ? "cleanup" : "build-driver");
         }
-        if (attestation is null || msBuildLeaseIdentity is null ||
-            !BuildMatches(plan, requiredBuild, msBuildLeaseIdentity, attestation))
+        var buildMatches = false;
+        try
+        {
+            buildMatches = attestation is not null && msBuildLeaseIdentity is not null &&
+                BuildMatches(plan, requiredBuild, msBuildLeaseIdentity, attestation);
+        }
+        catch (Exception)
+        {
+            buildMatches = false;
+        }
+        if (!buildMatches)
         {
             try
             {
@@ -490,7 +502,7 @@ internal sealed class EvidenceLaunchOrchestrator(
         EvidenceLaunchResult result;
         try
         {
-            var nativeResult = native.RunOnDedicatedWorker(() => ExecuteNative(plan, attestation, executionState));
+            var nativeResult = native.RunOnDedicatedWorker(() => ExecuteNative(plan, attestation!, executionState));
             result = executionState.CleanupFailures.Count == 0
                 ? nativeResult
                 : EvidenceLaunchResult.Failed("cleanup", ResidueFor(executionState, plan));
@@ -522,6 +534,27 @@ internal sealed class EvidenceLaunchOrchestrator(
             result = EvidenceLaunchResult.Failed("cleanup", ResidueFor(executionState, plan));
         }
         return result;
+    }
+
+    private static EvidenceBuildAttestation FreezeBuildAttestation(EvidenceBuildAttestation source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var arguments = Array.AsReadOnly(source.Invocation.Arguments.ToArray());
+        var invocationEnvironment = new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>(source.Invocation.Environment, StringComparer.Ordinal));
+        var effectiveEnvironment = new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>(source.EffectiveEnvironment, StringComparer.OrdinalIgnoreCase));
+        var closure = Array.AsReadOnly(source.RuntimeClosure.ToArray());
+        return source with
+        {
+            Invocation = source.Invocation with
+            {
+                Arguments = arguments,
+                Environment = invocationEnvironment,
+            },
+            EffectiveEnvironment = effectiveEnvironment,
+            RuntimeClosure = closure,
+        };
     }
 
     private EvidenceLaunchResult ExecuteNative(

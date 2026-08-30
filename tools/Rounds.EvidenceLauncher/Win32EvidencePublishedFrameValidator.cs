@@ -382,7 +382,7 @@ internal sealed class Win32PublishedFrameValidationLease(
     }
 }
 
-internal sealed class Win32PublishedFrameApi : IWin32PublishedFrameApi
+internal sealed class Win32PublishedFrameApi : IWin32PublishedFrameApi, IWin32RuntimeStreamApi
 {
     internal const int FileStreamInfo = 0x07;
     internal const int FileIdBothDirectoryInfo = 0x0a;
@@ -460,6 +460,9 @@ internal sealed class Win32PublishedFrameApi : IWin32PublishedFrameApi
             System.Runtime.InteropServices.Marshal.FreeHGlobal(memory);
         }
     }
+
+    public IReadOnlyList<Win32PublishedStreamEntry> EnumerateStreams(nint retainedFileHandle) =>
+        EnumerateFrameStreams(retainedFileHandle);
 
     public bool ProbeOwnershipMarkerLocked(nint retainedRootHandle, string exactMarkerName)
     {
