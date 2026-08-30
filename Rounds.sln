@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rounds.Checks", "tools\Roun
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rounds.Checks.Tests", "tools\Rounds.Checks.Tests\Rounds.Checks.Tests.csproj", "{C4179663-8603-442C-A824-FA4503787DB3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rounds.EvidenceLauncher", "tools\Rounds.EvidenceLauncher\Rounds.EvidenceLauncher.csproj", "{3BA83E96-BCF2-49E8-A716-BE60A541C035}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,6 +60,10 @@ Global
 		{C4179663-8603-442C-A824-FA4503787DB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C4179663-8603-442C-A824-FA4503787DB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C4179663-8603-442C-A824-FA4503787DB3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BA83E96-BCF2-49E8-A716-BE60A541C035}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BA83E96-BCF2-49E8-A716-BE60A541C035}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BA83E96-BCF2-49E8-A716-BE60A541C035}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BA83E96-BCF2-49E8-A716-BE60A541C035}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A7CB574A-4ED6-43A9-9EE4-1EF2D7844F05} = {5085B203-D8D8-4A00-8BC0-A9439667BC01}
@@ -66,5 +72,6 @@ Global
 		{17D3F6B7-6E81-4CC8-953E-BCF2E82B11A9} = {5085B203-D8D8-4A00-8BC0-A9439667BC01}
 		{14B5AB98-18C0-45A3-9125-47CFC74313D6} = {E0235692-9986-49B9-81A2-FA11EA4E71AF}
 		{C4179663-8603-442C-A824-FA4503787DB3} = {E0235692-9986-49B9-81A2-FA11EA4E71AF}
+		{3BA83E96-BCF2-49E8-A716-BE60A541C035} = {E0235692-9986-49B9-81A2-FA11EA4E71AF}
 	EndGlobalSection
 EndGlobal

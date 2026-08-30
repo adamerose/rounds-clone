@@ -92,7 +92,8 @@ internal sealed record BaseProjectileEvidenceLaunchPlan(
     int StandardErrorCapBytes,
     string RuntimeAssemblySha256,
     string RuntimeAssemblyMvid,
-    string InputDesktopIdentity)
+    string InputDesktopIdentity,
+    IReadOnlyList<EvidenceAncestorIdentityFacts> OutputAncestors)
 {
     public string CommandLine => WindowsArgumentEncoding.Encode(
         new[] { Executable }.Concat(Arguments).ToArray());
@@ -197,7 +198,7 @@ internal static class BaseProjectileEvidenceLaunchPlanner
             "--audio-driver", "Dummy",
             "--rendering-method", "gl_compatibility",
             "--",
-            StartupRoute.DebugBaseProjectileEvidenceArgument,
+            DebugEvidenceCaptureProtocol.BaseProjectileArgument,
             outputRoot,
         });
         var desktop = "RoundsEvidence-" + nonce;
@@ -233,7 +234,8 @@ internal static class BaseProjectileEvidenceLaunchPlanner
                 64 * 1024,
                 facts.RuntimeAssembly.Sha256,
                 facts.RuntimeAssembly.Mvid,
-                facts.InputDesktopIdentity),
+                facts.InputDesktopIdentity,
+                Array.AsReadOnly(facts.Output.Ancestors.ToArray())),
             null);
     }
 

@@ -25,6 +25,7 @@ internal readonly record struct DebugBaseProjectileEvidenceAttestation(
 
 internal static class DebugEvidenceCaptureProtocol
 {
+    internal const string BaseProjectileArgument = "--debug-base-projectile-evidence";
     internal const string CompletePrefix = "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_COMPLETE";
     internal const string ErrorPrefix = "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR";
     internal const string BaseProjectileCompletePrefix = "DEBUG_BASE_PROJECTILE_EVIDENCE_COMPLETE";

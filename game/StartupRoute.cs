@@ -19,7 +19,7 @@ internal readonly record struct StartupRoute(
     internal const string DebugIncompleteFidelityEvidenceArgument =
         "--debug-incomplete-fidelity-evidence";
     internal const string DebugBaseProjectileEvidenceArgument =
-        "--debug-base-projectile-evidence";
+        DebugEvidenceCaptureProtocol.BaseProjectileArgument;
     internal const string DebugAgentPlaytestArgument = "--debug-agent-playtest";
 
     public bool RunsContinuousPhysics =>

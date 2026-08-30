@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Rounds.EvidenceLauncher</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\game\BaseProjectileEvidenceLaunchPlan.cs" Link="Shared\BaseProjectileEvidenceLaunchPlan.cs" />
+    <Compile Include="..\..\game\DebugEvidenceCaptureProtocol.cs" Link="Shared\DebugEvidenceCaptureProtocol.cs" />
+  </ItemGroup>
+</Project>

@@ -9,7 +9,7 @@ namespace Rounds.Checks;
 public static partial class ProductIdentityChecker
 {
     private const string ExpectedShippedRuntimeBoundarySha256 =
-        "c374578be970695baa09aadf01fdfbaeecbd75e9f6a0635f776c9661b6a5f4d6";
+        "795aa2aaf2938491f2c6f4b69936076a1592a6352ade2a4f13df706eb19793cb";
 
     private static readonly string[] ShippedRuntimeRoots =
     [
