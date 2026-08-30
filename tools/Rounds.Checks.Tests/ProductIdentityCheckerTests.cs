@@ -72,8 +72,8 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         var failures = ProductIdentityChecker.CheckRepository(_fixture);
 
         Assert.Contains(failures, failure => failure ==
-            "IDN010 game/Main.cs changed from the reviewed live Main UI source; " +
-            "deliberately review the complete live UI boundary and update ExpectedMainSourceSha256.");
+            "IDN010 the complete live presentation boundary changed; " +
+            "deliberately review every included source and update ExpectedLivePresentationBoundarySha256.");
     }
 
     [Theory]
@@ -90,6 +90,89 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         var failures = ProductIdentityChecker.CheckRepository(_fixture);
 
         Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MainSceneChildLabelRequiresLivePresentationReview()
+    {
+        CopyIdentityFixture();
+        File.AppendAllText(
+            Path.Combine(_fixture, "game", "Main.tscn"),
+            "\n[node name=\"UnreviewedCopy\" type=\"Label\" parent=\".\"]\ntext = \"MATCH PHASE\"\n");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NewGameScriptRequiresLivePresentationReview()
+    {
+        CopyIdentityFixture();
+        File.WriteAllText(
+            Path.Combine(_fixture, "game", "UnreviewedLabel.cs"),
+            "public sealed class UnreviewedLabel { public const string Text = \"MATCH PHASE\"; }");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DeletedGameSourceRequiresLivePresentationReview()
+    {
+        CopyIdentityFixture();
+        File.Delete(Path.Combine(_fixture, "game", "StartupRoute.cs"));
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void IncompleteFidelityCopyMutationRequiresLivePresentationReview()
+    {
+        CopyIdentityFixture();
+        var shell = Path.Combine(_fixture, "game", "FaithfulSubsetMatchShell.cs");
+        File.WriteAllText(shell, File.ReadAllText(shell).Replace(
+            "THE OPENING CARDS AND FIRST FULL ROUND ARE THE CURRENT PLAYABLE SUBSET",
+            "UNREVIEWED SUBSTITUTE COPY",
+            StringComparison.Ordinal));
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CardDisplayNameProviderMutationRequiresLivePresentationReview()
+    {
+        CopyIdentityFixture();
+        var definition = Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardDefinition.cs");
+        File.WriteAllText(definition, File.ReadAllText(definition).Replace(
+            "DisplayName = displayName;",
+            "DisplayName = id;",
+            StringComparison.Ordinal));
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(".godot")]
+    [InlineData("bin")]
+    [InlineData("obj")]
+    public void GeneratedGameDirectoryFilesDoNotChangeLivePresentationBoundary(string directory)
+    {
+        CopyIdentityFixture();
+        var generatedDirectory = Path.Combine(_fixture, "game", directory, "nested");
+        Directory.CreateDirectory(generatedDirectory);
+        File.WriteAllText(Path.Combine(generatedDirectory, "generated.txt"), "not shipped source");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.DoesNotContain(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -119,12 +202,11 @@ public sealed class ProductIdentityCheckerTests : IDisposable
     private void CopyIdentityFixture()
     {
         var repository = FindRepository();
+        CopyGameBoundary(repository);
         foreach (var relativePath in new[]
         {
             "GOAL.md",
             "README.md",
-            "game/project.godot",
-            "game/Main.cs",
             "docs/architecture.md",
             "docs/design/visual-system.md",
             "research/notes/core-rules.md",
@@ -141,6 +223,31 @@ public sealed class ProductIdentityCheckerTests : IDisposable
             var destination = Path.Combine(_fixture, relativePath.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(Path.Combine(repository, relativePath.Replace('/', Path.DirectorySeparatorChar)), destination);
+        }
+    }
+
+    private void CopyGameBoundary(string repository)
+    {
+        var sourceRoot = Path.Combine(repository, "game");
+        var pending = new Stack<string>();
+        pending.Push(sourceRoot);
+        while (pending.TryPop(out var directory))
+        {
+            foreach (var childDirectory in Directory.EnumerateDirectories(directory))
+            {
+                if (Path.GetFileName(childDirectory) is not (".godot" or "bin" or "obj"))
+                {
+                    pending.Push(childDirectory);
+                }
+            }
+
+            foreach (var source in Directory.EnumerateFiles(directory))
+            {
+                var relative = Path.GetRelativePath(sourceRoot, source);
+                var destination = Path.Combine(_fixture, "game", relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(source, destination);
+            }
         }
     }
 

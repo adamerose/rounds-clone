@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -6,8 +8,22 @@ namespace Rounds.Checks;
 
 public static partial class ProductIdentityChecker
 {
-    private const string ExpectedMainSourceSha256 =
-        "118f90bf5742eeeb7ea5f08999aad723f3b7e35df1eac57cb4daf2005ab9491b";
+    private const string ExpectedLivePresentationBoundarySha256 =
+        "eb6dd5e2e91d76ee64df84099c303e091e047f9a1bcaeef264839f0406de0c31";
+
+    private static readonly string[] ExternalLivePresentationPaths =
+    [
+        "src/Rounds.Sim/Cards/StatCardCatalog.cs",
+        "src/Rounds.Sim/Cards/StatCardDefinition.cs",
+    ];
+
+    private static readonly HashSet<string> GeneratedGameDirectoryNames =
+        new(StringComparer.Ordinal)
+        {
+            ".godot",
+            "bin",
+            "obj",
+        };
 
     private static readonly string[] ActiveIdentityPaths =
     [
@@ -147,8 +163,6 @@ public static partial class ProductIdentityChecker
 
     private static void CheckUnsupportedLiveUiIsAbsent(string repository, List<string> failures)
     {
-        var mainPath = Path.Combine(repository, "game", "Main.cs");
-        var main = ReadRequired(repository, Path.Combine("game", "Main.cs"), failures);
         var definition = ReadRequired(
             repository,
             Path.Combine("src", "Rounds.Sim", "Cards", "StatCardDefinition.cs"),
@@ -157,17 +171,12 @@ public static partial class ProductIdentityChecker
             repository,
             Path.Combine("src", "Rounds.Sim", "Cards", "StatCardCatalog.cs"),
             failures);
-        if (main is not null)
+        var actualBoundarySha256 = ComputeLivePresentationBoundarySha256(repository);
+        if (actualBoundarySha256 != ExpectedLivePresentationBoundarySha256)
         {
-            var actualMainSourceSha256 = Convert.ToHexString(
-                    SHA256.HashData(File.ReadAllBytes(mainPath)))
-                .ToLowerInvariant();
-            if (actualMainSourceSha256 != ExpectedMainSourceSha256)
-            {
-                failures.Add(
-                    "IDN010 game/Main.cs changed from the reviewed live Main UI source; " +
-                    "deliberately review the complete live UI boundary and update ExpectedMainSourceSha256.");
-            }
+            failures.Add(
+                "IDN010 the complete live presentation boundary changed; " +
+                "deliberately review every included source and update ExpectedLivePresentationBoundarySha256.");
         }
         if (definition is not null && SummaryIdentifier().IsMatch(MaskComments(definition)))
         {
@@ -177,6 +186,76 @@ public static partial class ProductIdentityChecker
         {
             failures.Add("IDN012 StatCardCatalog.cs reintroduces a hard-coded runtime card summary catalog.");
         }
+    }
+
+    private static string ComputeLivePresentationBoundarySha256(string repository)
+    {
+        var relativePaths = EnumerateLivePresentationBoundaryFiles(repository)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var contentBuffer = new byte[81920];
+        foreach (var relativePath in relativePaths)
+        {
+            var pathBytes = Encoding.UTF8.GetBytes(relativePath);
+            AppendInt64(hash, pathBytes.LongLength);
+            hash.AppendData(pathBytes);
+
+            using var content = File.OpenRead(Path.Combine(
+                repository,
+                relativePath.Replace('/', Path.DirectorySeparatorChar)));
+            AppendInt64(hash, content.Length);
+            int bytesRead;
+            while ((bytesRead = content.Read(contentBuffer, 0, contentBuffer.Length)) != 0)
+            {
+                hash.AppendData(contentBuffer, 0, bytesRead);
+            }
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
+
+    private static IEnumerable<string> EnumerateLivePresentationBoundaryFiles(string repository)
+    {
+        var gameRoot = Path.Combine(repository, "game");
+        if (Directory.Exists(gameRoot))
+        {
+            var pending = new Stack<string>();
+            pending.Push(gameRoot);
+            while (pending.TryPop(out var directory))
+            {
+                foreach (var childDirectory in Directory.EnumerateDirectories(directory))
+                {
+                    if (!GeneratedGameDirectoryNames.Contains(Path.GetFileName(childDirectory)))
+                    {
+                        pending.Push(childDirectory);
+                    }
+                }
+
+                foreach (var file in Directory.EnumerateFiles(directory))
+                {
+                    yield return Path.GetRelativePath(repository, file)
+                        .Replace(Path.DirectorySeparatorChar, '/');
+                }
+            }
+        }
+
+        foreach (var relativePath in ExternalLivePresentationPaths)
+        {
+            if (File.Exists(Path.Combine(
+                repository,
+                relativePath.Replace('/', Path.DirectorySeparatorChar))))
+            {
+                yield return relativePath;
+            }
+        }
+    }
+
+    private static void AppendInt64(IncrementalHash hash, long value)
+    {
+        Span<byte> length = stackalloc byte[sizeof(long)];
+        BinaryPrimitives.WriteInt64BigEndian(length, value);
+        hash.AppendData(length);
     }
 
     private static string MaskComments(string source) => MaskSource(source, maskStrings: false);
