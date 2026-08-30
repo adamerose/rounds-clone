@@ -311,6 +311,8 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
     private bool _gateDisposed;
     private bool _standardOutputFaultDelivered;
     private bool _standardErrorFaultDelivered;
+    private EvidenceBuildDrainReadyProof? _issuedReadyProof;
+    private bool _readyProofConsumed;
 
     internal EvidenceBuildRawDrainSession(
         IEvidenceBuildRawReadApi readApi,
@@ -334,6 +336,61 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
         _standardOutputStarted.Task.IsCompletedSuccessfully &&
         _standardErrorStarted.Task.IsCompletedSuccessfully &&
         !_releaseGate.IsSet;
+
+    internal EvidenceBuildDrainReadyProof IssueReadyProof(
+        EvidenceBuildJobLease job,
+        EvidenceBuildMatchedSuspendedProcessLease process)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        ArgumentNullException.ThrowIfNull(process);
+        lock (_stateGate)
+        {
+            ThrowIfDisposed();
+            if (!ReadyForDeadline || _deadline is not null || _terminalProof || _issuedReadyProof is not null)
+            {
+                throw new InvalidOperationException("Build drain readiness can be issued exactly once while both workers remain gated.");
+            }
+            _issuedReadyProof = new EvidenceBuildDrainReadyProof(this, job, process);
+            return _issuedReadyProof;
+        }
+    }
+
+    internal void ConsumeReadyProof(
+        EvidenceBuildDrainReadyProof proof,
+        EvidenceBuildJobLease job,
+        EvidenceBuildMatchedSuspendedProcessLease process)
+    {
+        ArgumentNullException.ThrowIfNull(proof);
+        lock (_stateGate)
+        {
+            ThrowIfDisposed();
+            if (!ReferenceEquals(_issuedReadyProof, proof) || _readyProofConsumed ||
+                !proof.Matches(this, job, process) || !ReadyForDeadline ||
+                _deadline is not null || _terminalProof)
+            {
+                throw new InvalidOperationException("Build drain readiness proof was wrong, stale, released, or already consumed.");
+            }
+            _readyProofConsumed = true;
+            proof.MarkConsumed();
+        }
+    }
+
+    internal void ReleaseConsumedProof(EvidenceBuildDrainReadyProof proof, EvidenceBuildRunDeadline deadline)
+    {
+        ArgumentNullException.ThrowIfNull(proof);
+        ArgumentNullException.ThrowIfNull(deadline);
+        lock (_stateGate)
+        {
+            ThrowIfDisposed();
+            if (!ReferenceEquals(_issuedReadyProof, proof) || !_readyProofConsumed || !proof.IsConsumed ||
+                !ReadyForDeadline || _deadline is not null || _terminalProof)
+            {
+                throw new InvalidOperationException("Build drain readiness proof could not release this exact session.");
+            }
+            _deadline = deadline;
+            _releaseGate.Set();
+        }
+    }
 
     internal EvidenceBuildRawDrainSession StartAndProveReady()
     {
@@ -374,7 +431,7 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
         lock (_stateGate)
         {
             ThrowIfDisposed();
-            if (!ReadyForDeadline || _deadline is not null || _terminalProof)
+            if (!ReadyForDeadline || _deadline is not null || _terminalProof || _issuedReadyProof is not null)
             {
                 throw new InvalidOperationException("Build drains were not in the exact gated readiness state.");
             }

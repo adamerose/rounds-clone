@@ -73,8 +73,10 @@ internal sealed record EvidenceBuildRawJobTopology(
     bool Succeeded,
     int Error,
     byte[] Bytes,
+    int ReturnedBytes,
     ulong TotalProcesses,
-    uint ActiveProcesses);
+    uint ActiveProcesses,
+    ulong TotalTerminatedProcesses);
 
 internal interface IEvidenceBuildJobApi
 {
@@ -103,17 +105,40 @@ internal sealed class EvidenceBuildJobCleanupOwner : IEvidenceBuildJobCleanupOwn
 
 internal static class EvidenceBuildJobRetention
 {
-    private static readonly ConcurrentDictionary<EvidenceBuildJobLease, byte> Retained = new();
-    internal static void Retain(EvidenceBuildJobLease lease) => Retained.TryAdd(lease, 0);
+    private static readonly ConcurrentDictionary<EvidenceBuildJobLease, Exception> Retained = new();
+    internal static void Retain(EvidenceBuildJobLease lease, Exception failure) => Retained.TryAdd(lease, failure);
     internal static void Release(EvidenceBuildJobLease lease) => Retained.TryRemove(lease, out _);
     internal static bool Contains(EvidenceBuildJobLease lease) => Retained.ContainsKey(lease);
 }
 
-/// <summary>D2 may issue this only after both bounded drains are ready.</summary>
 internal sealed class EvidenceBuildDrainReadyProof
 {
-    private EvidenceBuildDrainReadyProof() { }
-    internal static EvidenceBuildDrainReadyProof IssueForComposition() => new();
+    private readonly EvidenceBuildRawDrainSession _session;
+    private readonly EvidenceBuildJobLease _job;
+    private readonly EvidenceBuildMatchedSuspendedProcessLease _process;
+    private bool _consumed;
+
+    internal EvidenceBuildDrainReadyProof(
+        EvidenceBuildRawDrainSession session,
+        EvidenceBuildJobLease job,
+        EvidenceBuildMatchedSuspendedProcessLease process)
+    {
+        _session = session;
+        _job = job;
+        _process = process;
+    }
+
+    internal bool IsConsumed => _consumed;
+    internal bool Matches(
+        EvidenceBuildRawDrainSession session,
+        EvidenceBuildJobLease job,
+        EvidenceBuildMatchedSuspendedProcessLease process) =>
+        ReferenceEquals(_session, session) && ReferenceEquals(_job, job) && ReferenceEquals(_process, process);
+    internal void MarkConsumed()
+    {
+        if (_consumed) throw new InvalidOperationException("Build drain readiness proof was already consumed.");
+        _consumed = true;
+    }
 }
 
 internal sealed class EvidenceBuildActiveJobBorrow
@@ -154,6 +179,8 @@ internal sealed class EvidenceBuildJobLease : IDisposable
     private bool _disposeRequested;
     private bool _transferred;
     private bool _terminateIssued;
+    private bool _closeAmbiguous;
+    private Exception? _closeAmbiguousFailure;
 
     internal EvidenceBuildJobLease(
         IEvidenceBuildJobApi api,
@@ -202,7 +229,7 @@ internal sealed class EvidenceBuildJobLease : IDisposable
                     throw new Win32Exception(queryError, "Querying exact build job limits failed.");
                 if (returned != queried.Length || !queried.AsSpan().SequenceEqual(exactLimits))
                     throw new InvalidDataException("Queried build job limits did not exactly match the configured 144-byte value.");
-                RequireTopology(expectedPid: null, expectedTotal: 0, expectedActive: 0);
+                RequireTopology(expectedPid: null, expectedTotal: 0, expectedActive: 0, expectedTerminated: 0);
                 _state = EvidenceBuildJobState.Configured;
             }
             catch
@@ -231,7 +258,7 @@ internal sealed class EvidenceBuildJobLease : IDisposable
                         throw new Win32Exception(assignError, "Assigning the suspended build child to its exact job failed.");
                     // State is committed immediately after the only effectful assignment call.
                     _state = EvidenceBuildJobState.Assigned;
-                    RequireTopology(process.ProcessId, expectedTotal: 1, expectedActive: 1);
+                    RequireTopology(process.ProcessId, expectedTotal: 1, expectedActive: 1, expectedTerminated: 0);
                     _activeTopologyProven = true;
                 });
             }
@@ -243,13 +270,28 @@ internal sealed class EvidenceBuildJobLease : IDisposable
         }
     }
 
-    internal EvidenceBuildRunDeadline ResumeAfterDrainsReady(EvidenceBuildDrainReadyProof ready, IWin32MonotonicClock clock)
+    internal EvidenceBuildDrainReadyProof AcquireDrainReadyProof(EvidenceBuildRawDrainSession drains)
     {
+        ArgumentNullException.ThrowIfNull(drains);
+        lock (_gate)
+        {
+            RequireState(EvidenceBuildJobState.Assigned);
+            return drains.IssueReadyProof(this, _process);
+        }
+    }
+
+    internal EvidenceBuildRunDeadline ResumeAfterDrainsReady(
+        EvidenceBuildRawDrainSession drains,
+        EvidenceBuildDrainReadyProof ready,
+        IWin32MonotonicClock clock)
+    {
+        ArgumentNullException.ThrowIfNull(drains);
         ArgumentNullException.ThrowIfNull(ready);
         ArgumentNullException.ThrowIfNull(clock);
         lock (_gate)
         {
             RequireState(EvidenceBuildJobState.Assigned);
+            drains.ConsumeReadyProof(ready, this, _process);
             _state = EvidenceBuildJobState.Faulted; // resume is a one-shot effect even if its result is malformed
             EvidenceBuildRunDeadline? armed = null;
             _process.Borrow(process =>
@@ -262,6 +304,7 @@ internal sealed class EvidenceBuildJobLease : IDisposable
                     throw new InvalidDataException($"Build primary thread had unexpected previous suspend count {previous}.");
             });
             _deadline = armed!;
+            drains.ReleaseConsumedProof(ready, _deadline);
             _state = EvidenceBuildJobState.Resumed;
             return _deadline;
         }
@@ -296,7 +339,7 @@ internal sealed class EvidenceBuildJobLease : IDisposable
             if (!_activeTopologyProven) throw new InvalidOperationException("Build job never proved its exact active PID topology.");
             try
             {
-                RequireTopology(expectedPid: null, expectedTotal: 1, expectedActive: 0);
+                RequireTopology(expectedPid: null, expectedTotal: 1, expectedActive: 0, expectedTerminated: 0);
                 _state = EvidenceBuildJobState.EmptyProven;
             }
             catch
@@ -329,6 +372,10 @@ internal sealed class EvidenceBuildJobLease : IDisposable
 
     private void AttemptCleanup(bool transferOnFailure)
     {
+        if (_closeAmbiguous)
+        {
+            ExceptionDispatchInfo.Capture(_closeAmbiguousFailure!).Throw();
+        }
         Exception? failure = null;
         if (_state != EvidenceBuildJobState.EmptyProven && !_terminateIssued)
         {
@@ -342,7 +389,7 @@ internal sealed class EvidenceBuildJobLease : IDisposable
         }
         if (failure is null && _state != EvidenceBuildJobState.EmptyProven)
         {
-            try { RequireTopology(expectedPid: null, expectedTotal: null, expectedActive: 0); }
+            try { RequireTopology(expectedPid: null, expectedTotal: null, expectedActive: 0, expectedTerminated: null); }
             catch (Exception exception) { failure = exception; }
         }
         if (failure is null)
@@ -358,35 +405,47 @@ internal sealed class EvidenceBuildJobLease : IDisposable
                     EvidenceBuildJobRetention.Release(this);
                 }
             }
-            catch (Exception exception) { failure = exception; }
+            catch (Exception exception)
+            {
+                _closeAmbiguous = true;
+                _closeAmbiguousFailure = exception;
+                failure = exception;
+            }
         }
         if (failure is null) return;
         if (transferOnFailure && !_transferred)
         {
             _transferred = true;
-            EvidenceBuildJobRetention.Retain(this);
+            EvidenceBuildJobRetention.Retain(this, failure);
             try { _cleanupOwner.Retain(this, failure); }
             catch (Exception ownerFailure) { failure = new AggregateException(failure, ownerFailure); }
         }
         ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
-    private void RequireTopology(uint? expectedPid, ulong? expectedTotal, uint expectedActive)
+    private void RequireTopology(
+        uint? expectedPid,
+        ulong? expectedTotal,
+        uint expectedActive,
+        ulong? expectedTerminated)
     {
         var raw = _api.QueryPidTopology(_job) ?? throw new InvalidDataException("Build job topology query returned null.");
         var succeeded = raw.Succeeded;
         var error = raw.Error;
         var bytes = raw.Bytes ?? throw new InvalidDataException("Build job topology bytes were absent.");
         var length = bytes.Length;
+        var returnedBytes = raw.ReturnedBytes;
         var total = raw.TotalProcesses;
         var active = raw.ActiveProcesses;
+        var terminated = raw.TotalTerminatedProcesses;
         if (!succeeded)
         {
             if (error == EvidenceBuildJobPolicy.ErrorMoreData)
                 throw new InvalidDataException("Build job PID topology was truncated; larger/retry queries are forbidden.");
             throw new Win32Exception(error, "Querying exact build job PID topology failed.");
         }
-        if (length is not EvidenceBuildJobPolicy.EmptyPidListBytes and not EvidenceBuildJobPolicy.OnePidListBytes)
+        if (returnedBytes != length ||
+            length is not EvidenceBuildJobPolicy.EmptyPidListBytes and not EvidenceBuildJobPolicy.OnePidListBytes)
             throw new InvalidDataException("Build job PID topology had a malformed or trailing byte length.");
         var snapshot = bytes.AsSpan(0, length).ToArray();
         var assigned = BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(0, sizeof(uint)));
@@ -394,9 +453,11 @@ internal sealed class EvidenceBuildJobLease : IDisposable
         if (assigned > 1 || listed > 1 || listed > assigned)
             throw new InvalidDataException("Build job PID counts exceeded the exact one-process policy.");
         var expectedLength = checked(EvidenceBuildJobPolicy.EmptyPidListBytes + checked((int)listed * sizeof(ulong)));
-        if (expectedLength != length || assigned != listed)
+        if (expectedLength != returnedBytes || assigned != listed)
             throw new InvalidDataException("Build job PID topology was truncated or count-inconsistent.");
-        if (expectedTotal.HasValue && total != expectedTotal.Value || active != expectedActive || active != assigned)
+        if ((expectedTotal.HasValue && total != expectedTotal.Value) ||
+            (expectedTerminated.HasValue && terminated != expectedTerminated.Value) ||
+            active > total || terminated > total || active != expectedActive || active != assigned)
             throw new InvalidDataException("Build job accounting did not match the exact PID topology.");
         if (expectedPid.HasValue)
         {

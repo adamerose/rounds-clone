@@ -86,12 +86,17 @@ public sealed class Win32EvidenceBuildJobTopologyTests
     [Fact]
     public void InitialTopologyMustBeExactZeroOverZero()
     {
-        var api = new FakeJobApi();
-        api.InitialTopology = Topology(42, total: 1, active: 1);
-        using var process = Process();
-
-        Assert.Throws<InvalidDataException>(() => new EvidenceBuildJobFactory(api).CreateConfigured(Frozen(), process));
-        Assert.Contains("terminate:700", api.Events);
+        foreach (var initial in new[]
+        {
+            Topology(42, total: 1, active: 1),
+            TopologyEmpty(total: 1, terminated: 1),
+        })
+        {
+            var api = new FakeJobApi { InitialTopology = initial };
+            using var process = Process();
+            Assert.Throws<InvalidDataException>(() => new EvidenceBuildJobFactory(api).CreateConfigured(Frozen(), process));
+            Assert.Contains("terminate:700", api.Events);
+        }
     }
 
     [Fact]
@@ -149,6 +154,9 @@ public sealed class Win32EvidenceBuildJobTopologyTests
     [InlineData("trailing")]
     [InlineData("truncated")]
     [InlineData("accounting")]
+    [InlineData("returned-short")]
+    [InlineData("returned-long")]
+    [InlineData("terminated")]
     public void AssignmentRejectsMalformedOrInexactTopologyWithoutRetryingLarger(string anomaly)
     {
         var api = new FakeJobApi();
@@ -157,9 +165,12 @@ public sealed class Win32EvidenceBuildJobTopologyTests
             "zero" => Topology(0, 1, 1),
             "wrong" => Topology(301, 1, 1),
             "extra" => TopologyRaw([2, 2, 300, 301], 2, 2),
-            "trailing" => new EvidenceBuildRawJobTopology(true, 0, new byte[24], 1, 1),
-            "truncated" => new EvidenceBuildRawJobTopology(false, EvidenceBuildJobPolicy.ErrorMoreData, [], 1, 1),
+            "trailing" => new EvidenceBuildRawJobTopology(true, 0, new byte[24], 24, 1, 1, 0),
+            "truncated" => new EvidenceBuildRawJobTopology(false, EvidenceBuildJobPolicy.ErrorMoreData, [], 0, 1, 1, 0),
             "accounting" => Topology(300, 2, 1),
+            "returned-short" => Topology(300, 1, 1) with { ReturnedBytes = 8 },
+            "returned-long" => Topology(300, 1, 1) with { ReturnedBytes = 24 },
+            "terminated" => Topology(300, 1, 1, terminated: 1),
             _ => throw new InvalidOperationException(),
         });
         using var process = Process();
@@ -179,7 +190,7 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         using (job)
         {
             var clock = new FakeClock(api.Events);
-            var deadline = job.ResumeAfterDrainsReady(EvidenceBuildDrainReadyProof.IssueForComposition(), clock);
+            var deadline = Resume(job, clock);
 
             Assert.Equal(EvidenceBuildJobState.Resumed, job.State);
             Assert.Same(deadline, BorrowDeadline(job));
@@ -199,10 +210,8 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         using (process)
         using (job)
         {
-            Assert.ThrowsAny<Exception>(() => job.ResumeAfterDrainsReady(
-                EvidenceBuildDrainReadyProof.IssueForComposition(), new FakeClock(api.Events)));
-            Assert.Throws<InvalidOperationException>(() => job.ResumeAfterDrainsReady(
-                EvidenceBuildDrainReadyProof.IssueForComposition(), new FakeClock(api.Events)));
+            Assert.ThrowsAny<Exception>(() => Resume(job, new FakeClock(api.Events)));
+            Assert.Throws<InvalidOperationException>(() => Resume(job, new FakeClock(api.Events)));
             Assert.Equal(1, api.Events.Count(value => value == "resume:201"));
             Assert.Equal(EvidenceBuildJobState.Faulted, job.State);
         }
@@ -214,8 +223,8 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         var api = AssignedApi(out var process, out var job);
         using (process)
         {
-            job.ResumeAfterDrainsReady(EvidenceBuildDrainReadyProof.IssueForComposition(), new FakeClock(api.Events));
-            api.Topologies.Enqueue(TopologyEmpty(total: 1));
+            Resume(job, new FakeClock(api.Events));
+            api.Topologies.Enqueue(TopologyEmpty(total: 1, terminated: 0));
             job.ProveEmptyAfterCompletion();
             job.Dispose();
 
@@ -228,13 +237,18 @@ public sealed class Win32EvidenceBuildJobTopologyTests
     [Fact]
     public void EmptyProofRejectsWrongAccountingOrResidualPid()
     {
-        foreach (var topology in new[] { TopologyEmpty(total: 0), Topology(300, 1, 1) })
+        foreach (var topology in new[]
+        {
+            TopologyEmpty(total: 0),
+            Topology(300, 1, 1),
+            TopologyEmpty(total: 1, terminated: 1),
+        })
         {
             var api = AssignedApi(out var process, out var job);
             using (process)
             using (job)
             {
-                job.ResumeAfterDrainsReady(EvidenceBuildDrainReadyProof.IssueForComposition(), new FakeClock(api.Events));
+                Resume(job, new FakeClock(api.Events));
                 api.Topologies.Enqueue(topology);
                 Assert.Throws<InvalidDataException>(job.ProveEmptyAfterCompletion);
             }
@@ -248,7 +262,7 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         using (process)
         using (job)
         {
-            job.ResumeAfterDrainsReady(EvidenceBuildDrainReadyProof.IssueForComposition(), new FakeClock(api.Events));
+            Resume(job, new FakeClock(api.Events));
             EvidenceBuildActiveJobBorrow? escaped = null;
             job.BorrowActive(value =>
             {
@@ -267,7 +281,7 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         var api = AssignedApi(out var process, out var job);
         using (process)
         {
-            job.ResumeAfterDrainsReady(EvidenceBuildDrainReadyProof.IssueForComposition(), new FakeClock(api.Events));
+            Resume(job, new FakeClock(api.Events));
             using var entered = new ManualResetEventSlim();
             using var release = new ManualResetEventSlim();
             using var disposerEntered = new ManualResetEventSlim();
@@ -315,7 +329,7 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         api.Topologies.Enqueue(Topology(300, 1, 1));
         var job = new EvidenceBuildJobFactory(api).CreateConfigured(Frozen(), process);
         job.AssignSuspended();
-        job.ResumeAfterDrainsReady(EvidenceBuildDrainReadyProof.IssueForComposition(), new FakeClock(api.Events));
+        Resume(job, new FakeClock(api.Events));
         job.Dispose();
 
         process.Dispose();
@@ -374,6 +388,67 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         Assert.True(EvidenceBuildJobRetention.Contains(job));
     }
 
+    [Fact]
+    public void FalseCloseIsUnambiguouslyOpenAndRetryableAtLeaseLevel()
+    {
+        var api = new FakeJobApi { CloseSuccess = false };
+        var owner = new FakeCleanupOwner();
+        using var process = Process();
+        var job = new EvidenceBuildJobFactory(api, owner).CreateConfigured(Frozen(), process);
+
+        Assert.Throws<Win32Exception>(job.Dispose);
+        api.CloseSuccess = true;
+        job.RetryCleanupFromOwner();
+
+        Assert.Equal(2, api.CloseCalls);
+        Assert.False(EvidenceBuildJobRetention.Contains(job));
+    }
+
+    [Fact]
+    public void ThrowAfterCloseIsAmbiguousAndNeverTouchesAReusedNumericHandle()
+    {
+        var api = new FakeJobApi { ThrowAfterClose = true };
+        var owner = new FakeCleanupOwner();
+        using var process = Process();
+        var job = new EvidenceBuildJobFactory(api, owner).CreateConfigured(Frozen(), process);
+
+        var first = Assert.Throws<IOException>(job.Dispose);
+        Assert.True(owner.SawStaticRetention);
+        Assert.True(EvidenceBuildJobRetention.Contains(job));
+        api.NumericHandleWasReused = true;
+        var retry = Assert.Throws<IOException>(job.RetryCleanupFromOwner);
+        Assert.Same(first, retry);
+
+        Assert.Equal(1, api.CloseCalls);
+        Assert.Equal(0, api.ForeignCloseCalls);
+        Assert.Equal(2, api.Events.Count(value => value == "topology"));
+    }
+
+    [Fact]
+    public void DrainReadinessIsBoundToExactSessionJobAndProcessAndConsumedOnce()
+    {
+        var apiA = AssignedApi(out var processA, out var jobA);
+        var apiB = AssignedApi(out var processB, out var jobB);
+        using (processA)
+        using (processB)
+        using (jobA)
+        using (jobB)
+        using (var drainsA = ReadyDrains(jobA))
+        using (var drainsB = ReadyDrains(jobB))
+        {
+            Assert.Throws<InvalidOperationException>(() =>
+                jobA.ResumeAfterDrainsReady(drainsB.Session, drainsA.Proof, new FakeClock(apiA.Events)));
+            Assert.Throws<InvalidOperationException>(() => drainsA.Session.IssueReadyProof(jobA, processA));
+            Assert.Throws<InvalidOperationException>(() => drainsA.Session.Release(
+                EvidenceBuildRunDeadline.Arm(new FakeClock(apiA.Events), TimeSpan.FromMinutes(5))));
+            _ = jobA.ResumeAfterDrainsReady(drainsA.Session, drainsA.Proof, new FakeClock(apiA.Events));
+            Assert.Throws<InvalidOperationException>(() =>
+                jobB.ResumeAfterDrainsReady(drainsA.Session, drainsA.Proof, new FakeClock(apiB.Events)));
+            Assert.Equal(1, apiA.Events.Count(value => value == "resume:201"));
+            Assert.Equal(0, apiB.Events.Count(value => value == "resume:201"));
+        }
+    }
+
     private static FakeJobApi AssignedApi(out EvidenceBuildMatchedSuspendedProcessLease process, out EvidenceBuildJobLease job)
     {
         var api = new FakeJobApi();
@@ -391,17 +466,25 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         return result!;
     }
 
-    private static EvidenceBuildRawJobTopology Topology(uint pid, ulong total, uint active)
+    private static EvidenceBuildRunDeadline Resume(EvidenceBuildJobLease job, IWin32MonotonicClock clock)
+    {
+        using var drains = ReadyDrains(job);
+        return job.ResumeAfterDrainsReady(drains.Session, drains.Proof, clock);
+    }
+
+    private static ReadyDrainFixture ReadyDrains(EvidenceBuildJobLease job) => new(job);
+
+    private static EvidenceBuildRawJobTopology Topology(uint pid, ulong total, uint active, ulong terminated = 0)
     {
         var bytes = new byte[16];
         BitConverter.GetBytes(1u).CopyTo(bytes, 0);
         BitConverter.GetBytes(1u).CopyTo(bytes, 4);
         BitConverter.GetBytes((ulong)pid).CopyTo(bytes, 8);
-        return new(true, 0, bytes, total, active);
+        return new(true, 0, bytes, bytes.Length, total, active, terminated);
     }
 
-    private static EvidenceBuildRawJobTopology TopologyEmpty(ulong total = 0) =>
-        new(true, 0, new byte[8], total, 0);
+    private static EvidenceBuildRawJobTopology TopologyEmpty(ulong total = 0, ulong terminated = 0) =>
+        new(true, 0, new byte[8], 8, total, 0, terminated);
 
     private static EvidenceBuildRawJobTopology TopologyRaw(uint[] values, ulong total, uint active)
     {
@@ -410,7 +493,7 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         BitConverter.GetBytes(values[1]).CopyTo(bytes, 4);
         for (var index = 2; index < values.Length; index++)
             BitConverter.GetBytes((ulong)values[index]).CopyTo(bytes, 8 + (index - 2) * 8);
-        return new(true, 0, bytes, total, active);
+        return new(true, 0, bytes, bytes.Length, total, active, 0);
     }
 
     private static EvidenceBuildMatchedSuspendedProcessLease Process() => Process(out _);
@@ -505,6 +588,10 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         internal uint ResumePreviousCount { get; set; } = 1;
         internal bool TerminateSuccess { get; set; } = true;
         internal bool CloseSuccess { get; set; } = true;
+        internal bool ThrowAfterClose { get; set; }
+        internal bool NumericHandleWasReused { get; set; }
+        internal int CloseCalls { get; private set; }
+        internal int ForeignCloseCalls { get; private set; }
         internal string? FailurePoint { get; init; }
         internal byte[]? SetBytes { get; private set; }
         internal EvidenceBuildRawJobTopology? InitialTopology { get; set; }
@@ -537,7 +624,45 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         public bool TerminateJob(nint job, uint exitCode, out int error)
         { Events.Add($"terminate:{job}"); error = TerminateSuccess ? 0 : 5; return TerminateSuccess; }
         public bool CloseJob(nint job, out int error)
-        { Events.Add($"close:{job}"); error = CloseSuccess ? 0 : 6; return CloseSuccess; }
+        {
+            Events.Add($"close:{job}");
+            CloseCalls++;
+            if (NumericHandleWasReused) ForeignCloseCalls++;
+            if (ThrowAfterClose)
+            {
+                ThrowAfterClose = false;
+                throw new IOException("close threw after side effect");
+            }
+            error = CloseSuccess ? 0 : 6;
+            return CloseSuccess;
+        }
+    }
+
+    private sealed class ReadyDrainFixture : IDisposable
+    {
+        internal ReadyDrainFixture(EvidenceBuildJobLease job)
+        {
+            Session = new EvidenceBuildRawDrainFactory(new EofReadApi()).Prepare(
+                EvidenceBuildRawSource.Create("job-test-stdout"),
+                EvidenceBuildRawSource.Create("job-test-stderr"),
+                EvidenceBuildRawDrainPolicy.Exact);
+            try { Proof = job.AcquireDrainReadyProof(Session); }
+            catch
+            {
+                Session.Dispose();
+                throw;
+            }
+        }
+
+        internal EvidenceBuildRawDrainSession Session { get; }
+        internal EvidenceBuildDrainReadyProof Proof { get; }
+        public void Dispose() => Session.Dispose();
+    }
+
+    private sealed class EofReadApi : IEvidenceBuildRawReadApi
+    {
+        public EvidenceBuildRawRead Poll(EvidenceBuildRawSource source, int maximumBytes) =>
+            EvidenceBuildRawRead.EndOfFile();
     }
 
     private sealed class FakeClock(List<string> events) : IWin32MonotonicClock
