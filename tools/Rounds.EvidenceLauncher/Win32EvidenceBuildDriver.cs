@@ -24,11 +24,18 @@ internal enum EvidenceBuildContentHashKind
 internal sealed record EvidenceBuildPackageIdentity(
     string PackageId,
     string Version,
-    string CachePath,
+    string ArchivePath,
+    string ExtractedRoot,
     bool Exists,
     bool IdentityBound,
     bool ReparseFreeAncestors,
-    string Sha256);
+    bool RetainedExtractedDirectoryAndEntries,
+    string RetainedExtractedDirectoryIdentity,
+    string RetainedExtractedEntriesIdentity,
+    int ExtractedEntryCount,
+    string ArchiveSha256,
+    string ExtractedTreeSha256,
+    string ExtractedTreeHashAlgorithm);
 
 internal sealed record EvidenceBuildPrerequisiteAttestation(
     string GlobalJsonSdkVersion,
@@ -60,7 +67,7 @@ internal sealed record EvidenceTrustedDirectoryIdentity(
 
 internal sealed record EvidenceBuildProvenanceSnapshot(
     EvidenceCandidateIdentity Candidate,
-    string RetainedInputsIdentity);
+    string RetainedInputsAndPackageTreesIdentity);
 
 internal static class EvidenceBuildManifest
 {
@@ -84,13 +91,16 @@ internal static class EvidenceBuildManifest
         (@"src\Rounds.Sim\obj\project.assets.json", "b3c494940b89d446f397e9062613f8cd498c0e180016af5c22ab00467fb0caf3"),
     });
 
-    private static readonly IReadOnlyList<(string Id, string Sha256)> Packages = Array.AsReadOnly(
-    new (string Id, string Sha256)[]
+    internal const string ExtractedPackageTreeHashAlgorithm =
+        "ordinal-relative-path-nul-raw-bytes-sha256-v1;exclude=.nupkg,.nupkg.sha512,.nupkg.metadata";
+
+    private static readonly IReadOnlyList<(string Id, string ArchiveSha256, string TreeSha256, int EntryCount)> Packages = Array.AsReadOnly(
+    new (string Id, string ArchiveSha256, string TreeSha256, int EntryCount)[]
     {
-        ("Godot.NET.Sdk", "1f93837c9b8df052596203a0882818381cb5d64cd7f86f9a46cb67184d8287ff"),
-        ("Godot.SourceGenerators", "6b3e98ab8e94bad4d2f65de559bdcf0637fd6ca084cdf0ac1a6d8a17542bb4f1"),
-        ("GodotSharp", "f0b366029c9859355cacc25ccc2e4f19bd2dee7e16d5c22b82d7c736ff208068"),
-        ("GodotSharpEditor", "8ced4bfd55968cf4f835035b7e8d8149ff535e4bf200496491f8e8d93a91b682"),
+        ("Godot.NET.Sdk", "1f93837c9b8df052596203a0882818381cb5d64cd7f86f9a46cb67184d8287ff", "7e429186fd97b24988331956a05320422aca0b361c323b3d4ca488881e271035", 8),
+        ("Godot.SourceGenerators", "6b3e98ab8e94bad4d2f65de559bdcf0637fd6ca084cdf0ac1a6d8a17542bb4f1", "fd1b09a6dc019edeb66cc5549e15f08a7522b8a925504c37b81b0a10fdd7c84c", 4),
+        ("GodotSharp", "f0b366029c9859355cacc25ccc2e4f19bd2dee7e16d5c22b82d7c736ff208068", "313732c38a52f8f52781de18f1d732cc8ad1c9d80e62df4ee4f56dda43f5885b", 4),
+        ("GodotSharpEditor", "8ced4bfd55968cf4f835035b7e8d8149ff535e4bf200496491f8e8d93a91b682", "0d1de4b17579be531c5c786b0fa398e3bd24841a6f156a64dc76f54b506d887e", 4),
     });
 
     internal static EvidenceBuildPrerequisiteAttestation Create(string exactRepositoryRoot)
@@ -105,7 +115,13 @@ internal static class EvidenceBuildManifest
             value.Id,
             "4.7.1",
             Path.GetFullPath(Path.Combine(root, @".tools\nuget-packages", value.Id.ToLowerInvariant(), "4.7.1", $"{value.Id.ToLowerInvariant()}.4.7.1.nupkg")),
-            true, true, true, value.Sha256)).ToArray();
+            Path.GetFullPath(Path.Combine(root, @".tools\nuget-packages", value.Id.ToLowerInvariant(), "4.7.1")),
+            true, true, true, true,
+            $"retained-directory:{value.Id.ToLowerInvariant()}",
+            $"retained-entries:{value.Id.ToLowerInvariant()}",
+            value.EntryCount,
+            value.ArchiveSha256, value.TreeSha256,
+            ExtractedPackageTreeHashAlgorithm)).ToArray();
         return new EvidenceBuildPrerequisiteAttestation(
             "8.0.423", GlobalJsonSha256, true, true, true,
             Path.GetFullPath(Path.Combine(root, @".tools\dotnet\sdk\8.0.423\Sdks")), true, true,
@@ -207,9 +223,25 @@ internal interface IEvidenceBuildEnvironmentFactory
 
 internal interface IEvidenceBuildOutputApi
 {
-    EvidenceBuildOutputState Read(string exactRuntimeAssemblyPath);
+    IEvidencePriorOutputLease OpenPrior(string exactRuntimeAssemblyPath);
 
-    void Delete(string exactRuntimeAssemblyPath);
+    EvidenceBuildOutputState ReadRecreated(string exactRuntimeAssemblyPath);
+}
+
+internal sealed record EvidencePriorOutputDeletionProof(
+    string Path,
+    string DeletedOpenedHandleIdentity,
+    bool ExactRetainedIdentityDisposition,
+    bool ExactPathAbsent,
+    bool AncestorIdentityStillRetained);
+
+internal interface IEvidencePriorOutputLease : IDisposable
+{
+    EvidenceBuildOutputState State { get; }
+
+    bool RetainsExactFileAndAncestorIdentity { get; }
+
+    EvidencePriorOutputDeletionProof DeleteRetainedIdentityAndProveAbsent();
 }
 
 internal interface IEvidenceBuildProcessRunner
@@ -303,6 +335,7 @@ internal sealed class Win32EvidenceBuildDriver(
         ValidateMsBuildIdentity(msBuildExecutable.Identity, required.Executable);
         IEvidenceBuildProvenanceLease? provenanceLease = null;
         IEvidenceRuntimeAssemblyLease? runtimeLease = null;
+        var priorOutputLeases = new List<IEvidencePriorOutputLease>();
         try
         {
             provenanceLease = provenance.OpenRetained(required.WorkingDirectory);
@@ -331,24 +364,30 @@ internal sealed class Win32EvidenceBuildDriver(
                 Path.Combine(runtimeDirectory, "Rounds.Replay.dll"),
                 Path.Combine(runtimeDirectory, "Rounds.Sim.dll"),
             ];
-            var prior = runtimePaths.Select(outputs.Read).ToArray();
+            foreach (var path in runtimePaths)
+            {
+                priorOutputLeases.Add(outputs.OpenPrior(path));
+            }
+            var prior = priorOutputLeases.Select(value => value.State).ToArray();
             for (var index = 0; index < runtimePaths.Length; index++)
             {
                 ValidatePriorOutput(prior[index], runtimePaths[index]);
+                if (!priorOutputLeases[index].RetainsExactFileAndAncestorIdentity)
+                {
+                    throw new InvalidOperationException("Prior runtime file and ancestor identity were not retained continuously.");
+                }
             }
             if (prior.Select(value => value.OpenedHandleIdentity).Distinct(StringComparer.Ordinal).Count() != runtimePaths.Length)
             {
                 throw new InvalidOperationException("Prior runtime outputs did not have three distinct exact identities.");
             }
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
-            foreach (var path in runtimePaths) outputs.Delete(path);
-            foreach (var path in runtimePaths)
+            for (var index = 0; index < priorOutputLeases.Count; index++)
             {
-                var deleted = outputs.Read(path);
-                if (deleted.Exists || !string.Equals(deleted.Path, path, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException("Every prior runtime assembly was not proven absent before rebuild.");
-                }
+                ValidatePriorDeletion(
+                    priorOutputLeases[index].DeleteRetainedIdentityAndProveAbsent(),
+                    prior[index],
+                    runtimePaths[index]);
             }
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
 
@@ -369,7 +408,7 @@ internal sealed class Win32EvidenceBuildDriver(
             ValidateProcessResult(result, msBuildExecutable.Identity, effectiveEnvironment);
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
 
-            var recreated = runtimePaths.Select(outputs.Read).ToArray();
+            var recreated = runtimePaths.Select(outputs.ReadRecreated).ToArray();
             for (var index = 0; index < runtimePaths.Length; index++)
             {
                 ValidateRecreatedOutput(recreated[index], prior[index], runtimePaths[index]);
@@ -396,8 +435,10 @@ internal sealed class Win32EvidenceBuildDriver(
                 required, effectiveEnvironment, candidateBefore,
                 msBuildExecutable.Identity, result.ProcessImage, runtime,
                 Array.AsReadOnly(runtimeLease.RuntimeClosure.ToArray()), true, true);
-            var completed = new Win32EvidenceBuildAttestationLease(runtimeLease, provenanceLease, attestation);
+            var completed = new Win32EvidenceBuildAttestationLease(
+                runtimeLease, priorOutputLeases.ToArray(), provenanceLease, attestation);
             runtimeLease = null;
+            priorOutputLeases.Clear();
             provenanceLease = null;
             return completed;
         }
@@ -406,6 +447,11 @@ internal sealed class Win32EvidenceBuildDriver(
             Exception? cleanup = null;
             try { runtimeLease?.Dispose(); }
             catch (Exception exception) { cleanup = exception; }
+            for (var index = priorOutputLeases.Count - 1; index >= 0; index--)
+            {
+                try { priorOutputLeases[index].Dispose(); }
+                catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
+            }
             try { provenanceLease?.Dispose(); }
             catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
             throw cleanup is null ? failure : new AggregateException(failure, cleanup);
@@ -515,8 +561,16 @@ internal sealed class Win32EvidenceBuildDriver(
         IReadOnlyList<EvidenceBuildPackageIdentity> expected) =>
         actual.Count == expected.Count && expected.All(item => actual.Count(candidate =>
             candidate.PackageId == item.PackageId && candidate.Version == item.Version &&
-            ExactPath(candidate.CachePath, item.CachePath) && candidate.Sha256 == item.Sha256 &&
-            candidate.Exists && candidate.IdentityBound && candidate.ReparseFreeAncestors) == 1);
+            ExactPath(candidate.ArchivePath, item.ArchivePath) &&
+            ExactPath(candidate.ExtractedRoot, item.ExtractedRoot) &&
+            candidate.ArchiveSha256 == item.ArchiveSha256 &&
+            candidate.ExtractedTreeSha256 == item.ExtractedTreeSha256 &&
+            candidate.ExtractedTreeHashAlgorithm == item.ExtractedTreeHashAlgorithm &&
+            candidate.Exists && candidate.IdentityBound && candidate.ReparseFreeAncestors &&
+            candidate.RetainedExtractedDirectoryAndEntries &&
+            !string.IsNullOrWhiteSpace(candidate.RetainedExtractedDirectoryIdentity) &&
+            !string.IsNullOrWhiteSpace(candidate.RetainedExtractedEntriesIdentity) &&
+            candidate.ExtractedEntryCount == item.ExtractedEntryCount) == 1);
 
     private static void ValidateEffectiveEnvironment(
         IReadOnlyDictionary<string, string> actual,
@@ -578,7 +632,7 @@ internal sealed class Win32EvidenceBuildDriver(
         EvidenceBuildProvenanceSnapshot snapshot,
         EvidenceCandidateIdentity candidate)
     {
-        if (snapshot.Candidate != candidate || string.IsNullOrWhiteSpace(snapshot.RetainedInputsIdentity))
+        if (snapshot.Candidate != candidate || string.IsNullOrWhiteSpace(snapshot.RetainedInputsAndPackageTreesIdentity))
         {
             throw new InvalidOperationException("Retained build provenance snapshot was incomplete.");
         }
@@ -608,6 +662,20 @@ internal sealed class Win32EvidenceBuildDriver(
             !string.Equals(prior.Path, path, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Prior runtime output was not an exact identity-bound file.");
+        }
+    }
+
+    private static void ValidatePriorDeletion(
+        EvidencePriorOutputDeletionProof proof,
+        EvidenceBuildOutputState prior,
+        string path)
+    {
+        if (!ExactPath(proof.Path, path) ||
+            proof.DeletedOpenedHandleIdentity != prior.OpenedHandleIdentity ||
+            !proof.ExactRetainedIdentityDisposition || !proof.ExactPathAbsent ||
+            !proof.AncestorIdentityStillRetained)
+        {
+            throw new InvalidOperationException("Prior runtime output deletion was not bound to the retained identity and ancestor.");
         }
     }
 
@@ -908,10 +976,12 @@ internal sealed class Win32RuntimeAssemblyClosureLease : IEvidenceRuntimeAssembl
 
 internal sealed class Win32EvidenceBuildAttestationLease(
     IEvidenceRuntimeAssemblyLease runtime,
+    IReadOnlyList<IEvidencePriorOutputLease> priorOutputs,
     IEvidenceBuildProvenanceLease provenance,
     EvidenceBuildAttestation attestation) : IEvidenceBuildAttestationLease
 {
     private IEvidenceRuntimeAssemblyLease? _runtime = runtime;
+    private IReadOnlyList<IEvidencePriorOutputLease>? _priorOutputs = priorOutputs;
     private IEvidenceBuildProvenanceLease? _provenance = provenance;
 
     public EvidenceBuildAttestation Attestation { get; } = attestation;
@@ -919,10 +989,19 @@ internal sealed class Win32EvidenceBuildAttestationLease(
     public void Dispose()
     {
         var runtimeLease = Interlocked.Exchange(ref _runtime, null);
+        var priorLeases = Interlocked.Exchange(ref _priorOutputs, null);
         var provenanceLease = Interlocked.Exchange(ref _provenance, null);
         Exception? failure = null;
         try { runtimeLease?.Dispose(); }
         catch (Exception exception) { failure = exception; }
+        if (priorLeases is not null)
+        {
+            for (var index = priorLeases.Count - 1; index >= 0; index--)
+            {
+                try { priorLeases[index].Dispose(); }
+                catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
+            }
+        }
         try { provenanceLease?.Dispose(); }
         catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();

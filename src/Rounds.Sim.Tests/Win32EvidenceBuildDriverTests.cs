@@ -27,8 +27,8 @@ public sealed class Win32EvidenceBuildDriverTests
         [
             "msbuild-open", "provenance-open", "candidate", "prerequisites", "candidate", "environment",
             "output-read:0", "output-read:1", "output-read:2", "candidate",
-            "output-delete", "output-delete", "output-delete",
-            "output-read:3", "output-read:4", "output-read:5", "candidate",
+            "output-delete", "output-read:3", "output-delete", "output-read:4",
+            "output-delete", "output-read:5", "candidate",
             "process", "candidate", "output-read:6", "output-read:7", "output-read:8",
             "candidate", "runtime-open", "candidate",
         ], rig.Events);
@@ -53,6 +53,7 @@ public sealed class Win32EvidenceBuildDriverTests
 
         Assert.Equal(1, rig.Events.Count(value => value == "runtime-dispose"));
         Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
+        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "provenance-dispose"], rig.Events.TakeLast(4));
     }
 
     [Fact]
@@ -93,6 +94,11 @@ public sealed class Win32EvidenceBuildDriverTests
     [InlineData("ref-path")]
     [InlineData("input-path")]
     [InlineData("package-path")]
+    [InlineData("package-tree-hash")]
+    [InlineData("package-extracted-root")]
+    [InlineData("package-entry-retention")]
+    [InlineData("package-entry-count")]
+    [InlineData("package-entry-identity")]
     [InlineData("input-hash-kind")]
     [InlineData("tree-hash-algorithm")]
     public void Locked_prerequisite_drift_refuses_before_output_deletion(string mutation)
@@ -105,6 +111,34 @@ public sealed class Win32EvidenceBuildDriverTests
 
         Assert.DoesNotContain("output-delete", rig.Events);
         Assert.DoesNotContain("process", rig.Events);
+    }
+
+    [Theory]
+    [InlineData(0, "Sdk.targets")]
+    [InlineData(1, "Godot.SourceGenerators.dll")]
+    public void Extracted_package_target_or_dll_drift_refuses_when_archive_and_assets_are_unchanged(
+        int packageIndex,
+        string changedEntry)
+    {
+        var rig = new Rig();
+        var valid = ValidPrerequisites();
+        var originalPackage = valid.RequiredPackages[packageIndex];
+        rig.Provenance.PrerequisitesValue = valid with
+        {
+            RequiredPackages = valid.RequiredPackages.Select((item, index) => index == packageIndex
+                ? item with { ExtractedTreeSha256 = new string((char)('1' + index), 64) }
+                : item).ToArray(),
+        };
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.Equal(originalPackage.ArchiveSha256, valid.RequiredPackages[packageIndex].ArchiveSha256);
+        Assert.Equal(
+            EvidenceBuildManifest.Create(Root).RequiredInputs.Single(value => value.Path.EndsWith(@"game\.godot\mono\temp\obj\project.assets.json", StringComparison.Ordinal)).Sha256,
+            valid.RequiredInputs.Single(value => value.Path.EndsWith(@"game\.godot\mono\temp\obj\project.assets.json", StringComparison.Ordinal)).Sha256);
+        Assert.False(string.IsNullOrWhiteSpace(changedEntry));
+        Assert.DoesNotContain("output-delete", rig.Events);
     }
 
     [Theory]
@@ -167,6 +201,20 @@ public sealed class Win32EvidenceBuildDriverTests
 
         Assert.DoesNotContain("process", rig.Events);
         Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
+    }
+
+    [Fact]
+    public void Extracted_package_tree_change_and_restore_during_build_is_caught_by_retained_provenance()
+    {
+        var rig = new Rig();
+        rig.Provenance.InputIdentities[3] = "package-tree-changed";
+        rig.Provenance.InputIdentities[4] = "inputs-id";
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.Contains("process", rig.Events);
+        Assert.DoesNotContain("runtime-open", rig.Events);
     }
 
     [Fact]
@@ -264,6 +312,49 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
 
         Assert.DoesNotContain("output-delete", rig.Events);
+    }
+
+    [Fact]
+    public void Same_parent_replacement_between_open_and_delete_is_refused_by_retained_identity_disposition()
+    {
+        var rig = new Rig();
+        rig.Output.SwapBeforeDeleteIndex = 1;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.DoesNotContain("process", rig.Events);
+        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "provenance-dispose"], rig.Events.TakeLast(4));
+    }
+
+    [Fact]
+    public void Wrong_identity_delete_proof_is_refused_before_spawn()
+    {
+        var rig = new Rig();
+        rig.Output.WrongIdentityProofIndex = 0;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.DoesNotContain("process", rig.Events);
+    }
+
+    [Fact]
+    public void Partial_delete_failure_aggregates_all_three_prior_lease_cleanup_failures_in_reverse_order()
+    {
+        var rig = new Rig();
+        rig.Output.FailDeleteIndex = 1;
+        rig.Output.ThrowDisposeIndices.UnionWith([0, 2]);
+        rig.Provenance.ThrowOnDispose = true;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        var failure = Assert.Throws<AggregateException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "delete failed:1");
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "prior dispose failed:2");
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "prior dispose failed:0");
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "provenance cleanup failed");
+        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "provenance-dispose"], rig.Events.TakeLast(4));
     }
 
     [Theory]
@@ -518,6 +609,7 @@ public sealed class Win32EvidenceBuildDriverTests
 
     private sealed class FakeOutput(List<string> events) : IEvidenceBuildOutputApi
     {
+        private List<string> Events { get; } = events;
         internal EvidenceBuildOutputState[] States { get; } =
         [
             PriorOutput(RuntimePath, "old-game-id"),
@@ -530,13 +622,61 @@ public sealed class Win32EvidenceBuildDriverTests
             RecreatedOutput(ReplayPath, "replay-id"),
             RecreatedOutput(SimPath, "sim-id"),
         ];
-        private int _read;
-        public EvidenceBuildOutputState Read(string exactRuntimeAssemblyPath)
+        private int _open;
+        private int _recreated;
+        internal int FailDeleteIndex { get; set; } = -1;
+        internal int WrongIdentityProofIndex { get; set; } = -1;
+        internal int SwapBeforeDeleteIndex { get; set; } = -1;
+        internal HashSet<int> ThrowDisposeIndices { get; } = [];
+
+        public IEvidencePriorOutputLease OpenPrior(string exactRuntimeAssemblyPath)
         {
-            events.Add($"output-read:{_read}");
-            return States[_read++];
+            var index = _open++;
+            Events.Add($"output-read:{index}");
+            Assert.Equal(States[index].Path, exactRuntimeAssemblyPath);
+            return new FakePriorOutputLease(this, index, States[index]);
         }
-        public void Delete(string exactRuntimeAssemblyPath) => events.Add("output-delete");
+
+        public EvidenceBuildOutputState ReadRecreated(string exactRuntimeAssemblyPath)
+        {
+            var stateIndex = 6 + _recreated++;
+            Events.Add($"output-read:{stateIndex}");
+            Assert.Equal(States[stateIndex].Path, exactRuntimeAssemblyPath);
+            return States[stateIndex];
+        }
+
+        private sealed class FakePriorOutputLease(
+            FakeOutput owner,
+            int index,
+            EvidenceBuildOutputState state) : IEvidencePriorOutputLease
+        {
+            private bool _disposed;
+            public EvidenceBuildOutputState State { get; } = state;
+            public bool RetainsExactFileAndAncestorIdentity => true;
+            public EvidencePriorOutputDeletionProof DeleteRetainedIdentityAndProveAbsent()
+            {
+                owner.Events.Add("output-delete");
+                owner.Events.Add($"output-read:{3 + index}");
+                if (owner.FailDeleteIndex == index) throw new InvalidOperationException($"delete failed:{index}");
+                var absent = owner.States[3 + index];
+                return new EvidencePriorOutputDeletionProof(
+                    State.Path,
+                    owner.WrongIdentityProofIndex == index ? "replacement-id" : State.OpenedHandleIdentity,
+                    ExactRetainedIdentityDisposition: owner.SwapBeforeDeleteIndex != index,
+                    ExactPathAbsent: !absent.Exists,
+                    AncestorIdentityStillRetained: true);
+            }
+            public void Dispose()
+            {
+                if (_disposed) return;
+                _disposed = true;
+                owner.Events.Add($"prior-dispose:{index}");
+                if (owner.ThrowDisposeIndices.Contains(index))
+                {
+                    throw new InvalidOperationException($"prior dispose failed:{index}");
+                }
+            }
+        }
     }
 
     private sealed class FakeProcess(List<string> events) : IEvidenceBuildProcessRunner
@@ -701,13 +841,18 @@ public sealed class Win32EvidenceBuildDriverTests
             "input-hash" => value with { RequiredInputs = value.RequiredInputs.Select((item, index) => index == 0 ? item with { Sha256 = "bad" } : item).ToArray() },
             "input-ancestor" => value with { RequiredInputs = value.RequiredInputs.Select((item, index) => index == 0 ? item with { ReparseFreeAncestors = false } : item).ToArray() },
             "package-version" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { Version = "4.7.0" } : item).ToArray() },
-            "package-hash" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { Sha256 = "bad" } : item).ToArray() },
+            "package-hash" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { ArchiveSha256 = "bad" } : item).ToArray() },
             "global-hash" => value with { GlobalJsonSha256 = new string('0', 64) },
             "sdk-hash" => value with { SdkContentSha256 = new string('0', 64) },
             "ref-hash" => value with { ReferencePackContentSha256 = new string('0', 64) },
             "ref-path" => value with { ReferencePackDirectory = @"C:\repo\.tools\dotnet\packs\Microsoft.NETCore.App.Ref\8.0.28\ref\net8.0" },
             "input-path" => value with { RequiredInputs = value.RequiredInputs.Select((item, index) => index == 0 ? item with { Path = @"C:\repo\decoy\global.json" } : item).ToArray() },
-            "package-path" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { CachePath = @"C:\host-cache\godot.net.sdk.4.7.1.nupkg" } : item).ToArray() },
+            "package-path" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { ArchivePath = @"C:\host-cache\godot.net.sdk.4.7.1.nupkg" } : item).ToArray() },
+            "package-tree-hash" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { ExtractedTreeSha256 = new string('0', 64) } : item).ToArray() },
+            "package-extracted-root" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { ExtractedRoot = @"C:\host-cache\godot.net.sdk\4.7.1" } : item).ToArray() },
+            "package-entry-retention" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { RetainedExtractedDirectoryAndEntries = false } : item).ToArray() },
+            "package-entry-count" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { ExtractedEntryCount = item.ExtractedEntryCount + 1 } : item).ToArray() },
+            "package-entry-identity" => value with { RequiredPackages = value.RequiredPackages.Select((item, index) => index == 0 ? item with { RetainedExtractedEntriesIdentity = string.Empty } : item).ToArray() },
             "input-hash-kind" => value with { RequiredInputs = value.RequiredInputs.Select((item, index) => index == 3 ? item with { HashKind = EvidenceBuildContentHashKind.RawBytesSha256 } : item).ToArray() },
             "tree-hash-algorithm" => value with { ReferencePackTreeHashAlgorithm = "different" },
             _ => throw new ArgumentOutOfRangeException(nameof(mutation)),
