@@ -382,10 +382,12 @@ internal sealed class Win32JobLease(IWin32EvidenceApi api, nint handle) : IEvide
 internal sealed class Win32LaunchHandleLease : IEvidenceLaunchHandleLease
 {
     private readonly IWin32EvidenceApi _api;
+    private readonly object _parentReadOwnershipGate = new();
     private readonly nint[] _parentReadHandles;
     private readonly nint[] _childHandleCopies;
     private nint _acknowledgementWrite;
     private bool _processCreationCompleted;
+    private bool _parentReadHandlesTransferred;
     private bool _disposed;
 
     internal Win32LaunchHandleLease(
@@ -510,6 +512,34 @@ internal sealed class Win32LaunchHandleLease : IEvidenceLaunchHandleLease
         }
     }
 
+    internal Win32ProtocolReadHandleLease TransferProtocolReadHandles()
+    {
+        lock (_parentReadOwnershipGate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_processCreationCompleted)
+            {
+                throw new InvalidOperationException(
+                    "Protocol read handles cannot transfer before child handle copies close.");
+            }
+            if (_parentReadHandlesTransferred)
+            {
+                throw new InvalidOperationException("Protocol read handles were already transferred.");
+            }
+            _parentReadHandlesTransferred = true;
+            var standardOutputRead = Interlocked.Exchange(ref _parentReadHandles[0], 0);
+            var standardErrorRead = Interlocked.Exchange(ref _parentReadHandles[1], 0);
+            if (standardOutputRead == 0 || standardErrorRead == 0)
+            {
+                throw new InvalidOperationException("Protocol read handle ownership was incomplete.");
+            }
+            return new Win32ProtocolReadHandleLease(
+                _api,
+                standardOutputRead,
+                standardErrorRead);
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -522,10 +552,13 @@ internal sealed class Win32LaunchHandleLease : IEvidenceLaunchHandleLease
             var handle = Interlocked.Exchange(ref childHandle, 0);
             if (handle != 0 && !_api.CloseKernelHandle(handle)) failures++;
         }
-        foreach (ref var parentHandle in _parentReadHandles.AsSpan())
+        lock (_parentReadOwnershipGate)
         {
-            var handle = Interlocked.Exchange(ref parentHandle, 0);
-            if (handle != 0 && !_api.CloseKernelHandle(handle)) failures++;
+            foreach (ref var parentHandle in _parentReadHandles.AsSpan())
+            {
+                var handle = Interlocked.Exchange(ref parentHandle, 0);
+                if (handle != 0 && !_api.CloseKernelHandle(handle)) failures++;
+            }
         }
         if (failures != 0)
         {
