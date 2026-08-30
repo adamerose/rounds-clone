@@ -180,12 +180,10 @@ public sealed class Win32ForegroundObserverTests
     [InlineData("get-message")]
     [InlineData("translate")]
     [InlineData("dispatch")]
-    [InlineData("unhook")]
     [InlineData("thread-dispose")]
     public void Message_loop_and_stop_lifecycle_failures_are_retained(string failure)
     {
         using var rig = new Rig();
-        if (failure == "unhook") rig.Api.FailUnhook = true;
         if (failure == "thread-dispose") rig.Thread.ThrowOnDispose = true;
         if (failure == "translate") rig.Api.ThrowOnTranslate = true;
         if (failure == "dispatch") rig.Api.ThrowOnDispatch = true;
@@ -206,17 +204,12 @@ public sealed class Win32ForegroundObserverTests
         Assert.True(rig.Thread.LastJoinTimeout == Win32ForegroundObserverLease.RequiredJoinTimeout);
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void Failed_post_or_unjoined_worker_defers_every_owned_resource_until_late_completion(
-        bool postFails)
+    [Fact]
+    public void Failed_first_post_is_retryable_by_dispose_and_retains_failure_after_exact_cleanup()
     {
         using var rig = new Rig();
         rig.Thread.JoinWithoutWaiting = true;
-        rig.Thread.ReportJoinFailure = true;
-        rig.Api.FailPostQuit = postFails;
-        rig.Api.HoldSuccessfulQuit = !postFails;
+        rig.Api.FailPostQuit = true;
         var observer = rig.Start();
         var started = Stopwatch.StartNew();
 
@@ -226,17 +219,82 @@ public sealed class Win32ForegroundObserverTests
         Assert.Equal(0, rig.Api.UnhookCount);
         Assert.Equal(0, rig.Thread.DisposeCount);
         Assert.True(rig.Api.CallbackIsRetained);
+        Assert.True(observer.CallbackRootAllocated);
+        Assert.True(observer.HookIdentityRetained);
         Assert.False(rig.Thread.Exited.IsSet);
+        Assert.Equal(1, rig.Api.PostQuitCount);
 
-        rig.Api.ReleaseHeldQuit();
-        Assert.True(rig.Thread.Exited.Wait(TimeSpan.FromSeconds(2)));
+        rig.Api.FailPostQuit = false;
+        rig.Thread.JoinWithoutWaiting = false;
+        Assert.ThrowsAny<Exception>(observer.Dispose);
+
+        Assert.True(rig.Thread.Exited.IsSet);
         Assert.Null(rig.Thread.UnhandledFailure);
         Assert.Equal(1, rig.Api.UnhookCount);
         Assert.Equal(rig.Api.InstallManagedThreadId, rig.Api.UnhookManagedThreadId);
         Assert.Equal(1, rig.Thread.DisposeCount);
         Assert.False(rig.Api.CallbackIsRetained);
+        Assert.False(observer.CallbackRootAllocated);
+        Assert.False(observer.HookIdentityRetained);
+        Assert.Equal(2, rig.Api.PostQuitCount);
         Assert.ThrowsAny<Exception>(() => observer.StopAndReadSawJobWindow());
         Assert.Equal(1, rig.Thread.DisposeCount);
+    }
+
+    [Fact]
+    public void Repeated_post_failure_remains_retryable_and_owned_until_a_later_bounded_cleanup()
+    {
+        using var rig = new Rig();
+        rig.Thread.JoinWithoutWaiting = true;
+        rig.Api.FailPostQuit = true;
+        var observer = rig.Start();
+
+        Assert.ThrowsAny<Exception>(() => observer.StopAndReadSawJobWindow());
+        Assert.ThrowsAny<Exception>(observer.Dispose);
+
+        Assert.Equal(2, rig.Api.PostQuitCount);
+        Assert.Equal(0, rig.Api.UnhookCount);
+        Assert.Equal(0, rig.Thread.DisposeCount);
+        Assert.True(observer.CallbackRootAllocated);
+        Assert.True(observer.HookIdentityRetained);
+        Assert.True(rig.Api.CallbackIsRetained);
+        Assert.False(rig.Thread.Exited.IsSet);
+
+        // Test-only teardown supplies the first successful post so no background worker leaks.
+        rig.Api.FailPostQuit = false;
+        rig.Thread.JoinWithoutWaiting = false;
+        Assert.ThrowsAny<Exception>(() => observer.StopAndReadSawJobWindow());
+        Assert.True(rig.Thread.Exited.IsSet);
+        Assert.Equal(1, rig.Api.UnhookCount);
+        Assert.Equal(1, rig.Thread.DisposeCount);
+    }
+
+    [Fact]
+    public void Failed_unhook_retains_hook_and_root_until_a_later_join_is_actually_proven()
+    {
+        using var rig = new Rig();
+        rig.Api.FailUnhook = true;
+        rig.Thread.ReportJoinFailure = true;
+        var observer = rig.Start();
+
+        Assert.ThrowsAny<Exception>(() => observer.StopAndReadSawJobWindow());
+
+        Assert.True(rig.Thread.Exited.IsSet);
+        Assert.Equal(1, rig.Api.UnhookCount);
+        Assert.True(rig.Api.CallbackIsRetained);
+        Assert.True(observer.CallbackRootAllocated);
+        Assert.True(observer.HookIdentityRetained);
+        Assert.Equal(0, rig.Thread.DisposeCount);
+
+        rig.Thread.ReportJoinFailure = false;
+        Assert.ThrowsAny<Exception>(observer.Dispose);
+
+        Assert.False(rig.Api.CallbackIsRetained);
+        Assert.False(observer.CallbackRootAllocated);
+        Assert.False(observer.HookIdentityRetained);
+        Assert.Equal(1, rig.Api.UnhookCount);
+        Assert.Equal(1, rig.Thread.DisposeCount);
+        Assert.Null(rig.Thread.UnhandledFailure);
     }
 
     [Fact]
@@ -275,13 +333,20 @@ public sealed class Win32ForegroundObserverTests
         rig.Api.RaiseForeground(91);
         Assert.True(rig.Api.MembershipEntered.Wait(TimeSpan.FromSeconds(2)));
 
+        var disposerEntered = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         var dispose = Task.Factory.StartNew(
-            rig.Job.Dispose,
+            () =>
+            {
+                disposerEntered.SetResult();
+                rig.Job.Dispose();
+            },
             CancellationToken.None,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
         try
         {
+            await disposerEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
             await Task.Delay(TimeSpan.FromMilliseconds(50));
             Assert.False(dispose.IsCompleted);
             Assert.Equal(0, rig.Api.CloseCount(303));
@@ -334,6 +399,7 @@ public sealed class Win32ForegroundObserverTests
         internal Rig()
         {
             Thread = new FakeThread(Api.Events);
+            Thread.OnJoinProven = Api.NotifyInstallingThreadExitProven;
             Job = new Win32JobLease(Api, 303);
         }
 
@@ -378,6 +444,7 @@ public sealed class Win32ForegroundObserverTests
         internal TimeSpan? LastJoinTimeout { get; private set; }
         internal ManualResetEventSlim Exited { get; } = new(false);
         internal Exception? UnhandledFailure { get; private set; }
+        internal Action? OnJoinProven { get; set; }
         public bool Started { get; private set; }
 
         public void Start(ThreadStart operation)
@@ -410,7 +477,9 @@ public sealed class Win32ForegroundObserverTests
             events.Enqueue("join");
             if (JoinWithoutWaiting) return false;
             var joined = _thread?.Join(TimeSpan.FromSeconds(2)) ?? false;
-            return joined && !ReportJoinFailure;
+            var proven = joined && !ReportJoinFailure;
+            if (proven) OnJoinProven?.Invoke();
+            return proven;
         }
 
         public void Dispose()
@@ -431,7 +500,6 @@ public sealed class Win32ForegroundObserverTests
         private readonly Dictionary<nint, uint> _processHandles = new();
         private readonly Dictionary<nint, int> _closeCounts = new();
         private Win32WinEventCallback? _callback;
-        private bool _quitHeld;
         private string? _classificationFailure;
         private nint _failureWindow;
         private uint _failureProcessId;
@@ -450,7 +518,6 @@ public sealed class Win32ForegroundObserverTests
         internal bool FailQueue { get; set; }
         internal bool FailInstall { get; set; }
         internal bool FailPostQuit { get; set; }
-        internal bool HoldSuccessfulQuit { get; set; }
         internal bool FailUnhook { get; set; }
         internal bool BlockMembership { get; set; }
         internal uint? FailProcessCloseFor { get; set; }
@@ -466,6 +533,7 @@ public sealed class Win32ForegroundObserverTests
         internal int TranslateManagedThreadId { get; private set; }
         internal int DispatchManagedThreadId { get; private set; }
         internal bool CallbackIsRetained => _callback is not null;
+        internal int PostQuitCount { get; private set; }
 
         internal void MapWindow(nint window, uint processId, bool inJob)
         {
@@ -497,14 +565,10 @@ public sealed class Win32ForegroundObserverTests
         internal void QueueMessageFailure() =>
             _messages.Add(new LoopItem(Win32MessageLoopResult.Failure, 5, null));
 
-        internal void ReleaseHeldQuit()
+        internal void NotifyInstallingThreadExitProven()
         {
-            lock (_gate)
-            {
-                if (!_quitHeld) _quitHeld = true;
-                _messages.Add(new LoopItem(Win32MessageLoopResult.Quit, 0, null));
-                _quitHeld = false;
-            }
+            Events.Enqueue("thread-exit-proven");
+            _callback = null;
         }
 
         internal int CloseCount(nint handle)
@@ -571,14 +635,11 @@ public sealed class Win32ForegroundObserverTests
         public bool PostQuitMessage(uint threadId, out int error)
         {
             Events.Enqueue("post-quit");
+            PostQuitCount++;
             Assert.Equal(77U, threadId);
-            if (!FailPostQuit && !HoldSuccessfulQuit)
+            if (!FailPostQuit)
             {
                 _messages.Add(new LoopItem(Win32MessageLoopResult.Quit, 0, null));
-            }
-            else
-            {
-                lock (_gate) _quitHeld = true;
             }
             error = FailPostQuit ? 5 : 0;
             return !FailPostQuit;
@@ -591,7 +652,7 @@ public sealed class Win32ForegroundObserverTests
             UnhookManagedThreadId = Environment.CurrentManagedThreadId;
             CallbackPresentAtUnhook = _callback is not null;
             UnhookCount++;
-            _callback = null;
+            if (!FailUnhook) _callback = null;
             error = FailUnhook ? 5 : 0;
             return !FailUnhook;
         }

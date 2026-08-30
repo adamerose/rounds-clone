@@ -176,13 +176,16 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
     private bool _callbackDrainActive;
     private bool _sawJobWindow;
     private bool _readySucceeded;
-    private bool _stopCompleted;
+    private bool _terminationProven;
     private bool _threadDisposed;
     private bool _signalsDisposed;
-    private bool _deferredCleanupRequested;
     private uint _workerThreadId;
     private nint _hook;
     private GCHandle _callbackRoot;
+
+    internal bool CallbackRootAllocated => _callbackRoot.IsAllocated;
+
+    internal bool HookIdentityRetained => _hook != 0;
 
     internal Win32ForegroundObserverLease(
         IWin32ForegroundObserverApi api,
@@ -220,8 +223,16 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
             failure = exception;
         }
 
-        StopWorkerBestEffort(ref failure);
-        ReleaseOrDeferWorkerResources(ref failure);
+        var terminationProven = StopWorkerBestEffort(ref failure);
+        if (!_thread.Started)
+        {
+            DisposeNeverStartedResources(ref failure);
+        }
+        else if (terminationProven)
+        {
+            _terminationProven = true;
+            ReapAfterJoin(ref failure);
+        }
         ExceptionDispatchInfo.Capture(failure!).Throw();
     }
 
@@ -229,11 +240,20 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
     {
         lock (_stopGate)
         {
-            if (!_stopCompleted)
+            if (!_terminationProven)
             {
                 Exception? stopFailure = null;
-                StopWorkerBestEffort(ref stopFailure);
-                ReleaseOrDeferWorkerResources(ref stopFailure);
+                var terminationProven = StopWorkerBestEffort(ref stopFailure);
+                if (!_thread.Started)
+                {
+                    _terminationProven = true;
+                    DisposeNeverStartedResources(ref stopFailure);
+                }
+                else if (terminationProven)
+                {
+                    _terminationProven = true;
+                    ReapAfterJoin(ref stopFailure);
+                }
                 lock (_failureGate)
                 {
                     if (_failure is not null)
@@ -242,7 +262,6 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
                     }
                     _failure = stopFailure;
                 }
-                _stopCompleted = true;
             }
 
             Exception? failure;
@@ -306,6 +325,7 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
         {
             DrainCallbackQueue();
             var hook = _hook;
+            var hookRemovalProven = hook == 0;
             if (hook != 0)
             {
                 try
@@ -314,24 +334,22 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
                     {
                         throw new Win32Exception(unhookError, "UnhookWinEvent failed for the foreground observer.");
                     }
+                    _hook = 0;
+                    hookRemovalProven = true;
                 }
                 catch (Exception exception)
                 {
                     RecordFailure(exception);
                 }
-                _hook = 0;
             }
-            try
+            if (hookRemovalProven)
             {
-                if (_callbackRoot.IsAllocated) _callbackRoot.Free();
-            }
-            catch (Exception exception)
-            {
-                RecordFailure(exception);
+                Exception? rootFailure = null;
+                FreeCallbackRoot(ref rootFailure);
+                if (rootFailure is not null) RecordFailure(rootFailure);
             }
             _ready.Set();
             _workerCompleted.Set();
-            CompleteDeferredCleanupIfRequested();
         }
     }
 
@@ -451,9 +469,9 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
-    private void StopWorkerBestEffort(ref Exception? failure)
+    private bool StopWorkerBestEffort(ref Exception? failure)
     {
-        if (!_thread.Started) return;
+        if (!_thread.Started) return true;
         if (!_workerCompleted.IsSet)
         {
             var threadId = Volatile.Read(ref _workerThreadId);
@@ -479,9 +497,11 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
             }
         }
 
+        var joinProven = false;
         try
         {
-            if (!_thread.Join(RequiredJoinTimeout))
+            joinProven = _thread.Join(RequiredJoinTimeout);
+            if (!joinProven)
             {
                 throw new TimeoutException("Foreground observer worker did not terminate in five seconds.");
             }
@@ -491,50 +511,46 @@ internal sealed class Win32ForegroundObserverLease : IEvidenceForegroundObserver
             failure = Combine(failure, exception);
         }
 
-        if (!_workerCompleted.IsSet)
+        if (joinProven && !_workerCompleted.IsSet)
         {
             failure = Combine(
                 failure,
-                new InvalidOperationException("Foreground observer worker completion was not proven."));
+                new InvalidOperationException("Joined foreground observer worker did not publish completion."));
         }
+        return joinProven;
     }
 
-    private void ReleaseOrDeferWorkerResources(ref Exception? failure)
+    private void ReapAfterJoin(ref Exception? failure)
     {
         lock (_cleanupGate)
         {
-            if (!_thread.Started)
+            if (!_thread.Started || !_terminationProven)
             {
-                DisposeNeverStartedResources(ref failure);
+                throw new InvalidOperationException("Started observer resources require external join proof before reaping.");
             }
-            else if (_workerCompleted.IsSet)
-            {
-                DisposeCompletedWorkerResources(ref failure);
-            }
-            else
-            {
-                _deferredCleanupRequested = true;
-            }
+            // Thread exit automatically removes any hook whose same-thread unhook failed. Only
+            // external Join proof makes it safe to clear that retained identity and free the root.
+            _hook = 0;
+            FreeCallbackRoot(ref failure);
+            DisposeJoinedWorkerResources(ref failure);
         }
     }
 
-    private void CompleteDeferredCleanupIfRequested()
+    private void FreeCallbackRoot(ref Exception? failure)
     {
-        Exception? failure = null;
-        lock (_cleanupGate)
+        if (!_callbackRoot.IsAllocated) return;
+        try
         {
-            if (!_deferredCleanupRequested) return;
-            DisposeCompletedWorkerResources(ref failure);
+            _callbackRoot.Free();
         }
-        if (failure is not null) RecordFailure(failure);
+        catch (Exception exception)
+        {
+            failure = Combine(failure, exception);
+        }
     }
 
-    private void DisposeCompletedWorkerResources(ref Exception? failure)
+    private void DisposeJoinedWorkerResources(ref Exception? failure)
     {
-        if (!_workerCompleted.IsSet)
-        {
-            throw new InvalidOperationException("Worker-owned resources cannot be released before completion.");
-        }
         if (!_threadDisposed)
         {
             _threadDisposed = true;
