@@ -676,6 +676,8 @@ internal sealed class ManagedStrictPngDecoder : IWin32PngDecoder
         var idatClosed = false;
         var seenEnd = false;
         var ancillaryBytes = 0;
+        uint? gamma = null;
+        var seenSrgb = false;
         var seenAncillary = new HashSet<string>(StringComparer.Ordinal);
         using var idat = new MemoryStream();
         while (offset < png.Length)
@@ -753,6 +755,12 @@ internal sealed class ManagedStrictPngDecoder : IWin32PngDecoder
                         !seenAncillary.Add(type))
                     {
                         throw new InvalidDataException("PNG ancillary chunk was unsupported, duplicated, or illegally placed.");
+                    }
+                    if (type == "gAMA") gamma = BinaryPrimitives.ReadUInt32BigEndian(data);
+                    if (type == "sRGB") seenSrgb = true;
+                    if (seenSrgb && gamma is not null and not 45455)
+                    {
+                        throw new InvalidDataException("PNG sRGB and gAMA chunks declared inconsistent transfer characteristics.");
                     }
                     break;
             }

@@ -270,6 +270,37 @@ public sealed class Win32PublishedFrameValidatorTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Strict_png_decoder_accepts_canonical_gamma_with_srgb_in_either_order(bool gammaFirst)
+    {
+        var chunks = BuildChunks(1, 1, new byte[4]);
+        var gamma = new Chunk("gAMA", [0, 0, 177, 143]);
+        var srgb = new Chunk("sRGB", [0]);
+        chunks.Insert(1, gammaFirst ? gamma : srgb);
+        chunks.Insert(2, gammaFirst ? srgb : gamma);
+
+        var decoded = new ManagedStrictPngDecoder().Decode(EncodeChunks(chunks), 1, 1);
+
+        Assert.Equal(4, decoded.DecodedBytes);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Strict_png_decoder_rejects_noncanonical_gamma_with_srgb_in_either_order(bool gammaFirst)
+    {
+        var chunks = BuildChunks(1, 1, new byte[4]);
+        var gamma = new Chunk("gAMA", [0, 1, 134, 160]);
+        var srgb = new Chunk("sRGB", [0]);
+        chunks.Insert(1, gammaFirst ? gamma : srgb);
+        chunks.Insert(2, gammaFirst ? srgb : gamma);
+
+        Assert.Throws<InvalidDataException>(() =>
+            new ManagedStrictPngDecoder().Decode(EncodeChunks(chunks), 1, 1));
+    }
+
+    [Theory]
     [InlineData("cHRM")]
     [InlineData("gAMA")]
     [InlineData("sBIT")]
