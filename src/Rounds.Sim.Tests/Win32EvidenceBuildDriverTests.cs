@@ -53,7 +53,7 @@ public sealed class Win32EvidenceBuildDriverTests
 
         Assert.Equal(1, rig.Events.Count(value => value == "runtime-dispose"));
         Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
-        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "provenance-dispose"], rig.Events.TakeLast(4));
+        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "environment-dispose", "provenance-dispose"], rig.Events.TakeLast(5));
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
 
         Assert.DoesNotContain("process", rig.Events);
-        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "provenance-dispose"], rig.Events.TakeLast(4));
+        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "environment-dispose", "provenance-dispose"], rig.Events.TakeLast(5));
     }
 
     [Fact]
@@ -354,7 +354,7 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "prior dispose failed:2");
         Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "prior dispose failed:0");
         Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "provenance cleanup failed");
-        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "provenance-dispose"], rig.Events.TakeLast(4));
+        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "environment-dispose", "provenance-dispose"], rig.Events.TakeLast(5));
     }
 
     [Theory]
@@ -637,10 +637,13 @@ public sealed class Win32EvidenceBuildDriverTests
         }
     }
 
-    private sealed class FakeEnvironment(List<string> events) : IEvidenceBuildEnvironmentFactory
+    private sealed class FakeEnvironment(List<string> events) :
+        IEvidenceBuildEnvironmentFactory,
+        IEvidenceBuildEnvironmentLease
     {
         internal IReadOnlyDictionary<string, string> Value { get; set; } = ValidEnvironment();
-        public IReadOnlyDictionary<string, string> CreateSanitized(
+        public IReadOnlyDictionary<string, string> Environment => Value;
+        public IEvidenceBuildEnvironmentLease CreateSanitized(
             EvidenceBuildInvocation required,
             EvidenceTrustedDirectoryIdentity systemRoot,
             EvidenceTrustedDirectoryIdentity temporaryDirectory)
@@ -648,8 +651,11 @@ public sealed class Win32EvidenceBuildDriverTests
             events.Add("environment");
             Assert.Equal(@"C:\Windows", systemRoot.CanonicalPath);
             Assert.Equal(@"C:\Temp", temporaryDirectory.CanonicalPath);
-            return Value;
+            return this;
         }
+        public EvidenceBuildEnvironmentRevalidation Revalidate() =>
+            new("dotnet-home-id", "msbuild-user-id", true, true);
+        public void Dispose() => events.Add("environment-dispose");
     }
 
     private sealed class FakeOutput(List<string> events) : IEvidenceBuildOutputApi

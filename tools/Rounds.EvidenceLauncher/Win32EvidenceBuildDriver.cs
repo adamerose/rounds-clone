@@ -215,10 +215,23 @@ internal interface IEvidenceBuildProvenanceFactory
 
 internal interface IEvidenceBuildEnvironmentFactory
 {
-    IReadOnlyDictionary<string, string> CreateSanitized(
+    IEvidenceBuildEnvironmentLease CreateSanitized(
         EvidenceBuildInvocation required,
         EvidenceTrustedDirectoryIdentity systemRoot,
         EvidenceTrustedDirectoryIdentity temporaryDirectory);
+}
+
+internal sealed record EvidenceBuildEnvironmentRevalidation(
+    string DotNetCliHomeDirectoryIdentity,
+    string MsBuildUserExtensionsDirectoryIdentity,
+    bool BothDirectoriesEmpty,
+    bool AllAncestorIdentitiesStable);
+
+internal interface IEvidenceBuildEnvironmentLease : IDisposable
+{
+    IReadOnlyDictionary<string, string> Environment { get; }
+
+    EvidenceBuildEnvironmentRevalidation Revalidate();
 }
 
 internal interface IEvidenceBuildOutputApi
@@ -335,6 +348,7 @@ internal sealed class Win32EvidenceBuildDriver(
         ValidateMsBuildIdentity(msBuildExecutable.Identity, required.Executable);
         IEvidenceBuildProvenanceLease? provenanceLease = null;
         IEvidenceRuntimeAssemblyLease? runtimeLease = null;
+        IEvidenceBuildEnvironmentLease? environmentLease = null;
         var priorOutputLeases = new List<IEvidencePriorOutputLease>();
         try
         {
@@ -351,8 +365,10 @@ internal sealed class Win32EvidenceBuildDriver(
             var baseline = provenanceLease.Revalidate();
             ValidateProvenanceSnapshot(baseline, candidateBefore);
 
-            var effectiveEnvironment = FreezeEnvironment(environments.CreateSanitized(
-                required, provenanceLease.SystemRoot, provenanceLease.TemporaryDirectory));
+            environmentLease = environments.CreateSanitized(
+                required, provenanceLease.SystemRoot, provenanceLease.TemporaryDirectory);
+            var environmentBaseline = ValidateEnvironmentLease(environmentLease);
+            var effectiveEnvironment = FreezeEnvironment(environmentLease.Environment);
             ValidateEffectiveEnvironment(
                 effectiveEnvironment, required, provenanceLease.SystemRoot, provenanceLease.TemporaryDirectory);
 
@@ -382,6 +398,7 @@ internal sealed class Win32EvidenceBuildDriver(
                 throw new InvalidOperationException("Prior runtime outputs did not have three distinct exact identities.");
             }
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+            RequireStableEnvironment(environmentLease, environmentBaseline);
             for (var index = 0; index < priorOutputLeases.Count; index++)
             {
                 ValidatePriorDeletion(
@@ -390,6 +407,7 @@ internal sealed class Win32EvidenceBuildDriver(
                     runtimePaths[index]);
             }
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+            RequireStableEnvironment(environmentLease, environmentBaseline);
 
             var request = new EvidenceBuildProcessRequest(
                 required,
@@ -407,6 +425,7 @@ internal sealed class Win32EvidenceBuildDriver(
             var result = processes.Run(request, msBuildExecutable);
             ValidateProcessResult(result, msBuildExecutable.Identity, effectiveEnvironment);
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+            RequireStableEnvironment(environmentLease, environmentBaseline);
 
             var recreated = runtimePaths.Select(outputs.ReadRecreated).ToArray();
             var priorIdentities = prior.Select(value => value.OpenedHandleIdentity).ToHashSet(StringComparer.Ordinal);
@@ -419,6 +438,7 @@ internal sealed class Win32EvidenceBuildDriver(
                 throw new InvalidOperationException("Recreated runtime outputs did not have three distinct identities.");
             }
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+            RequireStableEnvironment(environmentLease, environmentBaseline);
             runtimeLease = runtimeAssemblies.OpenRecreatedClosure(
                 runtimePaths, prior.Select(value => value.OpenedHandleIdentity).ToArray());
             var runtime = runtimeLease.Identity;
@@ -431,15 +451,17 @@ internal sealed class Win32EvidenceBuildDriver(
                 throw new InvalidOperationException("Recreated runtime assembly closure did not match its retained files.");
             }
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
+            RequireStableEnvironment(environmentLease, environmentBaseline);
 
             var attestation = new EvidenceBuildAttestation(
                 required, effectiveEnvironment, candidateBefore,
                 msBuildExecutable.Identity, result.ProcessImage, runtime,
                 Array.AsReadOnly(runtimeLease.RuntimeClosure.ToArray()), true, true);
             var completed = new Win32EvidenceBuildAttestationLease(
-                runtimeLease, priorOutputLeases.ToArray(), provenanceLease, attestation);
+                runtimeLease, priorOutputLeases.ToArray(), environmentLease, provenanceLease, attestation);
             runtimeLease = null;
             priorOutputLeases.Clear();
+            environmentLease = null;
             provenanceLease = null;
             return completed;
         }
@@ -453,6 +475,8 @@ internal sealed class Win32EvidenceBuildDriver(
                 try { priorOutputLeases[index].Dispose(); }
                 catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
             }
+            try { environmentLease?.Dispose(); }
+            catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
             try { provenanceLease?.Dispose(); }
             catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
             throw cleanup is null ? failure : new AggregateException(failure, cleanup);
@@ -616,6 +640,31 @@ internal sealed class Win32EvidenceBuildDriver(
             }
         }
         return new ReadOnlyDictionary<string, string>(frozen);
+    }
+
+    private static EvidenceBuildEnvironmentRevalidation ValidateEnvironmentLease(
+        IEvidenceBuildEnvironmentLease lease)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        var proof = lease.Revalidate();
+        if (string.IsNullOrWhiteSpace(proof.DotNetCliHomeDirectoryIdentity) ||
+            string.IsNullOrWhiteSpace(proof.MsBuildUserExtensionsDirectoryIdentity) ||
+            proof.DotNetCliHomeDirectoryIdentity == proof.MsBuildUserExtensionsDirectoryIdentity ||
+            !proof.BothDirectoriesEmpty || !proof.AllAncestorIdentitiesStable)
+        {
+            throw new InvalidOperationException("Build-influencing environment directory lease was not exact, empty, and retained.");
+        }
+        return proof;
+    }
+
+    private static void RequireStableEnvironment(
+        IEvidenceBuildEnvironmentLease lease,
+        EvidenceBuildEnvironmentRevalidation baseline)
+    {
+        if (lease.Revalidate() != baseline)
+        {
+            throw new InvalidOperationException("Retained build environment directory identities or contents changed.");
+        }
     }
 
     private static void ValidateTrustedDirectory(EvidenceTrustedDirectoryIdentity value, string label)
@@ -819,7 +868,7 @@ internal sealed class Win32RuntimeAssemblyFactory(
             {
                 throw new InvalidOperationException("Runtime assembly contained an alternate data stream.");
             }
-            var openedIdentity = FormatIdentity(before);
+            var openedIdentity = Win32RetainedFileIdentity.Format(before);
             if (priorOpenedHandleIdentities.Contains(openedIdentity))
             {
                 throw new InvalidOperationException("Recreated runtime assembly reused the prior file identity.");
@@ -911,8 +960,6 @@ internal sealed class Win32RuntimeAssemblyFactory(
         left.LinkCount == right.LinkCount && left.DeletePending == right.DeletePending &&
         left.Directory == right.Directory;
 
-    private static string FormatIdentity(Win32RetainedFileSnapshot snapshot) =>
-        $"volume:{snapshot.VolumeSerialNumber:x16}:file:{snapshot.FileId}";
 }
 
 internal sealed class Win32RuntimeAssemblyLease(
@@ -981,11 +1028,13 @@ internal sealed class Win32RuntimeAssemblyClosureLease : IEvidenceRuntimeAssembl
 internal sealed class Win32EvidenceBuildAttestationLease(
     IEvidenceRuntimeAssemblyLease runtime,
     IReadOnlyList<IEvidencePriorOutputLease> priorOutputs,
+    IEvidenceBuildEnvironmentLease environment,
     IEvidenceBuildProvenanceLease provenance,
     EvidenceBuildAttestation attestation) : IEvidenceBuildAttestationLease
 {
     private IEvidenceRuntimeAssemblyLease? _runtime = runtime;
     private IReadOnlyList<IEvidencePriorOutputLease>? _priorOutputs = priorOutputs;
+    private IEvidenceBuildEnvironmentLease? _environment = environment;
     private IEvidenceBuildProvenanceLease? _provenance = provenance;
 
     public EvidenceBuildAttestation Attestation { get; } = attestation;
@@ -994,6 +1043,7 @@ internal sealed class Win32EvidenceBuildAttestationLease(
     {
         var runtimeLease = Interlocked.Exchange(ref _runtime, null);
         var priorLeases = Interlocked.Exchange(ref _priorOutputs, null);
+        var environmentLease = Interlocked.Exchange(ref _environment, null);
         var provenanceLease = Interlocked.Exchange(ref _provenance, null);
         Exception? failure = null;
         try { runtimeLease?.Dispose(); }
@@ -1006,6 +1056,8 @@ internal sealed class Win32EvidenceBuildAttestationLease(
                 catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
             }
         }
+        try { environmentLease?.Dispose(); }
+        catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
         try { provenanceLease?.Dispose(); }
         catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();

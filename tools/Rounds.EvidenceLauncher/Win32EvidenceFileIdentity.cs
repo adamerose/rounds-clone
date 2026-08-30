@@ -124,7 +124,7 @@ internal sealed partial class Win32ExecutableIdentityFactory(IWin32RetainedFileA
                 Exists: true,
                 IdentityBound: true,
                 IsReparsePoint: false,
-                OpenedHandleIdentity: FormatIdentity(before),
+                OpenedHandleIdentity: Win32RetainedFileIdentity.Format(before),
                 sha256,
                 version.FileVersion,
                 version.ProductVersion);
@@ -236,9 +236,6 @@ internal sealed partial class Win32ExecutableIdentityFactory(IWin32RetainedFileA
         before.LinkCount == after.LinkCount && before.DeletePending == after.DeletePending &&
         before.Directory == after.Directory;
 
-    private static string FormatIdentity(Win32RetainedFileSnapshot snapshot) =>
-        $"volume:{snapshot.VolumeSerialNumber:x16}:file:{snapshot.FileId}";
-
     private static bool IsLowerHexFileId(string value) =>
         value.Length == 32 && value.All(character =>
             character is >= '0' and <= '9' or >= 'a' and <= 'f') &&
@@ -283,6 +280,12 @@ internal sealed partial class Win32ExecutableIdentityFactory(IWin32RetainedFileA
         }
         return NormalizeRequestedPath(dosPath);
     }
+}
+
+internal static class Win32RetainedFileIdentity
+{
+    internal static string Format(Win32RetainedFileSnapshot snapshot) =>
+        $"volume:{snapshot.VolumeSerialNumber:x16}:file:{snapshot.FileId}";
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -381,7 +384,8 @@ internal sealed class Win32RetainedFileApi : IWin32RetainedFileApi
                     memory,
                     checked((uint)size)))
             {
-                throw new Win32Exception("GetFileInformationByHandleEx failed.");
+                var error = Marshal.GetLastPInvokeError();
+                throw new Win32Exception(error, "GetFileInformationByHandleEx failed.");
             }
             return Marshal.PtrToStructure<T>(memory);
         }
@@ -394,7 +398,11 @@ internal sealed class Win32RetainedFileApi : IWin32RetainedFileApi
     private static string ReadFinalPath(nint handle)
     {
         var required = Win32FileIdentityNativeMethods.GetFinalPathNameByHandleW(handle, null, 0, 0);
-        if (required == 0) throw new Win32Exception("Final path size query failed.");
+        if (required == 0)
+        {
+            var error = Marshal.GetLastPInvokeError();
+            throw new Win32Exception(error, "Final path size query failed.");
+        }
         var buffer = new StringBuilder(checked((int)required + 1));
         var written = Win32FileIdentityNativeMethods.GetFinalPathNameByHandleW(
             handle,
@@ -403,7 +411,8 @@ internal sealed class Win32RetainedFileApi : IWin32RetainedFileApi
             0);
         if (written == 0 || written >= buffer.Capacity)
         {
-            throw new Win32Exception("Final path query failed or changed size.");
+            var error = written == 0 ? Marshal.GetLastPInvokeError() : 0;
+            throw new Win32Exception(error, "Final path query failed or changed size.");
         }
         return buffer.ToString();
     }
