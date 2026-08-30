@@ -16,7 +16,8 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
         var api = new FakePipeApi();
         using var bundle = new EvidenceBuildPipeHandleFactory(api, new FakeCleanupOwner()).Create();
 
-        Assert.Equal(new nint[] { 10, 21, 31 }, bundle.ChildHandleAllowlist.ToArray());
+        bundle.BorrowForCreate(borrow =>
+            Assert.Equal(new nint[] { 10, 21, 31 }, borrow.ChildHandles));
         Assert.Equal(
             [
                 "open:NUL:80000000:3:3:80:24:1",
@@ -24,8 +25,8 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
                 "pipe:0:24:1", "set:30:1:0",
             ],
             api.Calls.Take(5));
-        Assert.Equal(5, api.GetInfoCalls);
-        Assert.Equal(5, api.GetTypeCalls);
+        Assert.Equal(10, api.GetInfoCalls);
+        Assert.Equal(10, api.GetTypeCalls);
     }
 
     [Fact]
@@ -36,10 +37,9 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
 
         Assert.Empty(api.CloseCalls);
         _ = bundle.CreateReadApi();
-        bundle.CloseParentChildEndsAfterSuccessfulProcessCreation();
+        bundle.BorrowForCreate(borrow => borrow.MarkSuccessfulCreate());
         Assert.Equal(new nint[] { 10, 21, 31 }, api.CloseCalls);
-        Assert.Throws<InvalidOperationException>(() => _ = bundle.ChildHandleAllowlist);
-        Assert.Throws<InvalidOperationException>(bundle.CloseParentChildEndsAfterSuccessfulProcessCreation);
+        Assert.Throws<InvalidOperationException>(() => bundle.BorrowForCreate(_ => { }));
 
         bundle.Dispose();
         bundle.Dispose();
@@ -136,7 +136,8 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
         var owner = new FakeCleanupOwner();
         var bundle = new EvidenceBuildPipeHandleFactory(api, owner).Create();
 
-        var failure = Assert.Throws<Win32Exception>(bundle.CloseParentChildEndsAfterSuccessfulProcessCreation);
+        var failure = Assert.Throws<Win32Exception>(() =>
+            bundle.BorrowForCreate(borrow => borrow.MarkSuccessfulCreate()));
         Assert.Contains("ambiguous", failure.Message, StringComparison.Ordinal);
         Assert.Single(owner.Retained);
         Assert.Equal((nint)21, owner.Retained[0].Handle);
@@ -173,8 +174,8 @@ public sealed class Win32EvidenceBuildHandlesCompletionTests
         var owner = new FakeCleanupOwner { ThrowAfterRetain = true };
         var bundle = new EvidenceBuildPipeHandleFactory(api, owner).Create();
 
-        var failure = Assert.Throws<AggregateException>(
-            bundle.CloseParentChildEndsAfterSuccessfulProcessCreation).Flatten();
+        var failure = Assert.Throws<AggregateException>(() =>
+            bundle.BorrowForCreate(borrow => borrow.MarkSuccessfulCreate())).Flatten();
 
         Assert.Equal(2, failure.InnerExceptions.Count);
         Assert.True(owner.SawStaticFallbackBeforeRetain);

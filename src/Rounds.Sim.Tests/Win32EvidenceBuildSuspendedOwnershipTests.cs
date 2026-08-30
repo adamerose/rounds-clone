@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Immutable;
 using Rounds.EvidenceLauncher;
 
@@ -27,6 +28,7 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
             Assert.True(borrow.Continuity.ExactPath);
             Assert.True(borrow.Continuity.ReparseFree);
             Assert.True(borrow.Continuity.RenameDeleteExcluded);
+            Assert.Equal(new nint[] { 100, 101, 102, 103 }, borrow.ProtectedHandles);
         });
         Assert.Throws<IOException>(() => lease.Borrow(_ => throw new IOException("callback")));
         lease.Borrow(_ => calls.Add(2));
@@ -36,21 +38,14 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
     }
 
     [Fact]
-    public async Task ExecutableDisposeBlocksBehindBorrowThenClosesAncestorsInReverse()
+    public void ExecutableDisposeBlocksBehindBorrowThenClosesAncestorsInReverse()
     {
         var api = new FakeApi();
         var lease = ExecutableLease(api);
-        using var entered = new ManualResetEventSlim();
-        using var release = new ManualResetEventSlim();
-        var borrow = Task.Run(() => lease.Borrow(_ => { entered.Set(); release.Wait(); }));
-        Assert.True(entered.Wait(TimeSpan.FromSeconds(2)));
-        var dispose = Task.Run(lease.Dispose);
-
-        await Task.Delay(TimeSpan.FromMilliseconds(50));
-        Assert.False(dispose.IsCompleted);
-        Assert.Empty(api.CloseCalls);
-        release.Set();
-        await Task.WhenAll(borrow, dispose);
+        AssertDisposeBlocksBehindBorrow(
+            callback => lease.Borrow(_ => callback()),
+            lease.Dispose,
+            () => Assert.Empty(api.CloseCalls));
 
         Assert.Equal(new nint[] { 103, 102, 101, 100 }, api.CloseCalls);
         Assert.Throws<ObjectDisposedException>(() => lease.Borrow(_ => { }));
@@ -92,6 +87,72 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
     }
 
     [Fact]
+    public void ExecutableSnapshotNeverReadsMutableCountOrIndexerSurfaces()
+    {
+        var api = new FakeApi();
+        var handles = new PoisonedCountList<nint>([101, 102, 103]);
+        var ancestors = new PoisonedCountList<EvidenceBuildExecutableAncestorIdentity>(MutableAncestors());
+
+        using var lease = ExecutableLease(api, ancestors, handles);
+
+        lease.Borrow(borrow =>
+            Assert.Equal(new nint[] { 100, 101, 102, 103 }, borrow.ProtectedHandles));
+        Assert.Equal(1, handles.EnumerationCount);
+        Assert.Equal(1, ancestors.EnumerationCount);
+    }
+
+    [Fact]
+    public void ThrowingHandleEnumerationClosesEveryHandleAlreadyObservedExactlyOnce()
+    {
+        var api = new FakeApi();
+        var handles = new ThrowAfterEnumerable<nint>([101, 102, 103], throwAfter: 1);
+
+        Assert.Throws<IOException>(() => ExecutableLease(api, handles: handles));
+
+        Assert.Equal(new nint[] { 101, 100 }, api.CloseCalls);
+    }
+
+    [Fact]
+    public void ThrowingProofEnumerationClosesTheCompleteAlreadyOwnedHandleSet()
+    {
+        var api = new FakeApi();
+        var ancestors = new ThrowAfterEnumerable<EvidenceBuildExecutableAncestorIdentity>(
+            MutableAncestors(),
+            throwAfter: 1);
+
+        Assert.Throws<IOException>(() => ExecutableLease(api, ancestors: ancestors));
+
+        Assert.Equal(new nint[] { 103, 102, 101, 100 }, api.CloseCalls);
+    }
+
+    [Fact]
+    public void SnapshotAllocationFailureStillClosesTheExecutableIdentity()
+    {
+        var api = new FakeApi();
+
+        Assert.Throws<OutOfMemoryException>(() => ExecutableLease(api, allocator: new ThrowingAllocator()));
+
+        Assert.Equal(new nint[] { 100 }, api.CloseCalls);
+    }
+
+    [Fact]
+    public void SnapshotAllocationAndExecutableCloseFailuresAreAggregatedAndStronglyRetained()
+    {
+        var api = new FakeApi();
+        api.CloseFailures.Add(100);
+        var cleanup = new FakeKernelOwner();
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            ExecutableLease(api, cleanupOwner: cleanup, allocator: new ThrowingAllocator())).Flatten();
+
+        Assert.Contains(failure.InnerExceptions, exception => exception is OutOfMemoryException);
+        Assert.Contains(failure.InnerExceptions, exception => exception is System.ComponentModel.Win32Exception);
+        Assert.True(cleanup.SawStaticFirst);
+        Assert.Single(cleanup.Retained);
+        Assert.Equal(1, api.CloseCalls.Count(handle => handle == 100));
+    }
+
+    [Fact]
     public void PipeCreateBorrowRevalidatesFactsAndClosesChildCopiesAfterMarkedCallback()
     {
         var api = new FakeApi();
@@ -130,6 +191,21 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
     }
 
     [Fact]
+    public void SameCreateBorrowCanMarkTheSuccessfulMilestoneOnlyOnce()
+    {
+        var api = new FakeApi();
+        using var pipes = PipeBundle(api);
+
+        pipes.BorrowForCreate(borrow =>
+        {
+            borrow.MarkSuccessfulCreate();
+            Assert.Throws<InvalidOperationException>(borrow.MarkSuccessfulCreate);
+        });
+
+        Assert.Equal(new nint[] { 10, 21, 31 }, api.CloseCalls);
+    }
+
+    [Fact]
     public void PipeBorrowRefusesFactDriftBeforeCallback()
     {
         var api = new FakeApi();
@@ -144,19 +220,14 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
     }
 
     [Fact]
-    public async Task PipeDisposeBlocksBehindCreateBorrowAndDisposeFirstRefuses()
+    public void PipeDisposeBlocksBehindCreateBorrowAndDisposeFirstRefuses()
     {
         var api = new FakeApi();
         var pipes = PipeBundle(api);
-        using var entered = new ManualResetEventSlim();
-        using var release = new ManualResetEventSlim();
-        var borrowTask = Task.Run(() => pipes.BorrowForCreate(_ => { entered.Set(); release.Wait(); }));
-        Assert.True(entered.Wait(TimeSpan.FromSeconds(2)));
-        var disposeTask = Task.Run(pipes.Dispose);
-        await Task.Delay(TimeSpan.FromMilliseconds(50));
-        Assert.False(disposeTask.IsCompleted);
-        release.Set();
-        await Task.WhenAll(borrowTask, disposeTask);
+        AssertDisposeBlocksBehindBorrow(
+            callback => pipes.BorrowForCreate(_ => callback()),
+            pipes.Dispose,
+            () => Assert.Empty(api.CloseCalls));
 
         Assert.Throws<ObjectDisposedException>(() => pipes.BorrowForCreate(_ => { }));
     }
@@ -226,6 +297,8 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
     [InlineData(false, 0, 201, 0, 301, 0, "201")]
     [InlineData(false, 0, 0, 0, 0, 0, "")]
     [InlineData(true, 100, 201, 300, 301, 0, "201")]
+    [InlineData(true, 102, 201, 300, 301, 0, "201")]
+    [InlineData(true, 200, 103, 300, 301, 1, "200")]
     [InlineData(true, 200, 21, 300, 301, 1, "200")]
     [InlineData(true, 200, 200, 300, 301, 1, "200")]
     [InlineData(true, 200, 201, 0, 301, 1, "201,200")]
@@ -249,7 +322,8 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
             ? Array.Empty<nint>()
             : expectedClosed.Split(',').Select(nint.Parse).ToArray();
         Assert.Equal(expected, api.CloseCalls.Where(handle => handle is 200 or 201));
-        Assert.DoesNotContain(api.CloseCalls, handle => handle is 10 or 20 or 21 or 30 or 31 or 100);
+        Assert.DoesNotContain(api.CloseCalls, handle =>
+            handle is 10 or 20 or 21 or 30 or 31 or 100 or 101 or 102 or 103);
         Assert.Equal(api.CloseCalls.Distinct().Count(), api.CloseCalls.Count);
     }
 
@@ -269,8 +343,6 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
     }
 
     [Theory]
-    [InlineData("terminate-false")]
-    [InlineData("terminate-throw")]
     [InlineData("wait-timeout")]
     [InlineData("wait-failed")]
     [InlineData("wait-throw")]
@@ -289,6 +361,43 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
         Assert.Empty(api.CloseCalls.Where(handle => handle is 200 or 201));
         owner.Dispose();
         Assert.Single(cleanup.Retained);
+    }
+
+    [Theory]
+    [InlineData("terminate-false")]
+    [InlineData("terminate-throw")]
+    public void TerminateFailureIsDiagnosticWhenBoundedWaitProvesExit(string failureMode)
+    {
+        var api = new FakeApi { ProcessFailure = failureMode };
+        var cleanup = new FakeProcessOwner();
+        var owner = Adopt(api, Raw(true, 200, 201, 300, 301), processCleanup: cleanup);
+
+        Assert.ThrowsAny<Exception>(owner.Dispose);
+        owner.Dispose();
+
+        Assert.False(EvidenceBuildSuspendedProcessRetention.Contains(owner));
+        Assert.Empty(cleanup.Retained);
+        Assert.Equal(1, api.TerminateCalls);
+        Assert.Equal(1, api.WaitCalls);
+        Assert.Equal(new nint[] { 201, 200 }, api.CloseCalls);
+    }
+
+    [Fact]
+    public void ProvenExitAggregatesTerminateAndCloseDiagnosticsWithoutTransferringWholeLease()
+    {
+        var api = new FakeApi { ProcessFailure = "terminate-false" };
+        api.CloseFailures.Add(201);
+        var cleanup = new FakeProcessOwner();
+        var owner = Adopt(api, Raw(true, 200, 201, 300, 301), processCleanup: cleanup);
+
+        var failure = Assert.Throws<AggregateException>(owner.Dispose).Flatten();
+
+        Assert.Equal(2, failure.InnerExceptions.Count);
+        Assert.False(EvidenceBuildSuspendedProcessRetention.Contains(owner));
+        Assert.Empty(cleanup.Retained);
+        Assert.Equal(1, api.TerminateCalls);
+        Assert.Equal(1, api.WaitCalls);
+        Assert.Equal(new nint[] { 201, 200 }, api.CloseCalls);
     }
 
     [Fact]
@@ -327,21 +436,14 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
     }
 
     [Fact]
-    public async Task ProcessDisposeBlocksBehindBorrow()
+    public void ProcessDisposeBlocksBehindBorrow()
     {
         var api = new FakeApi();
         var owner = Adopt(api, Raw(true, 200, 201, 300, 301));
-        using var entered = new ManualResetEventSlim();
-        using var release = new ManualResetEventSlim();
-        var borrow = Task.Run(() => owner.Borrow(_ => { entered.Set(); release.Wait(); }));
-        Assert.True(entered.Wait(TimeSpan.FromSeconds(2)));
-        var dispose = Task.Run(owner.Dispose);
-
-        await Task.Delay(TimeSpan.FromMilliseconds(50));
-        Assert.False(dispose.IsCompleted);
-        Assert.Equal(0, api.TerminateCalls);
-        release.Set();
-        await Task.WhenAll(borrow, dispose);
+        AssertDisposeBlocksBehindBorrow(
+            callback => owner.Borrow(_ => callback()),
+            owner.Dispose,
+            () => Assert.Equal(0, api.TerminateCalls));
         Assert.Equal(1, api.TerminateCalls);
     }
 
@@ -377,6 +479,57 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
             PipeBorrow(),
             postAdoption);
 
+    private static void AssertDisposeBlocksBehindBorrow(
+        Action<Action> borrow,
+        Action dispose,
+        Action assertWhileBlocked)
+    {
+        using var borrowEntered = new ManualResetEventSlim();
+        using var disposerEntered = new ManualResetEventSlim();
+        using var releaseBorrow = new ManualResetEventSlim();
+        Exception? borrowFailure = null;
+        Exception? disposeFailure = null;
+        var borrowThread = new Thread(() =>
+        {
+            try
+            {
+                borrow(() =>
+                {
+                    borrowEntered.Set();
+                    releaseBorrow.Wait();
+                });
+            }
+            catch (Exception exception) { borrowFailure = exception; }
+        }) { IsBackground = true };
+        var disposeThread = new Thread(() =>
+        {
+            disposerEntered.Set();
+            try { dispose(); }
+            catch (Exception exception) { disposeFailure = exception; }
+        }) { IsBackground = true };
+        var disposeStarted = false;
+        borrowThread.Start();
+        try
+        {
+            Assert.True(borrowEntered.Wait(TimeSpan.FromSeconds(2)));
+            disposeThread.Start();
+            disposeStarted = true;
+            Assert.True(disposerEntered.Wait(TimeSpan.FromSeconds(2)));
+            Assert.False(disposeThread.Join(TimeSpan.FromMilliseconds(50)));
+            assertWhileBlocked();
+        }
+        finally
+        {
+            releaseBorrow.Set();
+            borrowThread.Join(TimeSpan.FromSeconds(2));
+            if (disposeStarted) disposeThread.Join(TimeSpan.FromSeconds(2));
+        }
+        Assert.False(borrowThread.IsAlive);
+        Assert.False(disposeThread.IsAlive);
+        Assert.Null(borrowFailure);
+        Assert.Null(disposeFailure);
+    }
+
     private static EvidenceBuildRawSuspendedProcessResult Raw(
         bool success,
         int process,
@@ -392,7 +545,8 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
             [new EvidenceBuildExecutableAncestorIdentity("C:\\repo", "ancestor", true, true, true)],
             true,
             true,
-            true));
+            true),
+        [100, 101, 102, 103]);
 
     private static EvidenceBuildPipeCreateBorrow PipeBorrow() => new(
         [10, 20, 21, 30, 31],
@@ -400,15 +554,17 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
 
     private static EvidenceBuildRetainedExecutableLease ExecutableLease(
         FakeApi api,
-        List<EvidenceBuildExecutableAncestorIdentity>? ancestors = null,
-        List<nint>? handles = null,
-        FakeKernelOwner? cleanupOwner = null) => new(
+        IEnumerable<EvidenceBuildExecutableAncestorIdentity>? ancestors = null,
+        IEnumerable<nint>? handles = null,
+        FakeKernelOwner? cleanupOwner = null,
+        IEvidenceBuildExecutableSnapshotAllocator? allocator = null) => new(
             api,
             cleanupOwner ?? new FakeKernelOwner(),
             100,
             ValidIdentity(),
             handles ?? [101, 102, 103],
-            ancestors ?? MutableAncestors());
+            ancestors ?? MutableAncestors(),
+            allocator);
 
     private static List<EvidenceBuildExecutableAncestorIdentity> MutableAncestors() =>
     [
@@ -456,6 +612,37 @@ public sealed class Win32EvidenceBuildSuspendedOwnershipTests
             Retained.Add(owner);
             if (ThrowAfterRetain) throw new IOException("process cleanup scheduler");
         }
+    }
+
+    private sealed class ThrowingAllocator : IEvidenceBuildExecutableSnapshotAllocator
+    {
+        public nint[] AllocateHandleBuffer(int length) => throw new OutOfMemoryException("snapshot allocation");
+    }
+
+    private sealed class PoisonedCountList<T>(IReadOnlyList<T> values) : IReadOnlyList<T>
+    {
+        internal int EnumerationCount { get; private set; }
+        public int Count => throw new IOException("Count must not be observed.");
+        public T this[int index] => throw new IOException("Indexer must not be observed.");
+        public IEnumerator<T> GetEnumerator()
+        {
+            EnumerationCount++;
+            return values.GetEnumerator();
+        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private sealed class ThrowAfterEnumerable<T>(IReadOnlyList<T> values, int throwAfter) : IEnumerable<T>
+    {
+        public IEnumerator<T> GetEnumerator()
+        {
+            for (var index = 0; index < values.Count; index++)
+            {
+                if (index == throwAfter) throw new IOException("enumeration changed");
+                yield return values[index];
+            }
+        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private sealed class FakeApi : IEvidenceBuildPipeHandleApi, IEvidenceBuildSuspendedProcessApi

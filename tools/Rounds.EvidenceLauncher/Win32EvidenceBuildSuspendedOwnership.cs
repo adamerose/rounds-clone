@@ -25,15 +25,18 @@ internal sealed class EvidenceBuildExecutableBorrow
     private readonly nint _handle;
     private readonly EvidenceOpenedExecutableIdentity _identity;
     private readonly EvidenceBuildExecutableContinuityProof _continuity;
+    private readonly ImmutableArray<nint> _protectedHandles;
 
     internal EvidenceBuildExecutableBorrow(
         nint handle,
         EvidenceOpenedExecutableIdentity identity,
-        EvidenceBuildExecutableContinuityProof continuity)
+        EvidenceBuildExecutableContinuityProof continuity,
+        ImmutableArray<nint> protectedHandles)
     {
         _handle = handle;
         _identity = identity;
         _continuity = continuity;
+        _protectedHandles = protectedHandles;
     }
 
     internal nint Handle => _active
@@ -45,18 +48,36 @@ internal sealed class EvidenceBuildExecutableBorrow
     internal EvidenceBuildExecutableContinuityProof Continuity => _active
         ? _continuity
         : throw new ObjectDisposedException(nameof(EvidenceBuildExecutableBorrow));
+    internal ImmutableArray<nint> ProtectedHandles => _active
+        ? _protectedHandles
+        : throw new ObjectDisposedException(nameof(EvidenceBuildExecutableBorrow));
 
     internal void EndBorrow() => _active = false;
 }
 
+internal interface IEvidenceBuildExecutableSnapshotAllocator
+{
+    nint[] AllocateHandleBuffer(int length);
+}
+
+internal sealed class EvidenceBuildExecutableSnapshotAllocator : IEvidenceBuildExecutableSnapshotAllocator
+{
+    internal static EvidenceBuildExecutableSnapshotAllocator Instance { get; } = new();
+    private EvidenceBuildExecutableSnapshotAllocator() { }
+    public nint[] AllocateHandleBuffer(int length) => new nint[length];
+}
+
 internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
 {
+    internal const int MaximumAncestorCount = 64;
     private readonly object _gate = new();
     private readonly IEvidenceBuildKernelHandleApi _api;
     private readonly IEvidenceBuildKernelHandleCleanupOwner _cleanupOwner;
     private readonly nint[] _ownedHandles;
     private readonly EvidenceOpenedExecutableIdentity _identity;
     private readonly EvidenceBuildExecutableContinuityProof _continuity;
+    private readonly ImmutableArray<nint> _protectedHandles;
+    private readonly int _ownedHandleCount;
     private bool _borrowActive;
     private bool _disposed;
 
@@ -65,46 +86,28 @@ internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
         IEvidenceBuildKernelHandleCleanupOwner cleanupOwner,
         nint executableHandle,
         EvidenceOpenedExecutableIdentity identity,
-        IReadOnlyList<nint> ancestorHandles,
-        IReadOnlyList<EvidenceBuildExecutableAncestorIdentity> ancestors)
+        IEnumerable<nint> ancestorHandles,
+        IEnumerable<EvidenceBuildExecutableAncestorIdentity> ancestors,
+        IEvidenceBuildExecutableSnapshotAllocator? snapshotAllocator = null)
     {
         _api = api ?? throw new ArgumentNullException(nameof(api));
         _cleanupOwner = cleanupOwner ?? throw new ArgumentNullException(nameof(cleanupOwner));
-        var handleCount = ancestorHandles is null ? 1 : checked(ancestorHandles.Count + 1);
-        _ownedHandles = new nint[handleCount];
-        var seen = new HashSet<nint>();
-        if (executableHandle is not 0 and not -1 && seen.Add(executableHandle))
-        {
-            _ownedHandles[0] = executableHandle;
-        }
-        if (ancestorHandles is not null)
-        {
-            for (var index = 0; index < ancestorHandles.Count; index++)
-            {
-                var handle = ancestorHandles[index];
-                if (handle is not 0 and not -1 && seen.Add(handle))
-                {
-                    _ownedHandles[index + 1] = handle;
-                }
-            }
-        }
-
+        snapshotAllocator ??= EvidenceBuildExecutableSnapshotAllocator.Instance;
+        var executableOwner = new nint[1];
+        if (executableHandle is not 0 and not -1) executableOwner[0] = executableHandle;
+        nint[]? ownedHandles = null;
+        var ownedHandleCount = 0;
         EvidenceOpenedExecutableIdentity frozenIdentity;
         EvidenceBuildExecutableContinuityProof frozenContinuity;
+        ImmutableArray<nint> protectedHandles;
         try
         {
             ArgumentNullException.ThrowIfNull(identity);
             ArgumentNullException.ThrowIfNull(ancestorHandles);
             ArgumentNullException.ThrowIfNull(ancestors);
-            if (executableHandle is 0 or -1 || _ownedHandles[0] == 0)
+            if (executableOwner[0] == 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(executableHandle));
-            }
-            if (ancestorHandles.Count == 0 || ancestorHandles.Count != ancestors.Count ||
-                _ownedHandles.Skip(1).Any(handle => handle == 0))
-            {
-                throw new InvalidDataException(
-                    "Build executable requires one distinct retained handle per exact ancestor.");
             }
             if (!identity.Exists || !identity.IdentityBound || identity.IsReparsePoint ||
                 !Path.IsPathFullyQualified(identity.Path) || string.IsNullOrWhiteSpace(identity.OpenedHandleIdentity))
@@ -113,14 +116,51 @@ internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
             }
 
             var expectedPaths = ExactAncestorPaths(identity.Path);
-            if (expectedPaths.Length != ancestors.Count)
+            if (expectedPaths.Length is 0 or > MaximumAncestorCount)
             {
-                throw new InvalidDataException("Build executable proof did not retain the complete ancestor chain.");
+                throw new InvalidDataException("Build executable exact ancestor count was outside the admitted bound.");
             }
-            var frozenAncestors = ImmutableArray.CreateBuilder<EvidenceBuildExecutableAncestorIdentity>(ancestors.Count);
-            for (var index = 0; index < ancestors.Count; index++)
+            ownedHandles = snapshotAllocator.AllocateHandleBuffer(MaximumAncestorCount + 1);
+            if (ownedHandles is null || ownedHandles.Length != MaximumAncestorCount + 1)
             {
-                var ancestor = ancestors[index] ?? throw new InvalidDataException("Build ancestor proof was null.");
+                throw new InvalidDataException("Build executable handle snapshot allocation was not exact.");
+            }
+            ownedHandles[ownedHandleCount++] = executableOwner[0];
+            executableOwner[0] = 0;
+
+            using (var enumerator = ancestorHandles.GetEnumerator())
+            {
+                while (enumerator.MoveNext())
+                {
+                    if (ownedHandleCount > MaximumAncestorCount)
+                    {
+                        throw new InvalidDataException("Build executable ancestor handle snapshot exceeded its bound.");
+                    }
+                    var handle = enumerator.Current;
+                    if (handle is 0 or -1 ||
+                        Array.IndexOf(ownedHandles, handle, 0, ownedHandleCount) >= 0)
+                    {
+                        throw new InvalidDataException("Build executable/ancestor handles were invalid or duplicated.");
+                    }
+                    ownedHandles[ownedHandleCount++] = handle;
+                }
+            }
+            var ancestorCount = ownedHandleCount - 1;
+            if (ancestorCount != expectedPaths.Length)
+            {
+                throw new InvalidDataException("Build executable proof did not retain the complete ancestor handle chain.");
+            }
+
+            var frozenAncestors = ImmutableArray.CreateBuilder<EvidenceBuildExecutableAncestorIdentity>(ancestorCount);
+            using var ancestorEnumerator = ancestors.GetEnumerator();
+            for (var index = 0; index < ancestorCount; index++)
+            {
+                if (!ancestorEnumerator.MoveNext())
+                {
+                    throw new InvalidDataException("Build executable ancestor proof ended early.");
+                }
+                var ancestor = ancestorEnumerator.Current ??
+                    throw new InvalidDataException("Build ancestor proof was null.");
                 if (!Path.IsPathFullyQualified(ancestor.Path) ||
                     !string.Equals(ancestor.Path, expectedPaths[index], StringComparison.OrdinalIgnoreCase) ||
                     string.IsNullOrWhiteSpace(ancestor.HandleIdentity) ||
@@ -135,6 +175,10 @@ internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
                     ancestor.ReparseFree,
                     ancestor.RenameDeleteExcluded));
             }
+            if (ancestorEnumerator.MoveNext())
+            {
+                throw new InvalidDataException("Build executable ancestor proof contained an extra record.");
+            }
 
             frozenIdentity = new EvidenceOpenedExecutableIdentity(
                 string.Concat(identity.Path), identity.Exists, identity.IdentityBound, identity.IsReparsePoint,
@@ -146,26 +190,35 @@ internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
                 ExactPath: true,
                 ReparseFree: true,
                 RenameDeleteExcluded: true);
+            protectedHandles = ImmutableArray.Create(ownedHandles, 0, ownedHandleCount);
         }
         catch (Exception validationFailure)
         {
             Exception? failure = validationFailure;
-            for (var index = _ownedHandles.Length - 1; index >= 0; index--)
+            if (ownedHandles is not null)
             {
-                EvidenceBuildPipeHandleFactory.CloseOne(
-                    _ownedHandles,
-                    index,
-                    index == 0 ? "rejected retained build executable" : $"rejected build executable ancestor {index - 1}",
-                    _api,
-                    _cleanupOwner,
-                    ref failure);
+                for (var index = ownedHandleCount - 1; index >= 0; index--)
+                {
+                    EvidenceBuildPipeHandleFactory.CloseOne(
+                        ownedHandles,
+                        index,
+                        index == 0 ? "rejected retained build executable" : $"rejected build executable ancestor {index - 1}",
+                        _api,
+                        _cleanupOwner,
+                        ref failure);
+                }
             }
+            EvidenceBuildPipeHandleFactory.CloseOne(
+                executableOwner, 0, "rejected retained build executable", _api, _cleanupOwner, ref failure);
             ExceptionDispatchInfo.Capture(failure!).Throw();
             throw;
         }
 
+        _ownedHandles = ownedHandles;
+        _ownedHandleCount = ownedHandleCount;
         _identity = frozenIdentity;
         _continuity = frozenContinuity;
+        _protectedHandles = protectedHandles;
     }
 
     private static ImmutableArray<string> ExactAncestorPaths(string executablePath)
@@ -190,7 +243,8 @@ internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
             {
                 throw new InvalidOperationException("Build executable lease does not permit a nested borrow.");
             }
-            var borrow = new EvidenceBuildExecutableBorrow(_ownedHandles[0], _identity, _continuity);
+            var borrow = new EvidenceBuildExecutableBorrow(
+                _ownedHandles[0], _identity, _continuity, _protectedHandles);
             _borrowActive = true;
             try { operation(borrow); }
             finally
@@ -212,7 +266,7 @@ internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
             }
             _disposed = true;
             Exception? failure = null;
-            for (var index = _ownedHandles.Length - 1; index >= 0; index--)
+            for (var index = _ownedHandleCount - 1; index >= 0; index--)
             {
                 EvidenceBuildPipeHandleFactory.CloseOne(
                     _ownedHandles,
@@ -344,7 +398,8 @@ internal sealed class EvidenceBuildSuspendedProcessOwner : IDisposable
         ArgumentNullException.ThrowIfNull(raw);
         ArgumentNullException.ThrowIfNull(executable);
         ArgumentNullException.ThrowIfNull(pipes);
-        var protectedHandles = new HashSet<nint>(pipes.AllHandles) { executable.Handle };
+        var protectedHandles = new HashSet<nint>(pipes.AllHandles);
+        protectedHandles.UnionWith(executable.ProtectedHandles);
         var processValid = raw.ProcessHandle is not 0 and not -1;
         var threadValid = raw.ThreadHandle is not 0 and not -1;
         var processForeign = processValid && protectedHandles.Contains(raw.ProcessHandle);
@@ -433,7 +488,7 @@ internal sealed class EvidenceBuildSuspendedProcessOwner : IDisposable
 
     private void AttemptCleanup(bool transferOnFailure)
     {
-        Exception? failure = null;
+        Exception? terminationDiagnostic = null;
         var process = _handles[0];
         if (process != 0)
         {
@@ -441,46 +496,48 @@ internal sealed class EvidenceBuildSuspendedProcessOwner : IDisposable
             {
                 if (!_api.TerminateProcess(process, CleanupExitCode, out var terminateError))
                 {
-                    failure = new Win32Exception(terminateError, "TerminateProcess failed for uncontained build process.");
+                    terminationDiagnostic = new Win32Exception(
+                        terminateError,
+                        "TerminateProcess failed for uncontained build process, but exit proof is still required.");
                 }
             }
             catch (Exception exception)
             {
-                failure = exception;
+                terminationDiagnostic = exception;
             }
 
             uint wait = WaitFailed;
+            Exception? waitFailure = null;
             try
             {
                 wait = _api.WaitForSingleObject(process, CleanupWaitMilliseconds, out var waitError);
                 if (wait == WaitFailed)
                 {
-                    failure = EvidenceBuildPipeHandleFactory.Combine(
-                        failure,
-                        new Win32Exception(waitError, "Waiting for uncontained build process failed."));
+                    waitFailure = new Win32Exception(waitError, "Waiting for uncontained build process failed.");
                 }
                 else if (wait != WaitObject0)
                 {
-                    failure = EvidenceBuildPipeHandleFactory.Combine(
-                        failure,
-                        wait == WaitTimeout
-                            ? new TimeoutException("Uncontained build process did not exit within five seconds.")
-                            : new InvalidDataException($"Unexpected uncontained build wait state 0x{wait:x8}."));
+                    waitFailure = wait == WaitTimeout
+                        ? new TimeoutException("Uncontained build process did not exit within five seconds.")
+                        : new InvalidDataException($"Unexpected uncontained build wait state 0x{wait:x8}.");
                 }
             }
             catch (Exception exception)
             {
-                failure = EvidenceBuildPipeHandleFactory.Combine(failure, exception);
+                waitFailure = exception;
             }
 
-            if (failure is not null || wait != WaitObject0)
+            if (wait != WaitObject0)
             {
-                if (transferOnFailure) TransferWholeLease(failure!);
-                ExceptionDispatchInfo.Capture(failure!).Throw();
+                var unprovenFailure = terminationDiagnostic is null
+                    ? waitFailure!
+                    : EvidenceBuildPipeHandleFactory.Combine(terminationDiagnostic, waitFailure!);
+                if (transferOnFailure) TransferWholeLease(unprovenFailure);
+                ExceptionDispatchInfo.Capture(unprovenFailure).Throw();
             }
         }
 
-        Exception? closeFailure = null;
+        Exception? closeFailure = terminationDiagnostic;
         EvidenceBuildPipeHandleFactory.CloseOne(
             _handles, 1, "suspended build primary thread", _api, _kernelCleanupOwner, ref closeFailure);
         EvidenceBuildPipeHandleFactory.CloseOne(

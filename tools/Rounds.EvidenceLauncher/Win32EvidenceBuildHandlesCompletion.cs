@@ -373,22 +373,6 @@ internal sealed class EvidenceBuildPipeHandleBundle : IDisposable
         _handles = handles;
     }
 
-    internal ImmutableArray<nint> ChildHandleAllowlist
-    {
-        get
-        {
-            lock (_gate)
-            {
-                ThrowIfDisposed();
-                if (_childEndsTransitioned)
-                {
-                    throw new InvalidOperationException("Build child-handle allowlist is unavailable after transfer.");
-                }
-                return ImmutableArray.Create(_handles[0], _handles[2], _handles[4]);
-            }
-        }
-    }
-
     internal IEvidenceBuildRawReadApi CreateReadApi() => new EvidenceBuildPipeRawReadApi(this);
 
     internal void BorrowForCreate(Action<EvidenceBuildPipeCreateBorrow> operation)
@@ -428,21 +412,6 @@ internal sealed class EvidenceBuildPipeHandleBundle : IDisposable
             {
                 TransitionChildEnds(ref failure);
             }
-            if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
-        }
-    }
-
-    internal void CloseParentChildEndsAfterSuccessfulProcessCreation()
-    {
-        lock (_gate)
-        {
-            ThrowIfDisposed();
-            if (_childEndsTransitioned)
-            {
-                throw new InvalidOperationException("Build child-end transfer milestone already occurred.");
-            }
-            Exception? failure = null;
-            TransitionChildEnds(ref failure);
             if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
