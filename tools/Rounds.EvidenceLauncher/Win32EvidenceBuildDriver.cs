@@ -469,7 +469,8 @@ internal sealed class Win32EvidenceBuildDriver(
                 msBuildExecutable.Identity, result.ProcessImage, runtime,
                 Array.AsReadOnly(runtimeLease.RuntimeClosure.ToArray()), true, true);
             var completed = new Win32EvidenceBuildAttestationLease(
-                runtimeLease, priorOutputLeases.ToArray(), environmentLease, provenanceLease, attestation);
+                runtimeLease, priorOutputLeases.ToArray(), environmentLease, provenanceLease,
+                _environmentCleanupOwner, attestation);
             runtimeLease = null;
             priorOutputLeases.Clear();
             environmentLease = null;
@@ -1055,6 +1056,7 @@ internal sealed class Win32EvidenceBuildAttestationLease(
     IReadOnlyList<IEvidencePriorOutputLease> priorOutputs,
     IEvidenceBuildEnvironmentLease environment,
     IEvidenceBuildProvenanceLease provenance,
+    IEvidenceBuildEnvironmentCleanupOwner environmentCleanupOwner,
     EvidenceBuildAttestation attestation) : IEvidenceBuildAttestationLease
 {
     private readonly object _disposeSync = new();
@@ -1062,6 +1064,7 @@ internal sealed class Win32EvidenceBuildAttestationLease(
     private IReadOnlyList<IEvidencePriorOutputLease>? _priorOutputs = priorOutputs;
     private IEvidenceBuildEnvironmentLease? _environment = environment;
     private IEvidenceBuildProvenanceLease? _provenance = provenance;
+    private readonly IEvidenceBuildEnvironmentCleanupOwner _environmentCleanupOwner = environmentCleanupOwner;
 
     public EvidenceBuildAttestation Attestation { get; } = attestation;
 
@@ -1092,6 +1095,12 @@ internal sealed class Win32EvidenceBuildAttestationLease(
             catch (Exception exception)
             {
                 failure = failure is null ? exception : new AggregateException(failure, exception);
+                _environment = null; // Retain owns strongly before it may report scheduling failure.
+                try { _environmentCleanupOwner.Retain(environmentLease!, exception); }
+                catch (Exception transfer)
+                {
+                    failure = new AggregateException(failure, transfer);
+                }
             }
             try { provenanceLease?.Dispose(); }
             catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }

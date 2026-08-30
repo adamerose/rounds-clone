@@ -76,7 +76,7 @@ public sealed class Win32EvidenceBuildDriverTests
     }
 
     [Fact]
-    public void Transferred_environment_exclusion_cleanup_failure_remains_owned_for_retry()
+    public void Transferred_environment_exclusion_cleanup_failure_moves_to_strong_owner_without_manual_retry()
     {
         var rig = new Rig();
         rig.Environment.FailDisposeOnce = true;
@@ -86,10 +86,12 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.Throws<InvalidOperationException>(() => lease.Dispose());
         Assert.Equal(1, rig.Events.Count(value => value == "environment-dispose"));
         Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
+        Assert.Equal(1, rig.CleanupOwner.RetainedCount);
 
-        lease.Dispose();
+        rig.Reaper.RunAll();
         Assert.Equal(2, rig.Events.Count(value => value == "environment-dispose"));
         Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
+        Assert.Equal(0, rig.CleanupOwner.RetainedCount);
     }
 
     [Fact]
