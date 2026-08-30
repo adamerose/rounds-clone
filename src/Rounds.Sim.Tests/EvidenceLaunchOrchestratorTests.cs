@@ -27,7 +27,7 @@ public sealed class EvidenceLaunchOrchestratorTests
                 "preflight", "process-create-suspended", "child-handle-copies-close", "child-image-match", "job-create", "job-configure",
                 "job-assign", "process-transfer-to-job", "foreground-start", "resume-and-deadline", "capture-protocol", "frame-validate",
                 "ack-close:06", "process-wait", "job-wait-empty", "foreground-stop-read",
-                "input-desktop", "job-dispose", "foreground-dispose", "process-dispose", "handles-dispose",
+                "input-desktop", "job-dispose", "frame-validation-dispose", "foreground-dispose", "process-dispose", "handles-dispose",
                 "godot-executable-dispose", "desktop-dispose", "worker-exit",
             },
             events);
@@ -71,6 +71,9 @@ public sealed class EvidenceLaunchOrchestratorTests
             events.IndexOf("child-image-match"));
         Assert.True(events.IndexOf("foreground-start") < events.IndexOf("resume-and-deadline"));
         Assert.True(events.IndexOf("job-wait-empty") < events.IndexOf("foreground-stop-read"));
+        Assert.True(events.IndexOf("frame-validate") < events.IndexOf("ack-close:06"));
+        Assert.True(events.IndexOf("job-wait-empty") < events.IndexOf("frame-validation-dispose"));
+        Assert.True(events.IndexOf("job-dispose") < events.IndexOf("frame-validation-dispose"));
         Assert.DoesNotContain("process-terminate-fallback", events);
     }
 
@@ -253,6 +256,7 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Contains("frame-validate", events);
         Assert.DoesNotContain("ack-close:06", events);
         Assert.DoesNotContain("process-wait", events);
+        Assert.True(events.IndexOf("job-dispose") < events.IndexOf("frame-validation-dispose"));
     }
 
     [Fact]
@@ -287,6 +291,8 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal("process-exit", result.Code);
         Assert.Equal(plan.OutputRoot, result.PreservedUnprovenResidueRoot);
         Assert.Contains("ack-close:06", events);
+        Assert.True(events.IndexOf("process-wait") < events.IndexOf("frame-validation-dispose"));
+        Assert.True(events.IndexOf("job-dispose") < events.IndexOf("frame-validation-dispose"));
     }
 
     [Fact]
@@ -355,6 +361,7 @@ public sealed class EvidenceLaunchOrchestratorTests
 
     [Theory]
     [InlineData("job")]
+    [InlineData("frame-validation")]
     [InlineData("foreground")]
     [InlineData("process")]
     [InlineData("handles")]
@@ -372,6 +379,7 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal("cleanup", result.Code);
         Assert.Equal(plan.OutputRoot, result.PreservedUnprovenResidueRoot);
         Assert.Contains("job-dispose", events);
+        Assert.Contains("frame-validation-dispose", events);
         Assert.Contains("foreground-dispose", events);
         Assert.Contains("process-dispose", events);
         Assert.Contains("handles-dispose", events);
@@ -936,7 +944,7 @@ public sealed class EvidenceLaunchOrchestratorTests
             return Protocol;
         }
 
-        public EvidencePublishedFrameValidation ValidatePublishedFrame(
+        public IEvidencePublishedFrameValidationLease ValidatePublishedFrame(
             BaseProjectileEvidenceLaunchPlan plan,
             DebugBaseProjectileEvidenceAttestation attestation)
         {
@@ -945,7 +953,10 @@ public sealed class EvidenceLaunchOrchestratorTests
             {
                 throw new InvalidOperationException("fake frame boundary failure");
             }
-            return Frame;
+            return new FakeFrameValidationLease(
+                _events,
+                Frame,
+                DisposeFailure == "frame-validation");
         }
 
         public EvidenceProcessTermination WaitForProcessExit(
@@ -973,6 +984,23 @@ public sealed class EvidenceLaunchOrchestratorTests
             {
                 events.Add("desktop-dispose");
                 if (throwOnDispose) throw new InvalidOperationException("fake desktop disposal failure");
+            }
+        }
+
+        private sealed class FakeFrameValidationLease(
+            List<string> events,
+            EvidencePublishedFrameValidation validation,
+            bool throwOnDispose) : IEvidencePublishedFrameValidationLease
+        {
+            public EvidencePublishedFrameValidation Validation { get; } = validation;
+
+            public void Dispose()
+            {
+                events.Add("frame-validation-dispose");
+                if (throwOnDispose)
+                {
+                    throw new InvalidOperationException("fake frame-validation disposal failure");
+                }
             }
         }
 

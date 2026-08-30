@@ -300,6 +300,11 @@ internal sealed record EvidencePublishedFrameValidation(
     bool FrameLeaseObserved,
     bool ContainsOnlyExpectedFrame);
 
+internal interface IEvidencePublishedFrameValidationLease : IDisposable
+{
+    EvidencePublishedFrameValidation Validation { get; }
+}
+
 internal sealed record EvidenceProcessTermination(
     bool Exited,
     int ExitCode,
@@ -352,7 +357,7 @@ internal interface IEvidenceNativeBoundary
         int standardOutputCapBytes,
         int standardErrorCapBytes);
 
-    EvidencePublishedFrameValidation ValidatePublishedFrame(
+    IEvidencePublishedFrameValidationLease ValidatePublishedFrame(
         BaseProjectileEvidenceLaunchPlan plan,
         DebugBaseProjectileEvidenceAttestation attestation);
 
@@ -457,6 +462,7 @@ internal sealed class EvidenceLaunchOrchestrator(
         EvidenceProcessLease? process = null;
         IEvidenceJobLease? job = null;
         IEvidenceForegroundObserverLease? foregroundObserver = null;
+        IEvidencePublishedFrameValidationLease? frameValidationLease = null;
         try
         {
             var inputDesktopBefore = native.ReadInputDesktopIdentity();
@@ -522,7 +528,8 @@ internal sealed class EvidenceLaunchOrchestrator(
                 return ForcedFailure("completion-marker", plan);
             }
 
-            var frame = native.ValidatePublishedFrame(plan, marker);
+            frameValidationLease = native.ValidatePublishedFrame(plan, marker);
+            var frame = frameValidationLease.Validation;
             if (!ValidFrame(plan, marker, frame))
             {
                 return ForcedFailure("parent-frame-validation", plan);
@@ -573,6 +580,7 @@ internal sealed class EvidenceLaunchOrchestrator(
             DisposeAllBestEffort(
                 executionState,
                 job,
+                frameValidationLease,
                 foregroundObserver,
                 process,
                 handles,
@@ -725,6 +733,7 @@ internal sealed class EvidenceLaunchOrchestrator(
     private static void DisposeAllBestEffort(
         EvidenceExecutionState state,
         IEvidenceJobLease? job,
+        IEvidencePublishedFrameValidationLease? frameValidationLease,
         IEvidenceForegroundObserverLease? foregroundObserver,
         EvidenceProcessLease? process,
         IEvidenceLaunchHandleLease? handles,
@@ -739,29 +748,36 @@ internal sealed class EvidenceLaunchOrchestrator(
         {
             try
             {
-                DisposeOne(state, "foreground-observer", foregroundObserver);
+                DisposeOne(state, "frame-validation", frameValidationLease);
             }
             finally
             {
                 try
                 {
-                    DisposeOne(state, "process", process);
+                    DisposeOne(state, "foreground-observer", foregroundObserver);
                 }
                 finally
                 {
                     try
                     {
-                        DisposeOne(state, "handles", handles);
+                        DisposeOne(state, "process", process);
                     }
                     finally
                     {
                         try
                         {
-                            DisposeOne(state, "executable", executable);
+                            DisposeOne(state, "handles", handles);
                         }
                         finally
                         {
-                            DisposeOne(state, "desktop", desktop);
+                            try
+                            {
+                                DisposeOne(state, "executable", executable);
+                            }
+                            finally
+                            {
+                                DisposeOne(state, "desktop", desktop);
+                            }
                         }
                     }
                 }
