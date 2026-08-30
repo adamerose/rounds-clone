@@ -33,6 +33,47 @@ internal readonly record struct EvidenceLauncherCommand(
     }
 }
 
+internal static class EvidenceLauncherArchitecture
+{
+    internal const int RequiredPointerSize = 8;
+    internal const string Refusal = "unsupported-architecture-x64-required";
+
+    internal static string? RefusalForPointerSize(int pointerSize) =>
+        pointerSize == RequiredPointerSize ? null : Refusal;
+}
+
+internal static class EvidenceLauncherEntry
+{
+    internal static int Run(
+        IReadOnlyList<string> arguments,
+        int pointerSize,
+        TextWriter error)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentNullException.ThrowIfNull(error);
+
+        var architectureRefusal = EvidenceLauncherArchitecture.RefusalForPointerSize(pointerSize);
+        if (architectureRefusal is not null)
+        {
+            error.Write(architectureRefusal + "\n");
+            return 2;
+        }
+
+        var command = EvidenceLauncherCommand.Parse(arguments);
+        if (!command.Accepted)
+        {
+            error.Write(command.Refusal + "\n");
+            return 2;
+        }
+
+        // The executable is intentionally inert until the native fact collector and
+        // Win32 boundary are independently reviewed. Unit tests drive the coordinator
+        // only through injected fakes; merely starting this tool cannot launch a child.
+        error.Write("native-boundary-not-installed\n");
+        return 2;
+    }
+}
+
 internal static class EvidenceBuildContract
 {
     internal static EvidenceBuildInvocation Create(BaseProjectileEvidenceLaunchPlan plan) =>
@@ -152,6 +193,8 @@ internal interface IEvidenceLaunchHandleLease : IDisposable
     bool ParentEndpointsAreNonInheritable { get; }
 
     string AcknowledgementReadHandleValue { get; }
+
+    void CompleteSuccessfulProcessCreation();
 
     void WriteAcknowledgementAndClose(byte value);
 }
@@ -443,6 +486,7 @@ internal sealed class EvidenceLaunchOrchestrator(
                 UseShell: false,
                 Array.AsReadOnly(RequiredHandles));
             process = native.CreateSuspendedProcess(plan, desktop, handles, executable, processContract);
+            handles.CompleteSuccessfulProcessCreation();
             if (native.ReadSuspendedProcessImageIdentity(process) != executable.Identity)
             {
                 return EvidenceLaunchResult.Failed("child-image-identity");

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Rounds.Game;
 
@@ -30,6 +31,7 @@ internal static class Win32EvidenceConstants
     internal const uint WaitObject0 = 0;
     internal const uint WaitTimeout = 258;
     internal const uint Infinite = 0xffffffff;
+    internal const uint TerminationFallbackWaitMilliseconds = 5_000;
     internal const int UoiName = 2;
 
     internal const EvidenceCreateProcessFlags RequiredCreateProcessFlags =
@@ -251,12 +253,14 @@ internal sealed class Win32ProcessLease(
     protected override void TerminateAndWaitForExit()
     {
         var terminationRequested = api.TerminateProcess(DangerousProcessHandle, 1);
-        var wait = api.WaitForSingleObject(DangerousProcessHandle, Win32EvidenceConstants.Infinite);
-        if (wait != Win32EvidenceConstants.WaitObject0)
+        var wait = api.WaitForSingleObject(
+            DangerousProcessHandle,
+            Win32EvidenceConstants.TerminationFallbackWaitMilliseconds);
+        if (!terminationRequested || wait != Win32EvidenceConstants.WaitObject0)
         {
-            throw new Win32Exception("Evidence child termination wait failed.");
+            throw new Win32Exception(
+                $"Evidence child termination fallback failed (terminate={terminationRequested}, wait={wait}).");
         }
-        _ = terminationRequested; // An already-exited process can reject termination but satisfy the wait.
     }
 
     protected override void ReleaseProcessAndThreadHandles()
@@ -293,27 +297,46 @@ internal sealed class Win32JobLease(IWin32EvidenceApi api, nint handle) : IEvide
 internal sealed class Win32LaunchHandleLease : IEvidenceLaunchHandleLease
 {
     private readonly IWin32EvidenceApi _api;
-    private readonly nint[] _ownedHandles;
+    private readonly nint[] _parentReadHandles;
+    private readonly nint[] _childHandleCopies;
     private nint _acknowledgementWrite;
+    private bool _processCreationCompleted;
     private bool _disposed;
 
     internal Win32LaunchHandleLease(
         IWin32EvidenceApi api,
-        IReadOnlyList<nint> ownedHandles,
+        nint standardInputRead,
+        nint standardOutputRead,
+        nint standardOutputWrite,
+        nint standardErrorRead,
+        nint standardErrorWrite,
         nint acknowledgementRead,
         nint acknowledgementWrite)
     {
         _api = api;
-        _ownedHandles = ownedHandles.ToArray();
-        if (_ownedHandles.Length != 6 || _ownedHandles.Distinct().Count() != 6 ||
-            _ownedHandles.Any(handle => handle == 0 || handle == -1) ||
-            _ownedHandles.Count(handle => handle == acknowledgementRead) != 1 ||
-            _ownedHandles.Contains(acknowledgementWrite) ||
-            acknowledgementRead == 0 || acknowledgementWrite == 0 ||
-            acknowledgementRead == acknowledgementWrite)
+        var allHandles = new[]
         {
-            throw new ArgumentOutOfRangeException(nameof(ownedHandles));
+            standardInputRead,
+            standardOutputRead,
+            standardOutputWrite,
+            standardErrorRead,
+            standardErrorWrite,
+            acknowledgementRead,
+            acknowledgementWrite,
+        };
+        if (allHandles.Distinct().Count() != allHandles.Length ||
+            allHandles.Any(handle => handle == 0 || handle == -1))
+        {
+            throw new ArgumentOutOfRangeException(nameof(standardInputRead));
         }
+        _parentReadHandles = new[] { standardOutputRead, standardErrorRead };
+        _childHandleCopies = new[]
+        {
+            standardInputRead,
+            standardOutputWrite,
+            standardErrorWrite,
+            acknowledgementRead,
+        };
         AcknowledgementReadHandleValue = ((nuint)acknowledgementRead).ToString(CultureInfo.InvariantCulture);
         _acknowledgementWrite = acknowledgementWrite;
     }
@@ -331,18 +354,65 @@ internal sealed class Win32LaunchHandleLease : IEvidenceLaunchHandleLease
 
     public string AcknowledgementReadHandleValue { get; }
 
+    public void CompleteSuccessfulProcessCreation()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_processCreationCompleted) return;
+        _processCreationCompleted = true;
+
+        var failures = 0;
+        for (var index = 0; index < _childHandleCopies.Length; index++)
+        {
+            var handle = Interlocked.Exchange(ref _childHandleCopies[index], 0);
+            if (handle != 0 && !_api.CloseKernelHandle(handle)) failures++;
+        }
+        if (failures != 0)
+        {
+            throw new Win32Exception(
+                $"{failures} parent copy/copies of inherited child handles failed to close.");
+        }
+    }
+
     public void WriteAcknowledgementAndClose(byte value)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         var writer = Interlocked.Exchange(ref _acknowledgementWrite, 0);
         if (writer == 0)
         {
             throw new InvalidOperationException("Acknowledgement writer was already closed.");
         }
-        var writeSucceeded = _api.WriteFile(writer, new[] { value }, out var written) && written == 1;
-        var closeSucceeded = _api.CloseKernelHandle(writer);
-        if (!writeSucceeded || !closeSucceeded)
+
+        Exception? failure = null;
+        try
         {
-            throw new Win32Exception("Exact acknowledgement write/close failed.");
+            if (!_api.WriteFile(writer, new[] { value }, out var written) || written != 1)
+            {
+                failure = new Win32Exception("Exact acknowledgement write failed.");
+            }
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        finally
+        {
+            try
+            {
+                if (!_api.CloseKernelHandle(writer))
+                {
+                    throw new Win32Exception("Closing acknowledgement writer failed.");
+                }
+            }
+            catch (Exception closeException)
+            {
+                failure = failure is null
+                    ? closeException
+                    : new AggregateException(failure, closeException);
+            }
+        }
+        if (failure is not null)
+        {
+            ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 
@@ -353,9 +423,15 @@ internal sealed class Win32LaunchHandleLease : IEvidenceLaunchHandleLease
         var failures = 0;
         var writer = Interlocked.Exchange(ref _acknowledgementWrite, 0);
         if (writer != 0 && !_api.CloseKernelHandle(writer)) failures++;
-        foreach (var handle in _ownedHandles)
+        foreach (ref var childHandle in _childHandleCopies.AsSpan())
         {
-            if (!_api.CloseKernelHandle(handle)) failures++;
+            var handle = Interlocked.Exchange(ref childHandle, 0);
+            if (handle != 0 && !_api.CloseKernelHandle(handle)) failures++;
+        }
+        foreach (ref var parentHandle in _parentReadHandles.AsSpan())
+        {
+            var handle = Interlocked.Exchange(ref parentHandle, 0);
+            if (handle != 0 && !_api.CloseKernelHandle(handle)) failures++;
         }
         if (failures != 0)
         {

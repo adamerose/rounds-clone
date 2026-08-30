@@ -24,7 +24,7 @@ public sealed class EvidenceLaunchOrchestratorTests
             {
                 "build-executable-open", "build", "build-executable-dispose", "worker-enter",
                 "input-desktop", "desktop-create", "handles-create", "godot-executable-open",
-                "preflight", "process-create-suspended", "child-image-match", "job-create", "job-configure",
+                "preflight", "process-create-suspended", "child-handle-copies-close", "child-image-match", "job-create", "job-configure",
                 "job-assign", "process-transfer-to-job", "foreground-start", "resume-and-deadline", "capture-protocol", "frame-validate",
                 "ack-close:06", "process-wait", "job-wait-empty", "foreground-stop-read",
                 "input-desktop", "job-dispose", "foreground-dispose", "process-dispose", "handles-dispose",
@@ -63,6 +63,12 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal(
             events.IndexOf("preflight") + 1,
             events.IndexOf("process-create-suspended"));
+        Assert.Equal(
+            events.IndexOf("process-create-suspended") + 1,
+            events.IndexOf("child-handle-copies-close"));
+        Assert.Equal(
+            events.IndexOf("child-handle-copies-close") + 1,
+            events.IndexOf("child-image-match"));
         Assert.True(events.IndexOf("foreground-start") < events.IndexOf("resume-and-deadline"));
         Assert.True(events.IndexOf("job-wait-empty") < events.IndexOf("foreground-stop-read"));
         Assert.DoesNotContain("process-terminate-fallback", events);
@@ -472,6 +478,23 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.DoesNotContain("resume-and-deadline", events);
     }
 
+    [Fact]
+    public void Child_handle_transition_failure_after_create_terminates_before_image_check_or_resume()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan) { FailureStage = "child-handle-close" };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("native-boundary", result.Code);
+        Assert.True(events.IndexOf("process-create-suspended") < events.IndexOf("child-handle-copies-close"));
+        Assert.Contains("process-terminate-fallback", events);
+        Assert.DoesNotContain("child-image-match", events);
+        Assert.DoesNotContain("resume-and-deadline", events);
+    }
+
     [Theory]
     [InlineData("plan", "Plan")]
     [InlineData("execute", "Execute")]
@@ -486,6 +509,40 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.False(EvidenceLauncherCommand.Parse(Array.Empty<string>()).Accepted);
         Assert.False(EvidenceLauncherCommand.Parse(new[] { argument, "extra" }).Accepted);
         Assert.False(EvidenceLauncherCommand.Parse(new[] { "EXECUTE" }).Accepted);
+    }
+
+    [Theory]
+    [InlineData(4, EvidenceLauncherArchitecture.Refusal)]
+    [InlineData(16, EvidenceLauncherArchitecture.Refusal)]
+    [InlineData(EvidenceLauncherArchitecture.RequiredPointerSize, null)]
+    public void Launcher_architecture_refuses_every_non_x64_pointer_size(
+        int pointerSize,
+        string? expectedRefusal)
+    {
+        Assert.Equal(
+            expectedRefusal,
+            EvidenceLauncherArchitecture.RefusalForPointerSize(pointerSize));
+    }
+
+    [Fact]
+    public void Program_refuses_non_x64_before_command_parsing_and_keeps_x64_execute_inert()
+    {
+        using var nonX64Error = new StringWriter();
+        using var x64Error = new StringWriter();
+
+        var nonX64Exit = EvidenceLauncherEntry.Run(
+            Array.Empty<string>(),
+            4,
+            nonX64Error);
+        var x64Exit = EvidenceLauncherEntry.Run(
+            new[] { "execute" },
+            8,
+            x64Error);
+
+        Assert.Equal(2, nonX64Exit);
+        Assert.Equal(EvidenceLauncherArchitecture.Refusal + "\n", nonX64Error.ToString());
+        Assert.Equal(2, x64Exit);
+        Assert.Equal("native-boundary-not-installed\n", x64Error.ToString());
     }
 
     private static BaseProjectileEvidenceLaunchPlan ValidPlan()
@@ -794,6 +851,7 @@ public sealed class EvidenceLaunchOrchestratorTests
                 _events,
                 Handles,
                 AcknowledgementHandleValue,
+                FailureStage == "child-handle-close",
                 DisposeFailure == "handles");
         }
 
@@ -922,6 +980,7 @@ public sealed class EvidenceLaunchOrchestratorTests
             List<string> events,
             IReadOnlyList<EvidenceChildHandleDescriptor> handles,
             string acknowledgementHandleValue,
+            bool throwOnProcessCreationComplete,
             bool throwOnDispose) : IEvidenceLaunchHandleLease
         {
             public IReadOnlyList<EvidenceChildHandleDescriptor> ChildHandles { get; } = handles;
@@ -929,6 +988,15 @@ public sealed class EvidenceLaunchOrchestratorTests
             public bool ParentEndpointsAreNonInheritable => true;
 
             public string AcknowledgementReadHandleValue { get; } = acknowledgementHandleValue;
+
+            public void CompleteSuccessfulProcessCreation()
+            {
+                events.Add("child-handle-copies-close");
+                if (throwOnProcessCreationComplete)
+                {
+                    throw new InvalidOperationException("fake child handle close failure");
+                }
+            }
 
             public void WriteAcknowledgementAndClose(byte value) =>
                 events.Add($"ack-close:{value:x2}");

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Rounds.EvidenceLauncher;
 using Rounds.Game;
@@ -36,6 +37,7 @@ public sealed class Win32EvidenceNativeTests
         Assert.Equal(0x00002000U, Win32EvidenceConstants.JobObjectLimitKillOnJobClose);
         Assert.Equal(0x00000100U, Win32EvidenceConstants.JobObjectLimitProcessMemory);
         Assert.Equal(0x00000200U, Win32EvidenceConstants.JobObjectLimitJobMemory);
+        Assert.Equal(5_000U, Win32EvidenceConstants.TerminationFallbackWaitMilliseconds);
     }
 
     [Fact]
@@ -48,8 +50,30 @@ public sealed class Win32EvidenceNativeTests
         lease.Dispose();
 
         Assert.Equal(
-            new[] { "terminate:101:1", "wait:101:4294967295", "close:102", "close:101" },
+            new[] { "terminate:101:1", "wait:101:5000", "close:102", "close:101" },
             api.Events);
+    }
+
+    [Theory]
+    [InlineData(false, Win32EvidenceConstants.WaitObject0)]
+    [InlineData(true, Win32EvidenceConstants.WaitTimeout)]
+    public void Failed_termination_or_wait_is_bounded_and_still_closes_process_handles(
+        bool terminateResult,
+        uint waitResult)
+    {
+        var api = new FakeApi
+        {
+            TerminateResult = terminateResult,
+            WaitResult = waitResult,
+        };
+        var lease = new Win32ProcessLease(api, 111, 112);
+
+        Assert.Throws<Win32Exception>(() => lease.Dispose());
+
+        Assert.Equal(
+            new[] { "terminate:111:1", "wait:111:5000", "close:112", "close:111" },
+            api.Events);
+        Assert.DoesNotContain($"wait:111:{Win32EvidenceConstants.Infinite}", api.Events);
     }
 
     [Fact]
@@ -84,15 +108,21 @@ public sealed class Win32EvidenceNativeTests
     }
 
     [Fact]
-    public void Handle_bundle_exposes_exact_allowlist_and_writes_one_ack_before_closing_all_handles()
+    public void Successful_process_transition_closes_only_child_copies_to_enable_pipe_eof()
     {
         var api = new FakeApi();
         var lease = new Win32LaunchHandleLease(
             api,
-            new nint[] { 401, 402, 403, 404, 405, 406 },
+            standardInputRead: 401,
+            standardOutputRead: 402,
+            standardOutputWrite: 403,
+            standardErrorRead: 404,
+            standardErrorWrite: 405,
             acknowledgementRead: 406,
             acknowledgementWrite: 407);
 
+        lease.CompleteSuccessfulProcessCreation();
+        lease.CompleteSuccessfulProcessCreation();
         lease.WriteAcknowledgementAndClose(DebugEvidenceCaptureProtocol.EvidenceAcknowledgement);
         lease.Dispose();
         lease.Dispose();
@@ -108,10 +138,38 @@ public sealed class Win32EvidenceNativeTests
             lease.ChildHandles.Select(handle => handle.Kind));
         Assert.All(lease.ChildHandles, handle => Assert.True(handle.Inheritable));
         Assert.Equal("406", lease.AcknowledgementReadHandleValue);
-        Assert.Equal("write:407:06", api.Events[0]);
-        Assert.Equal("close:407", api.Events[1]);
+        Assert.Equal(
+            new[] { "close:401", "close:403", "close:405", "close:406" },
+            api.Events.Take(4));
+        Assert.Equal("write:407:06", api.Events[4]);
+        Assert.Equal("close:407", api.Events[5]);
+        Assert.Equal(new[] { "close:402", "close:404" }, api.Events.Skip(6));
         Assert.Equal(1, api.Events.Count(value => value == "close:407"));
         Assert.Equal(8, api.Events.Count);
+        Assert.Throws<ObjectDisposedException>(lease.CompleteSuccessfulProcessCreation);
+    }
+
+    [Fact]
+    public void Acknowledgement_writer_closes_even_when_injected_write_throws()
+    {
+        var api = new FakeApi { ThrowOnWrite = true };
+        var lease = new Win32LaunchHandleLease(
+            api,
+            standardInputRead: 501,
+            standardOutputRead: 502,
+            standardOutputWrite: 503,
+            standardErrorRead: 504,
+            standardErrorWrite: 505,
+            acknowledgementRead: 506,
+            acknowledgementWrite: 507);
+
+        Assert.Throws<IOException>(() =>
+            lease.WriteAcknowledgementAndClose(DebugEvidenceCaptureProtocol.EvidenceAcknowledgement));
+        lease.Dispose();
+
+        Assert.Equal("write:507:06", api.Events[0]);
+        Assert.Equal("close:507", api.Events[1]);
+        Assert.Equal(1, api.Events.Count(value => value == "close:507"));
     }
 
     private static EvidenceOpenedExecutableIdentity ExecutableIdentity() =>
@@ -128,6 +186,9 @@ public sealed class Win32EvidenceNativeTests
     private sealed class FakeApi : IWin32EvidenceApi
     {
         public List<string> Events { get; } = new();
+        public bool TerminateResult { get; init; } = true;
+        public uint WaitResult { get; init; } = Win32EvidenceConstants.WaitObject0;
+        public bool ThrowOnWrite { get; init; }
 
         public bool CloseKernelHandle(nint handle)
         {
@@ -144,18 +205,19 @@ public sealed class Win32EvidenceNativeTests
         public bool TerminateProcess(nint process, uint exitCode)
         {
             Events.Add($"terminate:{process}:{exitCode}");
-            return true;
+            return TerminateResult;
         }
 
         public uint WaitForSingleObject(nint handle, uint milliseconds)
         {
             Events.Add($"wait:{handle}:{milliseconds}");
-            return Win32EvidenceConstants.WaitObject0;
+            return WaitResult;
         }
 
         public bool WriteFile(nint handle, ReadOnlySpan<byte> data, out uint written)
         {
             Events.Add($"write:{handle}:{Convert.ToHexString(data).ToLowerInvariant()}");
+            if (ThrowOnWrite) throw new IOException("injected write failure");
             written = checked((uint)data.Length);
             return true;
         }
