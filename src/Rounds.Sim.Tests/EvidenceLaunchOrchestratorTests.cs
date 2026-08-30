@@ -29,6 +29,7 @@ public sealed class EvidenceLaunchOrchestratorTests
                 "ack-close:06", "process-wait", "job-wait-empty", "foreground-stop-read",
                 "input-desktop", "job-dispose", "frame-validation-dispose", "foreground-dispose", "process-dispose", "handles-dispose",
                 "godot-executable-dispose", "desktop-dispose", "worker-exit",
+                "build-attestation-dispose",
             },
             events);
         var contract = Assert.IsType<EvidenceCreateProcessContract>(native.ProcessContract);
@@ -91,7 +92,7 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         Assert.False(result.Success);
         Assert.Equal("build-attribution", result.Code);
-        Assert.Equal(new[] { "build-executable-open", "build", "build-executable-dispose" }, events);
+        Assert.Equal(new[] { "build-executable-open", "build", "build-executable-dispose", "build-attestation-dispose" }, events);
     }
 
     [Theory]
@@ -100,7 +101,9 @@ public sealed class EvidenceLaunchOrchestratorTests
     [InlineData("msbuild-version")]
     [InlineData("msbuild-handle")]
     [InlineData("runtime")]
+    [InlineData("runtime-closure")]
     [InlineData("process-image")]
+    [InlineData("effective-environment")]
     public void Build_identity_mismatch_refuses_before_native_worker(string field)
     {
         var events = new List<string>();
@@ -113,7 +116,20 @@ public sealed class EvidenceLaunchOrchestratorTests
             "msbuild-version" => valid with { MsBuild = valid.MsBuild with { FileVersion = "17.0" } },
             "msbuild-handle" => valid with { MsBuild = valid.MsBuild with { OpenedHandleIdentity = "" } },
             "runtime" => valid with { RuntimeAssembly = valid.RuntimeAssembly with { Mvid = new string('0', 32) } },
+            "runtime-closure" => valid with
+            {
+                RuntimeClosure = valid.RuntimeClosure.Select((item, index) =>
+                    index == 1 ? item with { OpenedHandleIdentity = "" } : item).ToArray(),
+            },
             "process-image" => valid with { BuildProcessImage = valid.BuildProcessImage with { OpenedHandleIdentity = "replacement" } },
+            "effective-environment" => valid with
+            {
+                EffectiveEnvironment = new ReadOnlyDictionary<string, string>(
+                    new Dictionary<string, string>(valid.EffectiveEnvironment, StringComparer.Ordinal)
+                    {
+                        ["NUGET_PACKAGES"] = @"C:\Users\Adam\.nuget\packages",
+                    }),
+            },
             _ => throw new InvalidOperationException("unknown test field"),
         };
 
@@ -123,7 +139,7 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         Assert.False(result.Success);
         Assert.Equal("build-attribution", result.Code);
-        Assert.Equal(new[] { "build-executable-open", "build", "build-executable-dispose" }, events);
+        Assert.Equal(new[] { "build-executable-open", "build", "build-executable-dispose", "build-attestation-dispose" }, events);
     }
 
     [Fact]
@@ -141,6 +157,35 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.False(result.Success);
         Assert.Equal("build-attribution", result.Code);
         Assert.DoesNotContain("worker-enter", events);
+    }
+
+    [Fact]
+    public void Runtime_build_attestation_close_failure_is_fail_closed_after_native_job_cleanup()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var build = new FakeBuild(events, plan) { ThrowOnAttestationDispose = true };
+
+        var result = new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("cleanup", result.Code);
+        Assert.True(events.IndexOf("job-dispose") < events.IndexOf("build-attestation-dispose"));
+    }
+
+    [Fact]
+    public void Msbuild_lease_close_failure_disposes_runtime_attestation_and_refuses_native()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var build = new FakeBuild(events, plan) { ThrowOnExecutableDispose = true };
+
+        var result = new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("cleanup", result.Code);
+        Assert.DoesNotContain("worker-enter", events);
+        Assert.Equal("build-attestation-dispose", events[^1]);
     }
 
     [Fact]
@@ -166,8 +211,8 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal("handle-allowlist", result.Code);
         Assert.DoesNotContain("process-create-suspended", events);
         Assert.Equal(
-            new[] { "handles-dispose", "desktop-dispose", "worker-exit" },
-            events.TakeLast(3));
+            new[] { "handles-dispose", "desktop-dispose", "worker-exit", "build-attestation-dispose" },
+            events.TakeLast(4));
     }
 
     [Fact]
@@ -272,7 +317,8 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal("native-boundary", result.Code);
         Assert.Equal(plan.OutputRoot, result.PreservedUnprovenResidueRoot);
         Assert.True(events.IndexOf("job-dispose") < events.IndexOf("process-dispose"));
-        Assert.Equal("worker-exit", events[^1]);
+        Assert.Equal("worker-exit", events[^2]);
+        Assert.Equal("build-attestation-dispose", events[^1]);
     }
 
     [Fact]
@@ -464,7 +510,8 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Contains("handles-create", events);
         Assert.True(events.IndexOf("godot-executable-open") < events.IndexOf("preflight"));
         Assert.DoesNotContain("process-create-suspended", events);
-        Assert.Equal("worker-exit", events[^1]);
+        Assert.Equal("worker-exit", events[^2]);
+        Assert.Equal("build-attestation-dispose", events[^1]);
     }
 
     [Fact]
@@ -604,12 +651,32 @@ public sealed class EvidenceLaunchOrchestratorTests
     private static EvidenceBuildAttestation ValidBuild(BaseProjectileEvidenceLaunchPlan plan) =>
         new(
             EvidenceBuildContract.Create(plan),
+            ValidBuildEnvironment(plan),
             ValidCandidate(plan),
             ValidMsBuild(),
             ValidMsBuild(),
             ValidRuntimeAssembly(plan),
+            ValidRuntimeClosure(plan),
             ZeroWarnings: true,
             DeletedPriorOutput: true);
+
+    private static IReadOnlyDictionary<string, string> ValidBuildEnvironment(BaseProjectileEvidenceLaunchPlan plan) =>
+        new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["SystemRoot"] = @"C:\Windows",
+            ["WINDIR"] = @"C:\Windows",
+            ["TEMP"] = @"C:\Temp",
+            ["TMP"] = @"C:\Temp",
+            ["DOTNET_PROCESSOR_COUNT"] = "2",
+            ["MSBUILDDISABLENODEREUSE"] = "1",
+            ["MSBuildEnableWorkloadResolver"] = "false",
+            ["MSBuildSDKsPath"] = plan.RepositoryRoot + @"\.tools\dotnet\sdk\8.0.423\Sdks",
+            ["DOTNET_CLI_UI_LANGUAGE"] = "en-US",
+            ["VSLANG"] = "1033",
+            ["NUGET_PACKAGES"] = plan.RepositoryRoot + @"\.tools\nuget-packages",
+            ["DOTNET_CLI_HOME"] = plan.RepositoryRoot + @"\.tools\dotnet-home",
+            ["MSBuildUserExtensionsPath"] = plan.RepositoryRoot + @"\.tools\empty\msbuild-user",
+        });
 
     private static EvidenceCandidateIdentity ValidCandidate(BaseProjectileEvidenceLaunchPlan plan) =>
         new(
@@ -652,6 +719,30 @@ public sealed class EvidenceLaunchOrchestratorTests
             OpenedHandleIdentity: "runtime-volume:42:file:400",
             plan.RuntimeAssemblySha256,
             plan.RuntimeAssemblyMvid);
+
+    private static IReadOnlyList<EvidenceRuntimeAssemblyIdentity> ValidRuntimeClosure(
+        BaseProjectileEvidenceLaunchPlan plan)
+    {
+        var directory = Path.GetDirectoryName(plan.RuntimeAssemblyPath)!;
+        return
+        [
+            ValidRuntimeAssembly(plan),
+            ValidRuntimeAssembly(plan) with
+            {
+                Path = Path.Combine(directory, "Rounds.Replay.dll"),
+                OpenedHandleIdentity = "runtime-volume:42:file:401",
+                Sha256 = new string('c', 64),
+                Mvid = new string('d', 32),
+            },
+            ValidRuntimeAssembly(plan) with
+            {
+                Path = Path.Combine(directory, "Rounds.Sim.dll"),
+                OpenedHandleIdentity = "runtime-volume:42:file:402",
+                Sha256 = new string('e', 64),
+                Mvid = new string('f', 32),
+            },
+        ];
+    }
 
     private static EvidenceNativePreflight ValidPreflight(BaseProjectileEvidenceLaunchPlan plan) =>
         new(
@@ -703,6 +794,10 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         public EvidenceOpenedExecutableIdentity? LeaseIdentityOverride { get; init; }
 
+        public bool ThrowOnAttestationDispose { get; init; }
+
+        public bool ThrowOnExecutableDispose { get; init; }
+
         public IEvidenceExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required)
         {
             events.Add("build-executable-open");
@@ -710,16 +805,36 @@ public sealed class EvidenceLaunchOrchestratorTests
                 events,
                 LeaseIdentityOverride ?? ValidMsBuild(),
                 "build-executable-dispose",
-                throwOnDispose: false);
+                ThrowOnExecutableDispose);
         }
 
-        public EvidenceBuildAttestation RebuildAndAttest(
+        public IEvidenceBuildAttestationLease RebuildAndAttest(
             EvidenceBuildInvocation required,
             IEvidenceExecutableLease msBuildExecutable)
         {
             events.Add("build");
             var attestation = Override ?? ValidBuild(plan);
-            return attestation with { Invocation = required };
+            return new FakeBuildAttestationLease(
+                events,
+                attestation with { Invocation = required },
+                ThrowOnAttestationDispose);
+        }
+    }
+
+    private sealed class FakeBuildAttestationLease(
+        List<string> events,
+        EvidenceBuildAttestation attestation,
+        bool throwOnDispose) : IEvidenceBuildAttestationLease
+    {
+        private bool _disposed;
+        public EvidenceBuildAttestation Attestation { get; } = attestation;
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            events.Add("build-attestation-dispose");
+            if (throwOnDispose) throw new InvalidOperationException("fake build-attestation disposal failure");
         }
     }
 

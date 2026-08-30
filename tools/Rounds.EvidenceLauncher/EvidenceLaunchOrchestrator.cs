@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using Rounds.Game;
 
 namespace Rounds.EvidenceLauncher;
@@ -83,6 +84,7 @@ internal static class EvidenceBuildContract
             Array.AsReadOnly(new[]
             {
                 @"game\Rounds.Game.csproj",
+                "/noAutoResponse",
                 "/t:Rebuild",
                 "/p:Configuration=Debug",
                 "/p:Restore=false",
@@ -110,10 +112,12 @@ internal sealed record EvidenceBuildInvocation(
 
 internal sealed record EvidenceBuildAttestation(
     EvidenceBuildInvocation Invocation,
+    IReadOnlyDictionary<string, string> EffectiveEnvironment,
     EvidenceCandidateIdentity Candidate,
     EvidenceOpenedExecutableIdentity MsBuild,
     EvidenceOpenedExecutableIdentity BuildProcessImage,
     EvidenceRuntimeAssemblyIdentity RuntimeAssembly,
+    IReadOnlyList<EvidenceRuntimeAssemblyIdentity> RuntimeClosure,
     bool ZeroWarnings,
     bool DeletedPriorOutput);
 
@@ -148,9 +152,14 @@ internal interface IEvidenceBuildDriver
 {
     IEvidenceExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required);
 
-    EvidenceBuildAttestation RebuildAndAttest(
+    IEvidenceBuildAttestationLease RebuildAndAttest(
         EvidenceBuildInvocation required,
         IEvidenceExecutableLease msBuildExecutable);
+}
+
+internal interface IEvidenceBuildAttestationLease : IDisposable
+{
+    EvidenceBuildAttestation Attestation { get; }
 }
 
 [Flags]
@@ -405,17 +414,26 @@ internal sealed class EvidenceLaunchOrchestrator(
         ArgumentNullException.ThrowIfNull(plan);
         var requiredBuild = EvidenceBuildContract.Create(plan);
         EvidenceBuildAttestation? attestation = null;
+        IEvidenceBuildAttestationLease? buildAttestationLease = null;
         IEvidenceExecutableLease? msBuildExecutable = null;
         EvidenceOpenedExecutableIdentity? msBuildLeaseIdentity = null;
+        Exception? buildFailure = null;
+        OperationCanceledException? buildCancellation = null;
+        var msBuildCleanupFailed = false;
         try
         {
             msBuildExecutable = build.OpenMsBuildExecutable(requiredBuild);
             msBuildLeaseIdentity = msBuildExecutable.Identity;
-            attestation = build.RebuildAndAttest(requiredBuild, msBuildExecutable);
+            buildAttestationLease = build.RebuildAndAttest(requiredBuild, msBuildExecutable);
+            attestation = buildAttestationLease.Attestation;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            return EvidenceLaunchResult.Failed("build-driver");
+            buildFailure = exception;
+        }
+        catch (OperationCanceledException cancellation)
+        {
+            buildCancellation = cancellation;
         }
         finally
         {
@@ -427,28 +445,83 @@ internal sealed class EvidenceLaunchOrchestrator(
             {
                 // A build lease cleanup failure leaves attribution untrustworthy.
                 attestation = null;
+                msBuildCleanupFailed = true;
             }
+        }
+        if (buildCancellation is not null)
+        {
+            try
+            {
+                buildAttestationLease?.Dispose();
+            }
+            catch (Exception cleanup)
+            {
+                throw new AggregateException(buildCancellation, cleanup);
+            }
+            ExceptionDispatchInfo.Capture(buildCancellation).Throw();
+        }
+        if (buildFailure is not null || msBuildCleanupFailed)
+        {
+            try
+            {
+                buildAttestationLease?.Dispose();
+            }
+            catch (Exception)
+            {
+                return EvidenceLaunchResult.Failed("cleanup");
+            }
+            return EvidenceLaunchResult.Failed(msBuildCleanupFailed ? "cleanup" : "build-driver");
         }
         if (attestation is null || msBuildLeaseIdentity is null ||
             !BuildMatches(plan, requiredBuild, msBuildLeaseIdentity, attestation))
         {
+            try
+            {
+                buildAttestationLease?.Dispose();
+            }
+            catch (Exception)
+            {
+                return EvidenceLaunchResult.Failed("cleanup");
+            }
             return EvidenceLaunchResult.Failed("build-attribution");
         }
 
         var executionState = new EvidenceExecutionState();
+        EvidenceLaunchResult result;
         try
         {
-            var result = native.RunOnDedicatedWorker(() => ExecuteNative(plan, attestation, executionState));
-            return executionState.CleanupFailures.Count == 0
-                ? result
+            var nativeResult = native.RunOnDedicatedWorker(() => ExecuteNative(plan, attestation, executionState));
+            result = executionState.CleanupFailures.Count == 0
+                ? nativeResult
                 : EvidenceLaunchResult.Failed("cleanup", ResidueFor(executionState, plan));
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            return EvidenceLaunchResult.Failed(
+            result = EvidenceLaunchResult.Failed(
                 executionState.CleanupFailures.Count == 0 ? "native-boundary" : "cleanup",
                 ResidueFor(executionState, plan));
         }
+        catch (OperationCanceledException cancellation)
+        {
+            try
+            {
+                buildAttestationLease!.Dispose();
+            }
+            catch (Exception cleanup)
+            {
+                throw new AggregateException(cancellation, cleanup);
+            }
+            throw;
+        }
+        try
+        {
+            buildAttestationLease!.Dispose();
+        }
+        catch (Exception)
+        {
+            result = EvidenceLaunchResult.Failed("cleanup", ResidueFor(executionState, plan));
+        }
+        return result;
     }
 
     private EvidenceLaunchResult ExecuteNative(
@@ -600,11 +673,13 @@ internal sealed class EvidenceLaunchOrchestrator(
         EvidenceOpenedExecutableIdentity msBuildLeaseIdentity,
         EvidenceBuildAttestation actual) =>
         InvocationMatches(required, actual.Invocation) &&
+        ValidEffectiveBuildEnvironment(required, actual.EffectiveEnvironment) &&
         ValidCandidate(plan, actual.Candidate) &&
         actual.MsBuild == msBuildLeaseIdentity &&
         ValidMsBuild(actual.MsBuild, required.Executable) &&
         actual.BuildProcessImage == actual.MsBuild &&
         ValidRuntimeAssembly(plan, actual.RuntimeAssembly) &&
+        ValidRuntimeClosure(plan, actual.RuntimeClosure) &&
         actual.DeletedPriorOutput && actual.ZeroWarnings;
 
     private static bool InvocationMatches(EvidenceBuildInvocation expected, EvidenceBuildInvocation actual) =>
@@ -615,6 +690,28 @@ internal sealed class EvidenceLaunchOrchestrator(
         expected.Environment.All(pair =>
             actual.Environment.TryGetValue(pair.Key, out var value) &&
             string.Equals(pair.Value, value, StringComparison.Ordinal));
+
+    private static bool ValidEffectiveBuildEnvironment(
+        EvidenceBuildInvocation required,
+        IReadOnlyDictionary<string, string> actual)
+    {
+        string[] exactKeys =
+        [
+            "SystemRoot", "WINDIR", "TEMP", "TMP",
+            "DOTNET_PROCESSOR_COUNT", "MSBUILDDISABLENODEREUSE",
+            "MSBuildEnableWorkloadResolver", "MSBuildSDKsPath",
+            "DOTNET_CLI_UI_LANGUAGE", "VSLANG", "NUGET_PACKAGES",
+            "DOTNET_CLI_HOME", "MSBuildUserExtensionsPath",
+        ];
+        return actual.Count == exactKeys.Length && exactKeys.All(actual.ContainsKey) &&
+            required.Environment.All(pair => actual.TryGetValue(pair.Key, out var value) && value == pair.Value) &&
+            !string.IsNullOrWhiteSpace(actual["SystemRoot"]) && actual["SystemRoot"] == actual["WINDIR"] &&
+            !string.IsNullOrWhiteSpace(actual["TEMP"]) && actual["TEMP"] == actual["TMP"] &&
+            actual["DOTNET_CLI_UI_LANGUAGE"] == "en-US" && actual["VSLANG"] == "1033" &&
+            actual["NUGET_PACKAGES"] == Path.GetFullPath(Path.Combine(required.WorkingDirectory, @".tools\nuget-packages")) &&
+            actual["DOTNET_CLI_HOME"] == Path.GetFullPath(Path.Combine(required.WorkingDirectory, @".tools\dotnet-home")) &&
+            actual["MSBuildUserExtensionsPath"] == Path.GetFullPath(Path.Combine(required.WorkingDirectory, @".tools\empty\msbuild-user"));
+    }
 
     private static bool PreflightMatches(
         BaseProjectileEvidenceLaunchPlan plan,
@@ -697,6 +794,29 @@ internal sealed class EvidenceLaunchOrchestrator(
         string.Equals(assembly.Path, plan.RuntimeAssemblyPath, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(assembly.Sha256, plan.RuntimeAssemblySha256, StringComparison.Ordinal) &&
         string.Equals(assembly.Mvid, plan.RuntimeAssemblyMvid, StringComparison.Ordinal);
+
+    private static bool ValidRuntimeClosure(
+        BaseProjectileEvidenceLaunchPlan plan,
+        IReadOnlyList<EvidenceRuntimeAssemblyIdentity> closure)
+    {
+        var directory = Path.GetDirectoryName(plan.RuntimeAssemblyPath)!;
+        string[] paths =
+        [
+            plan.RuntimeAssemblyPath,
+            Path.Combine(directory, "Rounds.Replay.dll"),
+            Path.Combine(directory, "Rounds.Sim.dll"),
+        ];
+        return closure.Count == paths.Length && paths.Select((path, index) =>
+            closure[index].Exists && closure[index].IdentityBound && !closure[index].IsReparsePoint &&
+            closure[index].RecreatedByImmediateRebuild &&
+            !string.IsNullOrWhiteSpace(closure[index].OpenedHandleIdentity) &&
+            string.Equals(closure[index].Path, path, StringComparison.OrdinalIgnoreCase) &&
+            closure[index].Sha256.Length == 64 && closure[index].Sha256.All(LowerHex) &&
+            closure[index].Mvid.Length == 32 && closure[index].Mvid.All(LowerHex)).All(value => value) &&
+            closure.Select(value => value.OpenedHandleIdentity).Distinct(StringComparer.Ordinal).Count() == closure.Count;
+    }
+
+    private static bool LowerHex(char value) => value is >= '0' and <= '9' or >= 'a' and <= 'f';
 
     private static IReadOnlyDictionary<string, string> CreateProcessEnvironment(
         BaseProjectileEvidenceLaunchPlan plan,

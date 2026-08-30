@@ -49,5 +49,6 @@
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidencePipeCapture.cs" Link="Tools\Win32EvidencePipeCapture.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceForegroundObserver.cs" Link="Tools\Win32EvidenceForegroundObserver.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidencePublishedFrameValidator.cs" Link="Tools\Win32EvidencePublishedFrameValidator.cs" />
+    <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildDriver.cs" Link="Tools\Win32EvidenceBuildDriver.cs" />
   </ItemGroup>
 </Project>
