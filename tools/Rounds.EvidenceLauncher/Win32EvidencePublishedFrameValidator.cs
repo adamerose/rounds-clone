@@ -405,44 +405,29 @@ internal sealed class Win32PublishedFrameApi : IWin32PublishedFrameApi
     public IReadOnlyList<Win32PublishedArtifactEntry> EnumerateRoot(nint retainedRootHandle)
     {
         const int bufferSize = 64 * 1024;
-        const int maximumEntries = 4;
-        const int maximumNameBytes = 2048;
         var buffer = System.Runtime.InteropServices.Marshal.AllocHGlobal(bufferSize);
-        var entries = new List<Win32PublishedArtifactEntry>();
-        var totalNameBytes = 0;
         try
         {
-            var informationClass = FileIdBothDirectoryRestartInfo;
-            while (true)
+            return Win32PublishedDirectoryEnumerator.Collect(pageIndex =>
             {
-                if (!Win32FileIdentityNativeMethods.GetFileInformationByHandleEx(
+                var informationClass = pageIndex == 0
+                    ? FileIdBothDirectoryRestartInfo
+                    : FileIdBothDirectoryInfo;
+                if (Win32FileIdentityNativeMethods.GetFileInformationByHandleEx(
                         retainedRootHandle,
                         informationClass,
                         buffer,
                         bufferSize))
                 {
-                    var error = System.Runtime.InteropServices.Marshal.GetLastPInvokeError();
-                    if (error == ErrorNoMoreFiles) break;
-                    throw new Win32Exception(error, "Handle-bound root enumeration failed.");
+                    var page = new byte[bufferSize];
+                    System.Runtime.InteropServices.Marshal.Copy(buffer, page, 0, page.Length);
+                    return new Win32PublishedDirectoryReadResult(true, 0, page);
                 }
-                informationClass = FileIdBothDirectoryInfo;
-                var page = new byte[bufferSize];
-                System.Runtime.InteropServices.Marshal.Copy(buffer, page, 0, page.Length);
-                foreach (var entry in Win32PublishedDirectoryPageParser.Parse(page))
-                {
-                    totalNameBytes = checked(totalNameBytes + Encoding.Unicode.GetByteCount(entry.Name));
-                    if (totalNameBytes > maximumNameBytes)
-                    {
-                        throw new InvalidDataException("Directory enumeration names exceeded their bound.");
-                    }
-                    entries.Add(entry);
-                    if (entries.Count > maximumEntries)
-                    {
-                        throw new InvalidDataException("Directory enumeration exceeded its entry bound.");
-                    }
-                }
-            }
-            return entries;
+                return new Win32PublishedDirectoryReadResult(
+                    false,
+                    System.Runtime.InteropServices.Marshal.GetLastPInvokeError(),
+                    []);
+            });
         }
         finally
         {
@@ -522,6 +507,58 @@ internal sealed class Win32PublishedFrameApi : IWin32PublishedFrameApi
     public bool CloseKernelHandle(nint handle) => _files.CloseKernelHandle(handle);
 }
 
+internal readonly record struct Win32PublishedDirectoryReadResult(
+    bool Success,
+    int Error,
+    byte[] Page);
+
+internal static class Win32PublishedDirectoryEnumerator
+{
+    internal const int MaximumSuccessfulPages = 4;
+    internal const int MaximumEntries = 4;
+    internal const int MaximumNameBytes = 2048;
+
+    internal static IReadOnlyList<Win32PublishedArtifactEntry> Collect(
+        Func<int, Win32PublishedDirectoryReadResult> readPage)
+    {
+        ArgumentNullException.ThrowIfNull(readPage);
+        var entries = new List<Win32PublishedArtifactEntry>();
+        var totalNameBytes = 0;
+        var successfulPages = 0;
+        while (true)
+        {
+            if (successfulPages >= MaximumSuccessfulPages)
+            {
+                throw new InvalidDataException("Directory enumeration exceeded its successful-page bound.");
+            }
+            var result = readPage(successfulPages);
+            if (!result.Success)
+            {
+                if (result.Error == Win32PublishedFrameApi.ErrorNoMoreFiles) return entries;
+                throw new Win32Exception(result.Error, "Handle-bound root enumeration failed.");
+            }
+            successfulPages++;
+            if (result.Page is null)
+            {
+                throw new InvalidDataException("Directory enumeration returned a null successful page.");
+            }
+            foreach (var entry in Win32PublishedDirectoryPageParser.Parse(result.Page))
+            {
+                totalNameBytes = checked(totalNameBytes + Encoding.Unicode.GetByteCount(entry.Name));
+                if (totalNameBytes > MaximumNameBytes)
+                {
+                    throw new InvalidDataException("Directory enumeration names exceeded their bound.");
+                }
+                entries.Add(entry);
+                if (entries.Count > MaximumEntries)
+                {
+                    throw new InvalidDataException("Directory enumeration exceeded its entry bound.");
+                }
+            }
+        }
+    }
+}
+
 internal static class Win32PublishedStreamPageParser
 {
     internal const int StreamNameOffset = 24;
@@ -538,10 +575,16 @@ internal static class Win32PublishedStreamPageParser
                 throw new InvalidDataException("Frame stream entry offset was invalid.");
             }
             var next = BinaryPrimitives.ReadUInt32LittleEndian(page.Slice(offset, 4));
-            var nameBytes = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(page.Slice(offset + 4, 4)));
+            var rawNameBytes = BinaryPrimitives.ReadUInt32LittleEndian(page.Slice(offset + 4, 4));
+            if (rawNameBytes > int.MaxValue)
+            {
+                throw new InvalidDataException("Frame stream name framing overflowed.");
+            }
+            var nameBytes = (int)rawNameBytes;
             var length = BinaryPrimitives.ReadInt64LittleEndian(page.Slice(offset + 8, 8));
+            var recordEnd = (long)offset + StreamNameOffset + nameBytes;
             if ((nameBytes & 1) != 0 || nameBytes <= 0 || nameBytes > MaximumNameBytes || length < 0 ||
-                offset + StreamNameOffset + nameBytes > page.Length)
+                recordEnd > page.Length)
             {
                 throw new InvalidDataException("Frame stream name or length framing was invalid.");
             }
@@ -550,11 +593,11 @@ internal static class Win32PublishedStreamPageParser
                 length));
             if (next == 0) break;
             if (next < StreamNameOffset || (next & 7) != 0 || next > int.MaxValue ||
-                offset + checked((int)next) >= page.Length)
+                recordEnd > (long)offset + next || (long)offset + next >= page.Length)
             {
                 throw new InvalidDataException("Frame stream continuation was invalid.");
             }
-            offset += checked((int)next);
+            offset = checked(offset + (int)next);
         }
         return entries;
     }
@@ -578,9 +621,15 @@ internal static class Win32PublishedDirectoryPageParser
             }
             var next = BinaryPrimitives.ReadUInt32LittleEndian(page.Slice(offset, 4));
             var attributes = BinaryPrimitives.ReadUInt32LittleEndian(page.Slice(offset + 56, 4));
-            var nameBytes = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(page.Slice(offset + 60, 4)));
+            var rawNameBytes = BinaryPrimitives.ReadUInt32LittleEndian(page.Slice(offset + 60, 4));
+            if (rawNameBytes > int.MaxValue)
+            {
+                throw new InvalidDataException("Directory enumeration name framing overflowed.");
+            }
+            var nameBytes = (int)rawNameBytes;
+            var recordEnd = (long)offset + FileNameOffset + nameBytes;
             if ((nameBytes & 1) != 0 || nameBytes > MaximumNameBytes ||
-                offset + FileNameOffset + nameBytes > page.Length)
+                recordEnd > page.Length)
             {
                 throw new InvalidDataException("Directory enumeration name framing was invalid.");
             }
@@ -594,11 +643,11 @@ internal static class Win32PublishedDirectoryPageParser
             }
             if (next == 0) break;
             if (next < FileNameOffset || (next & 7) != 0 || next > int.MaxValue ||
-                offset + checked((int)next) >= page.Length)
+                recordEnd > (long)offset + next || (long)offset + next >= page.Length)
             {
                 throw new InvalidDataException("Directory enumeration continuation was invalid.");
             }
-            offset += checked((int)next);
+            offset = checked(offset + (int)next);
         }
         return entries;
     }
@@ -668,7 +717,8 @@ internal sealed class ManagedStrictPngDecoder : IWin32PngDecoder
                     seenHeader = true;
                     break;
                 case "PLTE":
-                    if (!seenHeader || seenPalette || seenIdat || length is < 3 or > 768 || length % 3 != 0)
+                    if (!seenHeader || seenPalette || seenIdat || seenAncillary.Contains("bKGD") ||
+                        length is < 3 or > 768 || length % 3 != 0)
                     {
                         throw new InvalidDataException("PNG PLTE placement or length was invalid.");
                     }
@@ -698,7 +748,8 @@ internal sealed class ManagedStrictPngDecoder : IWin32PngDecoder
                     }
                     if (seenIdat) idatClosed = true;
                     ancillaryBytes = checked(ancillaryBytes + length);
-                    if (ancillaryBytes > MaximumAncillaryBytes || !ValidateAncillary(type, data, seenIdat) ||
+                    if (ancillaryBytes > MaximumAncillaryBytes ||
+                        !ValidateAncillary(type, data, seenPalette, seenIdat) ||
                         !seenAncillary.Add(type))
                     {
                         throw new InvalidDataException("PNG ancillary chunk was unsupported, duplicated, or illegally placed.");
@@ -801,16 +852,45 @@ internal sealed class ManagedStrictPngDecoder : IWin32PngDecoder
             : upDistance <= upLeftDistance ? up : upLeft;
     }
 
-    private static bool ValidateAncillary(string type, ReadOnlySpan<byte> data, bool seenIdat) => type switch
+    private static bool ValidateAncillary(
+        string type,
+        ReadOnlySpan<byte> data,
+        bool seenPalette,
+        bool seenIdat) => type switch
     {
-        "cHRM" => !seenIdat && data.Length == 32,
-        "gAMA" => !seenIdat && data.Length == 4 && BinaryPrimitives.ReadUInt32BigEndian(data) != 0,
-        "sBIT" => !seenIdat && data.Length == 4 && data.ToArray().All(value => value is >= 1 and <= 8),
-        "sRGB" => !seenIdat && data.Length == 1 && data[0] <= 3,
-        "bKGD" => !seenIdat && data.Length == 6,
+        // Narrow cHRM to the canonical sRGB chromaticities rather than accepting
+        // unvalidated coordinate sets at this security boundary.
+        "cHRM" => !seenPalette && !seenIdat && HasStandardSrgbChromaticities(data),
+        "gAMA" => !seenPalette && !seenIdat && data.Length == 4 &&
+                  BinaryPrimitives.ReadUInt32BigEndian(data) != 0,
+        "sBIT" => !seenPalette && !seenIdat && data.Length == 4 &&
+                  data.ToArray().All(value => value is >= 1 and <= 8),
+        "sRGB" => !seenPalette && !seenIdat && data.Length == 1 && data[0] <= 3,
+        "bKGD" => !seenIdat && HasValidRgba8Background(data),
         "pHYs" => !seenIdat && data.Length == 9 && data[8] <= 1,
         _ => false,
     };
+
+    private static bool HasStandardSrgbChromaticities(ReadOnlySpan<byte> data)
+    {
+        ReadOnlySpan<uint> expected = [31270, 32900, 64000, 33000, 30000, 60000, 15000, 6000];
+        if (data.Length != expected.Length * sizeof(uint)) return false;
+        for (var index = 0; index < expected.Length; index++)
+        {
+            if (BinaryPrimitives.ReadUInt32BigEndian(data.Slice(index * sizeof(uint), sizeof(uint))) !=
+                expected[index])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool HasValidRgba8Background(ReadOnlySpan<byte> data) =>
+        data.Length == 6 &&
+        BinaryPrimitives.ReadUInt16BigEndian(data[..2]) <= byte.MaxValue &&
+        BinaryPrimitives.ReadUInt16BigEndian(data.Slice(2, 2)) <= byte.MaxValue &&
+        BinaryPrimitives.ReadUInt16BigEndian(data.Slice(4, 2)) <= byte.MaxValue;
 
     private static bool ValidChunkType(ReadOnlySpan<byte> type) =>
         type.Length == 4 && type.ToArray().All(value => value is >= (byte)'A' and <= (byte)'Z' or >= (byte)'a' and <= (byte)'z') &&

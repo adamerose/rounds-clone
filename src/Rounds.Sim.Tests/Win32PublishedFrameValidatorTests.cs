@@ -254,6 +254,58 @@ public sealed class Win32PublishedFrameValidatorTests
     }
 
     [Fact]
+    public void Strict_png_decoder_accepts_supported_color_chunks_in_exact_rgba8_order()
+    {
+        var chunks = BuildChunks(1, 1, new byte[4]);
+        chunks.Insert(1, new Chunk("cHRM", StandardSrgbChromaticities()));
+        chunks.Insert(2, new Chunk("gAMA", [0, 0, 177, 143]));
+        chunks.Insert(3, new Chunk("sBIT", [8, 8, 8, 8]));
+        chunks.Insert(4, new Chunk("sRGB", [0]));
+        chunks.Insert(5, new Chunk("PLTE", [0, 0, 0]));
+        chunks.Insert(6, new Chunk("bKGD", [0, 1, 0, 2, 0, 3]));
+
+        var decoded = new ManagedStrictPngDecoder().Decode(EncodeChunks(chunks), 1, 1);
+
+        Assert.Equal(4, decoded.DecodedBytes);
+    }
+
+    [Theory]
+    [InlineData("cHRM")]
+    [InlineData("gAMA")]
+    [InlineData("sBIT")]
+    [InlineData("sRGB")]
+    public void Strict_png_decoder_rejects_color_definition_chunks_after_palette(string type)
+    {
+        var chunks = BuildChunks(1, 1, new byte[4]);
+        chunks.Insert(1, new Chunk("PLTE", [0, 0, 0]));
+        chunks.Insert(2, new Chunk(type, SupportedAncillaryData(type)));
+
+        Assert.Throws<InvalidDataException>(() =>
+            new ManagedStrictPngDecoder().Decode(EncodeChunks(chunks), 1, 1));
+    }
+
+    [Fact]
+    public void Strict_png_decoder_rejects_background_before_a_later_palette()
+    {
+        var chunks = BuildChunks(1, 1, new byte[4]);
+        chunks.Insert(1, new Chunk("bKGD", [0, 1, 0, 2, 0, 3]));
+        chunks.Insert(2, new Chunk("PLTE", [0, 0, 0]));
+
+        Assert.Throws<InvalidDataException>(() =>
+            new ManagedStrictPngDecoder().Decode(EncodeChunks(chunks), 1, 1));
+    }
+
+    [Fact]
+    public void Strict_png_decoder_rejects_background_samples_wider_than_rgba8()
+    {
+        var chunks = BuildChunks(1, 1, new byte[4]);
+        chunks.Insert(1, new Chunk("bKGD", [1, 0, 0, 2, 0, 3]));
+
+        Assert.Throws<InvalidDataException>(() =>
+            new ManagedStrictPngDecoder().Decode(EncodeChunks(chunks), 1, 1));
+    }
+
+    [Fact]
     public void Handle_bound_directory_page_parser_uses_aligned_offsets_and_ignores_only_dot_entries()
     {
         var page = DirectoryPage(
@@ -273,15 +325,35 @@ public sealed class Win32PublishedFrameValidatorTests
         });
     }
 
+    [Fact]
+    public void Handle_bound_directory_enumerator_bounds_successful_dot_only_pages()
+    {
+        var calls = new List<int>();
+
+        Assert.Throws<InvalidDataException>(() => Win32PublishedDirectoryEnumerator.Collect(index =>
+        {
+            calls.Add(index);
+            return new Win32PublishedDirectoryReadResult(true, 0, DirectoryPage((".", 0x10U)));
+        }));
+
+        Assert.Equal(Enumerable.Range(0, Win32PublishedDirectoryEnumerator.MaximumSuccessfulPages), calls);
+    }
+
     [Theory]
     [InlineData("unaligned-next")]
     [InlineData("odd-name")]
     [InlineData("oversized-name")]
+    [InlineData("overlapping-next")]
+    [InlineData("name-overflow")]
+    [InlineData("next-overflow")]
     public void Handle_bound_directory_page_parser_rejects_malformed_native_framing(string mutation)
     {
         var page = DirectoryPage((Win32PublishedFrameValidator.FrameName, 0x80U), ("next", 0x80U));
         if (mutation == "unaligned-next") BinaryPrimitives.WriteUInt32LittleEndian(page, 105);
         if (mutation == "odd-name") BinaryPrimitives.WriteUInt32LittleEndian(page.AsSpan(60), 3);
+        if (mutation == "overlapping-next") BinaryPrimitives.WriteUInt32LittleEndian(page, 104);
+        if (mutation == "name-overflow") BinaryPrimitives.WriteUInt32LittleEndian(page.AsSpan(60), uint.MaxValue);
+        if (mutation == "next-overflow") BinaryPrimitives.WriteUInt32LittleEndian(page, 0x80000000);
         if (mutation == "oversized-name")
         {
             BinaryPrimitives.WriteUInt32LittleEndian(
@@ -301,6 +373,20 @@ public sealed class Win32PublishedFrameValidatorTests
 
         Assert.Equal(["::$DATA", ":hidden:$DATA"], streams.Select(stream => stream.Name));
         Assert.Equal([12L, 4L], streams.Select(stream => stream.Length));
+    }
+
+    [Theory]
+    [InlineData("overlapping-next")]
+    [InlineData("name-overflow")]
+    [InlineData("next-overflow")]
+    public void Handle_bound_stream_page_parser_rejects_overlap_and_overflow(string mutation)
+    {
+        var page = StreamPage(("::$DATA", 12L), (":next:$DATA", 4L));
+        if (mutation == "overlapping-next") BinaryPrimitives.WriteUInt32LittleEndian(page, 24);
+        if (mutation == "name-overflow") BinaryPrimitives.WriteUInt32LittleEndian(page.AsSpan(4), uint.MaxValue);
+        if (mutation == "next-overflow") BinaryPrimitives.WriteUInt32LittleEndian(page, 0x80000000);
+
+        Assert.Throws<InvalidDataException>(() => Win32PublishedStreamPageParser.Parse(page));
     }
 
     private sealed class Rig
@@ -719,6 +805,26 @@ public sealed class Win32PublishedFrameValidatorTests
             output.Write(crc);
         }
         return output.ToArray();
+    }
+
+    private static byte[] SupportedAncillaryData(string type) => type switch
+    {
+        "cHRM" => StandardSrgbChromaticities(),
+        "gAMA" => [0, 0, 177, 143],
+        "sBIT" => [8, 8, 8, 8],
+        "sRGB" => [0],
+        _ => throw new ArgumentOutOfRangeException(nameof(type)),
+    };
+
+    private static byte[] StandardSrgbChromaticities()
+    {
+        uint[] values = [31270, 32900, 64000, 33000, 30000, 60000, 15000, 6000];
+        var result = new byte[values.Length * sizeof(uint)];
+        for (var index = 0; index < values.Length; index++)
+        {
+            BinaryPrimitives.WriteUInt32BigEndian(result.AsSpan(index * sizeof(uint)), values[index]);
+        }
+        return result;
     }
 
     private static byte[] DirectoryPage(params (string Name, uint Attributes)[] entries)
