@@ -23,7 +23,11 @@ internal sealed class Win32TopologyFactory(IWin32TopologyApi api)
 {
     internal EvidenceMonitorFacts ReadRequiredMonitor()
     {
-        if (!api.SetPerMonitorV2DpiAwareness() || !api.IsPerMonitorV2DpiAware())
+        // SetProcessDpiAwarenessContext reports false once awareness was established
+        // earlier in the process. The effective context is therefore the authority,
+        // but the set attempt and exact PMv2 query must both precede enumeration.
+        _ = api.SetPerMonitorV2DpiAwareness();
+        if (!api.IsPerMonitorV2DpiAware())
         {
             throw new InvalidOperationException("PER_MONITOR_AWARE_V2 could not be established.");
         }

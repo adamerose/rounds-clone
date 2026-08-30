@@ -29,20 +29,56 @@ public sealed class Win32EvidenceFactoryTests
     }
 
     [Theory]
-    [InlineData(false, true, "dpi-set")]
-    [InlineData(true, false, "dpi-check")]
-    public void Topology_refuses_before_enumeration_when_dpi_establishment_fails(
-        bool setResult,
-        bool checkResult,
-        string lastExpectedEvent)
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Topology_refuses_before_enumeration_when_effective_context_is_not_pmv2(
+        bool setResult)
     {
-        var api = new FakeTopologyApi { SetResult = setResult, CheckResult = checkResult };
+        var api = new FakeTopologyApi { SetResult = setResult, CheckResult = false };
 
         Assert.Throws<InvalidOperationException>(() =>
             new Win32TopologyFactory(api).ReadRequiredMonitor());
 
-        Assert.Equal(lastExpectedEvent, api.Events[^1]);
+        Assert.Equal(new[] { "dpi-set", "dpi-check" }, api.Events);
         Assert.DoesNotContain("enumerate", api.Events);
+    }
+
+    [Fact]
+    public void Topology_accepts_set_failure_when_effective_context_is_exact_pmv2()
+    {
+        var api = new FakeTopologyApi(new Win32MonitorSnapshot(
+            BaseProjectileEvidenceLaunchPlanner.DisplayDevice,
+            BaseProjectileEvidenceLaunchPlanner.RequiredMonitorBounds))
+        {
+            SetResult = false,
+            CheckResult = true,
+        };
+
+        var facts = new Win32TopologyFactory(api).ReadRequiredMonitor();
+
+        Assert.True(facts.PerMonitorV2DpiAware);
+        Assert.Equal(new[] { "dpi-set", "dpi-check", "enumerate" }, api.Events);
+    }
+
+    [Fact]
+    public void Topology_collection_is_repeatable_after_process_dpi_was_already_established()
+    {
+        var api = new FakeTopologyApi(new Win32MonitorSnapshot(
+            BaseProjectileEvidenceLaunchPlanner.DisplayDevice,
+            BaseProjectileEvidenceLaunchPlanner.RequiredMonitorBounds))
+        {
+            SetResults = new[] { true, false },
+            CheckResult = true,
+        };
+        var factory = new Win32TopologyFactory(api);
+
+        var first = factory.ReadRequiredMonitor();
+        var second = factory.ReadRequiredMonitor();
+
+        Assert.Equal(first, second);
+        Assert.Equal(
+            new[] { "dpi-set", "dpi-check", "enumerate", "dpi-set", "dpi-check", "enumerate" },
+            api.Events);
     }
 
     [Theory]
@@ -199,12 +235,18 @@ public sealed class Win32EvidenceFactoryTests
 
         internal List<string> Events { get; } = new();
         internal bool SetResult { get; init; } = true;
+        internal IReadOnlyList<bool>? SetResults { get; init; }
         internal bool CheckResult { get; init; } = true;
+        private int SetCallCount { get; set; }
 
         public bool SetPerMonitorV2DpiAwareness()
         {
             Events.Add("dpi-set");
-            return SetResult;
+            var result = SetResults is not null && SetCallCount < SetResults.Count
+                ? SetResults[SetCallCount]
+                : SetResult;
+            SetCallCount++;
+            return result;
         }
 
         public bool IsPerMonitorV2DpiAware()
