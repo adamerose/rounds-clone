@@ -232,21 +232,52 @@ public sealed class Win32EvidencePipeCaptureTests
         AssertParentReadsClosedExactlyOnce(api, handles);
     }
 
-    [Fact]
-    public async Task Shared_monotonic_deadline_requires_EOF_on_both_streams()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Shared_monotonic_deadline_requires_EOF_on_both_streams(int iteration)
     {
+        Assert.InRange(iteration, 0, 2);
+        using var releaseStdoutWorker = new ManualResetEventSlim(initialState: false);
+        using var stdoutEofObserved = new ManualResetEventSlim(initialState: false);
+        using var stderrDelayEntered = new ManualResetEventSlim(initialState: false);
         var api = new FakePipeApi();
         api.Bytes(402, MarkerBytes());
-        api.Eof(402);
-        var clock = new FakeClock(TimeSpan.FromSeconds(30) - TimeSpan.FromMilliseconds(5));
+        api.Callback(402, () =>
+        {
+            stdoutEofObserved.Set();
+            return Win32PipePoll.EndOfFile();
+        });
+        var clock = new FakeClock(TimeSpan.FromSeconds(30) - TimeSpan.FromMilliseconds(5))
+        {
+            BeforeDelay = () =>
+            {
+                stderrDelayEntered.Set();
+                releaseStdoutWorker.Set();
+                Assert.True(stdoutEofObserved.Wait(TimeSpan.FromSeconds(2)));
+            },
+        };
+        var starter = new GateFirstDrainStarter(releaseStdoutWorker);
         var handles = ReadyHandles(api);
 
-        var capture = await Capture(api, handles, clock: clock);
+        Win32BoundedProtocolCapture capture;
+        try
+        {
+            capture = await Capture(api, handles, clock: clock, drainStarter: starter);
+        }
+        finally
+        {
+            releaseStdoutWorker.Set();
+        }
 
         Assert.True(capture.Protocol.TimedOut);
         Assert.True(capture.StandardOutputEof);
         Assert.False(capture.StandardErrorEof);
+        Assert.True(stderrDelayEntered.IsSet);
+        Assert.True(stdoutEofObserved.IsSet);
         Assert.True(clock.Elapsed >= TimeSpan.FromSeconds(30));
+        Assert.Equal(0, starter.ActiveWorkers);
         AssertParentReadsClosedExactlyOnce(api, handles);
     }
 
@@ -496,6 +527,8 @@ public sealed class Win32EvidencePipeCaptureTests
 
         internal Action? OnDelay { get; init; }
 
+        internal Action? BeforeDelay { get; init; }
+
         internal TimeSpan Elapsed
         {
             get
@@ -514,8 +547,42 @@ public sealed class Win32EvidencePipeCaptureTests
 
         public void Delay(TimeSpan duration)
         {
+            BeforeDelay?.Invoke();
             lock (_gate) _elapsed += duration;
             OnDelay?.Invoke();
+        }
+    }
+
+    private sealed class GateFirstDrainStarter(ManualResetEventSlim releaseFirst) :
+        IWin32PipeDrainStarter
+    {
+        private int _startCount;
+        private int _activeWorkers;
+
+        internal int ActiveWorkers => Volatile.Read(ref _activeWorkers);
+
+        public Task<T> Start<T>(Func<T> operation, CancellationToken stopToken)
+        {
+            var start = Interlocked.Increment(ref _startCount);
+            return Task.Run(() =>
+            {
+                Interlocked.Increment(ref _activeWorkers);
+                try
+                {
+                    if (start == 1)
+                    {
+                        if (!releaseFirst.Wait(TimeSpan.FromSeconds(2)))
+                        {
+                            throw new TimeoutException("Controlled stdout drain was not released.");
+                        }
+                    }
+                    return operation();
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref _activeWorkers);
+                }
+            });
         }
     }
 
