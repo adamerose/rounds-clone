@@ -14,6 +14,9 @@ internal static class Win32EvidenceConstants
     internal const uint DesktopReadObjects = 0x0001;
     internal const uint DesktopWriteObjects = 0x0080;
     internal const uint DesktopSwitchDesktop = 0x0100;
+    internal const uint RequiredDesktopAccess =
+        DesktopCreateWindow | DesktopReadObjects | DesktopWriteObjects;
+    internal static readonly nint DpiAwarenessContextPerMonitorAwareV2 = -4;
     internal const uint GenericRead = 0x80000000;
     internal const uint FileShareRead = 0x00000001;
     internal const uint OpenExisting = 3;
@@ -152,10 +155,14 @@ internal struct Win32FileIdInfo
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)] internal byte[] FileId;
 }
 
-internal interface IWin32EvidenceApi
+internal interface IWin32DesktopCloser
+{
+    bool CloseDesktop(nint desktop);
+}
+
+internal interface IWin32EvidenceApi : IWin32DesktopCloser
 {
     bool CloseKernelHandle(nint handle);
-    bool CloseDesktop(nint desktop);
     bool TerminateProcess(nint process, uint exitCode);
     uint WaitForSingleObject(nint handle, uint milliseconds);
     bool WriteFile(nint handle, ReadOnlySpan<byte> data, out uint written);
@@ -212,7 +219,7 @@ internal sealed class Win32ExecutableLease(
 }
 
 internal sealed class Win32DesktopLease(
-    IWin32EvidenceApi api,
+    IWin32DesktopCloser api,
     nint handle,
     string name) : IEvidenceDesktopLease
 {
