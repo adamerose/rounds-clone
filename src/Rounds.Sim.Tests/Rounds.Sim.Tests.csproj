@@ -55,5 +55,6 @@
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\EvidenceBuildProcessPrimitives.cs" Link="Tools\EvidenceBuildProcessPrimitives.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\EvidenceBuildDeadlineDrain.cs" Link="Tools\EvidenceBuildDeadlineDrain.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildHandlesCompletion.cs" Link="Tools\Win32EvidenceBuildHandlesCompletion.cs" />
+    <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildSuspendedOwnership.cs" Link="Tools\Win32EvidenceBuildSuspendedOwnership.cs" />
   </ItemGroup>
 </Project>

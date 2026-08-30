@@ -360,6 +360,7 @@ internal sealed class EvidenceBuildPipeHandleBundle : IDisposable
     private readonly IEvidenceBuildKernelHandleCleanupOwner _cleanupOwner;
     private readonly nint[] _handles;
     private bool _childEndsTransitioned;
+    private bool _createBorrowActive;
     private bool _disposed;
 
     internal EvidenceBuildPipeHandleBundle(
@@ -390,6 +391,47 @@ internal sealed class EvidenceBuildPipeHandleBundle : IDisposable
 
     internal IEvidenceBuildRawReadApi CreateReadApi() => new EvidenceBuildPipeRawReadApi(this);
 
+    internal void BorrowForCreate(Action<EvidenceBuildPipeCreateBorrow> operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            if (_childEndsTransitioned)
+            {
+                throw new InvalidOperationException("Build pipe handles already passed the successful-create milestone.");
+            }
+            if (_createBorrowActive)
+            {
+                throw new InvalidOperationException("Build pipe bundle does not permit a nested create borrow.");
+            }
+            RevalidateAllHandleFacts();
+            var all = ImmutableArray.CreateRange(_handles);
+            var borrow = new EvidenceBuildPipeCreateBorrow(
+                all,
+                ImmutableArray.Create(_handles[0], _handles[2], _handles[4]));
+            Exception? failure = null;
+            var successfulCreate = false;
+            _createBorrowActive = true;
+            try
+            {
+                try { operation(borrow); }
+                catch (Exception exception) { failure = exception; }
+                successfulCreate = borrow.SuccessfulCreate;
+            }
+            finally
+            {
+                borrow.EndBorrow();
+                _createBorrowActive = false;
+            }
+            if (successfulCreate)
+            {
+                TransitionChildEnds(ref failure);
+            }
+            if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+    }
+
     internal void CloseParentChildEndsAfterSuccessfulProcessCreation()
     {
         lock (_gate)
@@ -399,16 +441,47 @@ internal sealed class EvidenceBuildPipeHandleBundle : IDisposable
             {
                 throw new InvalidOperationException("Build child-end transfer milestone already occurred.");
             }
-            _childEndsTransitioned = true;
             Exception? failure = null;
-            EvidenceBuildPipeHandleFactory.CloseOne(
-                _handles, 0, "parent build stdin copy", _api, _cleanupOwner, ref failure);
-            EvidenceBuildPipeHandleFactory.CloseOne(
-                _handles, 2, "parent build stdout-writer copy", _api, _cleanupOwner, ref failure);
-            EvidenceBuildPipeHandleFactory.CloseOne(
-                _handles, 4, "parent build stderr-writer copy", _api, _cleanupOwner, ref failure);
+            TransitionChildEnds(ref failure);
             if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
+    }
+
+    private void RevalidateAllHandleFacts()
+    {
+        var expectedFlags = new[] { 1u, 0u, 1u, 0u, 1u };
+        var expectedTypes = new[] { 2u, 3u, 3u, 3u, 3u };
+        if (_handles.Any(handle => handle is 0 or -1) || _handles.Distinct().Count() != 5)
+        {
+            throw new InvalidDataException("Build pipe handle ownership drifted before process creation.");
+        }
+        for (var index = 0; index < _handles.Length; index++)
+        {
+            if (!_api.GetHandleInformation(_handles[index], out var flags, out var infoError))
+            {
+                throw new Win32Exception(infoError, $"Build pipe handle {index} revalidation failed.");
+            }
+            if (flags != expectedFlags[index])
+            {
+                throw new InvalidDataException($"Build pipe handle {index} inheritance drifted before creation.");
+            }
+            var type = _api.GetFileType(_handles[index], out var typeError);
+            if (type != expectedTypes[index])
+            {
+                throw new Win32Exception(typeError, $"Build pipe handle {index} type drifted before creation.");
+            }
+        }
+    }
+
+    private void TransitionChildEnds(ref Exception? failure)
+    {
+        _childEndsTransitioned = true;
+        EvidenceBuildPipeHandleFactory.CloseOne(
+            _handles, 0, "parent build stdin copy", _api, _cleanupOwner, ref failure);
+        EvidenceBuildPipeHandleFactory.CloseOne(
+            _handles, 2, "parent build stdout-writer copy", _api, _cleanupOwner, ref failure);
+        EvidenceBuildPipeHandleFactory.CloseOne(
+            _handles, 4, "parent build stderr-writer copy", _api, _cleanupOwner, ref failure);
     }
 
     internal EvidenceBuildRawRead Poll(EvidenceBuildRawSource source, int maximumBytes)
@@ -431,6 +504,10 @@ internal sealed class EvidenceBuildPipeHandleBundle : IDisposable
         lock (_gate)
         {
             if (_disposed) return;
+            if (_createBorrowActive)
+            {
+                throw new InvalidOperationException("Build pipe bundle cannot be disposed from its create callback.");
+            }
             _disposed = true;
             Exception? failure = null;
             for (var index = _handles.Length - 1; index >= 0; index--)
@@ -444,6 +521,44 @@ internal sealed class EvidenceBuildPipeHandleBundle : IDisposable
 
     private void ThrowIfDisposed() =>
         ObjectDisposedException.ThrowIf(_disposed, this);
+}
+
+internal sealed class EvidenceBuildPipeCreateBorrow
+{
+    private bool _active = true;
+    private bool _successfulCreate;
+    private readonly ImmutableArray<nint> _allHandles;
+    private readonly ImmutableArray<nint> _childHandles;
+
+    internal EvidenceBuildPipeCreateBorrow(
+        ImmutableArray<nint> allHandles,
+        ImmutableArray<nint> childHandles)
+    {
+        _allHandles = allHandles;
+        _childHandles = childHandles;
+    }
+
+    internal ImmutableArray<nint> AllHandles => _active
+        ? _allHandles
+        : throw new ObjectDisposedException(nameof(EvidenceBuildPipeCreateBorrow));
+    internal ImmutableArray<nint> ChildHandles => _active
+        ? _childHandles
+        : throw new ObjectDisposedException(nameof(EvidenceBuildPipeCreateBorrow));
+    internal bool SuccessfulCreate => _active
+        ? _successfulCreate
+        : throw new ObjectDisposedException(nameof(EvidenceBuildPipeCreateBorrow));
+
+    internal void MarkSuccessfulCreate()
+    {
+        ObjectDisposedException.ThrowIf(!_active, this);
+        if (_successfulCreate)
+        {
+            throw new InvalidOperationException("Successful build process creation was already marked.");
+        }
+        _successfulCreate = true;
+    }
+
+    internal void EndBorrow() => _active = false;
 }
 
 internal sealed class EvidenceBuildPipeRawReadApi(EvidenceBuildPipeHandleBundle bundle) : IEvidenceBuildRawReadApi
