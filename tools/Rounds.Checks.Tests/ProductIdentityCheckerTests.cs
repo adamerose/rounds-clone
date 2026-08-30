@@ -25,7 +25,7 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         var drawBullet = source[start..end];
         Assert.Contains("color with { A = 0.45f }", drawBullet, StringComparison.Ordinal);
         Assert.Contains("DrawCircle(center, radius, Paper);", drawBullet, StringComparison.Ordinal);
-        Assert.DoesNotContain("DrawCircle(center, radius + 2.0f, Ink);", drawBullet, StringComparison.Ordinal);
+        Assert.DoesNotContain("Ink", drawBullet, StringComparison.Ordinal);
     }
 
     [Fact]
