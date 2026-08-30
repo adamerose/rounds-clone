@@ -380,6 +380,50 @@ public sealed class EvidenceBuildProcessPrimitivesTests
     }
 
     [Theory]
+    [InlineData("+0 Warning(s)")]
+    [InlineData("0Warning(s)")]
+    [InlineData("[0 wArNiNg(S)!]")]
+    [InlineData("+0 Error(s)")]
+    [InlineData("0Error(s):")]
+    [InlineData("prefix 0 ERROR(S), suffix")]
+    [InlineData(" Time Elapsed 00:00:01.00 ")]
+    [InlineData("TIMEELAPSED:00:00:01.00")]
+    [InlineData("0TimeElapsed:00:00:01.00")]
+    public void WarningParserReservesSummaryMarkersInAnyOtherFormatting(string malformedMarker)
+    {
+        var output = Bytes($"{malformedMarker}\r\n    0 Warning(s)\r\n    0 Error(s)\r\n");
+
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(output, []));
+    }
+
+    [Theory]
+    [InlineData("+0 Warning(s)")]
+    [InlineData("0Error(s)!")]
+    [InlineData("  Time Elapsed 00:00:01.00")]
+    [InlineData("0 wArNiNg(S):")]
+    public void WarningParserReservesMalformedMarkersAcrossStreams(string malformedMarker)
+    {
+        var canonical = Bytes("    0 Warning(s)\r\n    0 Error(s)\r\n");
+
+        Assert.Throws<InvalidOperationException>(() =>
+            EvidenceMsBuildWarningParser.Parse(canonical, Bytes(malformedMarker + "\r\n")));
+        Assert.Throws<InvalidOperationException>(() =>
+            EvidenceMsBuildWarningParser.Parse(Bytes(malformedMarker + "\r\n"), canonical));
+    }
+
+    [Fact]
+    public void WarningParserDoesNotConfuseUnrelatedPluralProseWithReservedMarker()
+    {
+        var output = Bytes(
+            "Informational prose about warnings remains non-diagnostic.\r\n" +
+            "    0 Warning(s)\r\n    0 Error(s)\r\n");
+
+        var proof = EvidenceMsBuildWarningParser.Parse(output, []);
+
+        Assert.Equal(0, proof.WarningCount);
+    }
+
+    [Theory]
     [InlineData("00:00:00.00")]
     [InlineData("00:04:59.99")]
     [InlineData("00:05:00.00")]

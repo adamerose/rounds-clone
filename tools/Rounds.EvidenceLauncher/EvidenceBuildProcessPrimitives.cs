@@ -541,6 +541,13 @@ internal static class EvidenceMsBuildWarningParser
     private const int MaximumLineCountPerStream = 65_536;
     private const int MaximumLineCharacters = 16_384;
 
+    private readonly record struct CanonicalSummary(
+        EvidenceMsBuildSummaryStream Stream,
+        int Index,
+        int Warnings,
+        int Errors,
+        int ElapsedIndex);
+
     internal static EvidenceMsBuildOutputProof Parse(ReadOnlySpan<byte> standardOutput, ReadOnlySpan<byte> standardError)
     {
         if (standardOutput.Length > EvidenceBuildProcessPrimitives.StreamCapBytes ||
@@ -551,7 +558,7 @@ internal static class EvidenceMsBuildWarningParser
 
         var stdoutLines = ParseLines(standardOutput, "stdout");
         var stderrLines = ParseLines(standardError, "stderr");
-        var summaries = new List<(EvidenceMsBuildSummaryStream Stream, int Index, int Warnings, int Errors)>();
+        var summaries = new List<CanonicalSummary>();
         CollectSummaries(stdoutLines, EvidenceMsBuildSummaryStream.StandardOutput, summaries);
         CollectSummaries(stderrLines, EvidenceMsBuildSummaryStream.StandardError, summaries);
 
@@ -565,6 +572,12 @@ internal static class EvidenceMsBuildWarningParser
             throw new InvalidOperationException("MSBuild summary reported warnings or errors.");
         }
 
+        RejectReservedSummaryMarkers(
+            stdoutLines,
+            summary.Stream == EvidenceMsBuildSummaryStream.StandardOutput ? summary : null);
+        RejectReservedSummaryMarkers(
+            stderrLines,
+            summary.Stream == EvidenceMsBuildSummaryStream.StandardError ? summary : null);
         RejectDiagnostics(stdoutLines, summary.Stream == EvidenceMsBuildSummaryStream.StandardOutput ? summary.Index : -1);
         RejectDiagnostics(stderrLines, summary.Stream == EvidenceMsBuildSummaryStream.StandardError ? summary.Index : -1);
         return new EvidenceMsBuildOutputProof(
@@ -620,7 +633,7 @@ internal static class EvidenceMsBuildWarningParser
     private static void CollectSummaries(
         IReadOnlyList<string> lines,
         EvidenceMsBuildSummaryStream stream,
-        List<(EvidenceMsBuildSummaryStream Stream, int Index, int Warnings, int Errors)> summaries)
+        List<CanonicalSummary> summaries)
     {
         for (var index = 0; index < lines.Count; index++)
         {
@@ -630,8 +643,8 @@ internal static class EvidenceMsBuildWarningParser
                 {
                     throw new InvalidOperationException("MSBuild warning summary was missing its exact adjacent error count.");
                 }
-                summaries.Add((stream, index, warnings, errors));
-                ValidateFinalSummaryTail(lines, index + 2);
+                var elapsedIndex = ValidateFinalSummaryTail(lines, index + 2);
+                summaries.Add(new CanonicalSummary(stream, index, warnings, errors, elapsedIndex));
                 break;
             }
             if (lines[index].StartsWith("Time Elapsed", StringComparison.OrdinalIgnoreCase))
@@ -645,9 +658,10 @@ internal static class EvidenceMsBuildWarningParser
         }
     }
 
-    private static void ValidateFinalSummaryTail(IReadOnlyList<string> lines, int start)
+    private static int ValidateFinalSummaryTail(IReadOnlyList<string> lines, int start)
     {
         var sawElapsed = false;
+        var elapsedIndex = -1;
         for (var index = start; index < lines.Count; index++)
         {
             if (lines[index].Length == 0)
@@ -665,7 +679,79 @@ internal static class EvidenceMsBuildWarningParser
                 throw new InvalidOperationException("MSBuild elapsed-time trailer was malformed or exceeded the exact five-minute deadline.");
             }
             sawElapsed = true;
+            elapsedIndex = index;
         }
+        return elapsedIndex;
+    }
+
+    private static void RejectReservedSummaryMarkers(
+        IReadOnlyList<string> lines,
+        CanonicalSummary? allowed)
+    {
+        for (var index = 0; index < lines.Count; index++)
+        {
+            if (allowed is { } summary &&
+                (index == summary.Index || index == summary.Index + 1 || index == summary.ElapsedIndex))
+            {
+                continue;
+            }
+            if (ContainsReservedCountMarker(lines[index], "Warning(s)") ||
+                ContainsReservedCountMarker(lines[index], "Error(s)") ||
+                ContainsTimeElapsedMarker(lines[index]))
+            {
+                throw new InvalidOperationException("MSBuild output reused a reserved summary marker outside the exact canonical tail.");
+            }
+        }
+    }
+
+    private static bool ContainsReservedCountMarker(string line, string marker)
+    {
+        var start = 0;
+        while (start <= line.Length - marker.Length)
+        {
+            var index = line.IndexOf(marker, start, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+            {
+                return false;
+            }
+            var before = index == 0 ? '\0' : line[index - 1];
+            var afterIndex = index + marker.Length;
+            var after = afterIndex == line.Length ? '\0' : line[afterIndex];
+            if ((!IsIdentifierCharacter(before) || char.IsAsciiDigit(before)) && !IsIdentifierCharacter(after))
+            {
+                return true;
+            }
+            start = index + marker.Length;
+        }
+        return false;
+    }
+
+    private static bool ContainsTimeElapsedMarker(string line)
+    {
+        for (var index = 0; index <= line.Length - 4; index++)
+        {
+            if (!line.AsSpan(index).StartsWith("time", StringComparison.OrdinalIgnoreCase) ||
+                (index > 0 && IsIdentifierCharacter(line[index - 1]) && !char.IsAsciiDigit(line[index - 1])))
+            {
+                continue;
+            }
+            var elapsed = index + 4;
+            while (elapsed < line.Length && char.IsWhiteSpace(line[elapsed]))
+            {
+                elapsed++;
+            }
+            const string token = "elapsed";
+            if (elapsed <= line.Length - token.Length &&
+                line.AsSpan(elapsed).StartsWith(token, StringComparison.OrdinalIgnoreCase))
+            {
+                var after = elapsed + token.Length;
+                if (after == line.Length || !IsIdentifierCharacter(line[after]))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static bool ValidElapsed(ReadOnlySpan<char> value)
