@@ -121,6 +121,24 @@ internal interface IEvidenceBuildRawReadApi
     EvidenceBuildRawRead Poll(EvidenceBuildRawSource source, int maximumBytes);
 }
 
+internal interface IEvidenceBuildRawByteCopier
+{
+    byte[] CloneBounded(byte[] source, int exactLength);
+}
+
+internal sealed class EvidenceBuildRawByteCopier : IEvidenceBuildRawByteCopier
+{
+    public byte[] CloneBounded(byte[] source, int exactLength)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (exactLength <= 0 || exactLength != source.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(exactLength));
+        }
+        return source.AsSpan(0, exactLength).ToArray();
+    }
+}
+
 internal interface IEvidenceBuildDrainWorkerStarter
 {
     Task<T> Start<T>(Func<T> operation);
@@ -229,13 +247,16 @@ internal sealed record EvidenceBuildRawDrainCapture(
 
 internal sealed class EvidenceBuildRawDrainFactory(
     IEvidenceBuildRawReadApi readApi,
-    IEvidenceBuildDrainWorkerStarter? workerStarter = null)
+    IEvidenceBuildDrainWorkerStarter? workerStarter = null,
+    IEvidenceBuildRawByteCopier? byteCopier = null)
 {
     private static readonly TimeSpan StartupAndCleanupBound = TimeSpan.FromSeconds(5);
     private readonly IEvidenceBuildRawReadApi _readApi =
         readApi ?? throw new ArgumentNullException(nameof(readApi));
     private readonly IEvidenceBuildDrainWorkerStarter _workerStarter =
         workerStarter ?? new EvidenceBuildDrainWorkerStarter();
+    private readonly IEvidenceBuildRawByteCopier _byteCopier =
+        byteCopier ?? new EvidenceBuildRawByteCopier();
 
     internal EvidenceBuildRawDrainSession Prepare(
         EvidenceBuildRawSource standardOutput,
@@ -254,6 +275,7 @@ internal sealed class EvidenceBuildRawDrainFactory(
         var session = new EvidenceBuildRawDrainSession(
             _readApi,
             _workerStarter,
+            _byteCopier,
             standardOutput,
             standardError,
             policy,
@@ -269,6 +291,7 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
     private readonly object _stateGate = new();
     private readonly IEvidenceBuildRawReadApi _readApi;
     private readonly IEvidenceBuildDrainWorkerStarter _workerStarter;
+    private readonly IEvidenceBuildRawByteCopier _byteCopier;
     private readonly EvidenceBuildRawSource _standardOutput;
     private readonly EvidenceBuildRawSource _standardError;
     private readonly EvidenceBuildRawDrainPolicy _policy;
@@ -286,10 +309,13 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
     private bool _terminalProof;
     private bool _disposed;
     private bool _gateDisposed;
+    private bool _standardOutputFaultDelivered;
+    private bool _standardErrorFaultDelivered;
 
     internal EvidenceBuildRawDrainSession(
         IEvidenceBuildRawReadApi readApi,
         IEvidenceBuildDrainWorkerStarter workerStarter,
+        IEvidenceBuildRawByteCopier byteCopier,
         EvidenceBuildRawSource standardOutput,
         EvidenceBuildRawSource standardError,
         EvidenceBuildRawDrainPolicy policy,
@@ -297,6 +323,7 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
     {
         _readApi = readApi;
         _workerStarter = workerStarter;
+        _byteCopier = byteCopier;
         _standardOutput = standardOutput;
         _standardError = standardError;
         _policy = policy;
@@ -362,6 +389,10 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
         {
             ThrowIfDisposed();
             if (_capture is not null) return _capture;
+            if (_terminalProof)
+            {
+                throw new InvalidOperationException("Build drains already terminated without a successful capture.");
+            }
             if (_deadline is null || _standardOutputTask is null || _standardErrorTask is null)
             {
                 throw new InvalidOperationException("Build drains require the shared armed deadline before completion.");
@@ -410,9 +441,13 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
             ThrowWorkerFailures(failure);
         }
 
-        failure = CollectWorkerFailures(failure);
+        failure = CollectUndeliveredWorkerFailures(failure);
         MarkTerminalProof();
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+        if (AnyWorkerFaultWasDelivered())
+        {
+            throw new InvalidOperationException("Build drain worker failure was already delivered to the caller.");
+        }
         var capture = new EvidenceBuildRawDrainCapture(
             _standardOutputTask.GetAwaiter().GetResult(),
             _standardErrorTask.GetAwaiter().GetResult());
@@ -453,7 +488,7 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
                 new TimeoutException("Build pipe drain stop did not prove worker completion in five seconds."));
             ThrowWorkerFailures(failure);
         }
-        failure = CollectWorkerFailures(failure);
+        failure = CollectUndeliveredWorkerFailures(failure);
         MarkTerminalProof();
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
@@ -516,44 +551,54 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
                 var retainedCount = checked((int)retained.Length);
                 var maximumRead = Math.Min(MaximumPollBytes, checked(capBytes - retainedCount + 1));
                 var read = _readApi.Poll(source, maximumRead);
-                var readBytes = read.Data?.ToArray() ??
+                var kind = read.Kind;
+                var data = read.Data;
+                if (!Enum.IsDefined(kind))
+                {
+                    throw new InvalidDataException("Build raw read returned an unknown state.");
+                }
+                if (data is null)
+                {
                     throw new InvalidDataException("Build raw read returned a null byte buffer.");
-                switch (read.Kind)
+                }
+                switch (kind)
                 {
                     case EvidenceBuildRawReadKind.NoProgress:
-                        if (readBytes.Length != 0)
+                        if (data.Length != 0)
                         {
                             throw new InvalidDataException("No-progress build read carried bytes.");
                         }
                         deadline.DelayNoProgress(PollDelay);
                         break;
                     case EvidenceBuildRawReadKind.EndOfFile:
-                        if (readBytes.Length != 0)
+                        if (data.Length != 0)
                         {
                             throw new InvalidDataException("Explicit build EOF carried bytes.");
                         }
                         return Capture(retained.ToArray(), observed, EvidenceBuildRawDrainTerminal.EndOfFile);
                     case EvidenceBuildRawReadKind.Data:
-                        if (readBytes.Length == 0)
+                        if (data.Length == 0)
                         {
-                            deadline.DelayNoProgress(PollDelay);
-                            break;
+                            throw new InvalidDataException("A zero-byte successful build read must be reported as no progress.");
                         }
-                        if (readBytes.Length > maximumRead)
+                        if (data.Length > maximumRead)
                         {
                             throw new InvalidDataException("Build raw read exceeded the requested bounded byte count.");
                         }
-                        observed = checked(observed + readBytes.Length);
-                        var accepted = Math.Min(readBytes.Length, capBytes - retainedCount);
+                        observed = checked(observed + data.Length);
+                        var accepted = Math.Min(data.Length, checked(capBytes - retainedCount));
+                        var readBytes = _byteCopier.CloneBounded(data, data.Length);
+                        if (ReferenceEquals(readBytes, data) || readBytes.Length != data.Length)
+                        {
+                            throw new InvalidDataException("Build raw byte copier did not return an independent exact clone.");
+                        }
                         if (accepted > 0) retained.Write(readBytes, 0, accepted);
-                        if (accepted != readBytes.Length)
+                        if (accepted != data.Length)
                         {
                             _stop.Request();
                             return Capture(retained.ToArray(), observed, EvidenceBuildRawDrainTerminal.CapExceeded);
                         }
                         break;
-                    default:
-                        throw new InvalidDataException("Build raw read returned an unknown state.");
                 }
             }
         }
@@ -596,7 +641,7 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
         {
             MarkTerminalProof();
         }
-        return CollectWorkerFailures(primary)!;
+        return CollectUndeliveredWorkerFailures(primary)!;
     }
 
     private Task? AllStartedWorkers()
@@ -612,7 +657,7 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
 
     private void ThrowWorkerFailures(Exception? primary)
     {
-        var failure = CollectWorkerFailures(primary);
+        var failure = CollectUndeliveredWorkerFailures(primary);
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
@@ -625,15 +670,32 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
         }
     }
 
+    private bool AnyWorkerFaultWasDelivered()
+    {
+        lock (_stateGate)
+        {
+            return _standardOutputFaultDelivered || _standardErrorFaultDelivered;
+        }
+    }
+
     private static Exception Combine(Exception? first, Exception second) =>
         first is null ? second : new AggregateException(first, second);
 
-    private Exception? CollectWorkerFailures(Exception? primary)
+    private Exception? CollectUndeliveredWorkerFailures(Exception? primary)
     {
         var failures = new List<Exception>();
         if (primary is not null) failures.Add(primary);
-        CollectCompletedFailure(_standardOutputTask, failures);
-        CollectCompletedFailure(_standardErrorTask, failures);
+        lock (_stateGate)
+        {
+            CollectCompletedFailure(
+                _standardOutputTask,
+                ref _standardOutputFaultDelivered,
+                failures);
+            CollectCompletedFailure(
+                _standardErrorTask,
+                ref _standardErrorFaultDelivered,
+                failures);
+        }
         return failures.Count switch
         {
             0 => null,
@@ -642,15 +704,19 @@ internal sealed class EvidenceBuildRawDrainSession : IDisposable
         };
     }
 
-    private static void CollectCompletedFailure(Task? task, List<Exception> failures)
+    private static void CollectCompletedFailure(
+        Task? task,
+        ref bool delivered,
+        List<Exception> failures)
     {
-        if (task is null || !task.IsCompleted) return;
+        if (task is null || !task.IsCompleted || delivered) return;
         try
         {
             task.GetAwaiter().GetResult();
         }
         catch (Exception exception)
         {
+            delivered = true;
             failures.Add(exception);
         }
     }

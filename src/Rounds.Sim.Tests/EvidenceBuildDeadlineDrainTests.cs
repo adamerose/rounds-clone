@@ -296,19 +296,64 @@ public sealed class EvidenceBuildDeadlineDrainTests
             failure.InnerExceptions,
             exception => Assert.Equal("stdout fault", exception.Message),
             exception => Assert.Equal("stderr fault", exception.Message));
+        Assert.Throws<InvalidOperationException>(session.Complete);
+        session.Dispose();
+        session.Dispose();
     }
 
     [Fact]
     public void OversizedReadShimFaultStopsAndObservesSibling()
     {
         var api = new FakeReadApi { IgnoreMaximumRead = true };
-        api.Bytes(Stdout, new byte[65_537]);
+        var copier = new FakeByteCopier { ThrowIfInvoked = true };
+        api.Bytes(Stdout, new byte[1_000_000]);
         api.NoProgress(Stderr);
 
-        using var session = Prepare(api);
+        using var session = Prepare(api, copier: copier);
         session.Release(EvidenceBuildRunDeadline.Arm(new FakeClock(TimeSpan.Zero), TimeSpan.FromMinutes(5)));
 
         Assert.Throws<InvalidDataException>(session.Complete);
+        Assert.Equal(0, copier.CloneCalls);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void ZeroStatePayloadsRefuseBeforeAnyClone(int rawKind)
+    {
+        var api = new FakeReadApi();
+        var copier = new FakeByteCopier { ThrowIfInvoked = true };
+        var kind = (EvidenceBuildRawReadKind)rawKind;
+        api.Raw(Stdout, new EvidenceBuildRawRead(kind, new byte[1_000_000]));
+        api.Eof(Stderr);
+
+        using var session = Prepare(api, copier: copier);
+        session.Release(EvidenceBuildRunDeadline.Arm(new FakeClock(TimeSpan.Zero), TimeSpan.FromMinutes(5)));
+
+        Assert.Throws<InvalidDataException>(session.Complete);
+        Assert.Equal(0, copier.CloneCalls);
+    }
+
+    [Fact]
+    public void NullZeroLengthAndUnknownDataShapesRefuseBeforeAnyClone()
+    {
+        foreach (var read in new[]
+                 {
+                     EvidenceBuildRawRead.Bytes(),
+                     new EvidenceBuildRawRead((EvidenceBuildRawReadKind)999, Array.Empty<byte>()),
+                     new EvidenceBuildRawRead(EvidenceBuildRawReadKind.Data, null!),
+                 })
+        {
+            var api = new FakeReadApi();
+            var copier = new FakeByteCopier { ThrowIfInvoked = true };
+            api.Raw(Stdout, read);
+            api.Eof(Stderr);
+
+            using var session = Prepare(api, copier: copier);
+            session.Release(EvidenceBuildRunDeadline.Arm(new FakeClock(TimeSpan.Zero), TimeSpan.FromMinutes(5)));
+            Assert.Throws<InvalidDataException>(session.Complete);
+            Assert.Equal(0, copier.CloneCalls);
+        }
     }
 
     [Fact]
@@ -361,6 +406,49 @@ public sealed class EvidenceBuildDeadlineDrainTests
         Assert.Equal(0, starter.ActiveWorkers);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void WorkerFaultIsDeliveredOnceWhenSiblingCleanupInitiallyCannotComplete(bool stdoutFaults)
+    {
+        using var blocker = new ManualResetEventSlim();
+        var api = new FakeReadApi { RequireConcurrentFirstPoll = true };
+        var faulting = stdoutFaults ? Stdout : Stderr;
+        var blocked = stdoutFaults ? Stderr : Stdout;
+        api.Fault(faulting, new IOException($"{faulting.Identity} read fault"));
+        api.Callback(blocked, () =>
+        {
+            blocker.Wait();
+            return EvidenceBuildRawRead.NoProgress();
+        });
+        var starter = new FakeWorkerStarter { MaximumRealWait = TimeSpan.FromMilliseconds(100) };
+        var session = Prepare(api, starter);
+        session.Release(EvidenceBuildRunDeadline.Arm(new FakeClock(TimeSpan.Zero), TimeSpan.FromMinutes(5)));
+
+        try
+        {
+            var first = Assert.Throws<AggregateException>(session.Complete).Flatten();
+            Assert.Collection(
+                first.InnerExceptions,
+                exception => Assert.IsType<TimeoutException>(exception),
+                exception => Assert.Equal($"{faulting.Identity} read fault", exception.Message));
+
+            var retry = Assert.Throws<TimeoutException>(session.Complete);
+            Assert.DoesNotContain("read fault", retry.ToString(), StringComparison.Ordinal);
+
+            blocker.Set();
+            session.Dispose();
+            session.Dispose();
+        }
+        finally
+        {
+            blocker.Set();
+            session.Dispose();
+        }
+
+        Assert.Equal(0, starter.ActiveWorkers);
+    }
+
     [Fact]
     public void StopBeforeReleaseAndRepeatedStopDisposeAreIdempotentAndPerformNoReads()
     {
@@ -398,8 +486,12 @@ public sealed class EvidenceBuildDeadlineDrainTests
 
     private static EvidenceBuildRawDrainSession Prepare(
         FakeReadApi api,
-        FakeWorkerStarter? starter = null) =>
-        new EvidenceBuildRawDrainFactory(api, starter ?? new FakeWorkerStarter()).Prepare(
+        FakeWorkerStarter? starter = null,
+        FakeByteCopier? copier = null) =>
+        new EvidenceBuildRawDrainFactory(
+            api,
+            starter ?? new FakeWorkerStarter(),
+            copier ?? new FakeByteCopier()).Prepare(
             Stdout,
             Stderr,
             EvidenceBuildRawDrainPolicy.Exact);
@@ -543,7 +635,10 @@ public sealed class EvidenceBuildDeadlineDrainTests
             Enqueue(source, EvidenceBuildRawRead.NoProgress());
 
         internal void ZeroByteData(EvidenceBuildRawSource source) =>
-            Enqueue(source, EvidenceBuildRawRead.Bytes());
+            Enqueue(source, EvidenceBuildRawRead.NoProgress());
+
+        internal void Raw(EvidenceBuildRawSource source, EvidenceBuildRawRead read) =>
+            Enqueue(source, new UnrecordedRead(read));
 
         internal void Eof(EvidenceBuildRawSource source) =>
             Enqueue(source, EvidenceBuildRawRead.EndOfFile());
@@ -606,6 +701,7 @@ public sealed class EvidenceBuildDeadlineDrainTests
             if (next is null) return EvidenceBuildRawRead.NoProgress();
             if (next is Exception failure) throw failure;
             if (next is Func<EvidenceBuildRawRead> callback) return callback();
+            if (next is UnrecordedRead unrecorded) return unrecorded.Read;
             if (next is EvidenceBuildRawRead direct) return Record(source, direct);
 
             var bytes = (byte[])next;
@@ -651,6 +747,22 @@ public sealed class EvidenceBuildDeadlineDrainTests
             var value = values.First!.Value;
             values.RemoveFirst();
             return value;
+        }
+
+        private sealed record UnrecordedRead(EvidenceBuildRawRead Read);
+    }
+
+    private sealed class FakeByteCopier : IEvidenceBuildRawByteCopier
+    {
+        internal bool ThrowIfInvoked { get; init; }
+        internal int CloneCalls { get; private set; }
+
+        public byte[] CloneBounded(byte[] source, int exactLength)
+        {
+            CloneCalls++;
+            if (ThrowIfInvoked) throw new Xunit.Sdk.XunitException("invalid read reached byte clone");
+            Assert.Equal(source.Length, exactLength);
+            return source.ToArray();
         }
     }
 }
