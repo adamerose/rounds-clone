@@ -225,7 +225,10 @@ internal sealed record EvidenceBuildEnvironmentRevalidation(
     string DotNetCliHomeDirectoryIdentity,
     string MsBuildUserExtensionsDirectoryIdentity,
     bool BothDirectoriesEmpty,
-    bool AllAncestorIdentitiesStable);
+    bool AllAncestorIdentitiesStable,
+    bool DotNetCliHomeWriteExclusionActive,
+    bool MsBuildUserExtensionsWriteExclusionActive,
+    bool NoWriteBreakObserved);
 
 internal interface IEvidenceBuildEnvironmentLease : IDisposable
 {
@@ -650,7 +653,10 @@ internal sealed class Win32EvidenceBuildDriver(
         if (string.IsNullOrWhiteSpace(proof.DotNetCliHomeDirectoryIdentity) ||
             string.IsNullOrWhiteSpace(proof.MsBuildUserExtensionsDirectoryIdentity) ||
             proof.DotNetCliHomeDirectoryIdentity == proof.MsBuildUserExtensionsDirectoryIdentity ||
-            !proof.BothDirectoriesEmpty || !proof.AllAncestorIdentitiesStable)
+            !proof.BothDirectoriesEmpty || !proof.AllAncestorIdentitiesStable ||
+            !proof.DotNetCliHomeWriteExclusionActive ||
+            !proof.MsBuildUserExtensionsWriteExclusionActive ||
+            !proof.NoWriteBreakObserved)
         {
             throw new InvalidOperationException("Build-influencing environment directory lease was not exact, empty, and retained.");
         }
@@ -1032,6 +1038,7 @@ internal sealed class Win32EvidenceBuildAttestationLease(
     IEvidenceBuildProvenanceLease provenance,
     EvidenceBuildAttestation attestation) : IEvidenceBuildAttestationLease
 {
+    private readonly object _disposeSync = new();
     private IEvidenceRuntimeAssemblyLease? _runtime = runtime;
     private IReadOnlyList<IEvidencePriorOutputLease>? _priorOutputs = priorOutputs;
     private IEvidenceBuildEnvironmentLease? _environment = environment;
@@ -1041,25 +1048,35 @@ internal sealed class Win32EvidenceBuildAttestationLease(
 
     public void Dispose()
     {
-        var runtimeLease = Interlocked.Exchange(ref _runtime, null);
-        var priorLeases = Interlocked.Exchange(ref _priorOutputs, null);
-        var environmentLease = Interlocked.Exchange(ref _environment, null);
-        var provenanceLease = Interlocked.Exchange(ref _provenance, null);
-        Exception? failure = null;
-        try { runtimeLease?.Dispose(); }
-        catch (Exception exception) { failure = exception; }
-        if (priorLeases is not null)
+        lock (_disposeSync)
         {
-            for (var index = priorLeases.Count - 1; index >= 0; index--)
+            var runtimeLease = Interlocked.Exchange(ref _runtime, null);
+            var priorLeases = Interlocked.Exchange(ref _priorOutputs, null);
+            var environmentLease = _environment;
+            var provenanceLease = Interlocked.Exchange(ref _provenance, null);
+            Exception? failure = null;
+            try { runtimeLease?.Dispose(); }
+            catch (Exception exception) { failure = exception; }
+            if (priorLeases is not null)
             {
-                try { priorLeases[index].Dispose(); }
-                catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
+                for (var index = priorLeases.Count - 1; index >= 0; index--)
+                {
+                    try { priorLeases[index].Dispose(); }
+                    catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
+                }
             }
+            try
+            {
+                environmentLease?.Dispose();
+                _environment = null;
+            }
+            catch (Exception exception)
+            {
+                failure = failure is null ? exception : new AggregateException(failure, exception);
+            }
+            try { provenanceLease?.Dispose(); }
+            catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
+            if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
-        try { environmentLease?.Dispose(); }
-        catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
-        try { provenanceLease?.Dispose(); }
-        catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
-        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }

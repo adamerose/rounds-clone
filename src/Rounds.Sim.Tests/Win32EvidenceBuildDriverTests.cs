@@ -23,6 +23,7 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.True(lease.Attestation.DeletedPriorOutput);
         Assert.Equal(3, lease.Attestation.RuntimeClosure.Count);
         Assert.DoesNotContain("runtime-dispose", rig.Events);
+        Assert.DoesNotContain("environment-dispose", rig.Events);
         Assert.Equal(
         [
             "msbuild-open", "provenance-open", "candidate", "prerequisites", "candidate", "environment",
@@ -54,6 +55,41 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.Equal(1, rig.Events.Count(value => value == "runtime-dispose"));
         Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
         Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0", "environment-dispose", "provenance-dispose"], rig.Events.TakeLast(5));
+    }
+
+    [Theory]
+    [InlineData(2, false)]
+    [InlineData(4, true)]
+    public void Environment_write_exclusion_break_before_or_during_build_refuses_and_cleans_up(
+        int breakOnRevalidation,
+        bool processExpected)
+    {
+        var rig = new Rig();
+        rig.Environment.BreakOnRevalidation = breakOnRevalidation;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.Equal(processExpected, rig.Events.Contains("process"));
+        Assert.Equal(1, rig.Events.Count(value => value == "environment-dispose"));
+        Assert.DoesNotContain("runtime-open", rig.Events);
+    }
+
+    [Fact]
+    public void Transferred_environment_exclusion_cleanup_failure_remains_owned_for_retry()
+    {
+        var rig = new Rig();
+        rig.Environment.FailDisposeOnce = true;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+        var lease = rig.Driver.RebuildAndAttest(rig.Invocation, msbuild);
+
+        Assert.Throws<InvalidOperationException>(() => lease.Dispose());
+        Assert.Equal(1, rig.Events.Count(value => value == "environment-dispose"));
+        Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
+
+        lease.Dispose();
+        Assert.Equal(2, rig.Events.Count(value => value == "environment-dispose"));
+        Assert.Equal(1, rig.Events.Count(value => value == "provenance-dispose"));
     }
 
     [Fact]
@@ -642,6 +678,9 @@ public sealed class Win32EvidenceBuildDriverTests
         IEvidenceBuildEnvironmentLease
     {
         internal IReadOnlyDictionary<string, string> Value { get; set; } = ValidEnvironment();
+        internal int BreakOnRevalidation { get; set; } = int.MaxValue;
+        internal bool FailDisposeOnce { get; set; }
+        private int RevalidationCount { get; set; }
         public IReadOnlyDictionary<string, string> Environment => Value;
         public IEvidenceBuildEnvironmentLease CreateSanitized(
             EvidenceBuildInvocation required,
@@ -653,9 +692,21 @@ public sealed class Win32EvidenceBuildDriverTests
             Assert.Equal(@"C:\Temp", temporaryDirectory.CanonicalPath);
             return this;
         }
-        public EvidenceBuildEnvironmentRevalidation Revalidate() =>
-            new("dotnet-home-id", "msbuild-user-id", true, true);
-        public void Dispose() => events.Add("environment-dispose");
+        public EvidenceBuildEnvironmentRevalidation Revalidate()
+        {
+            RevalidationCount++;
+            var active = RevalidationCount < BreakOnRevalidation;
+            return new("dotnet-home-id", "msbuild-user-id", true, true, active, active, active);
+        }
+        public void Dispose()
+        {
+            events.Add("environment-dispose");
+            if (FailDisposeOnce)
+            {
+                FailDisposeOnce = false;
+                throw new InvalidOperationException("environment exclusion cleanup failed");
+            }
+        }
     }
 
     private sealed class FakeOutput(List<string> events) : IEvidenceBuildOutputApi

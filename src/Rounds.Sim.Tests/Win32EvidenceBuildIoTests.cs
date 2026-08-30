@@ -34,7 +34,16 @@ public sealed class Win32EvidenceBuildIoTests
         var proof = first.Revalidate();
         Assert.True(proof.BothDirectoriesEmpty);
         Assert.True(proof.AllAncestorIdentitiesStable);
+        Assert.True(proof.DotNetCliHomeWriteExclusionActive);
+        Assert.True(proof.MsBuildUserExtensionsWriteExclusionActive);
+        Assert.True(proof.NoWriteBreakObserved);
         Assert.NotEqual(proof.DotNetCliHomeDirectoryIdentity, proof.MsBuildUserExtensionsDirectoryIdentity);
+        Assert.Equal(4, native.DirectoryOpens.Count(open =>
+            open.Flags == Win32EvidenceBuildOutputApi.EnvironmentLeafDirectoryFlags));
+        Assert.All(native.DirectoryOpens.Where(open =>
+            open.Flags == Win32EvidenceBuildOutputApi.EnvironmentLeafDirectoryFlags), open =>
+            Assert.True(open.Path.EndsWith("dotnet-home", StringComparison.Ordinal) ||
+                        open.Path.EndsWith("msbuild-user", StringComparison.Ordinal)));
         Assert.DoesNotContain(native.Events, value => value.StartsWith("create", StringComparison.Ordinal));
     }
 
@@ -108,6 +117,47 @@ public sealed class Win32EvidenceBuildIoTests
         Assert.Throws<InvalidOperationException>(() => lease.Dispose());
         lease.Dispose();
         Assert.Contains(2, native.CloseCalls.Values);
+    }
+
+    [Fact]
+    public void Environment_write_exclusion_is_sticky_across_transient_injection_and_retained_until_attestation_owner_disposes()
+    {
+        var native = new FakeNative();
+        var lease = new Win32EvidenceBuildEnvironmentFactory(native).CreateSanitized(
+            Invocation(), Trusted(@"C:\Windows", "windows"), Trusted(@"C:\Temp", "temp"));
+
+        Assert.Equal(2, native.WriteExclusions.Count);
+        Assert.All(native.WriteExclusions, exclusion => Assert.False(exclusion.Disposed));
+        Assert.NotEmpty(native.LiveHandles);
+
+        native.WriteExclusions[0].BreakObserved = true;
+        native.NonEmptyEnvironmentLeaf = true;
+        native.NonEmptyEnvironmentLeaf = false;
+        var proof = lease.Revalidate();
+        Assert.False(proof.DotNetCliHomeWriteExclusionActive);
+        Assert.False(proof.NoWriteBreakObserved);
+        Assert.All(native.WriteExclusions, exclusion => Assert.False(exclusion.Disposed));
+
+        lease.Dispose();
+        Assert.All(native.WriteExclusions, exclusion => Assert.True(exclusion.Disposed));
+        Assert.Empty(native.LiveHandles);
+    }
+
+    [Fact]
+    public void Environment_write_exclusion_cleanup_failure_retains_directory_handles_for_bounded_retry()
+    {
+        var native = new FakeNative();
+        var lease = new Win32EvidenceBuildEnvironmentFactory(native).CreateSanitized(
+            Invocation(), Trusted(@"C:\Windows", "windows"), Trusted(@"C:\Temp", "temp"));
+        native.WriteExclusions[1].FailDisposeOnce = true;
+
+        Assert.Throws<InvalidOperationException>(() => lease.Dispose());
+        Assert.NotEmpty(native.LiveHandles);
+        Assert.Empty(native.ClosedDirectoryHandles);
+
+        lease.Dispose();
+        Assert.Empty(native.LiveHandles);
+        Assert.All(native.WriteExclusions, exclusion => Assert.Equal(1, exclusion.SuccessfulDisposals));
     }
 
     [Fact]
@@ -246,10 +296,60 @@ public sealed class Win32EvidenceBuildIoTests
         Assert.Equal(12, entries.Count);
 
         Assert.Throws<InvalidDataException>(() => Win32BuildDirectoryEnumerator.Collect(_ =>
-            new Win32PublishedDirectoryReadResult(true, 0, DirectoryPage([]))));
+            new Win32PublishedDirectoryReadResult(true, 0, DirectoryPage(["."]))));
         var overlap = DirectoryPage(["one", "two"]);
         BinaryPrimitives.WriteUInt32LittleEndian(overlap.AsSpan(0, 4), 104);
         Assert.Throws<InvalidDataException>(() => Win32BuildDirectoryPageParser.Parse(overlap));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("bad\0name")]
+    [InlineData(@"sub\file.dll")]
+    [InlineData("sub/file.dll")]
+    [InlineData("file.dll:evil")]
+    [InlineData("C:leaf.dll")]
+    [InlineData("trailing.")]
+    [InlineData("trailing ")]
+    [InlineData("CON.txt")]
+    [InlineData("bad?.dll")]
+    public void Runtime_directory_parser_refuses_names_that_cannot_prove_a_leaf_absent(string name)
+    {
+        Assert.Throws<InvalidDataException>(() => Win32BuildDirectoryPageParser.Parse(DirectoryPage([name])));
+    }
+
+    [Fact]
+    public void Runtime_directory_parser_refuses_malformed_surrogate_and_false_absence_end_to_end()
+    {
+        var malformed = DirectoryPage(["aa"]);
+        BinaryPrimitives.WriteUInt32LittleEndian(malformed.AsSpan(60, 4), 2);
+        BinaryPrimitives.WriteUInt16LittleEndian(malformed.AsSpan(104, 2), 0xd800);
+        Assert.Throws<InvalidDataException>(() => Win32BuildDirectoryPageParser.Parse(malformed));
+
+        var native = new FakeNative { InjectUnsafeAbsenceName = true };
+        native.AddFile(Game, "1", 200);
+        var lease = new Win32EvidenceBuildOutputApi(native, Root).OpenPrior(Game);
+        Assert.Throws<InvalidDataException>(() => lease.DeleteRetainedIdentityAndProveAbsent());
+        lease.Dispose();
+    }
+
+    [Fact]
+    public void Ancestor_snapshot_failure_is_owned_before_validation_and_aggregates_one_shot_close_failure()
+    {
+        var native = new FakeNative
+        {
+            ThrowDirectorySnapshotPath = @"C:\repo\game",
+            FailClosePath = @"C:\repo\game",
+        };
+        native.AddFile(Game, "1", 200);
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            new Win32EvidenceBuildOutputApi(native, Root).OpenPrior(Game));
+
+        Assert.Contains(failure.Flatten().InnerExceptions, exception => exception.Message == "snapshot failure");
+        Assert.Contains(failure.Flatten().InnerExceptions, exception => exception.Message.Contains("Closing runtime output ancestor failed", StringComparison.Ordinal));
+        var failedClose = Assert.Single(native.CloseAttempts.Where(value => value.Path == @"C:\repo\game"));
+        Assert.Equal(1, native.CloseCalls[failedClose.Handle]);
     }
 
     [Fact]
@@ -263,6 +363,15 @@ public sealed class Win32EvidenceBuildIoTests
         Assert.Equal(
             Win32EvidenceConstants.GenericRead | 0x00010000U,
             Win32EvidenceBuildOutputApi.PriorFileDesiredAccess);
+        Assert.Equal(0x00090240U, Win32DirectoryOplockLease.FsctlRequestOplock);
+        Assert.Equal(0x5U, Win32DirectoryOplockLease.RequestedLevel);
+        Assert.Equal(12, Marshal.SizeOf<Win32DirectoryOplockLease.RequestOplockInputBuffer>());
+        Assert.Equal(24, Marshal.SizeOf<Win32DirectoryOplockLease.RequestOplockOutputBuffer>());
+        Assert.Equal(32, Marshal.SizeOf<Win32DirectoryOplockLease.NativeOverlappedBuffer>());
+        Assert.Equal((IntPtr)24, Marshal.OffsetOf<Win32DirectoryOplockLease.NativeOverlappedBuffer>("EventHandle"));
+        Assert.Equal(
+            Win32EvidenceBuildOutputApi.DirectoryFlags | 0x40000000U,
+            Win32EvidenceBuildOutputApi.EnvironmentLeafDirectoryFlags);
     }
 
     private sealed class FakeNative : IWin32BuildOutputNative
@@ -280,6 +389,7 @@ public sealed class Win32EvidenceBuildIoTests
         internal List<(nint Handle, uint Flags)> Dispositions { get; } = [];
         internal HashSet<nint> LiveHandles => _owned.Keys.ToHashSet();
         internal Dictionary<nint, int> CloseCalls { get; } = [];
+        internal List<(nint Handle, string Path)> CloseAttempts { get; } = [];
         internal string? FileMutation { get; set; }
         internal string? DriftPath { get; set; }
         internal bool NonEmptyEnvironmentLeaf { get; set; }
@@ -290,6 +400,10 @@ public sealed class Win32EvidenceBuildIoTests
         internal bool KeepReplacementAfterClose { get; set; }
         internal bool DriftAncestorsAfterDisposition { get; set; }
         internal bool FailAllDirectoryCloses { get; set; }
+        internal bool InjectUnsafeAbsenceName { get; set; }
+        internal string? ThrowDirectorySnapshotPath { get; set; }
+        internal string? FailClosePath { get; set; }
+        internal List<FakeWriteExclusion> WriteExclusions { get; } = [];
 
         internal void AddFile(string path, string fileIdDigit, long length) =>
             _files[path] = (new string(fileIdDigit[0], 32), length);
@@ -318,6 +432,10 @@ public sealed class Win32EvidenceBuildIoTests
         public Win32RetainedFileSnapshot ReadSnapshot(nint handle)
         {
             var owned = _owned[handle];
+            if (owned.Directory && string.Equals(owned.Path, ThrowDirectorySnapshotPath, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("snapshot failure");
+            }
             var change = 10L;
             if (DriftPath is not null && string.Equals(owned.Path, DriftPath, StringComparison.OrdinalIgnoreCase)) change++;
             if (FileMutation == "drift" && !owned.Directory && Events.Count(value => value == $"snapshot:{handle}") > 0) change++;
@@ -346,6 +464,10 @@ public sealed class Win32EvidenceBuildIoTests
             }
             if (path.EndsWith(@"bin\Debug", StringComparison.OrdinalIgnoreCase))
             {
+                if (InjectUnsafeAbsenceName)
+                {
+                    return Win32BuildDirectoryPageParser.Parse(DirectoryPage(["bad:name"]));
+                }
                 var entries = Enumerable.Range(0, 12)
                     .Select(index => new Win32PublishedArtifactEntry($"other-{index}.dll", false, false)).ToList();
                 if (KeepReplacementAfterClose || !_disposedFiles.Any())
@@ -365,6 +487,16 @@ public sealed class Win32EvidenceBuildIoTests
                 : [new("::$DATA", owned.Length)];
         }
 
+        public IEvidenceDirectoryWriteExclusionLease AcquireDirectoryWriteExclusion(
+            nint retainedDirectoryHandle,
+            string exactDirectoryIdentity)
+        {
+            Events.Add($"exclude:{retainedDirectoryHandle}:{exactDirectoryIdentity}");
+            var exclusion = new FakeWriteExclusion(exactDirectoryIdentity);
+            WriteExclusions.Add(exclusion);
+            return exclusion;
+        }
+
         public Win32BuildCallResult SetDeleteDisposition(nint handle, uint flags)
         {
             Dispositions.Add((handle, flags));
@@ -377,6 +509,7 @@ public sealed class Win32EvidenceBuildIoTests
         {
             CloseCalls[handle] = CloseCalls.GetValueOrDefault(handle) + 1;
             var owned = _owned[handle];
+            CloseAttempts.Add((handle, owned.Path));
             if (!owned.Directory) FileCloseAttempts++;
             if (FailNextClose)
             {
@@ -384,10 +517,37 @@ public sealed class Win32EvidenceBuildIoTests
                 return new Win32BuildCallResult(false, 6);
             }
             if (FailFileClose && !owned.Directory) return new Win32BuildCallResult(false, 6);
+            if (string.Equals(owned.Path, FailClosePath, StringComparison.Ordinal)) return new Win32BuildCallResult(false, 6);
             if (FailAllDirectoryCloses && owned.Directory) return new Win32BuildCallResult(false, 6);
             _owned.Remove(handle);
             if (owned.Directory) ClosedDirectoryHandles.Add(handle);
             return new Win32BuildCallResult(true, 0);
+        }
+
+        internal sealed class FakeWriteExclusion(string directoryIdentity) : IEvidenceDirectoryWriteExclusionLease
+        {
+            internal bool BreakObserved { get; set; }
+            internal bool FailDisposeOnce { get; set; }
+            internal bool Disposed { get; private set; }
+            internal int SuccessfulDisposals { get; private set; }
+
+            public EvidenceDirectoryWriteExclusionStatus Observe()
+            {
+                if (Disposed) throw new ObjectDisposedException(nameof(FakeWriteExclusion));
+                return new EvidenceDirectoryWriteExclusionStatus(directoryIdentity, !BreakObserved, BreakObserved);
+            }
+
+            public void Dispose()
+            {
+                if (Disposed) return;
+                if (FailDisposeOnce)
+                {
+                    FailDisposeOnce = false;
+                    throw new InvalidOperationException("write-exclusion cleanup failed");
+                }
+                Disposed = true;
+                SuccessfulDisposals++;
+            }
         }
     }
 

@@ -133,19 +133,22 @@ internal sealed class Win32BuildEnvironmentLease : IEvidenceBuildEnvironmentLeas
     private nint[] _handles;
     private readonly Win32RetainedFileSnapshot[] _snapshots;
     private readonly int[] _leafIndices;
+    private IEvidenceDirectoryWriteExclusionLease?[] _writeExclusions;
 
     private Win32BuildEnvironmentLease(
         IWin32BuildOutputNative native,
         IReadOnlyDictionary<string, string> environment,
         nint[] handles,
         Win32RetainedFileSnapshot[] snapshots,
-        int[] leafIndices)
+        int[] leafIndices,
+        IEvidenceDirectoryWriteExclusionLease?[] writeExclusions)
     {
         _native = native;
         Environment = environment;
         _handles = handles;
         _snapshots = snapshots;
         _leafIndices = leafIndices;
+        _writeExclusions = writeExclusions;
     }
 
     public IReadOnlyDictionary<string, string> Environment { get; }
@@ -159,17 +162,22 @@ internal sealed class Win32BuildEnvironmentLease : IEvidenceBuildEnvironmentLeas
         var handles = new List<nint>();
         var snapshots = new List<Win32RetainedFileSnapshot>();
         var leaves = new List<int>();
+        var exclusions = new List<IEvidenceDirectoryWriteExclusionLease>();
         try
         {
             foreach (var leaf in new[] { dotnetCliHome, msBuildUserExtensions })
             {
-                foreach (var path in Win32EvidenceBuildOutputApi.AncestorPaths(leaf))
+                var paths = Win32EvidenceBuildOutputApi.AncestorPaths(leaf);
+                for (var pathIndex = 0; pathIndex < paths.Count; pathIndex++)
                 {
+                    var path = paths[pathIndex];
                     var opened = native.OpenDirectory(
                         path,
                         Win32EvidenceBuildOutputApi.DirectoryDesiredAccess,
                         Win32EvidenceBuildOutputApi.DirectoryShareMode,
-                        Win32EvidenceBuildOutputApi.DirectoryFlags);
+                        pathIndex == paths.Count - 1
+                            ? Win32EvidenceBuildOutputApi.EnvironmentLeafDirectoryFlags
+                            : Win32EvidenceBuildOutputApi.DirectoryFlags);
                     if (opened.Handle is 0 or -1)
                     {
                         throw new InvalidOperationException($"Opening retained build-environment directory failed ({opened.Error}).");
@@ -180,6 +188,17 @@ internal sealed class Win32BuildEnvironmentLease : IEvidenceBuildEnvironmentLeas
                     snapshots.Add(snapshot);
                 }
                 leaves.Add(handles.Count - 1);
+                var expectedExclusionIdentity = Win32RetainedFileIdentity.Format(snapshots[^1]);
+                var exclusion = native.AcquireDirectoryWriteExclusion(
+                    handles[^1],
+                    expectedExclusionIdentity);
+                exclusions.Add(exclusion);
+                var exclusionStatus = exclusion.Observe();
+                if (exclusionStatus.DirectoryIdentity != expectedExclusionIdentity ||
+                    !exclusionStatus.Active || exclusionStatus.BreakObserved)
+                {
+                    throw new InvalidOperationException("Dedicated build-environment directory write exclusion was not active.");
+                }
                 if (native.EnumerateDirectory(handles[^1]).Count != 0)
                 {
                     throw new InvalidOperationException("Dedicated build-environment directory was not empty.");
@@ -190,11 +209,17 @@ internal sealed class Win32BuildEnvironmentLease : IEvidenceBuildEnvironmentLeas
                 environment,
                 handles.ToArray(),
                 snapshots.ToArray(),
-                leaves.ToArray());
+                leaves.ToArray(),
+                exclusions.Cast<IEvidenceDirectoryWriteExclusionLease?>().ToArray());
         }
         catch (Exception failure)
         {
             Exception? cleanup = null;
+            for (var index = exclusions.Count - 1; index >= 0; index--)
+            {
+                try { exclusions[index].Dispose(); }
+                catch (Exception error) { cleanup = cleanup is null ? error : new AggregateException(cleanup, error); }
+            }
             for (var index = handles.Count - 1; index >= 0; index--)
             {
                 var close = native.CloseKernelHandle(handles[index]);
@@ -223,12 +248,23 @@ internal sealed class Win32BuildEnvironmentLease : IEvidenceBuildEnvironmentLeas
                     throw new InvalidOperationException("Retained build-environment directory or ancestor changed.");
                 }
             }
+            var exclusionStatuses = _writeExclusions.Select(exclusion =>
+                exclusion?.Observe() ?? throw new ObjectDisposedException(nameof(Win32BuildEnvironmentLease))).ToArray();
+            if (exclusionStatuses.Length != 2 ||
+                exclusionStatuses[0].DirectoryIdentity != Win32RetainedFileIdentity.Format(_snapshots[_leafIndices[0]]) ||
+                exclusionStatuses[1].DirectoryIdentity != Win32RetainedFileIdentity.Format(_snapshots[_leafIndices[1]]))
+            {
+                throw new InvalidOperationException("Directory write exclusion was not bound to the retained environment identity.");
+            }
             var empty = _leafIndices.All(index => _native.EnumerateDirectory(_handles[index]).Count == 0);
             return new EvidenceBuildEnvironmentRevalidation(
                 Win32RetainedFileIdentity.Format(_snapshots[_leafIndices[0]]),
                 Win32RetainedFileIdentity.Format(_snapshots[_leafIndices[1]]),
                 empty,
-                AllAncestorIdentitiesStable: true);
+                AllAncestorIdentitiesStable: true,
+                DotNetCliHomeWriteExclusionActive: exclusionStatuses[0].Active,
+                MsBuildUserExtensionsWriteExclusionActive: exclusionStatuses[1].Active,
+                NoWriteBreakObserved: exclusionStatuses.All(status => !status.BreakObserved));
         }
     }
 
@@ -237,6 +273,24 @@ internal sealed class Win32BuildEnvironmentLease : IEvidenceBuildEnvironmentLeas
         lock (_sync)
         {
             var failures = new List<Exception>();
+            for (var index = _writeExclusions.Length - 1; index >= 0; index--)
+            {
+                if (_writeExclusions[index] is null) continue;
+                try
+                {
+                    _writeExclusions[index]!.Dispose();
+                    _writeExclusions[index] = null;
+                }
+                catch (Exception exception)
+                {
+                    failures.Add(exception);
+                }
+            }
+            if (_writeExclusions.Any(exclusion => exclusion is not null))
+            {
+                if (failures.Count == 1) throw failures[0];
+                throw new AggregateException(failures);
+            }
             for (var index = _handles.Length - 1; index >= 0; index--)
             {
                 if (_handles[index] is 0 or -1) continue;
@@ -286,6 +340,16 @@ internal readonly record struct Win32BuildOpenResult(nint Handle, int Error);
 
 internal readonly record struct Win32BuildCallResult(bool Success, int Error);
 
+internal readonly record struct EvidenceDirectoryWriteExclusionStatus(
+    string DirectoryIdentity,
+    bool Active,
+    bool BreakObserved);
+
+internal interface IEvidenceDirectoryWriteExclusionLease : IDisposable
+{
+    EvidenceDirectoryWriteExclusionStatus Observe();
+}
+
 internal interface IWin32BuildOutputNative
 {
     Win32BuildOpenResult OpenDirectory(string normalizedAbsolutePath, uint desiredAccess, uint shareMode, uint flagsAndAttributes);
@@ -297,6 +361,10 @@ internal interface IWin32BuildOutputNative
     IReadOnlyList<Win32PublishedArtifactEntry> EnumerateDirectory(nint retainedDirectoryHandle);
 
     IReadOnlyList<Win32PublishedStreamEntry> EnumerateStreams(nint retainedFileHandle);
+
+    IEvidenceDirectoryWriteExclusionLease AcquireDirectoryWriteExclusion(
+        nint retainedDirectoryHandle,
+        string exactDirectoryIdentity);
 
     Win32BuildCallResult SetDeleteDisposition(nint retainedFileHandle, uint flags);
 
@@ -312,6 +380,7 @@ internal sealed class Win32EvidenceBuildOutputApi : IEvidenceBuildOutputApi
     internal const uint DirectoryShareMode = Win32EvidenceConstants.FileShareRead | Win32EvidenceConstants.FileShareWrite;
     internal const uint FileFlags = Win32EvidenceConstants.FileAttributeNormal | Win32EvidenceConstants.FileFlagOpenReparsePoint;
     internal const uint DirectoryFlags = Win32EvidenceConstants.FileFlagBackupSemantics | Win32EvidenceConstants.FileFlagOpenReparsePoint;
+    internal const uint EnvironmentLeafDirectoryFlags = DirectoryFlags | 0x40000000; // FILE_FLAG_OVERLAPPED
     internal const uint DeleteDispositionFlags = 0x00000001 | 0x00000002 | 0x00000010; // DELETE|POSIX|IGNORE_READONLY
     internal const long MaximumAssemblyBytes = 512L * 1024 * 1024;
 
@@ -397,21 +466,11 @@ internal sealed class Win32EvidenceBuildOutputApi : IEvidenceBuildOutputApi
                 var opened = _native.OpenDirectory(path, DirectoryDesiredAccess, DirectoryShareMode, DirectoryFlags);
                 var handle = opened.Handle;
                 EnsureHandle(handle, opened.Error, "runtime output ancestor");
-                Win32RetainedFileSnapshot snapshot;
-                try
-                {
-                    snapshot = _native.ReadSnapshot(handle);
-                    ValidateDirectory(snapshot, path);
-                }
-                catch
-                {
-                    if (!_native.CloseKernelHandle(handle).Success)
-                    {
-                        throw new InvalidOperationException("Closing refused output ancestor failed.");
-                    }
-                    throw;
-                }
-                result.Add(new Win32BuildOutputAncestor(path, handle, snapshot));
+                var owned = new Win32BuildOutputAncestor(path, handle);
+                result.Add(owned);
+                var snapshot = _native.ReadSnapshot(handle);
+                ValidateDirectory(snapshot, path);
+                owned.Before = snapshot;
             }
             return result;
         }
@@ -561,7 +620,8 @@ internal sealed class Win32EvidenceBuildOutputApi : IEvidenceBuildOutputApi
     {
         foreach (var ancestor in ancestors)
         {
-            if (ancestor.Handle is 0 or -1 || !SameSnapshot(ancestor.Before, _native.ReadSnapshot(ancestor.Handle)))
+            if (ancestor.Handle is 0 or -1 || ancestor.Before is null ||
+                !SameSnapshot(ancestor.Before, _native.ReadSnapshot(ancestor.Handle)))
             {
                 throw new InvalidOperationException("Retained output ancestor identity changed.");
             }
@@ -592,10 +652,12 @@ internal sealed class Win32EvidenceBuildOutputApi : IEvidenceBuildOutputApi
         return failure;
     }
 
-    private sealed record Win32BuildOutputAncestor(
-        string Path,
-        nint Handle,
-        Win32RetainedFileSnapshot Before);
+    private sealed class Win32BuildOutputAncestor(string path, nint handle)
+    {
+        internal string Path { get; } = path;
+        internal nint Handle { get; } = handle;
+        internal Win32RetainedFileSnapshot? Before { get; set; }
+    }
 
     private sealed class Win32PriorOutputLease(
         IWin32BuildOutputNative native,
@@ -607,7 +669,8 @@ internal sealed class Win32EvidenceBuildOutputApi : IEvidenceBuildOutputApi
         private readonly object _sync = new();
         private nint _fileHandle = fileHandle;
         private nint[] _ancestorHandles = ancestors.Select(value => value.Handle).ToArray();
-        private readonly Win32RetainedFileSnapshot[] _ancestorSnapshots = ancestors.Select(value => value.Before).ToArray();
+        private readonly Win32RetainedFileSnapshot[] _ancestorSnapshots = ancestors.Select(value =>
+            value.Before ?? throw new InvalidOperationException("Retained output ancestor lacked its acquired snapshot.")).ToArray();
         private bool _dispositionApplied;
         private bool _fileCloseAttempted;
         private bool _deleteAttempted;
@@ -780,6 +843,11 @@ internal sealed class Win32BuildOutputNative : IWin32BuildOutputNative
 
     public IReadOnlyList<Win32PublishedStreamEntry> EnumerateStreams(nint handle) => _files.EnumerateFrameStreams(handle);
 
+    public IEvidenceDirectoryWriteExclusionLease AcquireDirectoryWriteExclusion(
+        nint retainedDirectoryHandle,
+        string exactDirectoryIdentity) =>
+        Win32DirectoryOplockLease.Acquire(retainedDirectoryHandle, exactDirectoryIdentity);
+
     public Win32BuildCallResult CloseKernelHandle(nint handle)
     {
         var success = _files.CloseKernelHandle(handle);
@@ -845,6 +913,256 @@ internal sealed class Win32BuildOutputNative : IWin32BuildOutputNative
         uint bufferSize);
 }
 
+// A pending RH directory oplock is the continuous exclusion boundary: any child namespace
+// mutation requests a break and remains blocked until the owner acknowledges or closes.
+// This lease never acknowledges a break. It records the event sticky and releases only in
+// bounded cleanup, so an add/remove cannot influence MSBuild and disappear between samples.
+internal sealed class Win32DirectoryOplockLease : IEvidenceDirectoryWriteExclusionLease
+{
+    internal const uint FsctlRequestOplock = 0x00090240;
+    internal const uint RequestedLevel = 0x00000001 | 0x00000004; // CACHE_READ | CACHE_HANDLE
+    internal const uint RequestFlag = 0x00000001;
+    internal const int ErrorIoPending = 997;
+    internal const int ErrorNotFound = 1168;
+    internal const uint WaitObject0 = 0;
+    internal const uint WaitTimeout = 258;
+    internal const uint WaitFailed = 0xffffffff;
+    internal const uint CleanupWaitMilliseconds = 5000;
+
+    private readonly object _sync = new();
+    private readonly nint _directoryHandle;
+    private readonly string _directoryIdentity;
+    private nint _eventHandle;
+    private nint _input;
+    private nint _output;
+    private nint _overlapped;
+    private bool _breakObserved;
+    private bool _ioCompleted;
+    private bool _eventCloseAttempted;
+
+    private Win32DirectoryOplockLease(
+        nint directoryHandle,
+        string directoryIdentity,
+        nint eventHandle,
+        nint input,
+        nint output,
+        nint overlapped)
+    {
+        _directoryHandle = directoryHandle;
+        _directoryIdentity = directoryIdentity;
+        _eventHandle = eventHandle;
+        _input = input;
+        _output = output;
+        _overlapped = overlapped;
+    }
+
+    internal static IEvidenceDirectoryWriteExclusionLease Acquire(
+        nint retainedDirectoryHandle,
+        string exactDirectoryIdentity)
+    {
+        if (retainedDirectoryHandle is 0 or -1 || string.IsNullOrWhiteSpace(exactDirectoryIdentity))
+        {
+            throw new ArgumentException("Directory oplock acquisition requires an exact retained identity.");
+        }
+        nint eventHandle = 0;
+        nint input = 0;
+        nint output = 0;
+        nint overlapped = 0;
+        Exception? failure = null;
+        try
+        {
+            eventHandle = CreateEventW(0, true, false, null);
+            if (eventHandle is 0 or -1)
+            {
+                var error = Marshal.GetLastPInvokeError();
+                throw new Win32Exception(error, "Creating directory-oplock event failed.");
+            }
+            input = Marshal.AllocHGlobal(Marshal.SizeOf<RequestOplockInputBuffer>());
+            output = Marshal.AllocHGlobal(Marshal.SizeOf<RequestOplockOutputBuffer>());
+            overlapped = Marshal.AllocHGlobal(Marshal.SizeOf<NativeOverlappedBuffer>());
+            Marshal.StructureToPtr(new RequestOplockInputBuffer
+            {
+                StructureVersion = 1,
+                StructureLength = checked((ushort)Marshal.SizeOf<RequestOplockInputBuffer>()),
+                RequestedOplockLevel = RequestedLevel,
+                Flags = RequestFlag,
+            }, input, false);
+            Marshal.StructureToPtr(new RequestOplockOutputBuffer
+            {
+                StructureVersion = 1,
+                StructureLength = checked((ushort)Marshal.SizeOf<RequestOplockOutputBuffer>()),
+            }, output, false);
+            Marshal.StructureToPtr(new NativeOverlappedBuffer { EventHandle = eventHandle }, overlapped, false);
+            var started = DeviceIoControl(
+                retainedDirectoryHandle,
+                FsctlRequestOplock,
+                input,
+                checked((uint)Marshal.SizeOf<RequestOplockInputBuffer>()),
+                output,
+                checked((uint)Marshal.SizeOf<RequestOplockOutputBuffer>()),
+                out _,
+                overlapped);
+            var errorCode = started ? 0 : Marshal.GetLastPInvokeError();
+            if (started || errorCode != ErrorIoPending)
+            {
+                throw new Win32Exception(errorCode, "Directory write-exclusion oplock was not granted pending break notification.");
+            }
+            return new Win32DirectoryOplockLease(
+                retainedDirectoryHandle,
+                exactDirectoryIdentity,
+                eventHandle,
+                input,
+                output,
+                overlapped);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        Exception? cleanup = null;
+        if (eventHandle is not 0 and not -1 && !CloseHandle(eventHandle))
+        {
+            var error = Marshal.GetLastPInvokeError();
+            cleanup = new Win32Exception(error, "Closing refused directory-oplock event failed.");
+        }
+        if (overlapped != 0) Marshal.FreeHGlobal(overlapped);
+        if (output != 0) Marshal.FreeHGlobal(output);
+        if (input != 0) Marshal.FreeHGlobal(input);
+        throw cleanup is null ? failure! : new AggregateException(failure!, cleanup);
+    }
+
+    public EvidenceDirectoryWriteExclusionStatus Observe()
+    {
+        lock (_sync)
+        {
+            if (_eventHandle is 0 or -1 || _input == 0 || _output == 0 || _overlapped == 0)
+            {
+                throw new ObjectDisposedException(nameof(Win32DirectoryOplockLease));
+            }
+            var wait = WaitForSingleObject(_eventHandle, 0);
+            if (wait == WaitObject0)
+            {
+                _breakObserved = true;
+                _ioCompleted = true;
+            }
+            else if (wait != WaitTimeout)
+            {
+                var error = wait == WaitFailed ? Marshal.GetLastPInvokeError() : unchecked((int)wait);
+                throw new Win32Exception(error, $"Observing directory write exclusion failed for {_directoryIdentity}.");
+            }
+            return new EvidenceDirectoryWriteExclusionStatus(_directoryIdentity, !_breakObserved, _breakObserved);
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (_sync)
+        {
+            if (_input == 0 && _output == 0 && _overlapped == 0 && _eventHandle == 0) return;
+            if (!_ioCompleted)
+            {
+                var wait = WaitForSingleObject(_eventHandle, 0);
+                if (wait == WaitObject0)
+                {
+                    _breakObserved = true;
+                    _ioCompleted = true;
+                }
+                else if (wait == WaitTimeout)
+                {
+                    var canceled = CancelIoEx(_directoryHandle, _overlapped);
+                    var cancelError = canceled ? 0 : Marshal.GetLastPInvokeError();
+                    if (!canceled && cancelError != ErrorNotFound)
+                    {
+                        throw new Win32Exception(cancelError, "Canceling directory write exclusion failed; ownership retained for retry.");
+                    }
+                    var completion = WaitForSingleObject(_eventHandle, CleanupWaitMilliseconds);
+                    if (completion != WaitObject0)
+                    {
+                        var error = completion == WaitFailed ? Marshal.GetLastPInvokeError() : unchecked((int)completion);
+                        throw new Win32Exception(error, "Directory write-exclusion cancellation did not complete within five seconds; ownership retained.");
+                    }
+                    _ioCompleted = true;
+                }
+                else
+                {
+                    var error = wait == WaitFailed ? Marshal.GetLastPInvokeError() : unchecked((int)wait);
+                    throw new Win32Exception(error, "Observing directory write-exclusion cleanup failed; ownership retained.");
+                }
+            }
+
+            Marshal.FreeHGlobal(_overlapped);
+            Marshal.FreeHGlobal(_output);
+            Marshal.FreeHGlobal(_input);
+            _overlapped = 0;
+            _output = 0;
+            _input = 0;
+            if (_eventHandle is not 0 and not -1 && !_eventCloseAttempted)
+            {
+                _eventCloseAttempted = true;
+                var eventHandle = _eventHandle;
+                _eventHandle = 0;
+                if (!CloseHandle(eventHandle))
+                {
+                    var error = Marshal.GetLastPInvokeError();
+                    throw new Win32Exception(error, "Closing directory write-exclusion event failed.");
+                }
+            }
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct RequestOplockInputBuffer
+    {
+        internal ushort StructureVersion;
+        internal ushort StructureLength;
+        internal uint RequestedOplockLevel;
+        internal uint Flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct RequestOplockOutputBuffer
+    {
+        internal ushort StructureVersion;
+        internal ushort StructureLength;
+        internal uint OriginalOplockLevel;
+        internal uint NewOplockLevel;
+        internal uint Flags;
+        internal uint AccessMode;
+        internal ushort ShareMode;
+        internal ushort Reserved;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct NativeOverlappedBuffer
+    {
+        internal nint Internal;
+        internal nint InternalHigh;
+        internal uint Offset;
+        internal uint OffsetHigh;
+        internal nint EventHandle;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern nint CreateEventW(nint securityAttributes, [MarshalAs(UnmanagedType.Bool)] bool manualReset,
+        [MarshalAs(UnmanagedType.Bool)] bool initialState, string? name);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeviceIoControl(nint device, uint controlCode, nint input, uint inputSize,
+        nint output, uint outputSize, out uint bytesReturned, nint overlapped);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CancelIoEx(nint handle, nint overlapped);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint WaitForSingleObject(nint handle, uint milliseconds);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseHandle(nint handle);
+}
+
 internal static class Win32BuildDirectoryEnumerator
 {
     internal const int MaximumSuccessfulPages = 64;
@@ -884,6 +1202,7 @@ internal static class Win32BuildDirectoryPageParser
     internal const int FileNameOffset = 104;
     internal const int MaximumEntriesPerPage = 1024;
     internal const int MaximumNameBytes = 32 * 1024;
+    private static readonly UnicodeEncoding StrictUtf16 = new(false, false, true);
 
     internal static IReadOnlyList<Win32PublishedArtifactEntry> Parse(ReadOnlySpan<byte> page)
     {
@@ -901,13 +1220,22 @@ internal static class Win32BuildDirectoryPageParser
             if (rawNameBytes > int.MaxValue) throw new InvalidDataException("Runtime directory name overflowed.");
             var nameBytes = (int)rawNameBytes;
             var recordEnd = (long)offset + FileNameOffset + nameBytes;
-            if ((nameBytes & 1) != 0 || nameBytes > MaximumNameBytes || recordEnd > page.Length)
+            if (nameBytes == 0 || (nameBytes & 1) != 0 || nameBytes > MaximumNameBytes || recordEnd > page.Length)
             {
                 throw new InvalidDataException("Runtime directory name framing was invalid.");
             }
-            var name = Encoding.Unicode.GetString(page.Slice(offset + FileNameOffset, nameBytes));
+            string name;
+            try
+            {
+                name = StrictUtf16.GetString(page.Slice(offset + FileNameOffset, nameBytes));
+            }
+            catch (DecoderFallbackException exception)
+            {
+                throw new InvalidDataException("Runtime directory name was not strict UTF-16.", exception);
+            }
             if (name is not "." and not "..")
             {
+                ValidateLeafName(name);
                 entries.Add(new Win32PublishedArtifactEntry(
                     name,
                     (attributes & Win32EvidenceConstants.FileAttributeDirectory) != 0,
@@ -922,5 +1250,29 @@ internal static class Win32BuildDirectoryPageParser
             offset = checked(offset + (int)next);
         }
         return Array.AsReadOnly(entries.ToArray());
+    }
+
+    private static void ValidateLeafName(string name)
+    {
+        if (name.Contains('\0') || name.Contains('\\') || name.Contains('/') || name.Contains(':') ||
+            name.Any(character => character < ' ' || character is '"' or '<' or '>' or '|' or '?' or '*') ||
+            Path.IsPathFullyQualified(name) ||
+            name.EndsWith(' ') || name.EndsWith('.') || !name.IsNormalized(NormalizationForm.FormC))
+        {
+            throw new InvalidDataException("Runtime directory entry was not one exact normalized leaf name.");
+        }
+        var stem = name.Split('.')[0];
+        if (stem.Equals("CON", StringComparison.OrdinalIgnoreCase) ||
+            stem.Equals("PRN", StringComparison.OrdinalIgnoreCase) ||
+            stem.Equals("AUX", StringComparison.OrdinalIgnoreCase) ||
+            stem.Equals("NUL", StringComparison.OrdinalIgnoreCase) ||
+            stem.Equals("CLOCK$", StringComparison.OrdinalIgnoreCase) ||
+            stem.Length == 4 &&
+            (stem.StartsWith("COM", StringComparison.OrdinalIgnoreCase) ||
+             stem.StartsWith("LPT", StringComparison.OrdinalIgnoreCase)) &&
+            stem[3] is >= '1' and <= '9')
+        {
+            throw new InvalidDataException("Runtime directory entry used an impossible DOS leaf name.");
+        }
     }
 }
