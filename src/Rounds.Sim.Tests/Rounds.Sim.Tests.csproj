@@ -41,5 +41,6 @@
     <Compile Include="..\..\game\AgentPlaytestSupervisor.cs" Link="Game\AgentPlaytestSupervisor.cs" />
     <Compile Include="..\..\game\AgentPlaytestTrace.cs" Link="Game\AgentPlaytestTrace.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\EvidenceLaunchOrchestrator.cs" Link="Tools\EvidenceLaunchOrchestrator.cs" />
+    <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceNative.cs" Link="Tools\Win32EvidenceNative.cs" />
   </ItemGroup>
 </Project>
