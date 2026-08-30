@@ -421,10 +421,142 @@ internal static class EvidenceCancellation
         {
             ExceptionDispatchInfo.Capture(cancellation).Throw();
         }
-        var cleanup = cleanupFailures.Count == 1
-            ? cleanupFailures[0]
-            : new AggregateException(cleanupFailures);
-        throw new EvidenceOperationCanceledWithCleanupException(cancellation, cleanup);
+
+        var known = new HashSet<Exception>(ReferenceEqualityComparer.Instance);
+        known.Add(cancellation);
+        if (cancellation.InnerException is not null)
+        {
+            RecordTree(cancellation.InnerException, known);
+        }
+        var appended = new List<Exception>();
+        foreach (var cleanup in cleanupFailures)
+        {
+            ArgumentNullException.ThrowIfNull(cleanup);
+            if (ReferenceEquals(cleanup, cancellation) || known.Contains(cleanup))
+            {
+                continue;
+            }
+            if (cleanup.GetType() == typeof(AggregateException) &&
+                TreeOverlapsKnown(cleanup, known))
+            {
+                foreach (var child in ((AggregateException)cleanup).InnerExceptions)
+                {
+                    AppendUniqueCleanup(child, cancellation, known, appended);
+                }
+                continue;
+            }
+            appended.Add(cleanup);
+            RecordTree(cleanup, known);
+        }
+        if (appended.Count == 0)
+        {
+            ExceptionDispatchInfo.Capture(cancellation).Throw();
+        }
+
+        Exception combinedCleanup;
+        if (cancellation.InnerException is null && appended.Count == 1)
+        {
+            combinedCleanup = appended[0];
+        }
+        else
+        {
+            var diagnostics = new List<Exception>(appended.Count + 1);
+            if (cancellation.InnerException is not null)
+            {
+                diagnostics.Add(cancellation.InnerException);
+            }
+            diagnostics.AddRange(appended);
+            combinedCleanup = new AggregateException(diagnostics);
+        }
+        throw new EvidenceOperationCanceledWithCleanupException(cancellation, combinedCleanup);
+    }
+
+    private static void AppendUniqueCleanup(
+        Exception cleanup,
+        OperationCanceledException cancellation,
+        HashSet<Exception> known,
+        List<Exception> appended)
+    {
+        if (ReferenceEquals(cleanup, cancellation) || known.Contains(cleanup))
+        {
+            return;
+        }
+        if (cleanup.GetType() == typeof(AggregateException) && TreeOverlapsKnown(cleanup, known))
+        {
+            foreach (var child in ((AggregateException)cleanup).InnerExceptions)
+            {
+                AppendUniqueCleanup(child, cancellation, known, appended);
+            }
+            return;
+        }
+        appended.Add(cleanup);
+        RecordTree(cleanup, known);
+    }
+
+    private static bool TreeOverlapsKnown(Exception exception, HashSet<Exception> known)
+    {
+        if (known.Contains(exception))
+        {
+            return true;
+        }
+        if (exception is AggregateException aggregate)
+        {
+            var local = new HashSet<Exception>(ReferenceEqualityComparer.Instance);
+            foreach (var child in aggregate.InnerExceptions)
+            {
+                if (!RecordTreeIfUnique(child, known, local))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static bool RecordTreeIfUnique(
+        Exception exception,
+        HashSet<Exception> known,
+        HashSet<Exception> local)
+    {
+        if (known.Contains(exception) || !local.Add(exception))
+        {
+            return false;
+        }
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var child in aggregate.InnerExceptions)
+            {
+                if (!RecordTreeIfUnique(child, known, local))
+                {
+                    return false;
+                }
+            }
+        }
+        else if (exception.InnerException is not null &&
+            !RecordTreeIfUnique(exception.InnerException, known, local))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    private static void RecordTree(Exception exception, HashSet<Exception> known)
+    {
+        if (!known.Add(exception))
+        {
+            return;
+        }
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var child in aggregate.InnerExceptions)
+            {
+                RecordTree(child, known);
+            }
+        }
+        else if (exception.InnerException is not null)
+        {
+            RecordTree(exception.InnerException, known);
+        }
     }
 }
 
@@ -502,6 +634,7 @@ internal sealed class EvidenceLaunchOrchestrator(
         if (buildCancellation is not null)
         {
             var failures = new List<Exception>();
+            if (msBuildCleanupFailure is not null) failures.Add(msBuildCleanupFailure);
             try
             {
                 buildAttestationLease?.Dispose();
@@ -510,7 +643,6 @@ internal sealed class EvidenceLaunchOrchestrator(
             {
                 failures.Add(cleanup);
             }
-            if (msBuildCleanupFailure is not null) failures.Add(msBuildCleanupFailure);
             EvidenceCancellation.ThrowAfterCleanup(buildCancellation, failures);
         }
         if (buildFailure is not null || msBuildCleanupFailure is not null)

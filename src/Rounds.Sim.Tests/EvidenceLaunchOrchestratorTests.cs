@@ -463,6 +463,104 @@ public sealed class EvidenceLaunchOrchestratorTests
     }
 
     [Fact]
+    public void Cancellation_without_new_cleanup_rethrows_the_exact_original_exception()
+    {
+        using var source = new CancellationTokenSource();
+        var original = new OperationCanceledException("original cancellation", source.Token);
+
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            EvidenceCancellation.ThrowAfterCleanup(original, []));
+
+        Assert.Same(original, failure);
+        Assert.Equal(source.Token, failure.CancellationToken);
+    }
+
+    [Fact]
+    public void Cancellation_wrapping_preserves_captured_token_not_a_different_token()
+    {
+        using var captured = new CancellationTokenSource();
+        using var unrelated = new CancellationTokenSource();
+        var original = new OperationCanceledException("captured token", captured.Token);
+        var cleanup = new InvalidOperationException("cleanup");
+
+        var failure = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            original, [cleanup]));
+
+        Assert.Equal(captured.Token, failure.CancellationToken);
+        Assert.NotEqual(unrelated.Token, failure.CancellationToken);
+        Assert.Same(cleanup, failure.InnerException);
+    }
+
+    [Fact]
+    public void Repeated_cancellation_wrapping_preserves_prior_inner_and_unique_cleanup_order()
+    {
+        var runnerDiagnostic = new InvalidOperationException("runner diagnostic");
+        var firstCleanup = new InvalidOperationException("first cleanup");
+        var secondCleanup = new InvalidOperationException("second cleanup");
+        var thirdCleanup = new InvalidOperationException("third cleanup");
+        var original = new OperationCanceledException(
+            "cancelled build", runnerDiagnostic, CancellationToken.None);
+        var first = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            original, [firstCleanup, secondCleanup]));
+
+        var repeated = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            first,
+            [firstCleanup, first, new AggregateException(secondCleanup, thirdCleanup)]));
+
+        Assert.Equal(CancellationToken.None, repeated.CancellationToken);
+        Assert.Equal(
+            ["runner diagnostic", "first cleanup", "second cleanup", "third cleanup"],
+            DiagnosticLeaves(repeated.InnerException).Select(value => value.Message));
+        Assert.Equal(1, DiagnosticLeaves(repeated.InnerException).Count(value =>
+            ReferenceEquals(value, runnerDiagnostic)));
+        Assert.DoesNotContain(DiagnosticLeaves(repeated.InnerException), value =>
+            ReferenceEquals(value, original) || ReferenceEquals(value, first));
+
+        var noNewDiagnostics = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            repeated, [firstCleanup, repeated]));
+        Assert.Same(repeated, noNewDiagnostics);
+    }
+
+    [Fact]
+    public void End_to_end_cancellation_appends_driver_then_orchestrator_cleanup_once_in_order()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        using var source = new CancellationTokenSource();
+        var runnerDiagnostic = new InvalidOperationException("runner diagnostic");
+        var environmentCleanup = new InvalidOperationException("environment cleanup");
+        var provenanceCleanup = new InvalidOperationException("provenance cleanup");
+        var runnerCancellation = new OperationCanceledException(
+            "runner cancellation", runnerDiagnostic, source.Token);
+        var driverCancellation = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            runnerCancellation, [environmentCleanup, provenanceCleanup]));
+        var build = new FakeBuild(events, plan)
+        {
+            AttestationReadFailure = driverCancellation,
+            ThrowOnAttestationDispose = true,
+            ThrowOnExecutableDispose = true,
+        };
+
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan))
+                .Execute(plan, source.Token));
+
+        Assert.Equal(source.Token, failure.CancellationToken);
+        Assert.Equal(
+            [
+                "runner diagnostic",
+                "environment cleanup",
+                "provenance cleanup",
+                "fake executable disposal failure",
+                "fake build-attestation disposal failure",
+            ],
+            DiagnosticLeaves(failure.InnerException).Select(value => value.Message));
+        Assert.Equal(5, DiagnosticLeaves(failure.InnerException).Distinct(ReferenceEqualityComparer.Instance).Count());
+        Assert.DoesNotContain(DiagnosticLeaves(failure.InnerException), value => value is OperationCanceledException);
+        Assert.DoesNotContain("worker-enter", events);
+    }
+
+    [Fact]
     public void Throwing_attestation_collection_disposes_lease_once_and_refuses_native()
     {
         var events = new List<string>();
@@ -1219,6 +1317,8 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         public bool ThrowCancellationOnAttestationRead { get; init; }
 
+        public OperationCanceledException? AttestationReadFailure { get; init; }
+
         public IEvidenceBuildAttestationLease? AttestationLeaseOverride { get; init; }
 
         public Action<CancellationToken>? DuringBuild { get; set; }
@@ -1249,8 +1349,9 @@ public sealed class EvidenceLaunchOrchestratorTests
                 events,
                 attestation with { Invocation = required },
                 ThrowOnAttestationDispose,
-                ThrowCancellationOnAttestationRead,
-                cancellationToken);
+                AttestationReadFailure ?? (ThrowCancellationOnAttestationRead
+                    ? new OperationCanceledException("fake attestation cancellation", cancellationToken)
+                    : null));
         }
     }
 
@@ -1258,12 +1359,11 @@ public sealed class EvidenceLaunchOrchestratorTests
         List<string> events,
         EvidenceBuildAttestation attestation,
         bool throwOnDispose,
-        bool throwCancellationOnRead,
-        CancellationToken cancellationToken) : IEvidenceBuildAttestationLease
+        OperationCanceledException? readFailure) : IEvidenceBuildAttestationLease
     {
         private bool _disposed;
-        public EvidenceBuildAttestation Attestation => throwCancellationOnRead
-            ? throw new OperationCanceledException("fake attestation cancellation", cancellationToken)
+        public EvidenceBuildAttestation Attestation => readFailure is not null
+            ? throw readFailure
             : attestation;
 
         public void Dispose()
@@ -1273,6 +1373,33 @@ public sealed class EvidenceLaunchOrchestratorTests
             events.Add("build-attestation-dispose");
             if (throwOnDispose) throw new InvalidOperationException("fake build-attestation disposal failure");
         }
+    }
+
+    private static OperationCanceledException CaptureCancellation(Action operation) =>
+        Assert.ThrowsAny<OperationCanceledException>(operation);
+
+    private static IReadOnlyList<Exception> DiagnosticLeaves(Exception? exception)
+    {
+        var leaves = new List<Exception>();
+        AddDiagnosticLeaves(exception, leaves);
+        return leaves;
+    }
+
+    private static void AddDiagnosticLeaves(Exception? exception, List<Exception> leaves)
+    {
+        if (exception is null)
+        {
+            return;
+        }
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var child in aggregate.InnerExceptions)
+            {
+                AddDiagnosticLeaves(child, leaves);
+            }
+            return;
+        }
+        leaves.Add(exception);
     }
 
     private sealed class ThrowingReadOnlyList<T> : IReadOnlyList<T>
