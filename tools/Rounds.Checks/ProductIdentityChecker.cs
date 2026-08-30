@@ -196,7 +196,8 @@ public static partial class ProductIdentityChecker
                 var resolved = ResolveLocals(renderedText, method, call.Start, source, masked);
                 if (!IsAllowedDrawStringText(method.Name, renderedText, resolved))
                 {
-                    failures.Add($"IDN010 game/Main.cs renders an unapproved text expression in `{method.Name}`: `{resolved.Trim()}`.");
+                    var provenance = string.Join(" | ", resolved.Expressions.Select(static value => value.Trim()));
+                    failures.Add($"IDN010 game/Main.cs renders an unapproved text expression in `{method.Name}`: `{provenance}`.");
                 }
             }
             if (method.Name == "DrawIncompleteFidelityLine")
@@ -212,7 +213,9 @@ public static partial class ProductIdentityChecker
                     continue;
                 }
                 var resolved = ResolveLocals(call.Arguments[0], method, call.Start, source, masked);
-                if (!IncompleteFidelityText().IsMatch(NormalizeExpression(resolved)))
+                if (resolved.HasCompoundAssignment ||
+                    resolved.Expressions.Count == 0 ||
+                    resolved.Expressions.Any(value => !IncompleteFidelityText().IsMatch(NormalizeExpression(value))))
                 {
                     failures.Add($"IDN010 game/Main.cs routes unapproved text through DrawIncompleteFidelityLine in `{method.Name}`.");
                 }
@@ -233,16 +236,25 @@ public static partial class ProductIdentityChecker
             .Matches(masked)
             .Count;
 
-    private static bool IsAllowedDrawStringText(string methodName, string expression, string resolvedExpression)
+    private static bool IsAllowedDrawStringText(
+        string methodName,
+        string expression,
+        ResolvedExpressions resolved)
     {
         var normalized = NormalizeExpression(expression);
+        if (resolved.HasCompoundAssignment || resolved.Expressions.Count == 0)
+        {
+            return false;
+        }
         if (methodName == "DrawIncompleteFidelityLine" && normalized == "text")
         {
-            return true;
+            return resolved.Expressions.All(value =>
+                NormalizeExpression(value) == "text" ||
+                IncompleteFidelityText().IsMatch(NormalizeExpression(value)));
         }
-        return AllowedRenderedExpressions.Contains(
-            NormalizeExpression(resolvedExpression),
-            StringComparer.Ordinal);
+        return resolved.Expressions.All(value => AllowedRenderedExpressions.Contains(
+            NormalizeExpression(value),
+            StringComparer.Ordinal));
     }
 
     private static readonly string[] AllowedRenderedExpressions =
@@ -270,7 +282,7 @@ public static partial class ProductIdentityChecker
         NormalizeExpression("(match.CurrentOffer[(0)]).DisplayName"),
     ];
 
-    private static string ResolveLocals(
+    private static ResolvedExpressions ResolveLocals(
         string expression,
         SourceMethod method,
         int callStart,
@@ -278,56 +290,92 @@ public static partial class ProductIdentityChecker
         string masked)
     {
         var assignments = ExtractAssignments(method, callStart, source, masked);
-        return ResolveExpression(expression, assignments, new HashSet<string>(StringComparer.Ordinal));
+        var hasCompoundAssignment = false;
+        var expressions = ResolveExpression(
+                expression,
+                assignments,
+                new HashSet<string>(StringComparer.Ordinal),
+                ref hasCompoundAssignment)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (method.Name == "DrawIncompleteFidelityLine" && NormalizeExpression(expression) == "text")
+        {
+            expressions = expressions.Append("text").Distinct(StringComparer.Ordinal).ToArray();
+        }
+        return new ResolvedExpressions(expressions, hasCompoundAssignment);
     }
 
-    private static string ResolveExpression(
+    private static IReadOnlyList<string> ResolveExpression(
         string expression,
-        IReadOnlyDictionary<string, string> assignments,
-        HashSet<string> resolving)
+        IReadOnlyDictionary<string, IReadOnlyList<SourceAssignment>> assignments,
+        HashSet<string> resolving,
+        ref bool hasCompoundAssignment)
     {
-        return Identifier().Replace(expression, match =>
+        foreach (Match match in Identifier().Matches(expression))
         {
             var name = match.Value;
-            if (!assignments.TryGetValue(name, out var assigned) || !resolving.Add(name))
+            if (!assignments.TryGetValue(name, out var values) || !resolving.Add(name))
             {
-                return name;
+                continue;
             }
-            var resolved = ResolveExpression(assigned, assignments, resolving);
+            var expanded = new List<string>();
+            foreach (var assignment in values)
+            {
+                if (assignment.Operator != "=")
+                {
+                    hasCompoundAssignment = true;
+                    continue;
+                }
+                foreach (var resolved in ResolveExpression(
+                    assignment.Expression,
+                    assignments,
+                    resolving,
+                    ref hasCompoundAssignment))
+                {
+                    var replaced = Identifier().Replace(
+                        expression,
+                        candidate => candidate.Value == name ? $"({resolved})" : candidate.Value);
+                    expanded.AddRange(ResolveExpression(
+                        replaced,
+                        assignments,
+                        resolving,
+                        ref hasCompoundAssignment));
+                }
+            }
             resolving.Remove(name);
-            return $"({resolved})";
-        });
+            return expanded;
+        }
+        return [expression];
     }
 
-    private static IReadOnlyDictionary<string, string> ExtractAssignments(
+    private static IReadOnlyDictionary<string, IReadOnlyList<SourceAssignment>> ExtractAssignments(
         SourceMethod method,
         int callStart,
         string source,
         string masked)
     {
-        var assignments = new Dictionary<string, string>(StringComparer.Ordinal);
+        var assignments = new Dictionary<string, List<SourceAssignment>>(StringComparer.Ordinal);
         var prefixLength = callStart - method.BodyStart;
         var prefix = masked.Substring(method.BodyStart, prefixLength);
-        foreach (Match match in LocalDeclaration().Matches(prefix))
-        {
-            var equals = method.BodyStart + match.Index + match.Length - 1;
-            var end = FindExpressionEnd(masked, equals + 1, callStart);
-            if (end > equals)
-            {
-                assignments[match.Groups[1].Value] = source[(equals + 1)..end];
-            }
-        }
         foreach (Match match in LocalAssignment().Matches(prefix))
         {
             var name = match.Groups[1].Value;
-            var equals = method.BodyStart + match.Index + match.Value.LastIndexOf('=');
-            var end = FindExpressionEnd(masked, equals + 1, callStart);
-            if (end > equals)
+            var expressionStart = method.BodyStart + match.Index + match.Length;
+            var end = FindExpressionEnd(masked, expressionStart, callStart);
+            if (end > expressionStart)
             {
-                assignments[name] = source[(equals + 1)..end];
+                if (!assignments.TryGetValue(name, out var values))
+                {
+                    values = [];
+                    assignments.Add(name, values);
+                }
+                values.Add(new SourceAssignment(match.Groups[2].Value, source[expressionStart..end]));
             }
         }
-        return assignments;
+        return assignments.ToDictionary(
+            static pair => pair.Key,
+            static pair => (IReadOnlyList<SourceAssignment>)pair.Value,
+            StringComparer.Ordinal);
     }
 
     private static int FindExpressionEnd(string masked, int start, int limit)
@@ -525,6 +573,8 @@ public static partial class ProductIdentityChecker
 
     private sealed record SourceMethod(string Name, int BodyStart, int BodyEnd);
     private sealed record SourceCall(int Start, IReadOnlyList<string> Arguments);
+    private sealed record SourceAssignment(string Operator, string Expression);
+    private sealed record ResolvedExpressions(IReadOnlyList<string> Expressions, bool HasCompoundAssignment);
 
     private static string? ReadRequired(string repository, string relativePath, List<string> failures)
     {
@@ -555,10 +605,7 @@ public static partial class ProductIdentityChecker
     [GeneratedRegex(@"(?:public|private|protected|internal)\s+(?:(?:static|override|virtual|sealed|async|readonly|partial)\s+)*[A-Za-z_][\w<>,.?\[\]]*\s+([A-Za-z_]\w*)\s*\(", RegexOptions.CultureInvariant)]
     private static partial Regex MethodDeclaration();
 
-    [GeneratedRegex(@"\b(?:var|string)\s+([A-Za-z_]\w*)\s*=", RegexOptions.CultureInvariant)]
-    private static partial Regex LocalDeclaration();
-
-    [GeneratedRegex(@"(?m)(?:^|[;{}])\s*([A-Za-z_]\w*)\s*=(?!=)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\b([A-Za-z_]\w*)\s*(\?\?=|<<=|>>=|\+=|-=|\*=|/=|%=|&=|\|=|\^=|=(?!=|>))", RegexOptions.CultureInvariant)]
     private static partial Regex LocalAssignment();
 
     [GeneratedRegex(@"\b[A-Za-z_]\w*\b", RegexOptions.CultureInvariant)]

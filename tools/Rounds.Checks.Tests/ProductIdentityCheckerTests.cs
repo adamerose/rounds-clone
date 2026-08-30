@@ -117,6 +117,96 @@ public sealed class ProductIdentityCheckerTests : IDisposable
     }
 
     [Fact]
+    public void ReassignedIncompleteFidelityWrapperParameterIsRejected()
+    {
+        CopyIdentityFixture();
+        var main = Path.Combine(_fixture, "game", "Main.cs");
+        var source = File.ReadAllText(main);
+        const string mutation = """
+            private void DrawIncompleteFidelityLine(string text, float baselineY, int fontSize, Color color)
+            {
+                text = Convert.ToString(_world.Phase);
+                DrawString(
+                    ThemeDB.FallbackFont,
+                    new Vector2(260.0f, baselineY),
+                    text,
+                    HorizontalAlignment.Center,
+                    1400.0f,
+                    fontSize,
+                    color);
+            }
+
+            """;
+        const string startMarker = "    private void DrawIncompleteFidelityLine(";
+        const string endMarker = "    private readonly record struct CameraTransform";
+        var start = source.IndexOf(startMarker, StringComparison.Ordinal);
+        var end = source.IndexOf(endMarker, start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        File.WriteAllText(main, source[..start] + mutation + source[end..]);
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ApprovedIncompleteFidelityWrapperParameterReassignmentRemainsAllowed()
+    {
+        CopyIdentityFixture();
+        var main = Path.Combine(_fixture, "game", "Main.cs");
+        var source = File.ReadAllText(main);
+        const string mutation = """
+            private void DrawIncompleteFidelityLine(string text, float baselineY, int fontSize, Color color)
+            {
+                text = FaithfulSubsetMatchShell.IncompleteFidelityHeadlineLine1;
+                DrawString(
+                    ThemeDB.FallbackFont,
+                    new Vector2(260.0f, baselineY),
+                    text,
+                    HorizontalAlignment.Center,
+                    1400.0f,
+                    fontSize,
+                    color);
+            }
+
+            """;
+        const string startMarker = "    private void DrawIncompleteFidelityLine(";
+        const string endMarker = "    private readonly record struct CameraTransform";
+        var start = source.IndexOf(startMarker, StringComparison.Ordinal);
+        var end = source.IndexOf(endMarker, start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        File.WriteAllText(main, source[..start] + mutation + source[end..]);
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.DoesNotContain(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("phaseText += Convert.ToString(_world.Phase);")]
+    [InlineData("if (_match is not null) phaseText = Convert.ToString(_match.Phase);")]
+    [InlineData("if (_match is not null) { if (_world is not null) phaseText = Convert.ToString(_match.Phase); }")]
+    [InlineData("var diagnostic = string.Empty; diagnostic = phaseText = Convert.ToString(_world.Phase);")]
+    [InlineData("phaseText ??= Convert.ToString(_world.Phase);")]
+    [InlineData("phaseText = phaseText + Convert.ToString(_world.Phase);")]
+    public void ReassignedRenderedTextLocalIsRejected(string mutation)
+    {
+        CopyIdentityFixture();
+        var main = Path.Combine(_fixture, "game", "Main.cs");
+        var source = File.ReadAllText(main);
+        const string marker = "        if (phaseText.Length > 0)";
+        Assert.Contains(marker, source, StringComparison.Ordinal);
+        File.WriteAllText(main, source.Replace(
+            marker,
+            $"        {mutation}\n{marker}",
+            StringComparison.Ordinal));
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ForbiddenWordsInCommentsDoNotCreateLiveTextOrRuntimeSummaryFailures()
     {
         CopyIdentityFixture();
