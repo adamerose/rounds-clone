@@ -366,6 +366,11 @@ internal sealed class EvidenceBuildJobLease : IDisposable
         lock (_gate)
         {
             if (_job == 0) return;
+            if (!_disposeRequested || !_transferred || !EvidenceBuildJobRetention.Contains(this))
+            {
+                throw new InvalidOperationException(
+                    "Build job cleanup retry requires a prior dispose transfer into static strong retention.");
+            }
             AttemptCleanup(transferOnFailure: false);
         }
     }
@@ -474,7 +479,7 @@ internal sealed class EvidenceBuildJobLease : IDisposable
 
     private void RequireState(EvidenceBuildJobState expected)
     {
-        if (_disposeRequested || _transferred || _job == 0)
+        if (_disposeRequested || _transferred || _closeAmbiguous || _job == 0)
             throw new ObjectDisposedException(nameof(EvidenceBuildJobLease));
         if (_state != expected)
             throw new InvalidOperationException($"Build job transition required {expected} but was {_state}.");

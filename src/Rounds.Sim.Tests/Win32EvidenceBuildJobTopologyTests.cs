@@ -412,6 +412,8 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         using var process = Process();
         var job = new EvidenceBuildJobFactory(api, owner).CreateConfigured(Frozen(), process);
 
+        Assert.Throws<InvalidOperationException>(job.RetryCleanupFromOwner);
+        Assert.False(EvidenceBuildJobRetention.Contains(job));
         var first = Assert.Throws<IOException>(job.Dispose);
         Assert.True(owner.SawStaticRetention);
         Assert.True(EvidenceBuildJobRetention.Contains(job));
@@ -422,6 +424,40 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         Assert.Equal(1, api.CloseCalls);
         Assert.Equal(0, api.ForeignCloseCalls);
         Assert.Equal(2, api.Events.Count(value => value == "topology"));
+    }
+
+    [Fact]
+    public void PrematureOwnerRetryRefusesWithoutAnyApiCallOrStateChangeAcrossEveryState()
+    {
+        AssertPrematureRetry(EvidenceBuildJobState.Created, (api, process) =>
+            new EvidenceBuildJobLease(api, new FakeCleanupOwner(), process, 700));
+        AssertPrematureRetry(EvidenceBuildJobState.Configured, (api, process) =>
+            new EvidenceBuildJobFactory(api).CreateConfigured(Frozen(), process));
+        AssertPrematureRetry(EvidenceBuildJobState.Assigned, (api, process) =>
+        {
+            api.Topologies.Enqueue(Topology(300, 1, 1));
+            var job = new EvidenceBuildJobFactory(api).CreateConfigured(Frozen(), process);
+            job.AssignSuspended();
+            return job;
+        });
+        AssertPrematureRetry(EvidenceBuildJobState.Resumed, (api, process) =>
+        {
+            api.Topologies.Enqueue(Topology(300, 1, 1));
+            var job = new EvidenceBuildJobFactory(api).CreateConfigured(Frozen(), process);
+            job.AssignSuspended();
+            Resume(job, new FakeClock(api.Events));
+            return job;
+        });
+        AssertPrematureRetry(EvidenceBuildJobState.EmptyProven, (api, process) =>
+        {
+            api.Topologies.Enqueue(Topology(300, 1, 1));
+            var job = new EvidenceBuildJobFactory(api).CreateConfigured(Frozen(), process);
+            job.AssignSuspended();
+            Resume(job, new FakeClock(api.Events));
+            api.Topologies.Enqueue(TopologyEmpty(total: 1));
+            job.ProveEmptyAfterCompletion();
+            return job;
+        });
     }
 
     [Fact]
@@ -457,6 +493,22 @@ public sealed class Win32EvidenceBuildJobTopologyTests
         job = new EvidenceBuildJobFactory(api).CreateConfigured(Frozen(), process);
         job.AssignSuspended();
         return api;
+    }
+
+    private static void AssertPrematureRetry(
+        EvidenceBuildJobState expected,
+        Func<FakeJobApi, EvidenceBuildMatchedSuspendedProcessLease, EvidenceBuildJobLease> arrange)
+    {
+        var api = new FakeJobApi();
+        using var process = Process();
+        using var job = arrange(api, process);
+        var before = api.Events.ToArray();
+
+        Assert.Throws<InvalidOperationException>(job.RetryCleanupFromOwner);
+
+        Assert.Equal(expected, job.State);
+        Assert.Equal(before, api.Events);
+        Assert.False(EvidenceBuildJobRetention.Contains(job));
     }
 
     private static EvidenceBuildRunDeadline BorrowDeadline(EvidenceBuildJobLease job)
