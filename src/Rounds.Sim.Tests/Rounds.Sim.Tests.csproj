@@ -47,5 +47,6 @@
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceProcessCreation.cs" Link="Tools\Win32EvidenceProcessCreation.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceJob.cs" Link="Tools\Win32EvidenceJob.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidencePipeCapture.cs" Link="Tools\Win32EvidencePipeCapture.cs" />
+    <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceForegroundObserver.cs" Link="Tools\Win32EvidenceForegroundObserver.cs" />
   </ItemGroup>
 </Project>

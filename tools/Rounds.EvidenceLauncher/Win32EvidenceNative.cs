@@ -327,11 +327,31 @@ internal sealed class Win32ProcessLease(
 
 internal sealed class Win32JobLease(IWin32EvidenceApi api, nint handle) : IEvidenceJobLease
 {
+    private readonly object _handleGate = new();
     private nint _handle = handle != 0 ? handle : throw new ArgumentOutOfRangeException(nameof(handle));
 
-    internal nint DangerousHandle => _handle != 0
-        ? _handle
-        : throw new ObjectDisposedException(nameof(Win32JobLease));
+    internal nint DangerousHandle
+    {
+        get
+        {
+            lock (_handleGate)
+            {
+                return _handle != 0
+                    ? _handle
+                    : throw new ObjectDisposedException(nameof(Win32JobLease));
+            }
+        }
+    }
+
+    internal T BorrowHandle<T>(Func<nint, T> operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        lock (_handleGate)
+        {
+            if (_handle == 0) throw new ObjectDisposedException(nameof(Win32JobLease));
+            return operation(_handle);
+        }
+    }
 
     internal bool Configured { get; private set; }
 
@@ -371,7 +391,12 @@ internal sealed class Win32JobLease(IWin32EvidenceApi api, nint handle) : IEvide
 
     public void Dispose()
     {
-        var owned = Interlocked.Exchange(ref _handle, 0);
+        nint owned;
+        lock (_handleGate)
+        {
+            owned = _handle;
+            _handle = 0;
+        }
         if (owned != 0 && !api.CloseKernelHandle(owned))
         {
             throw new Win32Exception("CloseHandle failed for kill-on-close evidence job.");
