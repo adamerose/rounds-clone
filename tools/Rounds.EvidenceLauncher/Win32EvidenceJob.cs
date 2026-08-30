@@ -45,6 +45,11 @@ internal sealed class Win32JobObjectController(
     IWin32JobApi api,
     IWin32MonotonicClock clock)
 {
+    private const uint AdmittedAffinityMask = 0x3;
+    private const int AdmittedActiveProcessLimit = 1;
+    private const long AdmittedProcessCommitBytes = 768L * 1024 * 1024;
+    private const long AdmittedJobCommitBytes = 1024L * 1024 * 1024;
+    private static readonly TimeSpan AdmittedDeadline = TimeSpan.FromSeconds(30);
     private const uint RequiredLimitFlags =
         Win32EvidenceConstants.JobObjectLimitKillOnJobClose |
         Win32EvidenceConstants.JobObjectLimitActiveProcess |
@@ -129,10 +134,11 @@ internal sealed class Win32JobObjectController(
     {
         ArgumentNullException.ThrowIfNull(job);
         ArgumentNullException.ThrowIfNull(process);
-        if (timeout <= TimeSpan.Zero || !job.Assigned || !process.AssignedToKillOnCloseJob ||
+        if (timeout != AdmittedDeadline || !job.Assigned || !process.AssignedToKillOnCloseJob ||
             process.PrimaryThreadWasResumed)
         {
-            throw new InvalidOperationException("Resume requires one assigned suspended process and a positive deadline.");
+            throw new InvalidOperationException(
+                "Resume requires one assigned suspended process and the exact admitted 30-second deadline.");
         }
 
         var startingTimestamp = clock.GetTimestamp();
@@ -203,8 +209,10 @@ internal sealed class Win32JobObjectController(
         BaseProjectileEvidenceJobLimits limits)
     {
         ArgumentNullException.ThrowIfNull(limits);
-        if (limits.AffinityMask == 0 || limits.ActiveProcessLimit <= 0 ||
-            limits.ProcessCommitBytes <= 0 || limits.JobCommitBytes < limits.ProcessCommitBytes ||
+        if (limits.AffinityMask != AdmittedAffinityMask ||
+            limits.ActiveProcessLimit != AdmittedActiveProcessLimit ||
+            limits.ProcessCommitBytes != AdmittedProcessCommitBytes ||
+            limits.JobCommitBytes != AdmittedJobCommitBytes ||
             !limits.BelowNormalPriority || !limits.KillOnJobClose)
         {
             throw new InvalidOperationException("Evidence job limits did not match the admitted bounded contract.");

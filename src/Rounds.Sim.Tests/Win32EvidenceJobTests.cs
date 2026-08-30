@@ -46,10 +46,16 @@ public sealed class Win32EvidenceJobTests
     }
 
     [Theory]
-    [InlineData("affinity")]
-    [InlineData("active")]
-    [InlineData("process-memory")]
-    [InlineData("job-memory")]
+    [InlineData("affinity-zero")]
+    [InlineData("affinity-one")]
+    [InlineData("affinity-seven")]
+    [InlineData("active-zero")]
+    [InlineData("active-two")]
+    [InlineData("process-memory-zero")]
+    [InlineData("process-memory-smaller")]
+    [InlineData("process-memory-larger")]
+    [InlineData("job-memory-smaller")]
+    [InlineData("job-memory-larger")]
     [InlineData("priority")]
     [InlineData("kill")]
     public void Invalid_or_weakened_limits_refuse_before_creating_job(string field)
@@ -57,10 +63,16 @@ public sealed class Win32EvidenceJobTests
         var limits = Limits();
         limits = field switch
         {
-            "affinity" => limits with { AffinityMask = 0 },
-            "active" => limits with { ActiveProcessLimit = 0 },
-            "process-memory" => limits with { ProcessCommitBytes = 0 },
-            "job-memory" => limits with { JobCommitBytes = limits.ProcessCommitBytes - 1 },
+            "affinity-zero" => limits with { AffinityMask = 0 },
+            "affinity-one" => limits with { AffinityMask = 0x1 },
+            "affinity-seven" => limits with { AffinityMask = 0x7 },
+            "active-zero" => limits with { ActiveProcessLimit = 0 },
+            "active-two" => limits with { ActiveProcessLimit = 2 },
+            "process-memory-zero" => limits with { ProcessCommitBytes = 0 },
+            "process-memory-smaller" => limits with { ProcessCommitBytes = limits.ProcessCommitBytes - 1 },
+            "process-memory-larger" => limits with { ProcessCommitBytes = limits.ProcessCommitBytes + 1 },
+            "job-memory-smaller" => limits with { JobCommitBytes = limits.JobCommitBytes - 1 },
+            "job-memory-larger" => limits with { JobCommitBytes = limits.JobCommitBytes + 1 },
             "priority" => limits with { BelowNormalPriority = false },
             "kill" => limits with { KillOnJobClose = false },
             _ => throw new ArgumentOutOfRangeException(nameof(field)),
@@ -159,10 +171,10 @@ public sealed class Win32EvidenceJobTests
         var process = Process(api);
         controller.AssignSuspended(job, process);
 
-        var deadline = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromMilliseconds(25));
+        var deadline = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(30));
 
         Assert.Equal(100, deadline.StartingTimestamp);
-        Assert.Equal(TimeSpan.FromMilliseconds(25), deadline.Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(30), deadline.Timeout);
         Assert.True(process.PrimaryThreadWasResumed);
         Assert.True(events.IndexOf("clock-now") < events.IndexOf("resume:802"));
 
@@ -184,12 +196,33 @@ public sealed class Win32EvidenceJobTests
         controller.AssignSuspended(job, process);
 
         Assert.ThrowsAny<Exception>(() =>
-            controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(1)));
+            controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(30)));
 
         Assert.False(process.PrimaryThreadWasResumed);
         process.Dispose();
         job.Dispose();
         Assert.Contains("process-terminate:801:1", events);
+    }
+
+    [Theory]
+    [InlineData(29)]
+    [InlineData(31)]
+    public void Resume_refuses_every_non_admitted_positive_deadline_before_clock_or_thread(int seconds)
+    {
+        var events = new List<string>();
+        var api = new FakeJobApi(events);
+        var controller = new Win32JobObjectController(api, new FakeClock(events));
+        var job = controller.CreateConfigured(Limits());
+        var process = Process(api);
+        controller.AssignSuspended(job, process);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(seconds)));
+
+        Assert.DoesNotContain("clock-now", events);
+        Assert.DoesNotContain("resume:802", events);
+        process.Dispose();
+        job.Dispose();
     }
 
     [Fact]
@@ -204,7 +237,7 @@ public sealed class Win32EvidenceJobTests
         var job = controller.CreateConfigured(Limits());
         var process = Process(api);
         controller.AssignSuspended(job, process);
-        var deadline = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromMilliseconds(25));
+        var deadline = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(30));
 
         Assert.True(controller.WaitForEmpty(job, deadline));
 
@@ -230,7 +263,8 @@ public sealed class Win32EvidenceJobTests
         var job = controller.CreateConfigured(Limits());
         var process = Process(api);
         controller.AssignSuspended(job, process);
-        var deadline = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromMilliseconds(25));
+        var deadline = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(30));
+        clock.Advance(TimeSpan.FromSeconds(30) - TimeSpan.FromMilliseconds(25));
 
         Assert.False(controller.WaitForEmpty(job, deadline));
 
@@ -253,7 +287,7 @@ public sealed class Win32EvidenceJobTests
         var job = controller.CreateConfigured(Limits());
         var process = Process(api);
         controller.AssignSuspended(job, process);
-        var deadline = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(1));
+        var deadline = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(30));
 
         Assert.ThrowsAny<Exception>(() => controller.WaitForEmpty(job, deadline));
 
@@ -271,7 +305,7 @@ public sealed class Win32EvidenceJobTests
         var job = controller.CreateConfigured(Limits());
         var process = Process(api);
         controller.AssignSuspended(job, process);
-        _ = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(1));
+        _ = controller.ResumeAndStartDeadline(job, process, TimeSpan.FromSeconds(30));
 
         Assert.Throws<Win32Exception>(() => controller.Terminate(job));
         Assert.Throws<Win32Exception>(job.Dispose);
@@ -311,6 +345,8 @@ public sealed class Win32EvidenceJobTests
         private TimeSpan _elapsed;
 
         internal List<TimeSpan> Delays { get; } = new();
+
+        internal void Advance(TimeSpan duration) => _elapsed += duration;
 
         public long GetTimestamp()
         {
