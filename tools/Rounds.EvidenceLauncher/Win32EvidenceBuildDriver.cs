@@ -1,6 +1,7 @@
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Collections.ObjectModel;
+using System.Collections.Immutable;
 using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using Rounds.Game;
@@ -170,27 +171,86 @@ internal sealed record EvidenceBuildProcessRequest(
     int StandardOutputCapBytes,
     int StandardErrorCapBytes);
 
-internal sealed record EvidenceBuildProcessResult(
-    EvidenceOpenedExecutableIdentity ProcessImage,
-    IReadOnlyDictionary<string, string> EffectiveEnvironment,
-    int ExitCode,
-    bool TimedOut,
-    bool StandardOutputReachedEof,
-    bool StandardErrorReachedEof,
-    bool StandardOutputExceededCap,
-    bool StandardErrorExceededCap,
-    bool ProcessImageMatchedBeforeResume,
-    bool AssignedToJobBeforeResume,
-    bool PipesDrainedConcurrently,
-    bool JobEmpty,
-    bool WarningCountParsed,
-    int WarningCount,
-    byte[] StandardOutput,
-    byte[] StandardError);
+internal sealed class EvidenceBuildProcessResult
+{
+    private const int MaximumStreamBytes = 4 * 1024 * 1024;
+
+    private EvidenceBuildProcessResult(
+        EvidenceOpenedExecutableIdentity processImage,
+        ImmutableDictionary<string, string> effectiveEnvironment,
+        ImmutableArray<byte> standardOutput,
+        ImmutableArray<byte> standardError)
+    {
+        ProcessImage = processImage;
+        EffectiveEnvironment = effectiveEnvironment;
+        StandardOutput = standardOutput;
+        StandardError = standardError;
+    }
+
+    internal EvidenceOpenedExecutableIdentity ProcessImage { get; }
+    internal ImmutableDictionary<string, string> EffectiveEnvironment { get; }
+    internal ImmutableArray<byte> StandardOutput { get; }
+    internal ImmutableArray<byte> StandardError { get; }
+
+    internal static EvidenceBuildProcessResult CreateVerifiedSuccess(
+        EvidenceOpenedExecutableIdentity processImage,
+        IReadOnlyDictionary<string, string> effectiveEnvironment,
+        int exitCode,
+        bool timedOut,
+        bool standardOutputReachedEof,
+        bool standardErrorReachedEof,
+        bool standardOutputExceededCap,
+        bool standardErrorExceededCap,
+        bool processImageMatchedBeforeResume,
+        bool assignedToJobBeforeResume,
+        bool pipesDrainedConcurrently,
+        bool jobEmpty,
+        bool warningCountParsed,
+        int warningCount,
+        IReadOnlyList<byte> standardOutput,
+        IReadOnlyList<byte> standardError)
+    {
+        ArgumentNullException.ThrowIfNull(processImage);
+        ArgumentNullException.ThrowIfNull(effectiveEnvironment);
+        ArgumentNullException.ThrowIfNull(standardOutput);
+        ArgumentNullException.ThrowIfNull(standardError);
+        if (!processImage.Exists || !processImage.IdentityBound || processImage.IsReparsePoint ||
+            string.IsNullOrWhiteSpace(processImage.Path) ||
+            string.IsNullOrWhiteSpace(processImage.OpenedHandleIdentity) ||
+            exitCode != 0 || timedOut || !standardOutputReachedEof || !standardErrorReachedEof ||
+            standardOutputExceededCap || standardErrorExceededCap ||
+            !processImageMatchedBeforeResume || !assignedToJobBeforeResume ||
+            !pipesDrainedConcurrently || !jobEmpty || !warningCountParsed || warningCount != 0 ||
+            standardOutput.Count > MaximumStreamBytes || standardError.Count > MaximumStreamBytes)
+        {
+            throw new InvalidOperationException(
+                "Build process observation did not prove one exact bounded zero-warning success.");
+        }
+
+        var environment = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in effectiveEnvironment)
+        {
+            if (string.IsNullOrEmpty(pair.Key) || pair.Key.Contains('=') || pair.Key.Contains('\0') ||
+                pair.Value is null || pair.Value.Contains('\0') || !environment.TryAdd(pair.Key, pair.Value))
+            {
+                throw new InvalidOperationException("Verified build environment was malformed or duplicated.");
+            }
+        }
+        return new EvidenceBuildProcessResult(
+            new EvidenceOpenedExecutableIdentity(
+                string.Concat(processImage.Path), processImage.Exists, processImage.IdentityBound,
+                processImage.IsReparsePoint, string.Concat(processImage.OpenedHandleIdentity),
+                string.Concat(processImage.Sha256), string.Concat(processImage.FileVersion),
+                string.Concat(processImage.ProductVersion)),
+            environment.ToImmutable(),
+            standardOutput.ToImmutableArray(),
+            standardError.ToImmutableArray());
+    }
+}
 
 internal interface IEvidenceMsBuildExecutableFactory
 {
-    IEvidenceExecutableLease OpenPinnedMsBuild();
+    IEvidenceBuildRetainedExecutableLease OpenPinnedMsBuild();
 }
 
 internal interface IEvidenceBuildProvenanceLease : IDisposable
@@ -277,7 +337,13 @@ internal interface IEvidenceBuildProcessRunner
 {
     EvidenceBuildProcessResult Run(
         EvidenceBuildProcessRequest request,
-        IEvidenceExecutableLease retainedExecutable);
+        IEvidenceBuildRetainedExecutableLease retainedExecutable,
+        CancellationToken cancellationToken);
+
+    EvidenceBuildProcessResult Run(
+        EvidenceBuildProcessRequest request,
+        IEvidenceBuildRetainedExecutableLease retainedExecutable) =>
+        Run(request, retainedExecutable, CancellationToken.None);
 }
 
 internal interface IEvidenceRuntimeAssemblyLease : IDisposable
@@ -311,11 +377,11 @@ internal interface IEvidenceRuntimeAncestorFactory
     IEvidenceRuntimeAncestorLease OpenRetainedChains(IReadOnlyList<string> exactAssemblyPaths);
 }
 
-internal sealed class Win32MsBuildExecutableFactory(Win32ExecutableIdentityFactory files) :
-    IEvidenceMsBuildExecutableFactory
+internal sealed class Win32MsBuildExecutableFactory : IEvidenceMsBuildExecutableFactory
 {
-    public IEvidenceExecutableLease OpenPinnedMsBuild() =>
-        files.OpenExpected(Win32ExecutableProfile.MsBuild());
+    public IEvidenceBuildRetainedExecutableLease OpenPinnedMsBuild() =>
+        throw new NotSupportedException(
+            "Concrete MSBuild retained-executable ancestor continuity acquisition is not installed.");
 }
 
 internal sealed class Win32EvidenceBuildDriver(
@@ -337,13 +403,14 @@ internal sealed class Win32EvidenceBuildDriver(
     internal const int ExactErrorCapBytes = 4 * 1024 * 1024;
     private const string GameProjectArgument = @"game\Rounds.Game.csproj";
 
-    public IEvidenceExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required)
+    public IEvidenceBuildRetainedExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required)
     {
         ValidateInvocation(required);
         var lease = executables.OpenPinnedMsBuild();
         try
         {
             ValidateMsBuildIdentity(lease.Identity, required.Executable);
+            lease.BorrowRetained(borrow => ValidateMsBuildContinuity(borrow, lease.Identity));
             return lease;
         }
         catch (Exception failure)
@@ -363,18 +430,30 @@ internal sealed class Win32EvidenceBuildDriver(
 
     public IEvidenceBuildAttestationLease RebuildAndAttest(
         EvidenceBuildInvocation required,
-        IEvidenceExecutableLease msBuildExecutable)
+        IEvidenceBuildRetainedExecutableLease msBuildExecutable) =>
+        RebuildAndAttest(required, msBuildExecutable, CancellationToken.None);
+
+    public IEvidenceBuildAttestationLease RebuildAndAttest(
+        EvidenceBuildInvocation required,
+        IEvidenceBuildRetainedExecutableLease msBuildExecutable,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ValidateInvocation(required);
         ArgumentNullException.ThrowIfNull(msBuildExecutable);
         ValidateMsBuildIdentity(msBuildExecutable.Identity, required.Executable);
+        cancellationToken.ThrowIfCancellationRequested();
+        msBuildExecutable.BorrowRetained(
+            borrow => ValidateMsBuildContinuity(borrow, msBuildExecutable.Identity));
         IEvidenceBuildProvenanceLease? provenanceLease = null;
         IEvidenceRuntimeAssemblyLease? runtimeLease = null;
         IEvidenceBuildEnvironmentLease? environmentLease = null;
         var priorOutputLeases = new List<IEvidencePriorOutputLease>();
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             provenanceLease = provenance.OpenRetained(required.WorkingDirectory, _provenanceCleanupOwner);
+            cancellationToken.ThrowIfCancellationRequested();
             var candidateBefore = provenanceLease.Candidate;
             ValidateCandidate(candidateBefore, required.WorkingDirectory);
             ValidatePrerequisites(provenanceLease.Prerequisites, required);
@@ -387,8 +466,10 @@ internal sealed class Win32EvidenceBuildDriver(
             var baseline = provenanceLease.Revalidate();
             ValidateProvenanceSnapshot(baseline, candidateBefore);
 
+            cancellationToken.ThrowIfCancellationRequested();
             environmentLease = environments.CreateSanitized(
                 required, provenanceLease.SystemRoot, provenanceLease.TemporaryDirectory);
+            cancellationToken.ThrowIfCancellationRequested();
             var environmentBaseline = ValidateEnvironmentLease(environmentLease);
             var effectiveEnvironment = FreezeEnvironment(environmentLease.Environment);
             ValidateEffectiveEnvironment(
@@ -404,7 +485,9 @@ internal sealed class Win32EvidenceBuildDriver(
             ];
             foreach (var path in runtimePaths)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 priorOutputLeases.Add(outputs.OpenPrior(path));
+                cancellationToken.ThrowIfCancellationRequested();
             }
             var prior = priorOutputLeases.Select(value => value.State).ToArray();
             for (var index = 0; index < runtimePaths.Length; index++)
@@ -423,11 +506,13 @@ internal sealed class Win32EvidenceBuildDriver(
             RequireStableEnvironment(environmentLease, environmentBaseline);
             for (var index = 0; index < priorOutputLeases.Count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 ValidatePriorDeletion(
                     priorOutputLeases[index].DeleteRetainedIdentityAndProveAbsent(),
                     prior[index],
                     runtimePaths[index]);
             }
+            cancellationToken.ThrowIfCancellationRequested();
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
             RequireStableEnvironment(environmentLease, environmentBaseline);
 
@@ -444,12 +529,20 @@ internal sealed class Win32EvidenceBuildDriver(
                 ExactBuildDeadline,
                 ExactOutputCapBytes,
                 ExactErrorCapBytes);
-            var result = processes.Run(request, msBuildExecutable);
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = processes.Run(request, msBuildExecutable, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             ValidateProcessResult(result, msBuildExecutable.Identity, effectiveEnvironment);
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
             RequireStableEnvironment(environmentLease, environmentBaseline);
 
-            var recreated = runtimePaths.Select(outputs.ReadRecreated).ToArray();
+            var recreated = new EvidenceBuildOutputState[runtimePaths.Length];
+            for (var index = 0; index < runtimePaths.Length; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                recreated[index] = outputs.ReadRecreated(runtimePaths[index]);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
             var priorIdentities = prior.Select(value => value.OpenedHandleIdentity).ToHashSet(StringComparer.Ordinal);
             for (var index = 0; index < runtimePaths.Length; index++)
             {
@@ -461,8 +554,10 @@ internal sealed class Win32EvidenceBuildDriver(
             }
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
             RequireStableEnvironment(environmentLease, environmentBaseline);
+            cancellationToken.ThrowIfCancellationRequested();
             runtimeLease = runtimeAssemblies.OpenRecreatedClosure(
                 runtimePaths, prior.Select(value => value.OpenedHandleIdentity).ToArray());
+            cancellationToken.ThrowIfCancellationRequested();
             var runtime = runtimeLease.Identity;
             if (!ValidRuntime(runtime, recreated[0], runtimePaths[0]) ||
                 !runtimeLease.ReparseFreeAncestorChains ||
@@ -474,11 +569,13 @@ internal sealed class Win32EvidenceBuildDriver(
             }
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
             RequireStableEnvironment(environmentLease, environmentBaseline);
+            cancellationToken.ThrowIfCancellationRequested();
 
             var attestation = new EvidenceBuildAttestation(
                 required, effectiveEnvironment, candidateBefore,
                 msBuildExecutable.Identity, result.ProcessImage, runtime,
                 Array.AsReadOnly(runtimeLease.RuntimeClosure.ToArray()), true, true);
+            cancellationToken.ThrowIfCancellationRequested();
             var completed = new Win32EvidenceBuildAttestationLease(
                 runtimeLease, priorOutputLeases.ToArray(), environmentLease, provenanceLease,
                 _environmentCleanupOwner, _provenanceCleanupOwner, attestation);
@@ -523,6 +620,12 @@ internal sealed class Win32EvidenceBuildDriver(
                         cleanup = new AggregateException(cleanup, transfer);
                     }
                 }
+            }
+            if (failure is OperationCanceledException cancellation)
+            {
+                EvidenceCancellation.ThrowAfterCleanup(
+                    cancellation,
+                    cleanup is null ? [] : [cleanup]);
             }
             throw cleanup is null ? failure : new AggregateException(failure, cleanup);
         }
@@ -577,6 +680,30 @@ internal sealed class Win32EvidenceBuildDriver(
             !string.Equals(identity.ProductVersion, BaseProjectileEvidenceLaunchPlanner.MsBuildProductVersion, StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Opened MSBuild lease did not match its pinned identity.");
+        }
+    }
+
+    private static void ValidateMsBuildContinuity(
+        EvidenceBuildExecutableBorrow borrow,
+        EvidenceOpenedExecutableIdentity expectedIdentity)
+    {
+        ArgumentNullException.ThrowIfNull(borrow);
+        var identity = borrow.Identity;
+        var continuity = borrow.Continuity;
+        var protectedHandles = borrow.ProtectedHandles;
+        if (identity != expectedIdentity || !continuity.ExactPath || !continuity.ReparseFree ||
+            !continuity.RenameDeleteExcluded ||
+            !string.Equals(continuity.ExecutablePath, expectedIdentity.Path, StringComparison.OrdinalIgnoreCase) ||
+            continuity.Ancestors.IsDefaultOrEmpty ||
+            continuity.Ancestors.Any(ancestor => !ancestor.IsDirectory || !ancestor.ReparseFree ||
+                !ancestor.RenameDeleteExcluded || !Path.IsPathFullyQualified(ancestor.Path) ||
+                string.IsNullOrWhiteSpace(ancestor.HandleIdentity)) ||
+            protectedHandles.Length != continuity.Ancestors.Length + 1 ||
+            protectedHandles.Any(handle => handle is 0 or -1) ||
+            protectedHandles.Distinct().Count() != protectedHandles.Length)
+        {
+            throw new InvalidOperationException(
+                "MSBuild retained executable did not prove exact callback-bound ancestor continuity.");
         }
     }
 
@@ -782,20 +909,14 @@ internal sealed class Win32EvidenceBuildDriver(
         EvidenceOpenedExecutableIdentity expectedImage,
         IReadOnlyDictionary<string, string> expectedEnvironment)
     {
-        var actualEnvironment = FreezeEnvironment(result.EffectiveEnvironment);
+        ArgumentNullException.ThrowIfNull(result);
+        var actualEnvironment = result.EffectiveEnvironment;
         if (result.ProcessImage != expectedImage ||
             actualEnvironment.Count != expectedEnvironment.Count ||
-            expectedEnvironment.Any(pair => !actualEnvironment.TryGetValue(pair.Key, out var value) || value != pair.Value) ||
-            result.ExitCode != 0 || result.TimedOut ||
-            !result.StandardOutputReachedEof || !result.StandardErrorReachedEof ||
-            result.StandardOutputExceededCap || result.StandardErrorExceededCap ||
-            !result.ProcessImageMatchedBeforeResume || !result.AssignedToJobBeforeResume ||
-            !result.PipesDrainedConcurrently || !result.JobEmpty ||
-            !result.WarningCountParsed || result.WarningCount != 0 ||
-            result.StandardOutput.Length > ExactOutputCapBytes ||
-            result.StandardError.Length > ExactErrorCapBytes)
+            expectedEnvironment.Any(pair => !actualEnvironment.TryGetValue(pair.Key, out var value) || value != pair.Value))
         {
-            throw new InvalidOperationException("Pinned MSBuild process did not complete with exact bounded zero-warning attribution.");
+            throw new InvalidOperationException(
+                "Verified MSBuild success proof did not match the retained image or effective environment.");
         }
     }
 

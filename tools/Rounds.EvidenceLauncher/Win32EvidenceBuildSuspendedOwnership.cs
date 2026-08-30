@@ -67,7 +67,7 @@ internal sealed class EvidenceBuildExecutableSnapshotAllocator : IEvidenceBuildE
     public nint[] AllocateHandleBuffer(int length) => new nint[length];
 }
 
-internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
+internal sealed class EvidenceBuildRetainedExecutableLease : IEvidenceBuildRetainedExecutableLease
 {
     internal const int MaximumAncestorCount = 64;
     private readonly object _gate = new();
@@ -80,6 +80,8 @@ internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
     private readonly int _ownedHandleCount;
     private bool _borrowActive;
     private bool _disposed;
+
+    public EvidenceOpenedExecutableIdentity Identity => _identity;
 
     internal EvidenceBuildRetainedExecutableLease(
         IEvidenceBuildKernelHandleApi api,
@@ -254,6 +256,8 @@ internal sealed class EvidenceBuildRetainedExecutableLease : IDisposable
             }
         }
     }
+
+    public void BorrowRetained(Action<EvidenceBuildExecutableBorrow> operation) => Borrow(operation);
 
     public void Dispose()
     {

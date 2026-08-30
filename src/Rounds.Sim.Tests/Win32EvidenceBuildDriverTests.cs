@@ -168,20 +168,27 @@ public sealed class Win32EvidenceBuildDriverTests
     public void Build_failure_transfers_provenance_and_aggregates_environment_in_cleanup_order()
     {
         var rig = new Rig();
-        rig.Process.Failure = new OperationCanceledException("cancel build");
+        using var source = new CancellationTokenSource();
+        rig.Process.Failure = new OperationCanceledException("cancel build", source.Token);
         rig.Environment.FailDisposeOnce = true;
         rig.Provenance.FailDisposeCount = 1;
+        rig.Reaper.FailSchedule = true;
         using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
 
-        var failure = Assert.Throws<AggregateException>(() =>
-            rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            rig.Driver.RebuildAndAttest(rig.Invocation, msbuild, source.Token));
 
-        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
-        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "environment exclusion cleanup failed");
-        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "provenance cleanup failed");
+        Assert.Equal(source.Token, failure.CancellationToken);
+        var cleanup = Assert.IsType<AggregateException>(failure.InnerException);
+        Assert.Contains(cleanup.Flatten().InnerExceptions, value => value.Message == "environment exclusion cleanup failed");
+        Assert.Contains(cleanup.Flatten().InnerExceptions, value => value.Message == "provenance cleanup failed");
+        Assert.Equal(2, cleanup.Flatten().InnerExceptions.Count(value => value.Message == "cleanup scheduling failed"));
         Assert.Equal(1, rig.CleanupOwner.RetainedCount);
         Assert.Equal(1, rig.ProvenanceCleanupOwner.RetainedCount);
         Assert.True(rig.Events.LastIndexOf("environment-dispose") < rig.Events.LastIndexOf("provenance-dispose"));
+        rig.Reaper.FailSchedule = false;
+        rig.CleanupOwner.RetryRetained();
+        rig.ProvenanceCleanupOwner.RetryRetained();
         rig.Reaper.RunAll();
         Assert.Equal(0, rig.CleanupOwner.RetainedCount);
         Assert.Equal(0, rig.ProvenanceCleanupOwner.RetainedCount);
@@ -234,6 +241,17 @@ public sealed class Win32EvidenceBuildDriverTests
     {
         var rig = new Rig();
         rig.MsBuild.Identity = ValidMsBuild() with { Sha256 = new string('0', 64) };
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.OpenMsBuildExecutable(rig.Invocation));
+
+        Assert.Equal(["msbuild-open", "msbuild-dispose"], rig.Events);
+    }
+
+    [Fact]
+    public void Open_refuses_msbuild_without_retained_ancestor_continuity_and_closes_once()
+    {
+        var rig = new Rig();
+        rig.MsBuild.ValidContinuity = false;
 
         Assert.Throws<InvalidOperationException>(() => rig.Driver.OpenMsBuildExecutable(rig.Invocation));
 
@@ -410,15 +428,14 @@ public sealed class Win32EvidenceBuildDriverTests
         rig.Provenance.ThrowOnDispose = true;
         using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
 
-        var failure = Assert.Throws<AggregateException>(() =>
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
             rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
 
-        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
-        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message.Contains("provenance", StringComparison.Ordinal));
+        Assert.NotNull(failure.InnerException);
+        Assert.Contains("provenance", failure.InnerException.ToString(), StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData("image")]
     [InlineData("exit")]
     [InlineData("timeout")]
     [InlineData("stdout-eof")]
@@ -429,13 +446,114 @@ public sealed class Win32EvidenceBuildDriverTests
     [InlineData("job-before-resume")]
     [InlineData("concurrent-pipes")]
     [InlineData("job-empty")]
-    [InlineData("effective-environment")]
     [InlineData("warning-unparsed")]
     [InlineData("warning")]
-    public void Process_attribution_bounds_and_warning_failures_refuse(string mutation)
+    [InlineData("stdout-oversized")]
+    [InlineData("stderr-oversized")]
+    public void Verified_process_result_factory_refuses_every_non_success_fact(string mutation)
+    {
+        Assert.Throws<InvalidOperationException>(() => CreateProcessResult(mutation));
+    }
+
+    [Fact]
+    public void Verified_process_result_deep_freezes_streams_environment_and_identity()
+    {
+        var environment = new Dictionary<string, string>(ValidEnvironment(), StringComparer.Ordinal);
+        byte[] standardOutput = [1, 2, 3];
+        byte[] standardError = [4, 5];
+        var identity = ValidMsBuild();
+
+        var result = EvidenceBuildProcessResult.CreateVerifiedSuccess(
+            identity,
+            environment,
+            exitCode: 0,
+            timedOut: false,
+            standardOutputReachedEof: true,
+            standardErrorReachedEof: true,
+            standardOutputExceededCap: false,
+            standardErrorExceededCap: false,
+            processImageMatchedBeforeResume: true,
+            assignedToJobBeforeResume: true,
+            pipesDrainedConcurrently: true,
+            jobEmpty: true,
+            warningCountParsed: true,
+            warningCount: 0,
+            standardOutput,
+            standardError);
+
+        environment["NUGET_PACKAGES"] = @"C:\hostile";
+        standardOutput[0] = 99;
+        standardError[0] = 98;
+
+        Assert.Equal(@"C:\repo\.tools\nuget-packages", result.EffectiveEnvironment["nuget_packages"]);
+        Assert.Same(StringComparer.OrdinalIgnoreCase, result.EffectiveEnvironment.KeyComparer);
+        Assert.Equal([1, 2, 3], result.StandardOutput);
+        Assert.Equal([4, 5], result.StandardError);
+        Assert.NotSame(identity, result.ProcessImage);
+        Assert.Equal(identity, result.ProcessImage);
+    }
+
+    [Fact]
+    public void Verified_process_result_factory_refuses_case_colliding_environment()
+    {
+        var environment = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["TEMP"] = @"C:\Temp",
+            ["temp"] = @"C:\Other",
+        };
+
+        Assert.Throws<InvalidOperationException>(() => EvidenceBuildProcessResult.CreateVerifiedSuccess(
+            ValidMsBuild(), environment, 0, false, true, true, false, false,
+            true, true, true, true, true, 0, [], []));
+    }
+
+    [Fact]
+    public void Driver_threads_exact_cancellation_token_to_runner_and_cleans_before_escape()
     {
         var rig = new Rig();
-        rig.Process.Result = MutateProcess(ValidProcessResult(), mutation);
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+        using var source = new CancellationTokenSource();
+        rig.Process.BeforeReturn = source.Cancel;
+
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            rig.Driver.RebuildAndAttest(rig.Invocation, msbuild, source.Token));
+
+        Assert.Equal(source.Token, failure.CancellationToken);
+        Assert.Equal(source.Token, rig.Process.CancellationTokenSeen);
+        Assert.Equal(["prior-dispose:2", "prior-dispose:1", "prior-dispose:0"],
+            rig.Events.Where(value => value.StartsWith("prior-dispose:", StringComparison.Ordinal)));
+        Assert.Contains("environment-dispose", rig.Events);
+        Assert.Equal("provenance-dispose", rig.Events[^1]);
+    }
+
+    [Fact]
+    public void Driver_default_overload_passes_none_and_precancelled_token_has_no_build_effect()
+    {
+        var rig = new Rig();
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        using (rig.Driver.RebuildAndAttest(rig.Invocation, msbuild))
+        {
+        }
+        Assert.Equal(CancellationToken.None, rig.Process.CancellationTokenSeen);
+
+        var second = new Rig();
+        using var secondMsBuild = second.Driver.OpenMsBuildExecutable(second.Invocation);
+        using var source = new CancellationTokenSource();
+        source.Cancel();
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            second.Driver.RebuildAndAttest(second.Invocation, secondMsBuild, source.Token));
+        Assert.Equal(source.Token, failure.CancellationToken);
+        Assert.DoesNotContain("provenance-open", second.Events);
+    }
+
+    [Theory]
+    [InlineData("image")]
+    [InlineData("effective-environment")]
+    public void Verified_process_result_still_must_match_expected_image_and_environment(string mutation)
+    {
+        var rig = new Rig();
+        rig.Process.Result = CreateProcessResult(mutation);
         using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
 
         Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
@@ -746,18 +864,35 @@ public sealed class Win32EvidenceBuildDriverTests
     private sealed class FakeMsBuild(List<string> events) : IEvidenceMsBuildExecutableFactory
     {
         internal EvidenceOpenedExecutableIdentity Identity { get; set; } = ValidMsBuild();
-        public IEvidenceExecutableLease OpenPinnedMsBuild()
+        internal bool ValidContinuity { get; set; } = true;
+        public IEvidenceBuildRetainedExecutableLease OpenPinnedMsBuild()
         {
             events.Add("msbuild-open");
-            return new FakeExecutableLease(events, Identity);
+            return new FakeExecutableLease(events, Identity, ValidContinuity);
         }
     }
 
-    private sealed class FakeExecutableLease(List<string> events, EvidenceOpenedExecutableIdentity identity) :
-        IEvidenceExecutableLease
+    private sealed class FakeExecutableLease(
+        List<string> events,
+        EvidenceOpenedExecutableIdentity identity,
+        bool validContinuity = true) :
+        IEvidenceBuildRetainedExecutableLease
     {
         private bool _disposed;
         public EvidenceOpenedExecutableIdentity Identity { get; } = identity;
+        public void BorrowRetained(Action<EvidenceBuildExecutableBorrow> operation)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var continuity = new EvidenceBuildExecutableContinuityProof(
+                Identity.Path,
+                [new EvidenceBuildExecutableAncestorIdentity(@"C:\", "root", true, true, true)],
+                true,
+                true,
+                validContinuity);
+            var borrow = new EvidenceBuildExecutableBorrow(900, Identity, continuity, [900, 901]);
+            try { operation(borrow); }
+            finally { borrow.EndBorrow(); }
+        }
         public void Dispose()
         {
             if (_disposed) return;
@@ -962,12 +1097,15 @@ public sealed class Win32EvidenceBuildDriverTests
         internal EvidenceBuildProcessResult Result { get; set; } = ValidProcessResult();
         internal Action? BeforeReturn { get; set; }
         internal Exception? Failure { get; set; }
+        internal CancellationToken CancellationTokenSeen { get; private set; }
         public EvidenceBuildProcessResult Run(
             EvidenceBuildProcessRequest request,
-            IEvidenceExecutableLease retainedExecutable)
+            IEvidenceBuildRetainedExecutableLease retainedExecutable,
+            CancellationToken cancellationToken)
         {
             events.Add("process");
             Request = request;
+            CancellationTokenSeen = cancellationToken;
             Assert.Equal(ValidMsBuild(), retainedExecutable.Identity);
             BeforeReturn?.Invoke();
             if (Failure is not null) throw Failure;
@@ -1178,34 +1316,40 @@ public sealed class Win32EvidenceBuildDriverTests
     private static string RetainedIdentity(char fileId) =>
         $"volume:{7UL:x16}:file:{new string(fileId, 32)}";
 
-    private static EvidenceBuildProcessResult ValidProcessResult() => new(
-        ValidMsBuild(), ValidEnvironment(), 0, false, true, true, false, false,
-        true, true, true, true, true, 0, [], []);
+    private static EvidenceBuildProcessResult ValidProcessResult() => CreateProcessResult(null);
 
-    private static EvidenceBuildProcessResult MutateProcess(EvidenceBuildProcessResult value, string mutation) =>
-        mutation switch
+    private static EvidenceBuildProcessResult CreateProcessResult(string? mutation)
+    {
+        var environment = ValidEnvironment();
+        if (mutation == "effective-environment")
         {
-            "image" => value with { ProcessImage = value.ProcessImage with { OpenedHandleIdentity = "other" } },
-            "exit" => value with { ExitCode = 1 },
-            "timeout" => value with { TimedOut = true },
-            "stdout-eof" => value with { StandardOutputReachedEof = false },
-            "stderr-eof" => value with { StandardErrorReachedEof = false },
-            "stdout-cap" => value with { StandardOutputExceededCap = true },
-            "stderr-cap" => value with { StandardErrorExceededCap = true },
-            "image-proof" => value with { ProcessImageMatchedBeforeResume = false },
-            "job-before-resume" => value with { AssignedToJobBeforeResume = false },
-            "concurrent-pipes" => value with { PipesDrainedConcurrently = false },
-            "job-empty" => value with { JobEmpty = false },
-            "effective-environment" => value with
-            {
-                EffectiveEnvironment = new ReadOnlyDictionary<string, string>(
-                    new Dictionary<string, string>(value.EffectiveEnvironment, StringComparer.Ordinal)
-                    {
-                        ["DirectoryBuildPropsPath"] = @"C:\host\inject.props",
-                    }),
-            },
-            "warning-unparsed" => value with { WarningCountParsed = false },
-            "warning" => value with { WarningCount = 1 },
-            _ => throw new ArgumentOutOfRangeException(nameof(mutation)),
-        };
+            environment = new ReadOnlyDictionary<string, string>(
+                new Dictionary<string, string>(environment, StringComparer.Ordinal)
+                {
+                    ["DirectoryBuildPropsPath"] = @"C:\host\inject.props",
+                });
+        }
+        var image = mutation == "image"
+            ? ValidMsBuild() with { OpenedHandleIdentity = "other" }
+            : ValidMsBuild();
+        var stdout = mutation == "stdout-oversized" ? new byte[4 * 1024 * 1024 + 1] : [];
+        var stderr = mutation == "stderr-oversized" ? new byte[4 * 1024 * 1024 + 1] : [];
+        return EvidenceBuildProcessResult.CreateVerifiedSuccess(
+            image,
+            environment,
+            mutation == "exit" ? 1 : 0,
+            mutation == "timeout",
+            mutation != "stdout-eof",
+            mutation != "stderr-eof",
+            mutation == "stdout-cap",
+            mutation == "stderr-cap",
+            mutation != "image-proof",
+            mutation != "job-before-resume",
+            mutation != "concurrent-pipes",
+            mutation != "job-empty",
+            mutation != "warning-unparsed",
+            mutation == "warning" ? 1 : 0,
+            stdout,
+            stderr);
+    }
 }

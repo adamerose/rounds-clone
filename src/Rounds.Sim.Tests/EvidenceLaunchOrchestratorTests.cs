@@ -214,19 +214,25 @@ public sealed class EvidenceLaunchOrchestratorTests
     {
         var events = new List<string>();
         var plan = ValidPlan();
-        var scheduler = new EnvironmentReaperScheduler();
+        var scheduler = new EnvironmentReaperScheduler { FailSchedule = true };
         var owner = new Win32EvidenceBuildEnvironmentCleanupOwner(scheduler);
         var environment = new RetryingEnvironmentLease(events, failures: 1);
+        using var source = new CancellationTokenSource();
         var actual = new CancellationReadAttestationLease(
-            ActualBuildLease(events, environment, owner, ValidBuild(plan)));
+            ActualBuildLease(events, environment, owner, ValidBuild(plan)), source.Token);
         var build = new FakeBuild(events, plan) { AttestationLeaseOverride = actual };
 
-        var failure = Assert.Throws<AggregateException>(() =>
-            new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan));
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan, source.Token));
 
-        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
+        Assert.Equal(source.Token, failure.CancellationToken);
+        Assert.NotNull(failure.InnerException);
+        Assert.Contains("environment", failure.InnerException.ToString(), StringComparison.Ordinal);
+        Assert.Contains("scheduler", failure.InnerException.ToString(), StringComparison.Ordinal);
         Assert.Equal(1, owner.RetainedCount);
         Assert.Equal(1, environment.DisposeCalls);
+        scheduler.FailSchedule = false;
+        owner.RetryRetained();
         scheduler.RunAll();
         Assert.Equal(0, owner.RetainedCount);
         Assert.Equal(2, environment.DisposeCalls);
@@ -313,10 +319,11 @@ public sealed class EvidenceLaunchOrchestratorTests
             provenanceOwner));
         var build = new FakeBuild(events, plan) { AttestationLeaseOverride = actual };
 
-        var failure = Assert.Throws<AggregateException>(() =>
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
             new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan));
 
-        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
+        Assert.NotNull(failure.InnerException);
+        Assert.Contains("provenance", failure.InnerException.ToString(), StringComparison.Ordinal);
         Assert.Equal(1, provenanceOwner.RetainedCount);
         Assert.Equal(1, provenance.DisposeCalls);
         scheduler.RunAll();
@@ -381,13 +388,77 @@ public sealed class EvidenceLaunchOrchestratorTests
             ThrowOnExecutableDispose = true,
         };
 
-        var failure = Assert.Throws<AggregateException>(() =>
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
             new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan));
 
-        Assert.Equal(3, failure.Flatten().InnerExceptions.Count);
-        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
+        var cleanup = Assert.IsType<AggregateException>(failure.InnerException);
+        Assert.Equal(2, cleanup.Flatten().InnerExceptions.Count);
         Assert.Equal(1, events.Count(value => value == "build-attestation-dispose"));
         Assert.Equal(1, events.Count(value => value == "build-executable-dispose"));
+        Assert.DoesNotContain("worker-enter", events);
+    }
+
+    [Fact]
+    public void Precanceled_execute_preserves_token_and_has_no_effects()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var build = new FakeBuild(events, plan);
+        using var source = new CancellationTokenSource();
+        source.Cancel();
+
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan))
+                .Execute(plan, source.Token));
+
+        Assert.Equal(source.Token, failure.CancellationToken);
+        Assert.Empty(events);
+    }
+
+    [Fact]
+    public void Execute_threads_exact_token_and_default_overload_threads_none()
+    {
+        var plan = ValidPlan();
+        var defaultEvents = new List<string>();
+        var defaultBuild = new FakeBuild(defaultEvents, plan);
+
+        Assert.True(new EvidenceLaunchOrchestrator(defaultBuild, new FakeNative(defaultEvents, plan))
+            .Execute(plan).Success);
+        Assert.Equal(CancellationToken.None, defaultBuild.CancellationTokenSeen);
+
+        var events = new List<string>();
+        var build = new FakeBuild(events, plan);
+        using var source = new CancellationTokenSource();
+        build.DuringBuild = _ => source.Cancel();
+
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan))
+                .Execute(plan, source.Token));
+
+        Assert.Equal(source.Token, build.CancellationTokenSeen);
+        Assert.Equal(source.Token, failure.CancellationToken);
+        Assert.Equal(1, events.Count(value => value == "build-attestation-dispose"));
+        Assert.DoesNotContain("worker-enter", events);
+    }
+
+    [Fact]
+    public void Attestation_read_cancellation_with_cleanup_failure_remains_exact_token_cancellation()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        using var source = new CancellationTokenSource();
+        var build = new FakeBuild(events, plan)
+        {
+            ThrowCancellationOnAttestationRead = true,
+            ThrowOnAttestationDispose = true,
+        };
+
+        var failure = Assert.ThrowsAny<OperationCanceledException>(() =>
+            new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan))
+                .Execute(plan, source.Token));
+
+        Assert.Equal(source.Token, failure.CancellationToken);
+        Assert.IsType<InvalidOperationException>(failure.InnerException);
         Assert.DoesNotContain("worker-enter", events);
     }
 
@@ -1110,11 +1181,13 @@ public sealed class EvidenceLaunchOrchestratorTests
         }
     }
 
-    private sealed class CancellationReadAttestationLease(IEvidenceBuildAttestationLease inner) :
+    private sealed class CancellationReadAttestationLease(
+        IEvidenceBuildAttestationLease inner,
+        CancellationToken cancellationToken = default) :
         IEvidenceBuildAttestationLease
     {
         public EvidenceBuildAttestation Attestation =>
-            throw new OperationCanceledException("actual attestation cancellation");
+            throw new OperationCanceledException("actual attestation cancellation", cancellationToken);
         public void Dispose() => inner.Dispose();
     }
 
@@ -1148,7 +1221,11 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         public IEvidenceBuildAttestationLease? AttestationLeaseOverride { get; init; }
 
-        public IEvidenceExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required)
+        public Action<CancellationToken>? DuringBuild { get; set; }
+
+        public CancellationToken CancellationTokenSeen { get; private set; }
+
+        public IEvidenceBuildRetainedExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required)
         {
             events.Add("build-executable-open");
             return new FakeExecutableLease(
@@ -1160,16 +1237,20 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         public IEvidenceBuildAttestationLease RebuildAndAttest(
             EvidenceBuildInvocation required,
-            IEvidenceExecutableLease msBuildExecutable)
+            IEvidenceBuildRetainedExecutableLease msBuildExecutable,
+            CancellationToken cancellationToken)
         {
             events.Add("build");
+            CancellationTokenSeen = cancellationToken;
+            DuringBuild?.Invoke(cancellationToken);
             if (AttestationLeaseOverride is not null) return AttestationLeaseOverride;
             var attestation = Override ?? ValidBuild(plan);
             return new FakeBuildAttestationLease(
                 events,
                 attestation with { Invocation = required },
                 ThrowOnAttestationDispose,
-                ThrowCancellationOnAttestationRead);
+                ThrowCancellationOnAttestationRead,
+                cancellationToken);
         }
     }
 
@@ -1177,11 +1258,12 @@ public sealed class EvidenceLaunchOrchestratorTests
         List<string> events,
         EvidenceBuildAttestation attestation,
         bool throwOnDispose,
-        bool throwCancellationOnRead) : IEvidenceBuildAttestationLease
+        bool throwCancellationOnRead,
+        CancellationToken cancellationToken) : IEvidenceBuildAttestationLease
     {
         private bool _disposed;
         public EvidenceBuildAttestation Attestation => throwCancellationOnRead
-            ? throw new OperationCanceledException("fake attestation cancellation")
+            ? throw new OperationCanceledException("fake attestation cancellation", cancellationToken)
             : attestation;
 
         public void Dispose()
@@ -1232,12 +1314,29 @@ public sealed class EvidenceLaunchOrchestratorTests
         List<string> events,
         EvidenceOpenedExecutableIdentity identity,
         string disposeEvent,
-        bool throwOnDispose) : IEvidenceExecutableLease
+        bool throwOnDispose) : IEvidenceBuildRetainedExecutableLease
     {
+        private bool _disposed;
         public EvidenceOpenedExecutableIdentity Identity { get; } = identity;
+
+        public void BorrowRetained(Action<EvidenceBuildExecutableBorrow> operation)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var continuity = new EvidenceBuildExecutableContinuityProof(
+                Identity.Path,
+                [new EvidenceBuildExecutableAncestorIdentity(@"C:\", "root", true, true, true)],
+                true,
+                true,
+                true);
+            var borrow = new EvidenceBuildExecutableBorrow(900, Identity, continuity, [900, 901]);
+            try { operation(borrow); }
+            finally { borrow.EndBorrow(); }
+        }
 
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             events.Add(disposeEvent);
             if (throwOnDispose)
             {

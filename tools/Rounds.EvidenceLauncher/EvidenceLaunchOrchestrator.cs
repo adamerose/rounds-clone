@@ -150,11 +150,17 @@ internal sealed record EvidenceRuntimeAssemblyIdentity(
 
 internal interface IEvidenceBuildDriver
 {
-    IEvidenceExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required);
+    IEvidenceBuildRetainedExecutableLease OpenMsBuildExecutable(EvidenceBuildInvocation required);
 
     IEvidenceBuildAttestationLease RebuildAndAttest(
         EvidenceBuildInvocation required,
-        IEvidenceExecutableLease msBuildExecutable);
+        IEvidenceBuildRetainedExecutableLease msBuildExecutable,
+        CancellationToken cancellationToken);
+
+    IEvidenceBuildAttestationLease RebuildAndAttest(
+        EvidenceBuildInvocation required,
+        IEvidenceBuildRetainedExecutableLease msBuildExecutable) =>
+        RebuildAndAttest(required, msBuildExecutable, CancellationToken.None);
 }
 
 internal interface IEvidenceBuildAttestationLease : IDisposable
@@ -193,6 +199,11 @@ internal interface IEvidenceDesktopLease : IDisposable
 internal interface IEvidenceExecutableLease : IDisposable
 {
     EvidenceOpenedExecutableIdentity Identity { get; }
+}
+
+internal interface IEvidenceBuildRetainedExecutableLease : IEvidenceExecutableLease
+{
+    void BorrowRetained(Action<EvidenceBuildExecutableBorrow> operation);
 }
 
 internal interface IEvidenceLaunchHandleLease : IDisposable
@@ -389,6 +400,34 @@ internal readonly record struct EvidenceLaunchResult(
         new(false, code, residue);
 }
 
+internal sealed class EvidenceOperationCanceledWithCleanupException : OperationCanceledException
+{
+    internal EvidenceOperationCanceledWithCleanupException(
+        OperationCanceledException cancellation,
+        Exception cleanup) : base(cancellation.Message, cleanup, cancellation.CancellationToken)
+    {
+    }
+}
+
+internal static class EvidenceCancellation
+{
+    internal static void ThrowAfterCleanup(
+        OperationCanceledException cancellation,
+        IReadOnlyList<Exception> cleanupFailures)
+    {
+        ArgumentNullException.ThrowIfNull(cancellation);
+        ArgumentNullException.ThrowIfNull(cleanupFailures);
+        if (cleanupFailures.Count == 0)
+        {
+            ExceptionDispatchInfo.Capture(cancellation).Throw();
+        }
+        var cleanup = cleanupFailures.Count == 1
+            ? cleanupFailures[0]
+            : new AggregateException(cleanupFailures);
+        throw new EvidenceOperationCanceledWithCleanupException(cancellation, cleanup);
+    }
+}
+
 internal sealed class EvidenceLaunchOrchestrator(
     IEvidenceBuildDriver build,
     IEvidenceNativeBoundary native)
@@ -409,23 +448,35 @@ internal sealed class EvidenceLaunchOrchestrator(
         new(EvidenceChildHandle.AcknowledgementRead, true),
     };
 
-    public EvidenceLaunchResult Execute(BaseProjectileEvidenceLaunchPlan plan)
+    public EvidenceLaunchResult Execute(BaseProjectileEvidenceLaunchPlan plan) =>
+        Execute(plan, CancellationToken.None);
+
+    public EvidenceLaunchResult Execute(
+        BaseProjectileEvidenceLaunchPlan plan,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(plan);
+        cancellationToken.ThrowIfCancellationRequested();
         var requiredBuild = EvidenceBuildContract.Create(plan);
         EvidenceBuildAttestation? attestation = null;
         IEvidenceBuildAttestationLease? buildAttestationLease = null;
-        IEvidenceExecutableLease? msBuildExecutable = null;
+        IEvidenceBuildRetainedExecutableLease? msBuildExecutable = null;
         EvidenceOpenedExecutableIdentity? msBuildLeaseIdentity = null;
         Exception? buildFailure = null;
         OperationCanceledException? buildCancellation = null;
         Exception? msBuildCleanupFailure = null;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             msBuildExecutable = build.OpenMsBuildExecutable(requiredBuild);
+            cancellationToken.ThrowIfCancellationRequested();
             msBuildLeaseIdentity = msBuildExecutable.Identity;
-            buildAttestationLease = build.RebuildAndAttest(requiredBuild, msBuildExecutable);
+            cancellationToken.ThrowIfCancellationRequested();
+            buildAttestationLease = build.RebuildAndAttest(
+                requiredBuild, msBuildExecutable, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             attestation = FreezeBuildAttestation(buildAttestationLease.Attestation);
+            cancellationToken.ThrowIfCancellationRequested();
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -450,7 +501,7 @@ internal sealed class EvidenceLaunchOrchestrator(
         }
         if (buildCancellation is not null)
         {
-            var failures = new List<Exception> { buildCancellation };
+            var failures = new List<Exception>();
             try
             {
                 buildAttestationLease?.Dispose();
@@ -460,8 +511,7 @@ internal sealed class EvidenceLaunchOrchestrator(
                 failures.Add(cleanup);
             }
             if (msBuildCleanupFailure is not null) failures.Add(msBuildCleanupFailure);
-            if (failures.Count > 1) throw new AggregateException(failures);
-            ExceptionDispatchInfo.Capture(buildCancellation).Throw();
+            EvidenceCancellation.ThrowAfterCleanup(buildCancellation, failures);
         }
         if (buildFailure is not null || msBuildCleanupFailure is not null)
         {
@@ -478,8 +528,18 @@ internal sealed class EvidenceLaunchOrchestrator(
         var buildMatches = false;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             buildMatches = attestation is not null && msBuildLeaseIdentity is not null &&
                 BuildMatches(plan, requiredBuild, msBuildLeaseIdentity, attestation);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch (OperationCanceledException cancellation)
+        {
+            var failures = new List<Exception>();
+            try { buildAttestationLease?.Dispose(); }
+            catch (Exception cleanup) { failures.Add(cleanup); }
+            EvidenceCancellation.ThrowAfterCleanup(cancellation, failures);
+            throw;
         }
         catch (Exception)
         {
@@ -502,6 +562,7 @@ internal sealed class EvidenceLaunchOrchestrator(
         EvidenceLaunchResult result;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var nativeResult = native.RunOnDedicatedWorker(() => ExecuteNative(plan, attestation!, executionState));
             result = executionState.CleanupFailures.Count == 0
                 ? nativeResult
@@ -515,14 +576,16 @@ internal sealed class EvidenceLaunchOrchestrator(
         }
         catch (OperationCanceledException cancellation)
         {
+            var failures = new List<Exception>();
             try
             {
                 buildAttestationLease!.Dispose();
             }
             catch (Exception cleanup)
             {
-                throw new AggregateException(cancellation, cleanup);
+                failures.Add(cleanup);
             }
+            EvidenceCancellation.ThrowAfterCleanup(cancellation, failures);
             throw;
         }
         try
