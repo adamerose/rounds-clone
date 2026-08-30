@@ -19,7 +19,13 @@ internal static class Win32EvidenceConstants
     internal static readonly nint DpiAwarenessContextPerMonitorAwareV2 = -4;
     internal const uint GenericRead = 0x80000000;
     internal const uint FileShareRead = 0x00000001;
+    internal const uint FileShareWrite = 0x00000002;
+    internal const uint FileShareDelete = 0x00000004;
     internal const uint OpenExisting = 3;
+    internal const uint FileAttributeDirectory = 0x00000010;
+    internal const uint FileAttributeNormal = 0x00000080;
+    internal const uint FileAttributeReparsePoint = 0x00000400;
+    internal const uint FileFlagOpenReparsePoint = 0x00200000;
     internal const uint FileFlagBackupSemantics = 0x02000000;
     internal const uint JobObjectExtendedLimitInformation = 9;
     internal const uint JobObjectBasicProcessIdList = 3;
@@ -160,9 +166,13 @@ internal interface IWin32DesktopCloser
     bool CloseDesktop(nint desktop);
 }
 
-internal interface IWin32EvidenceApi : IWin32DesktopCloser
+internal interface IWin32KernelHandleCloser
 {
     bool CloseKernelHandle(nint handle);
+}
+
+internal interface IWin32EvidenceApi : IWin32DesktopCloser, IWin32KernelHandleCloser
+{
     bool TerminateProcess(nint process, uint exitCode);
     uint WaitForSingleObject(nint handle, uint milliseconds);
     bool WriteFile(nint handle, ReadOnlySpan<byte> data, out uint written);
@@ -193,7 +203,7 @@ internal sealed class Win32EvidenceApi : IWin32EvidenceApi
 }
 
 internal sealed class Win32ExecutableLease(
-    IWin32EvidenceApi api,
+    IWin32KernelHandleCloser api,
     nint handle,
     EvidenceOpenedExecutableIdentity identity) : IEvidenceExecutableLease
 {
