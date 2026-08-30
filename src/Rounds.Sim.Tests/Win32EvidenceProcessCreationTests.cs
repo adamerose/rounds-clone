@@ -136,9 +136,10 @@ public sealed class Win32EvidenceProcessCreationTests
             new[]
             {
                 "attribute-size:1", "allocate:128", "attribute-init:900:1:128",
-                "attribute-update:900:401,403,405,406", "process-create",
+                "allocate:32", "handle-values-write:910:401,403,405,406",
+                "attribute-update:900:910:32", "process-create",
                 "close:401", "close:403", "close:405", "close:406",
-                "image-read:901", "attribute-delete:900", "free:900",
+                "image-read:901", "attribute-delete:900", "free:910", "free:900",
             },
             api.Events);
         Assert.DoesNotContain("close:301", api.Events);
@@ -160,6 +161,8 @@ public sealed class Win32EvidenceProcessCreationTests
     [InlineData("size")]
     [InlineData("allocate")]
     [InlineData("initialize")]
+    [InlineData("value-allocate")]
+    [InlineData("write")]
     [InlineData("update")]
     [InlineData("create")]
     public void Attribute_or_process_failure_releases_only_resources_that_were_acquired(string stage)
@@ -183,10 +186,16 @@ public sealed class Win32EvidenceProcessCreationTests
             Assert.DoesNotContain("attribute-delete:900", api.Events);
             Assert.Contains("free:900", api.Events);
         }
-        if (stage is "update" or "create")
+        if (stage is "value-allocate" or "write" or "update" or "create")
         {
             Assert.Contains("attribute-delete:900", api.Events);
             Assert.Contains("free:900", api.Events);
+        }
+        if (stage is "write" or "update" or "create")
+        {
+            Assert.Contains("free:910", api.Events);
+            Assert.True(api.Events.IndexOf("attribute-delete:900") < api.Events.IndexOf("free:910"));
+            Assert.True(api.Events.IndexOf("free:910") < api.Events.IndexOf("free:900"));
         }
         if (stage is "size" or "allocate")
         {
@@ -198,6 +207,59 @@ public sealed class Win32EvidenceProcessCreationTests
         executable.Dispose();
         handles.Dispose();
         desktop.Dispose();
+    }
+
+    [Fact]
+    public void Attribute_handle_value_backing_remains_live_through_process_create_then_frees_after_delete()
+    {
+        var plan = Plan();
+        var api = new FakeCreationApi();
+        var process = new Win32SuspendedProcessFactory(
+            api,
+            ValidInherited(),
+            new FakeImageReader(api.Events)).Create(
+                plan,
+                new Win32DesktopLease(api, 302, plan.Desktop),
+                Handles(api),
+                new Win32ExecutableLease(api, 301, ExecutableIdentity(plan)),
+                Contract(plan));
+
+        Assert.True(api.HandleValueWasLiveDuringCreate);
+        Assert.True(api.Events.IndexOf("process-create") < api.Events.IndexOf("attribute-delete:900"));
+        Assert.True(api.Events.IndexOf("attribute-delete:900") < api.Events.IndexOf("free:910"));
+        Assert.Equal(1, api.Events.Count(value => value == "free:910"));
+
+        process.MarkAssignedToKillOnCloseJob();
+        process.DisarmTerminationFallbackAfterVerifiedExitAndEmptyJob();
+        process.Dispose();
+    }
+
+    [Fact]
+    public void Create_process_pins_command_line_and_environment_through_invocation_then_releases_reverse_order()
+    {
+        var pins = new FakePinAllocator();
+        var invoker = new FakeProcessInvoker(pins);
+
+        var result = new Win32ProcessCreationApi(pins, invoker).CreateProcess(PinRequest());
+
+        Assert.True(result.Created);
+        Assert.True(invoker.BothPinsWereLive);
+        Assert.Equal(
+            new[] { "pin:1", "pin:2", "invoke:1001:1002", "unpin:2", "unpin:1" },
+            pins.Events);
+    }
+
+    [Fact]
+    public void Second_pin_failure_releases_first_pin_without_invoking_process()
+    {
+        var pins = new FakePinAllocator { FailPinNumber = 2 };
+        var invoker = new FakeProcessInvoker(pins);
+
+        Assert.Throws<IOException>(() =>
+            new Win32ProcessCreationApi(pins, invoker).CreateProcess(PinRequest()));
+
+        Assert.False(invoker.Invoked);
+        Assert.Equal(new[] { "pin:1", "pin-fail:2", "unpin:1" }, pins.Events);
     }
 
     [Fact]
@@ -375,6 +437,16 @@ public sealed class Win32EvidenceProcessCreationTests
             Array.Empty<EvidenceAncestorIdentityFacts>());
     }
 
+    private static Win32CreateProcessRequest PinRequest() => new(
+        @"C:\candidate folder\Godot.exe",
+        "\"C:\\candidate folder\\Godot.exe\" --quiet\0".ToCharArray(),
+        Encoding.Unicode.GetBytes("SystemRoot=C:\\Windows\0\0"),
+        @"C:\candidate folder\rounds-clone\game",
+        true,
+        Win32EvidenceConstants.RequiredCreateProcessFlags,
+        new Win32StartupInfoEx(),
+        new nint[] { 401, 403, 405, 406 });
+
     private static EvidenceCreateProcessContract Contract(
         BaseProjectileEvidenceLaunchPlan plan) =>
         Contract(plan, new Dictionary<string, string>(StringComparer.Ordinal)
@@ -481,9 +553,13 @@ public sealed class Win32EvidenceProcessCreationTests
 
     private sealed class FakeCreationApi : IWin32ProcessCreationApi
     {
+        private int _allocationCount;
+        private readonly HashSet<nint> _liveAllocations = new();
+
         internal List<string> Events { get; } = new();
         internal string? FailureStage { get; init; }
         internal bool FailChildHandleClose { get; init; }
+        internal bool HandleValueWasLiveDuringCreate { get; private set; }
         internal Win32CreateProcessRequest? Request { get; private set; }
         internal Win32CreateProcessResult CreateResult { get; init; } =
             new(true, 901, 902, 11, 12);
@@ -497,12 +573,21 @@ public sealed class Win32EvidenceProcessCreationTests
         public nint Allocate(nuint bytes)
         {
             Events.Add($"allocate:{bytes}");
-            return FailureStage == "allocate" ? 0 : 900;
+            _allocationCount++;
+            if ((FailureStage == "allocate" && _allocationCount == 1) ||
+                (FailureStage == "value-allocate" && _allocationCount == 2))
+            {
+                return 0;
+            }
+            var address = _allocationCount == 1 ? (nint)900 : (nint)910;
+            _liveAllocations.Add(address);
+            return address;
         }
 
         public void Free(nint memory)
         {
             Events.Add($"free:{memory}");
+            _liveAllocations.Remove(memory);
             if (FailureStage == "free") throw new IOException("injected free failure");
         }
 
@@ -512,9 +597,15 @@ public sealed class Win32EvidenceProcessCreationTests
             return FailureStage != "initialize";
         }
 
-        public bool UpdateHandleList(nint attributeList, IReadOnlyList<nint> handles)
+        public void WriteHandles(nint memory, IReadOnlyList<nint> handles)
         {
-            Events.Add($"attribute-update:{attributeList}:{string.Join(',', handles)}");
+            Events.Add($"handle-values-write:{memory}:{string.Join(',', handles)}");
+            if (FailureStage == "write") throw new IOException("injected handle-value write failure");
+        }
+
+        public bool UpdateHandleList(nint attributeList, nint handleListValue, nuint bytes)
+        {
+            Events.Add($"attribute-update:{attributeList}:{handleListValue}:{bytes}");
             return FailureStage != "update";
         }
 
@@ -527,6 +618,7 @@ public sealed class Win32EvidenceProcessCreationTests
         public Win32CreateProcessResult CreateProcess(Win32CreateProcessRequest request)
         {
             Events.Add("process-create");
+            HandleValueWasLiveDuringCreate = _liveAllocations.Contains(910);
             Request = request;
             return FailureStage == "create"
                 ? new Win32CreateProcessResult(false, 0, 0, 0, 0)
@@ -561,6 +653,64 @@ public sealed class Win32EvidenceProcessCreationTests
         {
             written = checked((uint)data.Length);
             return true;
+        }
+    }
+
+    private sealed class FakePinAllocator : IWin32PinnedBufferAllocator
+    {
+        private int _pinCount;
+        private readonly HashSet<int> _livePins = new();
+
+        internal List<string> Events { get; } = new();
+        internal int? FailPinNumber { get; init; }
+        internal bool IsLive(int pinNumber) => _livePins.Contains(pinNumber);
+
+        public IWin32PinnedBufferLease Pin(Array buffer)
+        {
+            _pinCount++;
+            if (FailPinNumber == _pinCount)
+            {
+                Events.Add($"pin-fail:{_pinCount}");
+                throw new IOException("injected pin failure");
+            }
+            Events.Add($"pin:{_pinCount}");
+            _livePins.Add(_pinCount);
+            return new FakePinLease(this, _pinCount, (nint)(1000 + _pinCount));
+        }
+
+        private sealed class FakePinLease(FakePinAllocator owner, int pinNumber, nint address) :
+            IWin32PinnedBufferLease
+        {
+            private bool _disposed;
+
+            public nint Address => _disposed
+                ? throw new ObjectDisposedException(nameof(FakePinLease))
+                : address;
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                _disposed = true;
+                owner.Events.Add($"unpin:{pinNumber}");
+                owner._livePins.Remove(pinNumber);
+            }
+        }
+    }
+
+    private sealed class FakeProcessInvoker(FakePinAllocator pins) : IWin32CreateProcessInvoker
+    {
+        internal bool Invoked { get; private set; }
+        internal bool BothPinsWereLive { get; private set; }
+
+        public Win32CreateProcessResult CreateProcess(
+            Win32CreateProcessRequest request,
+            nint commandLine,
+            nint environment)
+        {
+            Invoked = true;
+            BothPinsWereLive = pins.IsLive(1) && pins.IsLive(2);
+            pins.Events.Add($"invoke:{commandLine}:{environment}");
+            return new Win32CreateProcessResult(true, 901, 902, 11, 12);
         }
     }
 }

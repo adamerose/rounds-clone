@@ -139,11 +139,31 @@ internal interface IWin32ProcessCreationApi : IWin32EvidenceApi
 
     bool InitializeAttributeList(nint attributeList, int attributeCount, nuint bytes);
 
-    bool UpdateHandleList(nint attributeList, IReadOnlyList<nint> handles);
+    void WriteHandles(nint memory, IReadOnlyList<nint> handles);
+
+    bool UpdateHandleList(nint attributeList, nint handleListValue, nuint bytes);
 
     void DeleteAttributeList(nint attributeList);
 
     Win32CreateProcessResult CreateProcess(Win32CreateProcessRequest request);
+}
+
+internal interface IWin32PinnedBufferLease : IDisposable
+{
+    nint Address { get; }
+}
+
+internal interface IWin32PinnedBufferAllocator
+{
+    IWin32PinnedBufferLease Pin(Array buffer);
+}
+
+internal interface IWin32CreateProcessInvoker
+{
+    Win32CreateProcessResult CreateProcess(
+        Win32CreateProcessRequest request,
+        nint commandLine,
+        nint environment);
 }
 
 internal interface IWin32ChildProcessImageReader
@@ -151,6 +171,113 @@ internal interface IWin32ChildProcessImageReader
     EvidenceOpenedExecutableIdentity Read(
         Win32ProcessLease process,
         EvidenceOpenedExecutableIdentity expectedIdentity);
+}
+
+internal sealed class Win32ProcessAttributeListLease : IDisposable
+{
+    private readonly IWin32ProcessCreationApi _api;
+    private nint _attributeList;
+    private nint _handleListValue;
+    private bool _initialized;
+    private bool _disposed;
+
+    private Win32ProcessAttributeListLease(IWin32ProcessCreationApi api)
+    {
+        _api = api;
+    }
+
+    internal nint DangerousAttributeList
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _attributeList;
+        }
+    }
+
+    internal static Win32ProcessAttributeListLease Create(
+        IWin32ProcessCreationApi api,
+        IReadOnlyList<nint> handles)
+    {
+        var attributeBytes = api.QueryAttributeListSize(1);
+        if (attributeBytes == 0)
+        {
+            throw new Win32Exception("Attribute-list size query failed.");
+        }
+
+        var lease = new Win32ProcessAttributeListLease(api);
+        Exception? failure = null;
+        try
+        {
+            lease._attributeList = api.Allocate(attributeBytes);
+            if (lease._attributeList == 0)
+            {
+                throw new OutOfMemoryException("Attribute-list allocation failed.");
+            }
+            if (!api.InitializeAttributeList(lease._attributeList, 1, attributeBytes))
+            {
+                throw new Win32Exception("InitializeProcThreadAttributeList failed.");
+            }
+            lease._initialized = true;
+
+            var valueBytes = checked((nuint)(handles.Count * IntPtr.Size));
+            lease._handleListValue = api.Allocate(valueBytes);
+            if (lease._handleListValue == 0)
+            {
+                throw new OutOfMemoryException("Handle-list value allocation failed.");
+            }
+            api.WriteHandles(lease._handleListValue, handles);
+            if (!api.UpdateHandleList(lease._attributeList, lease._handleListValue, valueBytes))
+            {
+                throw new Win32Exception("PROC_THREAD_ATTRIBUTE_HANDLE_LIST update failed.");
+            }
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        if (failure is not null)
+        {
+            TryCleanup(lease.Dispose, ref failure);
+            ExceptionDispatchInfo.Capture(failure!).Throw();
+        }
+        return lease;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Exception? failure = null;
+        if (_initialized && _attributeList != 0)
+        {
+            TryCleanup(() => _api.DeleteAttributeList(_attributeList), ref failure);
+        }
+        if (_handleListValue != 0)
+        {
+            TryCleanup(() => _api.Free(_handleListValue), ref failure);
+            _handleListValue = 0;
+        }
+        if (_attributeList != 0)
+        {
+            TryCleanup(() => _api.Free(_attributeList), ref failure);
+            _attributeList = 0;
+        }
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private static void TryCleanup(Action cleanup, ref Exception? failure)
+    {
+        try
+        {
+            cleanup();
+        }
+        catch (Exception exception)
+        {
+            failure = failure is null ? exception : new AggregateException(failure, exception);
+        }
+    }
 }
 
 internal sealed class Win32SuspendedProcessFactory(
@@ -179,33 +306,13 @@ internal sealed class Win32SuspendedProcessFactory(
             contract,
             inheritedEnvironment,
             handles.AcknowledgementReadHandleValue);
-        var attributeBytes = api.QueryAttributeListSize(1);
-        if (attributeBytes == 0)
-        {
-            throw new Win32Exception("Attribute-list size query failed.");
-        }
-
-        nint attributeList = 0;
-        var attributeListInitialized = false;
+        Win32ProcessAttributeListLease? attributeList = null;
         Win32ProcessLease? process = null;
         Exception? failure = null;
         try
         {
-            attributeList = api.Allocate(attributeBytes);
-            if (attributeList == 0)
-            {
-                throw new OutOfMemoryException("Attribute-list allocation failed.");
-            }
-            if (!api.InitializeAttributeList(attributeList, 1, attributeBytes))
-            {
-                throw new Win32Exception("InitializeProcThreadAttributeList failed.");
-            }
-            attributeListInitialized = true;
             var childHandles = handles.ChildHandleValues.AsHandleList();
-            if (!api.UpdateHandleList(attributeList, childHandles))
-            {
-                throw new Win32Exception("PROC_THREAD_ATTRIBUTE_HANDLE_LIST update failed.");
-            }
+            attributeList = Win32ProcessAttributeListLease.Create(api, childHandles);
 
             var startup = new Win32StartupInfoEx
             {
@@ -218,7 +325,7 @@ internal sealed class Win32SuspendedProcessFactory(
                     StandardOutput = handles.ChildHandleValues.StandardOutputWrite,
                     StandardError = handles.ChildHandleValues.StandardErrorWrite,
                 },
-                AttributeList = attributeList,
+                AttributeList = attributeList.DangerousAttributeList,
             };
             var commandLine = (contract.CommandLine + "\0").ToCharArray();
             var request = new Win32CreateProcessRequest(
@@ -254,14 +361,7 @@ internal sealed class Win32SuspendedProcessFactory(
         }
         finally
         {
-            if (attributeListInitialized)
-            {
-                TryCleanup(() => api.DeleteAttributeList(attributeList), ref failure);
-            }
-            if (attributeList != 0)
-            {
-                TryCleanup(() => api.Free(attributeList), ref failure);
-            }
+            if (attributeList is not null) TryCleanup(attributeList.Dispose, ref failure);
             if (failure is not null && process is not null)
             {
                 TryCleanup(process.Dispose, ref failure);
@@ -359,6 +459,17 @@ internal sealed class Win32SuspendedProcessFactory(
 
 internal sealed class Win32ProcessCreationApi : IWin32ProcessCreationApi
 {
+    private readonly IWin32PinnedBufferAllocator _pinnedBuffers;
+    private readonly IWin32CreateProcessInvoker _processInvoker;
+
+    internal Win32ProcessCreationApi(
+        IWin32PinnedBufferAllocator? pinnedBuffers = null,
+        IWin32CreateProcessInvoker? processInvoker = null)
+    {
+        _pinnedBuffers = pinnedBuffers ?? new Win32PinnedBufferAllocator();
+        _processInvoker = processInvoker ?? new Win32CreateProcessInvoker();
+    }
+
     public nuint QueryAttributeListSize(int attributeCount)
     {
         nuint bytes = 0;
@@ -384,61 +495,45 @@ internal sealed class Win32ProcessCreationApi : IWin32ProcessCreationApi
             ref mutableBytes) && mutableBytes <= bytes;
     }
 
-    public bool UpdateHandleList(nint attributeList, IReadOnlyList<nint> handles)
-    {
-        var values = handles.ToArray();
-        var memory = Marshal.AllocHGlobal(checked(values.Length * IntPtr.Size));
-        try
-        {
-            Marshal.Copy(values, 0, memory, values.Length);
-            return Win32EvidenceNativeMethods.UpdateProcThreadAttribute(
-                attributeList,
-                0,
-                Win32EvidenceConstants.ProcThreadAttributeHandleList,
-                memory,
-                checked((nuint)(values.Length * IntPtr.Size)),
-                0,
-                0);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(memory);
-        }
-    }
+    public void WriteHandles(nint memory, IReadOnlyList<nint> handles) =>
+        Marshal.Copy(handles.ToArray(), 0, memory, handles.Count);
+
+    public bool UpdateHandleList(nint attributeList, nint handleListValue, nuint bytes) =>
+        Win32EvidenceNativeMethods.UpdateProcThreadAttribute(
+            attributeList,
+            0,
+            Win32EvidenceConstants.ProcThreadAttributeHandleList,
+            handleListValue,
+            bytes,
+            0,
+            0);
 
     public void DeleteAttributeList(nint attributeList) =>
         Win32EvidenceNativeMethods.DeleteProcThreadAttributeList(attributeList);
 
     public Win32CreateProcessResult CreateProcess(Win32CreateProcessRequest request)
     {
-        var commandLine = GCHandle.Alloc(request.MutableCommandLine, GCHandleType.Pinned);
-        var environment = GCHandle.Alloc(request.UnicodeEnvironmentBlock, GCHandleType.Pinned);
+        IWin32PinnedBufferLease? commandLine = null;
+        IWin32PinnedBufferLease? environment = null;
+        Win32CreateProcessResult result = default;
+        Exception? failure = null;
         try
         {
-            var startup = request.StartupInfo;
-            var created = Win32EvidenceNativeMethods.CreateProcessW(
-                request.ApplicationName,
-                commandLine.AddrOfPinnedObject(),
-                0,
-                0,
-                request.InheritHandles,
-                (uint)request.CreationFlags,
-                environment.AddrOfPinnedObject(),
-                request.CurrentDirectory,
-                ref startup,
-                out var information);
-            return new Win32CreateProcessResult(
-                created,
-                information.Process,
-                information.Thread,
-                information.ProcessId,
-                information.ThreadId);
+            commandLine = _pinnedBuffers.Pin(request.MutableCommandLine);
+            environment = _pinnedBuffers.Pin(request.UnicodeEnvironmentBlock);
+            result = _processInvoker.CreateProcess(request, commandLine.Address, environment.Address);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
         }
         finally
         {
-            environment.Free();
-            commandLine.Free();
+            if (environment is not null) TryCleanup(environment.Dispose, ref failure);
+            if (commandLine is not null) TryCleanup(commandLine.Dispose, ref failure);
         }
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+        return result;
     }
 
     public bool CloseKernelHandle(nint handle) => Win32EvidenceNativeMethods.CloseHandle(handle);
@@ -460,6 +555,77 @@ internal sealed class Win32ProcessCreationApi : IWin32ProcessCreationApi
             checked((uint)bytes.Length),
             out written,
             0);
+    }
+
+    private static void TryCleanup(Action cleanup, ref Exception? failure)
+    {
+        try
+        {
+            cleanup();
+        }
+        catch (Exception exception)
+        {
+            failure = failure is null ? exception : new AggregateException(failure, exception);
+        }
+    }
+}
+
+internal sealed class Win32PinnedBufferAllocator : IWin32PinnedBufferAllocator
+{
+    public IWin32PinnedBufferLease Pin(Array buffer) => new Win32PinnedBufferLease(buffer);
+}
+
+internal sealed class Win32PinnedBufferLease : IWin32PinnedBufferLease
+{
+    private GCHandle _handle;
+
+    internal Win32PinnedBufferLease(Array buffer)
+    {
+        _handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+    }
+
+    public nint Address
+    {
+        get
+        {
+            if (!_handle.IsAllocated) throw new ObjectDisposedException(nameof(Win32PinnedBufferLease));
+            return _handle.AddrOfPinnedObject();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (!_handle.IsAllocated) return;
+        _handle.Free();
+        _handle = default;
+    }
+}
+
+internal sealed class Win32CreateProcessInvoker : IWin32CreateProcessInvoker
+{
+    public Win32CreateProcessResult CreateProcess(
+        Win32CreateProcessRequest request,
+        nint commandLine,
+        nint environment)
+    {
+        var startup = request.StartupInfo;
+        var created = Win32EvidenceNativeMethods.CreateProcessW(
+            request.ApplicationName,
+            commandLine,
+            0,
+            0,
+            request.InheritHandles,
+            (uint)request.CreationFlags,
+            environment,
+            request.CurrentDirectory,
+            ref startup,
+            out var information);
+        return new Win32CreateProcessResult(
+            created,
+            information.Process,
+            information.Thread,
+            information.ProcessId,
+            information.ThreadId);
     }
 }
 
