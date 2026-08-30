@@ -48,9 +48,9 @@ internal readonly record struct StartupRoute(
         if (allowDebugEvidence &&
             arguments.Length == 2 &&
             arguments[0] == DebugBaseProjectileEvidenceArgument &&
-            DebugEvidenceCaptureProtocol.IsValidOutputPath(arguments[1]))
+            AgentPlaytestOutputRoot.TryNormalizeAbsentChild(arguments[1], out var normalizedProjectileRoot))
         {
-            return new StartupRoute(StartupMode.DebugBaseProjectileEvidence, null, arguments[1]);
+            return new StartupRoute(StartupMode.DebugBaseProjectileEvidence, null, normalizedProjectileRoot);
         }
         if (allowDebugEvidence &&
             arguments.Length == 2 &&

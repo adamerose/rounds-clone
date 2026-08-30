@@ -84,6 +84,10 @@ public partial class Main : Node2D
             {
                 RefuseUnavailableAgentPlaytestRenderer(route.DebugAgentPlaytestOutputRoot!);
             }
+            else if (route.Mode == StartupMode.DebugBaseProjectileEvidence)
+            {
+                _ = CaptureBaseProjectileEvidenceAsync(route.DebugEvidenceOutputPath!);
+            }
             else
             {
                 _ = CaptureDebugEvidenceAsync(route.DebugEvidenceOutputPath!);
@@ -162,9 +166,7 @@ public partial class Main : Node2D
             var windowSize = DisplayServer.WindowGetSize();
             if (screen != PreferredScreen)
             {
-                GD.Print(_startupMode == StartupMode.DebugBaseProjectileEvidence
-                    ? DebugEvidenceCaptureProtocol.BaseProjectileWrongScreenMarker(screen, PreferredScreen)
-                    : DebugEvidenceCaptureProtocol.WrongScreenMarker(screen, PreferredScreen));
+                GD.Print(DebugEvidenceCaptureProtocol.WrongScreenMarker(screen, PreferredScreen));
                 GetTree().Quit(1);
                 return;
             }
@@ -197,20 +199,7 @@ public partial class Main : Node2D
                 windowSize.Y,
                 image.GetWidth(),
                 image.GetHeight());
-            if (_startupMode == StartupMode.DebugBaseProjectileEvidence)
-            {
-                var bullet = _world.Bullets.Single();
-                GD.Print(DebugEvidenceCaptureProtocol.BaseProjectileCompleteMarker(
-                    new DebugBaseProjectileEvidenceAttestation(
-                        Rounds.Sim.Sim.Hash(_world),
-                        bullet.Id,
-                        bullet.OwnerId,
-                        attestation)));
-            }
-            else
-            {
-                GD.Print(DebugEvidenceCaptureProtocol.CompleteMarker(attestation));
-            }
+            GD.Print(DebugEvidenceCaptureProtocol.CompleteMarker(attestation));
             GetTree().Quit();
         }
         catch (Exception)
@@ -235,11 +224,131 @@ public partial class Main : Node2D
 
     private void FinishDebugEvidenceWithError(string stage, int code)
     {
-        GD.Print(_startupMode == StartupMode.DebugBaseProjectileEvidence
-            ? DebugEvidenceCaptureProtocol.BaseProjectileErrorMarker(stage, code)
-            : DebugEvidenceCaptureProtocol.ErrorMarker(stage, code));
+        GD.Print(DebugEvidenceCaptureProtocol.ErrorMarker(stage, code));
         GetTree().Quit(1);
     }
+
+    private async Task CaptureBaseProjectileEvidenceAsync(string outputRoot)
+    {
+        AgentPlaytestArtifactOwner? owner = null;
+        try
+        {
+            owner = AgentPlaytestArtifactOwner.Create(outputRoot);
+            if (DisplayServer.GetName() == "headless")
+            {
+                throw new InvalidOperationException("renderer-unavailable");
+            }
+
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            RenderingServer.ForceDraw();
+            var image = GetViewport().GetTexture().GetImage();
+            if (image.GetWidth() != DebugEvidenceCaptureProtocol.EvidenceViewportWidth ||
+                image.GetHeight() != DebugEvidenceCaptureProtocol.EvidenceViewportHeight)
+            {
+                throw new InvalidOperationException("wrong-viewport");
+            }
+
+            var desktop = System.Environment.GetEnvironmentVariable(
+                DebugEvidenceCaptureProtocol.EvidenceDesktopEnvironmentVariable);
+            if (!DebugEvidenceCaptureProtocol.IsValidEvidenceDesktop(desktop))
+            {
+                throw new InvalidOperationException("wrong-desktop");
+            }
+            var actualDesktop = EvidenceDesktopIdentityReader.CurrentThreadDesktopName();
+            if (!string.Equals(actualDesktop, desktop, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("wrong-desktop");
+            }
+
+            var screen = DisplayServer.WindowGetCurrentScreen();
+            var windowPosition = DisplayServer.WindowGetPosition();
+            var windowSize = DisplayServer.WindowGetSize();
+            if (screen != PreferredScreen)
+            {
+                throw new InvalidOperationException("wrong-screen");
+            }
+
+            var decoder = new GodotEvidencePngDecoder();
+            var published = owner.PublishVerifiedSingleEvidenceFrame(image.SavePngToBuffer(), decoder);
+            var assembly = EvidenceAssemblyIdentity.Current();
+            var bullet = _world.Bullets.Single();
+            var marker = DebugEvidenceCaptureProtocol.BaseProjectileCompleteMarker(
+                new DebugBaseProjectileEvidenceAttestation(
+                    Rounds.Sim.Sim.Hash(_world),
+                    bullet.Id,
+                    bullet.OwnerId,
+                    actualDesktop,
+                    new DebugEvidenceCaptureAttestation(
+                        screen,
+                        windowPosition.X,
+                        windowPosition.Y,
+                        windowSize.X,
+                        windowSize.Y,
+                        image.GetWidth(),
+                        image.GetHeight()),
+                    assembly.Sha256,
+                    assembly.Mvid,
+                    published.FrameSha256,
+                    Path.GetFileName(published.FramePath)));
+
+            Console.Out.WriteLine(marker);
+            Console.Out.Flush();
+            var acknowledged = await EvidenceAcknowledgementReader.WaitAsync(
+                System.Environment.GetEnvironmentVariable(
+                    DebugEvidenceCaptureProtocol.EvidenceAckHandleEnvironmentVariable),
+                TimeSpan.FromSeconds(5));
+            if (!acknowledged)
+            {
+                throw new InvalidOperationException("acknowledgement-failed");
+            }
+
+            owner.CompleteVerifiedSingleFrame(published, decoder);
+            owner.Dispose();
+            owner = null;
+            GetTree().Quit();
+        }
+        catch (Exception exception)
+        {
+            var cleanupFailed = false;
+            if (owner is not null)
+            {
+                try
+                {
+                    owner.CleanupFailedRun();
+                }
+                catch (Exception)
+                {
+                    cleanupFailed = true;
+                }
+            }
+            Console.Error.WriteLine(DebugEvidenceCaptureProtocol.BaseProjectileErrorMarker(
+                cleanupFailed ? "cleanup-failed" : EvidenceFailureStage(exception),
+                1));
+            Console.Error.Flush();
+            GetTree().Quit(1);
+        }
+        finally
+        {
+            try
+            {
+                owner?.Dispose();
+            }
+            catch (Exception)
+            {
+                // The exact child-owned residue must survive when ownership-safe cleanup cannot complete.
+            }
+        }
+    }
+
+    private static string EvidenceFailureStage(Exception exception) => exception.Message switch
+    {
+        "renderer-unavailable" => "renderer-unavailable",
+        "wrong-viewport" => "wrong-viewport",
+        "wrong-desktop" => "wrong-desktop",
+        "wrong-screen" => "wrong-screen",
+        "acknowledgement-failed" => "acknowledgement-failed",
+        _ => "capture",
+    };
 
     private static void PlaceWindowOnPreferredScreen()
     {

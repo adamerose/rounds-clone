@@ -144,14 +144,14 @@ public sealed class StartupRouteTests
     [Fact]
     public void BaseProjectileEvidenceArgumentIsDebugOnlyAbsoluteFrozenAndMutuallyExclusive()
     {
-        var outputPath = Path.Combine(Path.GetTempPath(), "rounds-base-projectile-evidence.png");
-        var arguments = new[] { StartupRoute.DebugBaseProjectileEvidenceArgument, outputPath };
+        var outputRoot = Path.Combine(Path.GetTempPath(), "rounds-base-projectile-evidence-" + Guid.NewGuid().ToString("N"));
+        var arguments = new[] { StartupRoute.DebugBaseProjectileEvidenceArgument, outputRoot };
 
         var debug = StartupRoute.Parse(arguments, allowDebugEvidence: true);
 
         Assert.Equal(StartupMode.DebugBaseProjectileEvidence, debug.Mode);
         Assert.Null(debug.ReplayPath);
-        Assert.Equal(outputPath, debug.DebugEvidenceOutputPath);
+        Assert.Equal(Path.GetFullPath(outputRoot), debug.DebugEvidenceOutputPath);
         Assert.Null(debug.DebugAgentPlaytestOutputRoot);
         Assert.False(debug.RunsContinuousPhysics);
         Assert.Throws<ArgumentException>(() => StartupRoute.Parse(arguments, allowDebugEvidence: false));
@@ -162,11 +162,18 @@ public sealed class StartupRouteTests
             new[] { StartupRoute.DebugBaseProjectileEvidenceArgument, "relative.png" },
             allowDebugEvidence: true));
         Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
-            new[] { StartupRoute.DebugBaseProjectileEvidenceArgument, Path.ChangeExtension(outputPath, ".jpg") },
+            new[] { "--replay", "x", StartupRoute.DebugBaseProjectileEvidenceArgument, outputRoot },
             allowDebugEvidence: true));
-        Assert.Throws<ArgumentException>(() => StartupRoute.Parse(
-            new[] { "--replay", "x", StartupRoute.DebugBaseProjectileEvidenceArgument, outputPath },
-            allowDebugEvidence: true));
+
+        Directory.CreateDirectory(outputRoot);
+        try
+        {
+            Assert.Throws<ArgumentException>(() => StartupRoute.Parse(arguments, allowDebugEvidence: true));
+        }
+        finally
+        {
+            Directory.Delete(outputRoot);
+        }
 
         var ordinary = StartupRoute.Parse(Array.Empty<string>(), allowDebugEvidence: false);
         var replay = StartupRoute.Parse(new[] { "--replay", "x" }, allowDebugEvidence: false);
@@ -193,7 +200,7 @@ public sealed class StartupRouteTests
         Assert.Equal(
             1,
             ready.Split(
-                "CaptureDebugEvidenceAsync(route.DebugEvidenceOutputPath!)",
+                "CaptureBaseProjectileEvidenceAsync(route.DebugEvidenceOutputPath!)",
                 StringSplitOptions.None).Length - 1);
         Assert.DoesNotContain("Godot.Input", ready, StringComparison.Ordinal);
         Assert.DoesNotContain("GetGlobalMousePosition", ready, StringComparison.Ordinal);
@@ -216,13 +223,18 @@ public sealed class StartupRouteTests
             "DEBUG_INCOMPLETE_FIDELITY_EVIDENCE_ERROR stage=wrong-screen screen=1 expectedScreen=3",
             DebugEvidenceCaptureProtocol.WrongScreenMarker(1, 3));
         Assert.Equal(
-            "DEBUG_BASE_PROJECTILE_EVIDENCE_COMPLETE stateHash=0123456789abcdef bulletId=0 ownerId=0 screen=3 windowX=811 windowY=-878 windowWidth=821 windowHeight=486 viewportWidth=1920 viewportHeight=1080",
+            "DEBUG_BASE_PROJECTILE_EVIDENCE_COMPLETE stateHash=0123456789abcdef bulletId=0 ownerId=0 desktop=RoundsEvidence-0123456789abcdef0123456789abcdef screen=3 windowX=684 windowY=-900 windowWidth=1280 windowHeight=720 viewportWidth=1920 viewportHeight=1080 assemblySha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa assemblyMvid=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb pngSha256=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc frame=frame-0000.png",
             DebugEvidenceCaptureProtocol.BaseProjectileCompleteMarker(
                 new DebugBaseProjectileEvidenceAttestation(
                     0x0123456789abcdefUL,
                     0,
                     0,
-                    new DebugEvidenceCaptureAttestation(3, 811, -878, 821, 486, 1920, 1080))));
+                    "RoundsEvidence-0123456789abcdef0123456789abcdef",
+                    new DebugEvidenceCaptureAttestation(3, 684, -900, 1280, 720, 1920, 1080),
+                    new string('a', 64),
+                    new string('b', 32),
+                    new string('c', 64),
+                    "frame-0000.png")));
         Assert.Equal(
             "DEBUG_BASE_PROJECTILE_EVIDENCE_ERROR stage=save-png code=12",
             DebugEvidenceCaptureProtocol.BaseProjectileErrorMarker("save-png", 12));

@@ -223,6 +223,63 @@ public sealed class AgentPlaytestTests
     }
 
     [Fact]
+    public void VerifiedSingleFrameCompletionRetainsExactlyOneTerminalFrameWithoutManifest()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rounds-single-frame-" + Guid.NewGuid().ToString("N"));
+        var owner = AgentPlaytestArtifactOwner.Create(root);
+        var decoder = new FixedDecoder();
+        var published = owner.PublishFrame(
+            0,
+            Encoding.ASCII.GetBytes("owned-frame"),
+            decoder,
+            terminal: true);
+
+        owner.CompleteVerifiedSingleFrame(published.Response, decoder);
+        owner.Dispose();
+
+        Assert.Equal(new[] { "frame-0000.png" },
+            Directory.EnumerateFiles(root).Select(Path.GetFileName));
+        Assert.False(File.Exists(Path.Combine(root, "manifest.json")));
+        Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
+    public void VerifiedSingleFrameCompletionRejectsNonterminalRepeatedAndExtraArtifacts()
+    {
+        var nonterminalRoot = Path.Combine(Path.GetTempPath(), "rounds-single-frame-nonterminal-" + Guid.NewGuid().ToString("N"));
+        using (var owner = AgentPlaytestArtifactOwner.Create(nonterminalRoot))
+        {
+            var decoder = new FixedDecoder();
+            var published = owner.PublishFrame(0, Encoding.ASCII.GetBytes("frame"), decoder, terminal: false);
+            Assert.Throws<InvalidOperationException>(() => owner.CompleteVerifiedSingleFrame(published.Response, decoder));
+        }
+        Assert.False(Directory.Exists(nonterminalRoot));
+
+        var repeatedRoot = Path.Combine(Path.GetTempPath(), "rounds-single-frame-repeated-" + Guid.NewGuid().ToString("N"));
+        using (var owner = AgentPlaytestArtifactOwner.Create(repeatedRoot))
+        {
+            var decoder = new FixedDecoder();
+            var first = owner.PublishFrame(0, Encoding.ASCII.GetBytes("frame-zero"), decoder, terminal: true);
+            _ = owner.PublishFrame(1, Encoding.ASCII.GetBytes("frame-one"), decoder, terminal: true);
+            Assert.Throws<InvalidOperationException>(() => owner.CompleteVerifiedSingleFrame(first.Response, decoder));
+        }
+        Assert.False(Directory.Exists(repeatedRoot));
+
+        var extraRoot = Path.Combine(Path.GetTempPath(), "rounds-single-frame-extra-" + Guid.NewGuid().ToString("N"));
+        var extraOwner = AgentPlaytestArtifactOwner.Create(extraRoot);
+        var extraDecoder = new FixedDecoder();
+        var terminal = extraOwner.PublishFrame(0, Encoding.ASCII.GetBytes("frame"), extraDecoder, terminal: true);
+        File.WriteAllText(Path.Combine(extraRoot, "foreign.txt"), "foreign");
+        Assert.Throws<InvalidOperationException>(() => extraOwner.CompleteVerifiedSingleFrame(terminal.Response, extraDecoder));
+        Assert.Throws<IOException>(() => extraOwner.CleanupFailedRun());
+        extraOwner.Dispose();
+        Assert.Equal("foreign", File.ReadAllText(Path.Combine(extraRoot, "foreign.txt")));
+        File.Delete(Path.Combine(extraRoot, "foreign.txt"));
+        File.Delete(Path.Combine(extraRoot, "frame-0000.png"));
+        Directory.Delete(extraRoot);
+    }
+
+    [Fact]
     public void GenericStandardInputProcessesPreloadedRecordsWithoutClaimingAdaptiveEvidence()
     {
         var source = CreateStructuralBoundarySession();
