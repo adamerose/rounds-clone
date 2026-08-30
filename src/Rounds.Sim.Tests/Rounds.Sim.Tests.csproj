@@ -57,5 +57,6 @@
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildHandlesCompletion.cs" Link="Tools\Win32EvidenceBuildHandlesCompletion.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildSuspendedOwnership.cs" Link="Tools\Win32EvidenceBuildSuspendedOwnership.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildCreateImage.cs" Link="Tools\Win32EvidenceBuildCreateImage.cs" />
+    <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildJobTopology.cs" Link="Tools\Win32EvidenceBuildJobTopology.cs" />
   </ItemGroup>
 </Project>
