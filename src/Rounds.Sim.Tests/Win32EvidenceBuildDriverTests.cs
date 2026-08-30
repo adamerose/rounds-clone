@@ -93,6 +93,27 @@ public sealed class Win32EvidenceBuildDriverTests
     }
 
     [Fact]
+    public void Build_failure_cleanup_transfers_environment_to_strong_reaper_owner()
+    {
+        var rig = new Rig();
+        rig.Environment.BreakOnRevalidation = 2;
+        rig.Environment.FailDisposeOnce = true;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.Contains(failure.Flatten().InnerExceptions, value =>
+            value.Message == "environment exclusion cleanup failed");
+        Assert.Equal(1, rig.CleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.Environment.DisposeCalls);
+
+        rig.Reaper.RunAll();
+        Assert.Equal(0, rig.CleanupOwner.RetainedCount);
+        Assert.Equal(2, rig.Environment.DisposeCalls);
+    }
+
+    [Fact]
     public void Open_refuses_non_pinned_msbuild_and_closes_lease_once()
     {
         var rig = new Rig();
@@ -584,6 +605,8 @@ public sealed class Win32EvidenceBuildDriverTests
         internal FakeOutput Output { get; }
         internal FakeProcess Process { get; }
         internal FakeRuntime Runtime { get; }
+        internal FakeReaperScheduler Reaper { get; }
+        internal Win32EvidenceBuildEnvironmentCleanupOwner CleanupOwner { get; }
         internal Win32EvidenceBuildDriver Driver { get; }
 
         internal Rig()
@@ -594,8 +617,10 @@ public sealed class Win32EvidenceBuildDriverTests
             Output = new FakeOutput(Events);
             Process = new FakeProcess(Events);
             Runtime = new FakeRuntime(Events);
+            Reaper = new FakeReaperScheduler();
+            CleanupOwner = new Win32EvidenceBuildEnvironmentCleanupOwner(Reaper);
             Driver = new Win32EvidenceBuildDriver(
-                MsBuild, Provenance, Environment, Output, Process, Runtime);
+                MsBuild, Provenance, Environment, Output, Process, Runtime, CleanupOwner);
         }
     }
 
@@ -680,6 +705,7 @@ public sealed class Win32EvidenceBuildDriverTests
         internal IReadOnlyDictionary<string, string> Value { get; set; } = ValidEnvironment();
         internal int BreakOnRevalidation { get; set; } = int.MaxValue;
         internal bool FailDisposeOnce { get; set; }
+        internal int DisposeCalls { get; private set; }
         private int RevalidationCount { get; set; }
         public IReadOnlyDictionary<string, string> Environment => Value;
         public IEvidenceBuildEnvironmentLease CreateSanitized(
@@ -700,12 +726,27 @@ public sealed class Win32EvidenceBuildDriverTests
         }
         public void Dispose()
         {
+            DisposeCalls++;
             events.Add("environment-dispose");
             if (FailDisposeOnce)
             {
                 FailDisposeOnce = false;
                 throw new InvalidOperationException("environment exclusion cleanup failed");
             }
+        }
+    }
+
+    private sealed class FakeReaperScheduler : IEvidenceBuildCleanupReaperScheduler
+    {
+        private readonly Queue<Action> _actions = [];
+
+        public void Schedule(Action action) => _actions.Enqueue(action);
+
+        public void Backoff(TimeSpan delay) => Assert.Equal(TimeSpan.FromSeconds(1), delay);
+
+        internal void RunAll()
+        {
+            while (_actions.TryDequeue(out var action)) action();
         }
     }
 

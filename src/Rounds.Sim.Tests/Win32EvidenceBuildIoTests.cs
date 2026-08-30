@@ -161,6 +161,88 @@ public sealed class Win32EvidenceBuildIoTests
     }
 
     [Fact]
+    public void Acquisition_cleanup_failure_transfers_strong_ownership_and_reaper_releases_in_order()
+    {
+        var scheduler = new FakeReaperScheduler();
+        var owner = new Win32EvidenceBuildEnvironmentCleanupOwner(scheduler);
+        var native = new FakeNative
+        {
+            NonEmptyEnvironmentLeaf = true,
+            NewExclusionDisposeFailures = 1,
+        };
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            new Win32EvidenceBuildEnvironmentFactory(native, owner).CreateSanitized(
+                Invocation(), Trusted(@"C:\Windows", "windows"), Trusted(@"C:\Temp", "temp")));
+
+        Assert.Contains(failure.Flatten().InnerExceptions, value =>
+            value.Message.Contains("not empty", StringComparison.Ordinal));
+        Assert.Equal(1, owner.RetainedCount);
+        Assert.NotEmpty(native.LiveHandles);
+        Assert.Empty(native.ClosedDirectoryHandles);
+
+        scheduler.RunAll();
+
+        Assert.Equal(0, owner.RetainedCount);
+        Assert.Empty(native.LiveHandles);
+        Assert.Equal(native.DirectoryOpenHandles.AsEnumerable().Reverse(), native.ClosedDirectoryHandles);
+    }
+
+    [Fact]
+    public void Scheduler_failure_retains_strong_ownership_until_explicit_retry_succeeds()
+    {
+        var scheduler = new FakeReaperScheduler { FailSchedule = true };
+        var owner = new Win32EvidenceBuildEnvironmentCleanupOwner(scheduler);
+        var native = new FakeNative
+        {
+            NonEmptyEnvironmentLeaf = true,
+            NewExclusionDisposeFailures = 1,
+        };
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            new Win32EvidenceBuildEnvironmentFactory(native, owner).CreateSanitized(
+                Invocation(), Trusted(@"C:\Windows", "windows"), Trusted(@"C:\Temp", "temp")));
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "scheduler failure");
+        Assert.Equal(1, owner.RetainedCount);
+        Assert.NotEmpty(native.LiveHandles);
+
+        scheduler.FailSchedule = false;
+        owner.RetryRetained();
+        scheduler.RunAll();
+        Assert.Equal(0, owner.RetainedCount);
+        Assert.Empty(native.LiveHandles);
+    }
+
+    [Fact]
+    public void Terminal_ambiguous_exclusion_cleanup_is_never_retried_at_handle_level_or_released()
+    {
+        var scheduler = new FakeReaperScheduler();
+        var owner = new Win32EvidenceBuildEnvironmentCleanupOwner(scheduler);
+        var native = new FakeNative
+        {
+            NonEmptyEnvironmentLeaf = true,
+            NewExclusionTerminalAmbiguity = true,
+        };
+
+        Assert.Throws<AggregateException>(() =>
+            new Win32EvidenceBuildEnvironmentFactory(native, owner).CreateSanitized(
+                Invocation(), Trusted(@"C:\Windows", "windows"), Trusted(@"C:\Temp", "temp")));
+        scheduler.RunAll();
+
+        var exclusion = Assert.Single(native.WriteExclusions);
+        Assert.Equal(1, exclusion.EventCloseAttempts);
+        Assert.Equal(1, owner.RetainedCount);
+        Assert.NotEmpty(native.LiveHandles);
+        Assert.Empty(native.ClosedDirectoryHandles);
+
+        owner.RetryRetained();
+        scheduler.RunAll();
+        Assert.Equal(1, exclusion.EventCloseAttempts);
+        Assert.Equal(1, owner.RetainedCount);
+        Assert.Empty(native.ClosedDirectoryHandles);
+    }
+
+    [Fact]
     public void Prior_output_open_delete_and_absence_are_same_handle_identity_bound_and_ancestors_remain_owned()
     {
         var native = new FakeNative();
@@ -400,6 +482,8 @@ public sealed class Win32EvidenceBuildIoTests
         internal bool KeepReplacementAfterClose { get; set; }
         internal bool DriftAncestorsAfterDisposition { get; set; }
         internal bool FailAllDirectoryCloses { get; set; }
+        internal int NewExclusionDisposeFailures { get; set; }
+        internal bool NewExclusionTerminalAmbiguity { get; set; }
         internal bool InjectUnsafeAbsenceName { get; set; }
         internal string? ThrowDirectorySnapshotPath { get; set; }
         internal string? FailClosePath { get; set; }
@@ -492,7 +576,11 @@ public sealed class Win32EvidenceBuildIoTests
             string exactDirectoryIdentity)
         {
             Events.Add($"exclude:{retainedDirectoryHandle}:{exactDirectoryIdentity}");
-            var exclusion = new FakeWriteExclusion(exactDirectoryIdentity);
+            var exclusion = new FakeWriteExclusion(exactDirectoryIdentity)
+            {
+                RemainingDisposeFailures = NewExclusionDisposeFailures,
+                TerminalAmbiguity = NewExclusionTerminalAmbiguity,
+            };
             WriteExclusions.Add(exclusion);
             return exclusion;
         }
@@ -528,8 +616,12 @@ public sealed class Win32EvidenceBuildIoTests
         {
             internal bool BreakObserved { get; set; }
             internal bool FailDisposeOnce { get; set; }
+            internal int RemainingDisposeFailures { get; set; }
+            internal bool TerminalAmbiguity { get; set; }
             internal bool Disposed { get; private set; }
             internal int SuccessfulDisposals { get; private set; }
+            internal int EventCloseAttempts { get; private set; }
+            private bool TerminalFailureObserved { get; set; }
 
             public EvidenceDirectoryWriteExclusionStatus Observe()
             {
@@ -540,6 +632,21 @@ public sealed class Win32EvidenceBuildIoTests
             public void Dispose()
             {
                 if (Disposed) return;
+                if (TerminalFailureObserved)
+                {
+                    throw new InvalidOperationException("event handle ownership remains ambiguous");
+                }
+                if (TerminalAmbiguity)
+                {
+                    EventCloseAttempts++;
+                    TerminalFailureObserved = true;
+                    throw new InvalidOperationException("event CloseHandle was ambiguous");
+                }
+                if (RemainingDisposeFailures > 0)
+                {
+                    RemainingDisposeFailures--;
+                    throw new InvalidOperationException("write-exclusion cleanup failed");
+                }
                 if (FailDisposeOnce)
                 {
                     FailDisposeOnce = false;
@@ -548,6 +655,30 @@ public sealed class Win32EvidenceBuildIoTests
                 Disposed = true;
                 SuccessfulDisposals++;
             }
+        }
+    }
+
+    private sealed class FakeReaperScheduler : IEvidenceBuildCleanupReaperScheduler
+    {
+        private readonly Queue<Action> _actions = [];
+        internal bool FailSchedule { get; set; }
+        internal int Backoffs { get; private set; }
+
+        public void Schedule(Action action)
+        {
+            if (FailSchedule) throw new InvalidOperationException("scheduler failure");
+            _actions.Enqueue(action);
+        }
+
+        public void Backoff(TimeSpan delay)
+        {
+            Assert.Equal(TimeSpan.FromSeconds(1), delay);
+            Backoffs++;
+        }
+
+        internal void RunAll()
+        {
+            while (_actions.TryDequeue(out var action)) action();
         }
     }
 

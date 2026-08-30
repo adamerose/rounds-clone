@@ -7,8 +7,12 @@ using System.Text;
 
 namespace Rounds.EvidenceLauncher;
 
-internal sealed class Win32EvidenceBuildEnvironmentFactory(IWin32BuildOutputNative native) : IEvidenceBuildEnvironmentFactory
+internal sealed class Win32EvidenceBuildEnvironmentFactory(
+    IWin32BuildOutputNative native,
+    IEvidenceBuildEnvironmentCleanupOwner? cleanupOwner = null) : IEvidenceBuildEnvironmentFactory
 {
+    private readonly IEvidenceBuildEnvironmentCleanupOwner _cleanupOwner =
+        cleanupOwner ?? Win32EvidenceBuildEnvironmentCleanupOwner.Instance;
     private static readonly string[] RequiredKeys =
     [
         "DOTNET_PROCESSOR_COUNT",
@@ -61,6 +65,7 @@ internal sealed class Win32EvidenceBuildEnvironmentFactory(IWin32BuildOutputNati
         var frozen = new ReadOnlyDictionary<string, string>(result);
         return Win32BuildEnvironmentLease.Open(
             native,
+            _cleanupOwner,
             frozen,
             result["DOTNET_CLI_HOME"],
             result["MSBuildUserExtensionsPath"]);
@@ -155,6 +160,7 @@ internal sealed class Win32BuildEnvironmentLease : IEvidenceBuildEnvironmentLeas
 
     internal static IEvidenceBuildEnvironmentLease Open(
         IWin32BuildOutputNative native,
+        IEvidenceBuildEnvironmentCleanupOwner cleanupOwner,
         IReadOnlyDictionary<string, string> environment,
         string dotnetCliHome,
         string msBuildUserExtensions)
@@ -214,19 +220,22 @@ internal sealed class Win32BuildEnvironmentLease : IEvidenceBuildEnvironmentLeas
         }
         catch (Exception failure)
         {
+            var partial = new Win32BuildEnvironmentLease(
+                native,
+                environment,
+                handles.ToArray(),
+                snapshots.ToArray(),
+                leaves.ToArray(),
+                exclusions.Cast<IEvidenceDirectoryWriteExclusionLease?>().ToArray());
             Exception? cleanup = null;
-            for (var index = exclusions.Count - 1; index >= 0; index--)
+            try { partial.Dispose(); }
+            catch (Exception error)
             {
-                try { exclusions[index].Dispose(); }
-                catch (Exception error) { cleanup = cleanup is null ? error : new AggregateException(cleanup, error); }
-            }
-            for (var index = handles.Count - 1; index >= 0; index--)
-            {
-                var close = native.CloseKernelHandle(handles[index]);
-                if (!close.Success)
+                cleanup = error;
+                try { cleanupOwner.Retain(partial, error); }
+                catch (Exception transfer)
                 {
-                    var error = new InvalidOperationException($"Closing refused environment directory failed ({close.Error}).");
-                    cleanup = cleanup is null ? error : new AggregateException(cleanup, error);
+                    cleanup = new AggregateException(cleanup, transfer);
                 }
             }
             throw cleanup is null ? failure : new AggregateException(failure, cleanup);
@@ -348,6 +357,170 @@ internal readonly record struct EvidenceDirectoryWriteExclusionStatus(
 internal interface IEvidenceDirectoryWriteExclusionLease : IDisposable
 {
     EvidenceDirectoryWriteExclusionStatus Observe();
+}
+
+internal interface IEvidenceBuildCleanupReaperScheduler
+{
+    void Schedule(Action action);
+
+    void Backoff(TimeSpan delay);
+}
+
+internal sealed class Win32EvidenceBuildEnvironmentCleanupOwner : IEvidenceBuildEnvironmentCleanupOwner
+{
+    internal static Win32EvidenceBuildEnvironmentCleanupOwner Instance { get; } =
+        new(new Win32EvidenceBuildCleanupReaperScheduler());
+
+    private readonly object _sync = new();
+    private readonly IEvidenceBuildCleanupReaperScheduler _scheduler;
+    private readonly Dictionary<long, RetainedCleanup> _retained = [];
+    private readonly List<Exception> _failures = [];
+    private long _nextId;
+
+    internal Win32EvidenceBuildEnvironmentCleanupOwner(IEvidenceBuildCleanupReaperScheduler scheduler)
+    {
+        _scheduler = scheduler;
+    }
+
+    internal int RetainedCount
+    {
+        get { lock (_sync) return _retained.Count; }
+    }
+
+    internal IReadOnlyList<Exception> Failures
+    {
+        get { lock (_sync) return _failures.ToArray(); }
+    }
+
+    public void Retain(IEvidenceBuildEnvironmentLease lease, Exception cleanupFailure)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        ArgumentNullException.ThrowIfNull(cleanupFailure);
+        RetainedCleanup retained;
+        lock (_sync)
+        {
+            var id = checked(++_nextId);
+            retained = new RetainedCleanup(id, lease);
+            _retained.Add(id, retained); // strong ownership exists before scheduling can fail
+            _failures.Add(cleanupFailure);
+        }
+        Schedule(retained);
+    }
+
+    internal void RetryRetained()
+    {
+        RetainedCleanup[] retained;
+        lock (_sync) retained = _retained.Values.Where(value => !value.Scheduled).ToArray();
+        Exception? failure = null;
+        foreach (var item in retained)
+        {
+            try { Schedule(item); }
+            catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
+        }
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private void Schedule(RetainedCleanup retained)
+    {
+        lock (_sync)
+        {
+            if (!_retained.ContainsKey(retained.Id) || retained.Scheduled) return;
+            retained.Scheduled = true;
+        }
+        try
+        {
+            _scheduler.Schedule(() => Reap(retained));
+        }
+        catch (Exception failure)
+        {
+            lock (_sync)
+            {
+                retained.Scheduled = false;
+                _failures.Add(failure);
+            }
+            throw;
+        }
+    }
+
+    private void Reap(RetainedCleanup retained)
+    {
+        const int maximumAttempts = 3;
+        try
+        {
+            for (var attempt = 0; attempt < maximumAttempts; attempt++)
+            {
+                try
+                {
+                    retained.Lease.Dispose();
+                    lock (_sync) _retained.Remove(retained.Id);
+                    return;
+                }
+                catch (Exception failure)
+                {
+                    lock (_sync) _failures.Add(failure);
+                    try
+                    {
+                        System.Diagnostics.Trace.TraceError(
+                            "Retained build-environment cleanup attempt {0} failed: {1}", attempt + 1, failure);
+                    }
+                    catch { }
+                    if (attempt + 1 < maximumAttempts)
+                    {
+                        try { _scheduler.Backoff(TimeSpan.FromSeconds(1)); }
+                        catch (Exception backoffFailure)
+                        {
+                            lock (_sync) _failures.Add(backoffFailure);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            lock (_sync)
+            {
+                if (_retained.ContainsKey(retained.Id))
+                {
+                    retained.Scheduled = false; // strongly owned for explicit retry/process exit
+                }
+            }
+        }
+    }
+
+    private sealed class RetainedCleanup(long id, IEvidenceBuildEnvironmentLease lease)
+    {
+        internal long Id { get; } = id;
+        internal IEvidenceBuildEnvironmentLease Lease { get; } = lease;
+        internal bool Scheduled { get; set; }
+    }
+}
+
+internal sealed class Win32EvidenceBuildCleanupReaperScheduler : IEvidenceBuildCleanupReaperScheduler
+{
+    public void Schedule(Action action)
+    {
+        var worker = new Thread(() =>
+        {
+            try { action(); }
+            catch (Exception failure)
+            {
+                System.Diagnostics.Trace.TraceError("Build-environment cleanup reaper contained failure: {0}", failure);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "Rounds evidence environment cleanup reaper",
+            Priority = ThreadPriority.BelowNormal,
+        };
+        worker.Start();
+    }
+
+    public void Backoff(TimeSpan delay)
+    {
+        using var signal = new ManualResetEventSlim(false);
+        signal.Wait(delay);
+    }
 }
 
 internal interface IWin32BuildOutputNative
@@ -939,6 +1112,7 @@ internal sealed class Win32DirectoryOplockLease : IEvidenceDirectoryWriteExclusi
     private bool _breakObserved;
     private bool _ioCompleted;
     private bool _eventCloseAttempted;
+    private Exception? _terminalCleanupFailure;
 
     private Win32DirectoryOplockLease(
         nint directoryHandle,
@@ -1024,6 +1198,7 @@ internal sealed class Win32DirectoryOplockLease : IEvidenceDirectoryWriteExclusi
         {
             var error = Marshal.GetLastPInvokeError();
             cleanup = new Win32Exception(error, "Closing refused directory-oplock event failed.");
+            Win32AmbiguousEventHandleOwner.Retain(eventHandle, cleanup);
         }
         if (overlapped != 0) Marshal.FreeHGlobal(overlapped);
         if (output != 0) Marshal.FreeHGlobal(output);
@@ -1035,6 +1210,12 @@ internal sealed class Win32DirectoryOplockLease : IEvidenceDirectoryWriteExclusi
     {
         lock (_sync)
         {
+            if (_terminalCleanupFailure is not null)
+            {
+                throw new InvalidOperationException(
+                    "Directory write-exclusion event ownership is terminally ambiguous.",
+                    _terminalCleanupFailure);
+            }
             if (_eventHandle is 0 or -1 || _input == 0 || _output == 0 || _overlapped == 0)
             {
                 throw new ObjectDisposedException(nameof(Win32DirectoryOplockLease));
@@ -1058,6 +1239,12 @@ internal sealed class Win32DirectoryOplockLease : IEvidenceDirectoryWriteExclusi
     {
         lock (_sync)
         {
+            if (_terminalCleanupFailure is not null)
+            {
+                throw new InvalidOperationException(
+                    "Directory write-exclusion event ownership is terminally ambiguous and retained until process exit.",
+                    _terminalCleanupFailure);
+            }
             if (_input == 0 && _output == 0 && _overlapped == 0 && _eventHandle == 0) return;
             if (!_ioCompleted)
             {
@@ -1100,12 +1287,15 @@ internal sealed class Win32DirectoryOplockLease : IEvidenceDirectoryWriteExclusi
             {
                 _eventCloseAttempted = true;
                 var eventHandle = _eventHandle;
-                _eventHandle = 0;
                 if (!CloseHandle(eventHandle))
                 {
                     var error = Marshal.GetLastPInvokeError();
-                    throw new Win32Exception(error, "Closing directory write-exclusion event failed.");
+                    _terminalCleanupFailure = new Win32Exception(
+                        error,
+                        "Closing directory write-exclusion event failed; handle ownership is ambiguous.");
+                    throw _terminalCleanupFailure;
                 }
+                _eventHandle = 0;
             }
         }
     }
@@ -1161,6 +1351,20 @@ internal sealed class Win32DirectoryOplockLease : IEvidenceDirectoryWriteExclusi
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CloseHandle(nint handle);
+}
+
+internal static class Win32AmbiguousEventHandleOwner
+{
+    private static readonly object Sync = new();
+    private static readonly List<(nint Handle, Exception Failure)> Retained = [];
+
+    internal static void Retain(nint handle, Exception failure)
+    {
+        lock (Sync)
+        {
+            Retained.Add((handle, failure)); // never retry an ambiguous CloseHandle; OS exit is the owner
+        }
+    }
 }
 
 internal static class Win32BuildDirectoryEnumerator

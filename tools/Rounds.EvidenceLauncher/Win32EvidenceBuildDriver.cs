@@ -237,6 +237,11 @@ internal interface IEvidenceBuildEnvironmentLease : IDisposable
     EvidenceBuildEnvironmentRevalidation Revalidate();
 }
 
+internal interface IEvidenceBuildEnvironmentCleanupOwner
+{
+    void Retain(IEvidenceBuildEnvironmentLease lease, Exception cleanupFailure);
+}
+
 internal interface IEvidenceBuildOutputApi
 {
     IEvidencePriorOutputLease OpenPrior(string exactRuntimeAssemblyPath);
@@ -311,8 +316,11 @@ internal sealed class Win32EvidenceBuildDriver(
     IEvidenceBuildEnvironmentFactory environments,
     IEvidenceBuildOutputApi outputs,
     IEvidenceBuildProcessRunner processes,
-    IEvidenceRuntimeAssemblyFactory runtimeAssemblies) : IEvidenceBuildDriver
+    IEvidenceRuntimeAssemblyFactory runtimeAssemblies,
+    IEvidenceBuildEnvironmentCleanupOwner? environmentCleanupOwner = null) : IEvidenceBuildDriver
 {
+    private readonly IEvidenceBuildEnvironmentCleanupOwner _environmentCleanupOwner =
+        environmentCleanupOwner ?? Win32EvidenceBuildEnvironmentCleanupOwner.Instance;
     internal static readonly TimeSpan ExactBuildDeadline = TimeSpan.FromMinutes(5);
     internal const int ExactOutputCapBytes = 4 * 1024 * 1024;
     internal const int ExactErrorCapBytes = 4 * 1024 * 1024;
@@ -478,8 +486,19 @@ internal sealed class Win32EvidenceBuildDriver(
                 try { priorOutputLeases[index].Dispose(); }
                 catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
             }
-            try { environmentLease?.Dispose(); }
-            catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
+            if (environmentLease is not null)
+            {
+                try { environmentLease.Dispose(); }
+                catch (Exception exception)
+                {
+                    cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception);
+                    try { _environmentCleanupOwner.Retain(environmentLease, exception); }
+                    catch (Exception transfer)
+                    {
+                        cleanup = new AggregateException(cleanup, transfer);
+                    }
+                }
+            }
             try { provenanceLease?.Dispose(); }
             catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
             throw cleanup is null ? failure : new AggregateException(failure, cleanup);
