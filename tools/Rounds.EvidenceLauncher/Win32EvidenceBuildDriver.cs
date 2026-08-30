@@ -409,9 +409,10 @@ internal sealed class Win32EvidenceBuildDriver(
             RequireStableProvenance(provenanceLease, baseline, candidateBefore);
 
             var recreated = runtimePaths.Select(outputs.ReadRecreated).ToArray();
+            var priorIdentities = prior.Select(value => value.OpenedHandleIdentity).ToHashSet(StringComparer.Ordinal);
             for (var index = 0; index < runtimePaths.Length; index++)
             {
-                ValidateRecreatedOutput(recreated[index], prior[index], runtimePaths[index]);
+                ValidateRecreatedOutput(recreated[index], priorIdentities, runtimePaths[index]);
             }
             if (recreated.Select(value => value.OpenedHandleIdentity).Distinct(StringComparer.Ordinal).Count() != runtimePaths.Length)
             {
@@ -703,13 +704,13 @@ internal sealed class Win32EvidenceBuildDriver(
 
     private static void ValidateRecreatedOutput(
         EvidenceBuildOutputState recreated,
-        EvidenceBuildOutputState prior,
+        IReadOnlySet<string> priorOpenedHandleIdentities,
         string path)
     {
         if (!recreated.Exists || !recreated.IdentityBound || recreated.IsReparsePoint ||
             !recreated.ReparseFreeAncestors || recreated.Directory || recreated.DeletePending || recreated.LinkCount != 1 ||
             recreated.Length <= 0 || recreated.ChangeTime <= 0 || string.IsNullOrWhiteSpace(recreated.OpenedHandleIdentity) ||
-            string.Equals(recreated.OpenedHandleIdentity, prior.OpenedHandleIdentity, StringComparison.Ordinal) ||
+            priorOpenedHandleIdentities.Contains(recreated.OpenedHandleIdentity) ||
             !string.Equals(recreated.Path, path, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Immediate rebuild did not recreate a distinct identity-bound runtime output.");
@@ -758,12 +759,15 @@ internal sealed class Win32RuntimeAssemblyFactory(
         IReadOnlyList<string> priorOpenedHandleIdentities)
     {
         ArgumentNullException.ThrowIfNull(exactRuntimeAssemblyPaths);
-        if (exactRuntimeAssemblyPaths.Count != 3 || priorOpenedHandleIdentities.Count != 3)
+        if (exactRuntimeAssemblyPaths.Count != 3 || priorOpenedHandleIdentities.Count != 3 ||
+            priorOpenedHandleIdentities.Any(string.IsNullOrWhiteSpace) ||
+            priorOpenedHandleIdentities.Distinct(StringComparer.Ordinal).Count() != 3)
         {
             throw new ArgumentException("Runtime closure must contain Game, Replay, and Sim assemblies.", nameof(exactRuntimeAssemblyPaths));
         }
         IEvidenceRuntimeAncestorLease? ancestorLease = null;
         var leases = new List<IEvidenceRuntimeAssemblyLease>();
+        var priorIdentitySet = priorOpenedHandleIdentities.ToHashSet(StringComparer.Ordinal);
         try
         {
             ancestorLease = ancestors.OpenRetainedChains(exactRuntimeAssemblyPaths);
@@ -775,7 +779,7 @@ internal sealed class Win32RuntimeAssemblyFactory(
             {
                 leases.Add(OpenOne(
                     exactRuntimeAssemblyPaths[index],
-                    priorOpenedHandleIdentities[index]));
+                    priorIdentitySet));
             }
             return new Win32RuntimeAssemblyClosureLease(leases, ancestorLease);
         }
@@ -795,7 +799,7 @@ internal sealed class Win32RuntimeAssemblyFactory(
 
     private IEvidenceRuntimeAssemblyLease OpenOne(
         string exactRuntimeAssemblyPath,
-        string priorOpenedHandleIdentity)
+        IReadOnlySet<string> priorOpenedHandleIdentities)
     {
         var expected = Win32ExecutableIdentityFactory.NormalizeRequestedPath(exactRuntimeAssemblyPath);
         var handle = api.OpenReadNoReplace(
@@ -816,7 +820,7 @@ internal sealed class Win32RuntimeAssemblyFactory(
                 throw new InvalidOperationException("Runtime assembly contained an alternate data stream.");
             }
             var openedIdentity = FormatIdentity(before);
-            if (string.Equals(openedIdentity, priorOpenedHandleIdentity, StringComparison.Ordinal))
+            if (priorOpenedHandleIdentities.Contains(openedIdentity))
             {
                 throw new InvalidOperationException("Recreated runtime assembly reused the prior file identity.");
             }

@@ -375,6 +375,28 @@ public sealed class Win32EvidenceBuildDriverTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Recreated_output_identity_set_refuses_cross_slot_prior_permutation(bool threeCycle)
+    {
+        var rig = new Rig();
+        rig.Output.States[6] = rig.Output.States[6] with { OpenedHandleIdentity = "old-replay-id" };
+        rig.Output.States[7] = rig.Output.States[7] with
+        {
+            OpenedHandleIdentity = threeCycle ? "old-sim-id" : "old-game-id",
+        };
+        rig.Output.States[8] = rig.Output.States[8] with
+        {
+            OpenedHandleIdentity = threeCycle ? "old-game-id" : "sim-id",
+        };
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        Assert.Throws<InvalidOperationException>(() => rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.DoesNotContain("runtime-open", rig.Events);
+    }
+
+    [Theory]
     [InlineData(1, false)]
     [InlineData(3, true)]
     public void Candidate_drift_before_spawn_or_after_build_refuses(int readIndex, bool processRan)
@@ -490,6 +512,29 @@ public sealed class Win32EvidenceBuildDriverTests
                 .OpenRecreatedClosure(paths, ["old-1", "old-2", "old-3"]));
 
         Assert.Contains($"close:{adsHandle}", files.Events);
+        Assert.Contains("ancestors-dispose", files.Events);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Runtime_factory_refuses_any_cross_slot_prior_identity_permutation(bool threeCycle)
+    {
+        var files = new FakeRetainedFiles();
+        var ancestors = new FakeAncestors(files.Events);
+        var paths = RuntimeFixturePaths();
+        files.Add(paths[0], File.ReadAllBytes(typeof(Win32EvidenceBuildDriverTests).Assembly.Location), 101, '1');
+        files.Add(paths[1], File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Rounds.Replay.dll")), 102, '2');
+        files.Add(paths[2], File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Rounds.Sim.dll")), 103, '3');
+        var identities = new[] { RetainedIdentity('1'), RetainedIdentity('2'), RetainedIdentity('3') };
+        var prior = threeCycle
+            ? new[] { identities[1], identities[2], identities[0] }
+            : new[] { identities[1], identities[0], "unrelated-prior" };
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new Win32RuntimeAssemblyFactory(files, ancestors, files).OpenRecreatedClosure(paths, prior));
+
+        Assert.Contains("close:101", files.Events);
         Assert.Contains("ancestors-dispose", files.Events);
     }
 
@@ -897,6 +942,9 @@ public sealed class Win32EvidenceBuildDriverTests
     private static EvidenceRuntimeAssemblyIdentity RuntimeIdentity(
         string path, string identity, char hash, char mvid) =>
         new(path, true, true, false, true, identity, new string(hash, 64), new string(mvid, 32));
+
+    private static string RetainedIdentity(char fileId) =>
+        $"volume:{7UL:x16}:file:{new string(fileId, 32)}";
 
     private static EvidenceBuildProcessResult ValidProcessResult() => new(
         ValidMsBuild(), ValidEnvironment(), 0, false, true, true, false, false,
