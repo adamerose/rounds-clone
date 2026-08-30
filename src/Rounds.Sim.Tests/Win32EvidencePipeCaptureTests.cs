@@ -240,25 +240,20 @@ public sealed class Win32EvidencePipeCaptureTests
     {
         Assert.InRange(iteration, 0, 2);
         using var releaseStdoutWorker = new ManualResetEventSlim(initialState: false);
-        using var stdoutEofObserved = new ManualResetEventSlim(initialState: false);
         using var stderrDelayEntered = new ManualResetEventSlim(initialState: false);
         var api = new FakePipeApi();
         api.Bytes(402, MarkerBytes());
-        api.Callback(402, () =>
-        {
-            stdoutEofObserved.Set();
-            return Win32PipePoll.EndOfFile();
-        });
+        api.Eof(402);
+        using var starter = new GateFirstDrainStarter(releaseStdoutWorker);
         var clock = new FakeClock(TimeSpan.FromSeconds(30) - TimeSpan.FromMilliseconds(5))
         {
             BeforeDelay = () =>
             {
                 stderrDelayEntered.Set();
                 releaseStdoutWorker.Set();
-                Assert.True(stdoutEofObserved.Wait(TimeSpan.FromSeconds(2)));
+                Assert.True(starter.WaitForFirstOperationCompletion(TimeSpan.FromSeconds(2)));
             },
         };
-        var starter = new GateFirstDrainStarter(releaseStdoutWorker);
         var handles = ReadyHandles(api);
 
         Win32BoundedProtocolCapture capture;
@@ -275,7 +270,7 @@ public sealed class Win32EvidencePipeCaptureTests
         Assert.True(capture.StandardOutputEof);
         Assert.False(capture.StandardErrorEof);
         Assert.True(stderrDelayEntered.IsSet);
-        Assert.True(stdoutEofObserved.IsSet);
+        Assert.True(starter.FirstOperationCompleted);
         Assert.True(clock.Elapsed >= TimeSpan.FromSeconds(30));
         Assert.Equal(0, starter.ActiveWorkers);
         AssertParentReadsClosedExactlyOnce(api, handles);
@@ -554,12 +549,19 @@ public sealed class Win32EvidencePipeCaptureTests
     }
 
     private sealed class GateFirstDrainStarter(ManualResetEventSlim releaseFirst) :
-        IWin32PipeDrainStarter
+        IWin32PipeDrainStarter,
+        IDisposable
     {
+        private readonly ManualResetEventSlim _firstOperationCompleted = new(initialState: false);
         private int _startCount;
         private int _activeWorkers;
 
         internal int ActiveWorkers => Volatile.Read(ref _activeWorkers);
+
+        internal bool FirstOperationCompleted => _firstOperationCompleted.IsSet;
+
+        internal bool WaitForFirstOperationCompletion(TimeSpan timeout) =>
+            _firstOperationCompleted.Wait(timeout);
 
         public Task<T> Start<T>(Func<T> operation, CancellationToken stopToken)
         {
@@ -580,10 +582,16 @@ public sealed class Win32EvidencePipeCaptureTests
                 }
                 finally
                 {
+                    if (start == 1)
+                    {
+                        _firstOperationCompleted.Set();
+                    }
                     Interlocked.Decrement(ref _activeWorkers);
                 }
             });
         }
+
+        public void Dispose() => _firstOperationCompleted.Dispose();
     }
 
     private sealed class FailSecondDrainStarter(FakePipeApi api) : IWin32PipeDrainStarter
