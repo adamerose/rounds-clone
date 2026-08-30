@@ -62,144 +62,30 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         Assert.Contains(failures, failure => failure.StartsWith("IDN012", StringComparison.Ordinal));
     }
 
-    [Theory]
-    [InlineData("Convert.ToString(_world.Phase)", false)]
-    [InlineData("$\"{_world.Phase}\"", false)]
-    [InlineData("Convert.ToString(_world.Players[0].AimDirection.X)", true)]
-    [InlineData("_world.Arena.Id", false)]
-    [InlineData("Convert.ToString(_world.Bullets.Count)", false)]
-    [InlineData("Convert.ToString(_world.Bullets[0].BouncesRemaining)", true)]
-    [InlineData("Convert.ToString(_world.Players[0].BlockPhase)", false)]
-    [InlineData("Convert.ToString(_world.Players[0].BlockTicksRemaining)", true)]
-    public void AlternateCompilableLiveTextFlowsAreRejected(string expression, bool throughAlias)
-    {
-        CopyIdentityFixture();
-        var main = Path.Combine(_fixture, "game", "Main.cs");
-        var source = File.ReadAllText(main);
-        var marker = "    private readonly record struct CameraTransform";
-        var rendered = throughAlias ? "rendered" : expression;
-        var alias = throughAlias ? $"        var rendered = {expression};\n" : string.Empty;
-        var method = $$"""
-            private void DrawUnsupportedFixture()
-            {
-        {{alias}}        DrawString(
-                    ThemeDB.FallbackFont,
-                    Vector2.Zero,
-                    {{rendered}},
-                    HorizontalAlignment.Left,
-                    200.0f,
-                    16,
-                    Paper);
-            }
-
-        """;
-        Assert.Contains(marker, source, StringComparison.Ordinal);
-        File.WriteAllText(main, source.Replace(marker, method + marker, StringComparison.Ordinal));
-
-        var failures = ProductIdentityChecker.CheckRepository(_fixture);
-
-        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
-    }
-
     [Fact]
-    public void DisplayNameMustStillComeFromTheDraftCardDefinition()
+    public void ArbitraryMainSourceByteChangeRequiresLiveUiReview()
     {
         CopyIdentityFixture();
         var main = Path.Combine(_fixture, "game", "Main.cs");
-        File.WriteAllText(main, File.ReadAllText(main).Replace(
-            "var card = match.CurrentOffer[index];",
-            "var card = new { DisplayName = Convert.ToString(_world.Phase) };",
-            StringComparison.Ordinal));
+        File.AppendAllText(main, "\n// reviewed live UI changed\n");
 
         var failures = ProductIdentityChecker.CheckRepository(_fixture);
 
-        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void ReassignedIncompleteFidelityWrapperParameterIsRejected()
-    {
-        CopyIdentityFixture();
-        var main = Path.Combine(_fixture, "game", "Main.cs");
-        var source = File.ReadAllText(main);
-        const string mutation = """
-            private void DrawIncompleteFidelityLine(string text, float baselineY, int fontSize, Color color)
-            {
-                text = Convert.ToString(_world.Phase);
-                DrawString(
-                    ThemeDB.FallbackFont,
-                    new Vector2(260.0f, baselineY),
-                    text,
-                    HorizontalAlignment.Center,
-                    1400.0f,
-                    fontSize,
-                    color);
-            }
-
-            """;
-        const string startMarker = "    private void DrawIncompleteFidelityLine(";
-        const string endMarker = "    private readonly record struct CameraTransform";
-        var start = source.IndexOf(startMarker, StringComparison.Ordinal);
-        var end = source.IndexOf(endMarker, start, StringComparison.Ordinal);
-        Assert.True(start >= 0 && end > start);
-        File.WriteAllText(main, source[..start] + mutation + source[end..]);
-
-        var failures = ProductIdentityChecker.CheckRepository(_fixture);
-
-        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void ApprovedIncompleteFidelityWrapperParameterReassignmentRemainsAllowed()
-    {
-        CopyIdentityFixture();
-        var main = Path.Combine(_fixture, "game", "Main.cs");
-        var source = File.ReadAllText(main);
-        const string mutation = """
-            private void DrawIncompleteFidelityLine(string text, float baselineY, int fontSize, Color color)
-            {
-                text = FaithfulSubsetMatchShell.IncompleteFidelityHeadlineLine1;
-                DrawString(
-                    ThemeDB.FallbackFont,
-                    new Vector2(260.0f, baselineY),
-                    text,
-                    HorizontalAlignment.Center,
-                    1400.0f,
-                    fontSize,
-                    color);
-            }
-
-            """;
-        const string startMarker = "    private void DrawIncompleteFidelityLine(";
-        const string endMarker = "    private readonly record struct CameraTransform";
-        var start = source.IndexOf(startMarker, StringComparison.Ordinal);
-        var end = source.IndexOf(endMarker, start, StringComparison.Ordinal);
-        Assert.True(start >= 0 && end > start);
-        File.WriteAllText(main, source[..start] + mutation + source[end..]);
-
-        var failures = ProductIdentityChecker.CheckRepository(_fixture);
-
-        Assert.DoesNotContain(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure ==
+            "IDN010 game/Main.cs changed from the reviewed live Main UI source; " +
+            "deliberately review the complete live UI boundary and update ExpectedMainSourceSha256.");
     }
 
     [Theory]
-    [InlineData("phaseText += Convert.ToString(_world.Phase);")]
-    [InlineData("if (_match is not null) phaseText = Convert.ToString(_match.Phase);")]
-    [InlineData("if (_match is not null) { if (_world is not null) phaseText = Convert.ToString(_match.Phase); }")]
-    [InlineData("var diagnostic = string.Empty; diagnostic = phaseText = Convert.ToString(_world.Phase);")]
-    [InlineData("phaseText ??= Convert.ToString(_world.Phase);")]
-    [InlineData("phaseText = phaseText + Convert.ToString(_world.Phase);")]
-    public void ReassignedRenderedTextLocalIsRejected(string mutation)
+    [InlineData("private void RefAliasBypass() { string text = string.Empty; ref string alias = ref text; alias = _world.Phase.ToString(); }")]
+    [InlineData("private void DeconstructionBypass() { var text = string.Empty; (text, _) = (_world.Phase.ToString(), 0); }")]
+    [InlineData("private void OutlineBypass() { DrawStringOutline(ThemeDB.FallbackFont, Vector2.Zero, _world.Phase.ToString()); }")]
+    [InlineData("private void MultilineBypass() { DrawMultilineString(ThemeDB.FallbackFont, Vector2.Zero, _world.Phase.ToString()); }")]
+    public void RepresentativeAlternateTextFlowsRequireLiveUiReview(string mutation)
     {
         CopyIdentityFixture();
         var main = Path.Combine(_fixture, "game", "Main.cs");
-        var source = File.ReadAllText(main);
-        const string marker = "        if (phaseText.Length > 0)";
-        Assert.Contains(marker, source, StringComparison.Ordinal);
-        File.WriteAllText(main, source.Replace(
-            marker,
-            $"        {mutation}\n{marker}",
-            StringComparison.Ordinal));
+        InsertBeforeFinalBrace(main, $"\n    {mutation}\n");
 
         var failures = ProductIdentityChecker.CheckRepository(_fixture);
 
@@ -207,11 +93,9 @@ public sealed class ProductIdentityCheckerTests : IDisposable
     }
 
     [Fact]
-    public void ForbiddenWordsInCommentsDoNotCreateLiveTextOrRuntimeSummaryFailures()
+    public void SummaryWordsInCommentsDoNotCreateRuntimeSummaryFailures()
     {
         CopyIdentityFixture();
-        File.AppendAllText(Path.Combine(_fixture, "game", "Main.cs"),
-            "\n// DrawString card.Summary BLOCK READY _world.Phase AimDirection.X Arena.Id Bullets.Count\n");
         File.AppendAllText(Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardDefinition.cs"),
             "\n// Summary\n");
         File.AppendAllText(Path.Combine(_fixture, "src", "Rounds.Sim", "Cards", "StatCardCatalog.cs"),
@@ -220,7 +104,6 @@ public sealed class ProductIdentityCheckerTests : IDisposable
         var failures = ProductIdentityChecker.CheckRepository(_fixture);
 
         Assert.DoesNotContain(failures, failure =>
-            failure.StartsWith("IDN010", StringComparison.Ordinal) ||
             failure.StartsWith("IDN011", StringComparison.Ordinal) ||
             failure.StartsWith("IDN012", StringComparison.Ordinal));
     }

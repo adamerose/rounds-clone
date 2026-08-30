@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -5,6 +6,9 @@ namespace Rounds.Checks;
 
 public static partial class ProductIdentityChecker
 {
+    private const string ExpectedMainSourceSha256 =
+        "118f90bf5742eeeb7ea5f08999aad723f3b7e35df1eac57cb4daf2005ab9491b";
+
     private static readonly string[] ActiveIdentityPaths =
     [
         "GOAL.md",
@@ -143,6 +147,7 @@ public static partial class ProductIdentityChecker
 
     private static void CheckUnsupportedLiveUiIsAbsent(string repository, List<string> failures)
     {
+        var mainPath = Path.Combine(repository, "game", "Main.cs");
         var main = ReadRequired(repository, Path.Combine("game", "Main.cs"), failures);
         var definition = ReadRequired(
             repository,
@@ -154,13 +159,14 @@ public static partial class ProductIdentityChecker
             failures);
         if (main is not null)
         {
-            foreach (var failure in CheckRenderedTextExpressions(main))
+            var actualMainSourceSha256 = Convert.ToHexString(
+                    SHA256.HashData(File.ReadAllBytes(mainPath)))
+                .ToLowerInvariant();
+            if (actualMainSourceSha256 != ExpectedMainSourceSha256)
             {
-                failures.Add(failure);
-            }
-            if (!MaskNonCode(main).Contains("card.DisplayName", StringComparison.Ordinal))
-            {
-                failures.Add("IDN010 game/Main.cs no longer renders exact sourced draft-card display names.");
+                failures.Add(
+                    "IDN010 game/Main.cs changed from the reviewed live Main UI source; " +
+                    "deliberately review the complete live UI boundary and update ExpectedMainSourceSha256.");
             }
         }
         if (definition is not null && SummaryIdentifier().IsMatch(MaskComments(definition)))
@@ -173,341 +179,7 @@ public static partial class ProductIdentityChecker
         }
     }
 
-    private static IReadOnlyList<string> CheckRenderedTextExpressions(string source)
-    {
-        var failures = new List<string>();
-        var masked = MaskNonCode(source);
-        var methods = ExtractMethods(source, masked);
-        var globalDrawStringCount = CountCallTokens(masked, "DrawString");
-        var globalWrapperTokenCount = CountCallTokens(masked, "DrawIncompleteFidelityLine");
-        var drawStringCount = 0;
-        var wrapperCallCount = 0;
-        foreach (var method in methods)
-        {
-            foreach (var call in ExtractCalls(source, masked, method, "DrawString"))
-            {
-                drawStringCount++;
-                if (call.Arguments.Count <= 2)
-                {
-                    failures.Add($"IDN010 game/Main.cs has an unrecognized DrawString overload in `{method.Name}`.");
-                    continue;
-                }
-                var renderedText = call.Arguments[2];
-                var resolved = ResolveLocals(renderedText, method, call.Start, source, masked);
-                if (!IsAllowedDrawStringText(method.Name, renderedText, resolved))
-                {
-                    var provenance = string.Join(" | ", resolved.Expressions.Select(static value => value.Trim()));
-                    failures.Add($"IDN010 game/Main.cs renders an unapproved text expression in `{method.Name}`: `{provenance}`.");
-                }
-            }
-            if (method.Name == "DrawIncompleteFidelityLine")
-            {
-                continue;
-            }
-            foreach (var call in ExtractCalls(source, masked, method, "DrawIncompleteFidelityLine"))
-            {
-                wrapperCallCount++;
-                if (call.Arguments.Count == 0)
-                {
-                    failures.Add($"IDN010 game/Main.cs has an unrecognized incomplete-fidelity text call in `{method.Name}`.");
-                    continue;
-                }
-                var resolved = ResolveLocals(call.Arguments[0], method, call.Start, source, masked);
-                if (resolved.HasCompoundAssignment ||
-                    resolved.Expressions.Count == 0 ||
-                    resolved.Expressions.Any(value => !IncompleteFidelityText().IsMatch(NormalizeExpression(value))))
-                {
-                    failures.Add($"IDN010 game/Main.cs routes unapproved text through DrawIncompleteFidelityLine in `{method.Name}`.");
-                }
-            }
-        }
-        if (drawStringCount == 0 ||
-            drawStringCount != globalDrawStringCount ||
-            wrapperCallCount != 6 ||
-            globalWrapperTokenCount != wrapperCallCount + 1)
-        {
-            failures.Add("IDN010 game/Main.cs text drawing topology changed without updating the fail-closed live-text guard.");
-        }
-        return failures;
-    }
-
-    private static int CountCallTokens(string masked, string callName) =>
-        new Regex($@"\b{Regex.Escape(callName)}\s*\(", RegexOptions.CultureInvariant)
-            .Matches(masked)
-            .Count;
-
-    private static bool IsAllowedDrawStringText(
-        string methodName,
-        string expression,
-        ResolvedExpressions resolved)
-    {
-        var normalized = NormalizeExpression(expression);
-        if (resolved.HasCompoundAssignment || resolved.Expressions.Count == 0)
-        {
-            return false;
-        }
-        if (methodName == "DrawIncompleteFidelityLine" && normalized == "text")
-        {
-            return resolved.Expressions.All(value =>
-                NormalizeExpression(value) == "text" ||
-                IncompleteFidelityText().IsMatch(NormalizeExpression(value)));
-        }
-        return resolved.Expressions.All(value => AllowedRenderedExpressions.Contains(
-            NormalizeExpression(value),
-            StringComparer.Ordinal));
-    }
-
-    private static readonly string[] AllowedRenderedExpressions =
-    [
-        NormalizeExpression("""
-            _match?.Phase == MatchPhase.MatchResult
-                ? _match.WinnerId == 0 ? "RED WINS THE MATCH" : "BLUE WINS THE MATCH"
-                : _world.Phase switch
-            {
-                DuelPhase.Spawning => $"GET READY  {_world.PhaseTicksRemaining}",
-                DuelPhase.Resolving => "K.O.",
-                DuelPhase.Result when _world.IsDraw => "DRAW",
-                DuelPhase.Result => _world.WinnerId == 0 ? "RED WINS" : "BLUE WINS",
-                _ => string.Empty,
-            }
-            """),
-        NormalizeExpression("$\"{match.FullPoints[0]}   ROUNDS   {match.FullPoints[1]}\""),
-        NormalizeExpression("(_displayCards.GetRequired((match.AcquiredCardsFor(playerId))[(0)])).DisplayName"),
-        NormalizeExpression("""
-            match.Phase == MatchPhase.OpeningDraft
-                ? $"PLAYER {match.CurrentPickerId + 1} — OPENING PICK"
-                : $"PLAYER {match.CurrentPickerId + 1} — COMEBACK PICK"
-            """),
-        NormalizeExpression("match.IsDraftArmed ? \"LEFT / RIGHT TO CHOOSE     JUMP TO TAKE\" : \"RELEASE MOVE AND JUMP\""),
-        NormalizeExpression("(match.CurrentOffer[(0)]).DisplayName"),
-    ];
-
-    private static ResolvedExpressions ResolveLocals(
-        string expression,
-        SourceMethod method,
-        int callStart,
-        string source,
-        string masked)
-    {
-        var assignments = ExtractAssignments(method, callStart, source, masked);
-        var hasCompoundAssignment = false;
-        var expressions = ResolveExpression(
-                expression,
-                assignments,
-                new HashSet<string>(StringComparer.Ordinal),
-                ref hasCompoundAssignment)
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-        if (method.Name == "DrawIncompleteFidelityLine" && NormalizeExpression(expression) == "text")
-        {
-            expressions = expressions.Append("text").Distinct(StringComparer.Ordinal).ToArray();
-        }
-        return new ResolvedExpressions(expressions, hasCompoundAssignment);
-    }
-
-    private static IReadOnlyList<string> ResolveExpression(
-        string expression,
-        IReadOnlyDictionary<string, IReadOnlyList<SourceAssignment>> assignments,
-        HashSet<string> resolving,
-        ref bool hasCompoundAssignment)
-    {
-        foreach (Match match in Identifier().Matches(expression))
-        {
-            var name = match.Value;
-            if (!assignments.TryGetValue(name, out var values) || !resolving.Add(name))
-            {
-                continue;
-            }
-            var expanded = new List<string>();
-            foreach (var assignment in values)
-            {
-                if (assignment.Operator != "=")
-                {
-                    hasCompoundAssignment = true;
-                    continue;
-                }
-                foreach (var resolved in ResolveExpression(
-                    assignment.Expression,
-                    assignments,
-                    resolving,
-                    ref hasCompoundAssignment))
-                {
-                    var replaced = Identifier().Replace(
-                        expression,
-                        candidate => candidate.Value == name ? $"({resolved})" : candidate.Value);
-                    expanded.AddRange(ResolveExpression(
-                        replaced,
-                        assignments,
-                        resolving,
-                        ref hasCompoundAssignment));
-                }
-            }
-            resolving.Remove(name);
-            return expanded;
-        }
-        return [expression];
-    }
-
-    private static IReadOnlyDictionary<string, IReadOnlyList<SourceAssignment>> ExtractAssignments(
-        SourceMethod method,
-        int callStart,
-        string source,
-        string masked)
-    {
-        var assignments = new Dictionary<string, List<SourceAssignment>>(StringComparer.Ordinal);
-        var prefixLength = callStart - method.BodyStart;
-        var prefix = masked.Substring(method.BodyStart, prefixLength);
-        foreach (Match match in LocalAssignment().Matches(prefix))
-        {
-            var name = match.Groups[1].Value;
-            var expressionStart = method.BodyStart + match.Index + match.Length;
-            var end = FindExpressionEnd(masked, expressionStart, callStart);
-            if (end > expressionStart)
-            {
-                if (!assignments.TryGetValue(name, out var values))
-                {
-                    values = [];
-                    assignments.Add(name, values);
-                }
-                values.Add(new SourceAssignment(match.Groups[2].Value, source[expressionStart..end]));
-            }
-        }
-        return assignments.ToDictionary(
-            static pair => pair.Key,
-            static pair => (IReadOnlyList<SourceAssignment>)pair.Value,
-            StringComparer.Ordinal);
-    }
-
-    private static int FindExpressionEnd(string masked, int start, int limit)
-    {
-        var round = 0;
-        var square = 0;
-        var curly = 0;
-        for (var index = start; index < limit; index++)
-        {
-            switch (masked[index])
-            {
-                case '(': round++; break;
-                case ')': round--; break;
-                case '[': square++; break;
-                case ']': square--; break;
-                case '{': curly++; break;
-                case '}': curly--; break;
-                case ';' when round == 0 && square == 0 && curly == 0: return index;
-            }
-        }
-        return -1;
-    }
-
-    private static IReadOnlyList<SourceMethod> ExtractMethods(string source, string masked)
-    {
-        var methods = new List<SourceMethod>();
-        foreach (Match match in MethodDeclaration().Matches(masked))
-        {
-            var openParenthesis = masked.IndexOf('(', match.Index + match.Length - 1);
-            var closeParenthesis = FindBalancedEnd(masked, openParenthesis, '(', ')');
-            if (closeParenthesis < 0)
-            {
-                continue;
-            }
-            var bodyStart = SkipWhiteSpace(masked, closeParenthesis + 1);
-            if (bodyStart < masked.Length && masked[bodyStart] == '{')
-            {
-                var bodyEnd = FindBalancedEnd(masked, bodyStart, '{', '}');
-                if (bodyEnd > bodyStart)
-                {
-                    methods.Add(new SourceMethod(match.Groups[1].Value, bodyStart + 1, bodyEnd));
-                }
-            }
-            else if (bodyStart + 1 < masked.Length && masked.AsSpan(bodyStart, 2).SequenceEqual("=>"))
-            {
-                var bodyEnd = masked.IndexOf(';', bodyStart + 2);
-                if (bodyEnd > bodyStart)
-                {
-                    methods.Add(new SourceMethod(match.Groups[1].Value, bodyStart + 2, bodyEnd));
-                }
-            }
-        }
-        return methods;
-    }
-
-    private static IReadOnlyList<SourceCall> ExtractCalls(
-        string source,
-        string masked,
-        SourceMethod method,
-        string callName)
-    {
-        var calls = new List<SourceCall>();
-        var pattern = new Regex($@"\b{Regex.Escape(callName)}\s*\(", RegexOptions.CultureInvariant);
-        var body = masked.Substring(method.BodyStart, method.BodyEnd - method.BodyStart);
-        foreach (Match match in pattern.Matches(body))
-        {
-            var start = method.BodyStart + match.Index;
-            var open = masked.IndexOf('(', start + callName.Length);
-            var close = FindBalancedEnd(masked, open, '(', ')');
-            if (close < 0 || close > method.BodyEnd)
-            {
-                continue;
-            }
-            calls.Add(new SourceCall(start, SplitArguments(source, masked, open + 1, close)));
-        }
-        return calls;
-    }
-
-    private static IReadOnlyList<string> SplitArguments(string source, string masked, int start, int end)
-    {
-        var arguments = new List<string>();
-        var argumentStart = start;
-        var round = 0;
-        var square = 0;
-        var curly = 0;
-        for (var index = start; index < end; index++)
-        {
-            switch (masked[index])
-            {
-                case '(': round++; break;
-                case ')': round--; break;
-                case '[': square++; break;
-                case ']': square--; break;
-                case '{': curly++; break;
-                case '}': curly--; break;
-                case ',' when round == 0 && square == 0 && curly == 0:
-                    arguments.Add(source[argumentStart..index]);
-                    argumentStart = index + 1;
-                    break;
-            }
-        }
-        arguments.Add(source[argumentStart..end]);
-        return arguments;
-    }
-
-    private static int FindBalancedEnd(string masked, int start, char open, char close)
-    {
-        if (start < 0 || start >= masked.Length || masked[start] != open)
-        {
-            return -1;
-        }
-        var depth = 0;
-        for (var index = start; index < masked.Length; index++)
-        {
-            if (masked[index] == open) depth++;
-            else if (masked[index] == close && --depth == 0) return index;
-        }
-        return -1;
-    }
-
-    private static int SkipWhiteSpace(string text, int start)
-    {
-        while (start < text.Length && char.IsWhiteSpace(text[start])) start++;
-        return start;
-    }
-
-    private static string NormalizeExpression(string expression) =>
-        WhiteSpace().Replace(expression.Trim().Trim('(', ')'), string.Empty);
-
     private static string MaskComments(string source) => MaskSource(source, maskStrings: false);
-
-    private static string MaskNonCode(string source) => MaskSource(source, maskStrings: true);
 
     private static string MaskSource(string source, bool maskStrings)
     {
@@ -571,11 +243,6 @@ public static partial class ProductIdentityChecker
         }
     }
 
-    private sealed record SourceMethod(string Name, int BodyStart, int BodyEnd);
-    private sealed record SourceCall(int Start, IReadOnlyList<string> Arguments);
-    private sealed record SourceAssignment(string Operator, string Expression);
-    private sealed record ResolvedExpressions(IReadOnlyList<string> Expressions, bool HasCompoundAssignment);
-
     private static string? ReadRequired(string repository, string relativePath, List<string> failures)
     {
         var path = Path.Combine(repository, relativePath);
@@ -602,18 +269,4 @@ public static partial class ProductIdentityChecker
     [GeneratedRegex(@"\bSummary(?:For)?\b", RegexOptions.CultureInvariant)]
     private static partial Regex SummaryIdentifier();
 
-    [GeneratedRegex(@"(?:public|private|protected|internal)\s+(?:(?:static|override|virtual|sealed|async|readonly|partial)\s+)*[A-Za-z_][\w<>,.?\[\]]*\s+([A-Za-z_]\w*)\s*\(", RegexOptions.CultureInvariant)]
-    private static partial Regex MethodDeclaration();
-
-    [GeneratedRegex(@"\b([A-Za-z_]\w*)\s*(\?\?=|<<=|>>=|\+=|-=|\*=|/=|%=|&=|\|=|\^=|=(?!=|>))", RegexOptions.CultureInvariant)]
-    private static partial Regex LocalAssignment();
-
-    [GeneratedRegex(@"\b[A-Za-z_]\w*\b", RegexOptions.CultureInvariant)]
-    private static partial Regex Identifier();
-
-    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
-    private static partial Regex WhiteSpace();
-
-    [GeneratedRegex(@"^FaithfulSubsetMatchShell\.IncompleteFidelity(?:Headline|Subtitle)Line[123]$", RegexOptions.CultureInvariant)]
-    private static partial Regex IncompleteFidelityText();
 }
