@@ -270,6 +270,100 @@ public sealed class EvidenceBuildManifestCompilerTests
     }
 
     [Fact]
+    public void Directory_record_invariants_refuse_before_content_clone()
+    {
+        var nonempty = new TrackingEntrySource(
+            "directory", [1], kind: EvidenceManifestRecordKind.Directory);
+        var transformed = new TrackingEntrySource(
+            "directory", [],
+            EvidenceManifestContentKind.RepositoryAndPackageRootNormalizedProjectAssetsJson,
+            EvidenceManifestRecordKind.Directory);
+
+        Assert.Throws<InvalidOperationException>(() => EvidenceManifestDefinition.CreateForSources(
+            [nonempty], null, EvidenceBuildManifestCompiler.DefaultLimits));
+        Assert.Throws<InvalidOperationException>(() => EvidenceManifestDefinition.CreateForSources(
+            [transformed], null, EvidenceBuildManifestCompiler.DefaultLimits));
+
+        Assert.Equal(0, nonempty.CloneCalls);
+        Assert.Equal(0, transformed.CloneCalls);
+    }
+
+    [Fact]
+    public void Zero_length_raw_directory_and_file_are_exact_valid_edge_records()
+    {
+        var directory = new TrackingEntrySource(
+            "directory", [], kind: EvidenceManifestRecordKind.Directory);
+        var file = new TrackingEntrySource("empty.bin", []);
+
+        var definition = EvidenceManifestDefinition.CreateForSources(
+            [file, directory], null, EvidenceBuildManifestCompiler.DefaultLimits);
+
+        Assert.Equal(1, directory.CloneCalls);
+        Assert.Equal(1, file.CloneCalls);
+        Assert.Equal(EvidenceManifestRecordKind.Directory, definition.RequiredEntries[0].Kind);
+        Assert.Equal(0, definition.RequiredEntries[0].ContentLength);
+        Assert.Equal(EvidenceManifestRecordKind.File, definition.RequiredEntries[1].Kind);
+        Assert.Equal(0, definition.RequiredEntries[1].ContentLength);
+    }
+
+    [Fact]
+    public void Mutable_source_metadata_is_snapshotted_once_and_never_reread_during_freeze()
+    {
+        var source = new ChangingMetadataSource();
+
+        var definition = EvidenceManifestDefinition.CreateForSources(
+            [source], null, EvidenceBuildManifestCompiler.DefaultLimits);
+
+        Assert.Equal(1, source.PathReads);
+        Assert.Equal(1, source.KindReads);
+        Assert.Equal(1, source.ContentKindReads);
+        Assert.Equal(1, source.LengthReads);
+        Assert.Equal(1, source.CloneCalls);
+        var entry = Assert.Single(definition.RequiredEntries);
+        Assert.Equal("directory", entry.RelativePath);
+        Assert.Equal(EvidenceManifestRecordKind.Directory, entry.Kind);
+        Assert.Equal(EvidenceManifestContentKind.RawBytes, entry.ContentKind);
+        Assert.Equal(0, entry.ContentLength);
+
+        var observed = new ChangingMetadataSource();
+        var compiled = EvidenceBuildManifestCompiler.CompileExactForSources(
+            definition,
+            [observed],
+            RepositoryRoot,
+            PackageRoot,
+            EvidenceBuildManifestCompiler.DefaultLimits,
+            new TrackingNormalizer([]));
+        Assert.Single(compiled.Entries);
+        Assert.Equal(1, observed.PathReads);
+        Assert.Equal(1, observed.KindReads);
+        Assert.Equal(1, observed.ContentKindReads);
+        Assert.Equal(1, observed.LengthReads);
+        Assert.Equal(1, observed.CloneCalls);
+    }
+
+    [Fact]
+    public void Clone_length_mismatch_refuses_the_snapshotted_record()
+    {
+        var source = new TrackingEntrySource("file", [1, 2], declaredLength: 1);
+
+        Assert.Throws<InvalidOperationException>(() => EvidenceManifestDefinition.CreateForSources(
+            [source], null, EvidenceBuildManifestCompiler.DefaultLimits));
+
+        Assert.Equal(1, source.CloneCalls);
+
+        var definition = new EvidenceManifestDefinition([File("file", [1])]);
+        var observed = new TrackingEntrySource("file", [1, 2], declaredLength: 1);
+        Assert.Throws<InvalidOperationException>(() => EvidenceBuildManifestCompiler.CompileExactForSources(
+            definition,
+            [observed],
+            RepositoryRoot,
+            PackageRoot,
+            EvidenceBuildManifestCompiler.DefaultLimits,
+            new TrackingNormalizer([])));
+        Assert.Equal(1, observed.CloneCalls);
+    }
+
+    [Fact]
     public void Observed_later_entry_is_not_cloned_or_transformed_after_prior_transform_consumes_budget()
     {
         var json = Encoding.UTF8.GetBytes("{}");
@@ -419,18 +513,47 @@ public sealed class EvidenceBuildManifestCompilerTests
     private sealed class TrackingEntrySource(
         string relativePath,
         byte[] bytes,
-        EvidenceManifestContentKind contentKind = EvidenceManifestContentKind.RawBytes) :
+        EvidenceManifestContentKind contentKind = EvidenceManifestContentKind.RawBytes,
+        EvidenceManifestRecordKind kind = EvidenceManifestRecordKind.File,
+        long? declaredLength = null) :
         IEvidenceManifestEntrySource
     {
         public string RelativePath { get; } = relativePath;
-        public EvidenceManifestRecordKind Kind => EvidenceManifestRecordKind.File;
+        public EvidenceManifestRecordKind Kind { get; } = kind;
         public EvidenceManifestContentKind ContentKind { get; } = contentKind;
-        public long ContentLength => bytes.LongLength;
+        public long ContentLength { get; } = declaredLength ?? bytes.LongLength;
         internal int CloneCalls { get; private set; }
         public byte[] CloneContent()
         {
             CloneCalls++;
             return bytes.ToArray();
+        }
+    }
+
+    private sealed class ChangingMetadataSource : IEvidenceManifestEntrySource
+    {
+        internal int PathReads { get; private set; }
+        internal int KindReads { get; private set; }
+        internal int ContentKindReads { get; private set; }
+        internal int LengthReads { get; private set; }
+        internal int CloneCalls { get; private set; }
+
+        public string RelativePath => ++PathReads == 1 ? "directory" : "../changed";
+
+        public EvidenceManifestRecordKind Kind =>
+            ++KindReads == 1 ? EvidenceManifestRecordKind.Directory : EvidenceManifestRecordKind.File;
+
+        public EvidenceManifestContentKind ContentKind =>
+            ++ContentKindReads == 1
+                ? EvidenceManifestContentKind.RawBytes
+                : EvidenceManifestContentKind.RepositoryAndPackageRootNormalizedProjectAssetsJson;
+
+        public long ContentLength => ++LengthReads == 1 ? 0 : 99;
+
+        public byte[] CloneContent()
+        {
+            CloneCalls++;
+            return [];
         }
     }
 

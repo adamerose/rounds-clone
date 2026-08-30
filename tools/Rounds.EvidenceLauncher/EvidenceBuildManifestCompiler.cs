@@ -328,23 +328,32 @@ internal static class EvidenceBuildManifestCompiler
         foreach (var source in sources)
         {
             ArgumentNullException.ThrowIfNull(source);
+            var relativePath = source.RelativePath;
+            var kind = source.Kind;
+            var contentKind = source.ContentKind;
+            var contentLength = source.ContentLength;
             if (prepared.Count == limits.MaximumEntries)
             {
                 throw new InvalidOperationException($"{label} entry count exceeded its bound.");
             }
-            var contentLength = source.ContentLength;
             if (contentLength < 0 || contentLength > limits.MaximumEntryBytes)
             {
                 throw new InvalidOperationException($"{label} entry content exceeded its bound.");
             }
-            var normalizedPath = NormalizeRelativePath(source.RelativePath);
+            if (!Enum.IsDefined(kind) || !Enum.IsDefined(contentKind))
+            {
+                throw new InvalidOperationException($"{label} entry kind was invalid.");
+            }
+            if (kind == EvidenceManifestRecordKind.Directory &&
+                (contentLength != 0 || contentKind != EvidenceManifestContentKind.RawBytes))
+            {
+                throw new InvalidOperationException(
+                    $"{label} directory entries must be empty raw-byte records.");
+            }
+            var normalizedPath = NormalizeRelativePath(relativePath);
             if (StrictUtf8.GetByteCount(normalizedPath) > limits.MaximumPathBytes)
             {
                 throw new InvalidOperationException($"{label} path exceeded its UTF-8 bound.");
-            }
-            if (!Enum.IsDefined(source.Kind) || !Enum.IsDefined(source.ContentKind))
-            {
-                throw new InvalidOperationException($"{label} entry kind was invalid.");
             }
             if (contentLength > limits.MaximumTotalBytes - totalBytes)
             {
@@ -352,7 +361,7 @@ internal static class EvidenceBuildManifestCompiler
             }
             totalBytes = checked(totalBytes + contentLength);
             prepared.Add(new PreparedManifestSource(
-                source, normalizedPath, source.Kind, source.ContentKind, contentLength));
+                source, normalizedPath, kind, contentKind, contentLength));
         }
         return prepared.OrderBy(value => value.RelativePath, StringComparer.Ordinal).ToArray();
     }
