@@ -450,6 +450,25 @@ public sealed class EvidenceBuildProcessPrimitivesTests
     }
 
     [Theory]
+    [InlineData("+0 Warnung(en)\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    [InlineData("    0 Warning(s)\r\n    0 Error(s)\r\n-0:::Fehler\r\n")]
+    [InlineData("    0 Warning(s)\r\n    0 Error(s)\r\n+0 Hinweis\r\nTime Elapsed 00:00:01.00\r\n")]
+    [InlineData("    0 Warning(s)\r\n    0 Error(s)\r\nTime Elapsed 00:00:01.00\r\n-0:::Fehler\r\n")]
+    public void WarningParserRejectsMalformedCountTouchingCanonicalOrElapsedTail(string output) =>
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(Bytes(output), []));
+
+    [Fact]
+    public void WarningParserExemptsOnlyTheExactCanonicalCountPair()
+    {
+        var proof = EvidenceMsBuildWarningParser.Parse(
+            Bytes("    0 Warning(s)\r\n    0 Error(s)\r\nTime Elapsed 00:00:01.00\r\n"),
+            []);
+
+        Assert.Equal(0, proof.WarningCount);
+        Assert.Equal(0, proof.ErrorCount);
+    }
+
+    [Theory]
     [InlineData("00:00:00.00")]
     [InlineData("00:04:59.99")]
     [InlineData("00:05:00.00")]

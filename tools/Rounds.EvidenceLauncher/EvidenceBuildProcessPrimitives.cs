@@ -697,8 +697,7 @@ internal static class EvidenceMsBuildWarningParser
 
         for (var index = 0; index + 1 < lines.Count; index++)
         {
-            if (IsExemptCanonicalSummaryIndex(allowed, index) ||
-                IsExemptCanonicalSummaryIndex(allowed, index + 1))
+            if (allowed is { } summary && index == summary.Index)
             {
                 continue;
             }
