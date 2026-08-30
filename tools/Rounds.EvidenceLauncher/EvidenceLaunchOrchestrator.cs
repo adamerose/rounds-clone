@@ -436,7 +436,7 @@ internal static class EvidenceCancellation
             {
                 continue;
             }
-            if (cleanup.GetType() == typeof(AggregateException) &&
+            if (cleanup is AggregateException &&
                 TreeOverlapsKnown(cleanup, known))
             {
                 foreach (var child in ((AggregateException)cleanup).InnerExceptions)
@@ -481,7 +481,7 @@ internal static class EvidenceCancellation
         {
             return;
         }
-        if (cleanup.GetType() == typeof(AggregateException) && TreeOverlapsKnown(cleanup, known))
+        if (cleanup is AggregateException && TreeOverlapsKnown(cleanup, known))
         {
             foreach (var child in ((AggregateException)cleanup).InnerExceptions)
             {

@@ -522,6 +522,84 @@ public sealed class EvidenceLaunchOrchestratorTests
     }
 
     [Fact]
+    public void Derived_aggregate_overlap_keeps_prior_then_only_new_diagnostics()
+    {
+        var diagnosticA = new InvalidOperationException("A");
+        var diagnosticB = new InvalidOperationException("B");
+        var original = new OperationCanceledException(
+            "cancelled", diagnosticA, CancellationToken.None);
+        var cleanup = new DerivedAggregateException("derived", diagnosticA, diagnosticB);
+
+        var failure = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            original, [cleanup]));
+
+        Assert.Equal(["A", "B"], DiagnosticLeaves(failure.InnerException).Select(value => value.Message));
+        Assert.Equal(2, DiagnosticLeaves(failure.InnerException).Distinct(ReferenceEqualityComparer.Instance).Count());
+    }
+
+    [Fact]
+    public void Nested_derived_aggregate_overlap_is_split_recursively_in_order()
+    {
+        var diagnosticA = new InvalidOperationException("A");
+        var diagnosticB = new InvalidOperationException("B");
+        var diagnosticC = new InvalidOperationException("C");
+        var original = new OperationCanceledException(
+            "cancelled", diagnosticA, CancellationToken.None);
+        var cleanup = new DerivedAggregateException(
+            "outer",
+            new DerivedAggregateException("inner", diagnosticA, diagnosticB),
+            diagnosticC);
+
+        var failure = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            original, [cleanup]));
+
+        Assert.Equal(
+            ["A", "B", "C"],
+            DiagnosticLeaves(failure.InnerException).Select(value => value.Message));
+    }
+
+    [Fact]
+    public void Duplicate_derived_aggregate_object_is_retained_once_without_flattening()
+    {
+        var diagnosticA = new InvalidOperationException("A");
+        var diagnosticB = new InvalidOperationException("B");
+        var cleanup = new DerivedAggregateException("derived", diagnosticA, diagnosticB);
+        var original = new OperationCanceledException("cancelled", CancellationToken.None);
+
+        var failure = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            original, [cleanup, cleanup]));
+
+        Assert.Same(cleanup, failure.InnerException);
+        Assert.Equal(["A", "B"], DiagnosticLeaves(failure.InnerException).Select(value => value.Message));
+    }
+
+    [Fact]
+    public void No_overlap_derived_aggregate_preserves_its_type_and_self_reference_is_excluded()
+    {
+        var diagnosticA = new InvalidOperationException("A");
+        var diagnosticB = new InvalidOperationException("B");
+        var diagnosticC = new InvalidOperationException("C");
+        var original = new OperationCanceledException(
+            "cancelled", diagnosticA, CancellationToken.None);
+        var noOverlap = new DerivedAggregateException("derived", diagnosticB, diagnosticC);
+
+        var failure = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            original, [noOverlap]));
+
+        var combined = Assert.IsType<AggregateException>(failure.InnerException);
+        Assert.Same(diagnosticA, combined.InnerExceptions[0]);
+        Assert.Same(noOverlap, combined.InnerExceptions[1]);
+        Assert.Equal(["A", "B", "C"], DiagnosticLeaves(combined).Select(value => value.Message));
+
+        var selfContaining = new DerivedAggregateException("self", original, diagnosticB);
+        var selfSafe = CaptureCancellation(() => EvidenceCancellation.ThrowAfterCleanup(
+            original, [selfContaining]));
+        Assert.Equal(["A", "B"], DiagnosticLeaves(selfSafe.InnerException).Select(value => value.Message));
+        Assert.DoesNotContain(DiagnosticLeaves(selfSafe.InnerException), value =>
+            ReferenceEquals(value, original));
+    }
+
+    [Fact]
     public void End_to_end_cancellation_appends_driver_then_orchestrator_cleanup_once_in_order()
     {
         var events = new List<string>();
@@ -1409,6 +1487,9 @@ public sealed class EvidenceLaunchOrchestratorTests
         public IEnumerator<T> GetEnumerator() => throw new InvalidOperationException("hostile attestation enumeration");
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
+
+    private sealed class DerivedAggregateException(string message, params Exception[] innerExceptions) :
+        AggregateException(message, innerExceptions);
 
     private sealed class ThrowingReadOnlyDictionary : IReadOnlyDictionary<string, string>
     {
