@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-29T23:20:16Z
 origin: system-detected
 tags: ["product-fidelity", "presentation", "terminology"]
@@ -85,3 +85,5 @@ The shipped shell still presents internal simulation diagnostics and project-aut
 - 2026-08-30T02:00:03.2179413Z stage review end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a0505b-ee2a-70a0-9882-358d04ef632e — Approved with no findings. The reviewer independently matched the 73-file digest, reproduced every prior mutation as an IDN010 failure, found no unchecked repository-local runtime/build seam, and confirmed the source-level removal, canonical card names, truthful README, protected bytes, zero-warning build, 132 checker tests, 32 focused identity tests, and 251 applicable simulation tests. Visual layout remains intentionally unverified because no GUI or Godot runtime was launched under the user’s non-interference constraint.
 - 2026-08-30T02:08:09.6159981Z stage review start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a0505b-ee2a-70a0-9882-358d04ef632e — Canonical delivery marker for the independently approved ticket 033 candidate and its byte-identical receipt commits; Ivy's transactional closer reserves the matching canonical review-end line for the final delivered range.
 - 2026-08-30T02:11:05Z stage review start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a0505b-ee2a-70a0-9882-358d04ef632e — Canonical delivery review marker for the independently approved ticket 033 candidate and its byte-identical receipt commits; Ivy's transactional closer reserves the matching canonical review-end line.
+- 2026-08-30T02:25:34Z stage review end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893/01a0505b-ee2a-70a0-9882-358d04ef632e — approved candidate 9f076b72b3ca910d0c379fcdc3b0d504a59ffbcc..9f2006f1afaf743656617473850d842402f8de39
+- 2026-08-30T02:25:34Z stage integration end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — integrated 9f2006f1afaf743656617473850d842402f8de39 as 1c687699540cffd0c0095264fb55fff47023531a
