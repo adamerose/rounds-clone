@@ -31,6 +31,7 @@ public sealed class BaseProjectileEvidenceLaunchPlanTests
         Assert.Equal(TimeSpan.FromSeconds(30), plan.Deadline);
         Assert.Equal(8192, plan.StandardOutputCapBytes);
         Assert.Equal(65536, plan.StandardErrorCapBytes);
+        Assert.Equal(facts.RuntimeAssembly.Path, plan.RuntimeAssemblyPath);
         Assert.Equal(new[]
         {
             "--quiet",
@@ -68,6 +69,7 @@ public sealed class BaseProjectileEvidenceLaunchPlanTests
         AssertRefusal(valid with { Monitor = valid.Monitor with { PhysicalBounds = new(0, 0, 1920, 1080) } }, "topology");
         AssertRefusal(valid with { Godot = valid.Godot with { IsReparsePoint = true } }, "godot");
         AssertRefusal(valid with { Godot = valid.Godot with { Sha256 = new string('0', 64) } }, "godot");
+        AssertRefusal(valid with { Godot = valid.Godot with { FileVersion = "4.7.0" } }, "godot");
         AssertRefusal(valid with { Godot = valid.Godot with { ProductVersion = "4.7.2" } }, "godot");
         AssertRefusal(valid with { Toolchain = valid.Toolchain with { LockedAssetsExist = false } }, "toolchain");
         AssertRefusal(valid with { Toolchain = valid.Toolchain with { SdkVersion = "9.0.100" } }, "toolchain");
@@ -190,7 +192,7 @@ public sealed class BaseProjectileEvidenceLaunchPlanTests
                 Exists: true,
                 IsReparsePoint: false,
                 BaseProjectileEvidenceLaunchPlanner.GodotSha256,
-                FileVersion: string.Empty,
+                BaseProjectileEvidenceLaunchPlanner.GodotFileVersion,
                 BaseProjectileEvidenceLaunchPlanner.GodotVersion),
             new EvidenceToolchainFacts(
                 new EvidenceFileFacts(

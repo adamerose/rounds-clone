@@ -22,11 +22,11 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal(
             new[]
             {
-                "build", "worker-enter", "input-desktop", "preflight", "desktop-create",
-                "handles-create", "process-create-suspended", "job-create", "job-configure",
-                "job-assign", "resume-and-deadline", "capture-protocol", "frame-validate",
-                "ack-close:06", "process-wait", "job-wait-empty", "foreground-check",
-                "input-desktop", "job-dispose", "process-dispose", "handles-dispose",
+                "build", "worker-enter", "input-desktop", "desktop-create", "handles-create",
+                "preflight", "process-create-suspended", "job-create", "job-configure",
+                "job-assign", "process-transfer-to-job", "foreground-start", "resume-and-deadline", "capture-protocol", "frame-validate",
+                "ack-close:06", "process-wait", "job-wait-empty", "foreground-stop-read",
+                "input-desktop", "job-dispose", "foreground-dispose", "process-dispose", "handles-dispose",
                 "desktop-dispose", "worker-exit",
             },
             events);
@@ -59,6 +59,11 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal(plan.StandardOutputCapBytes, native.ObservedStandardOutputCap);
         Assert.Equal(plan.StandardErrorCapBytes, native.ObservedStandardErrorCap);
         Assert.Equal(plan.JobLimits, native.ObservedJobLimits);
+        Assert.Equal(
+            events.IndexOf("preflight") + 1,
+            events.IndexOf("process-create-suspended"));
+        Assert.True(events.IndexOf("foreground-start") < events.IndexOf("resume-and-deadline"));
+        Assert.True(events.IndexOf("job-wait-empty") < events.IndexOf("foreground-stop-read"));
     }
 
     [Fact]
@@ -72,6 +77,36 @@ public sealed class EvidenceLaunchOrchestratorTests
         };
 
         var result = new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("build-attribution", result.Code);
+        Assert.Equal(new[] { "build" }, events);
+    }
+
+    [Theory]
+    [InlineData("candidate")]
+    [InlineData("msbuild-hash")]
+    [InlineData("msbuild-version")]
+    [InlineData("msbuild-handle")]
+    [InlineData("runtime")]
+    public void Build_identity_mismatch_refuses_before_native_worker(string field)
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var valid = ValidBuild(plan);
+        var invalid = field switch
+        {
+            "candidate" => valid with { Candidate = valid.Candidate with { IdentityBound = false } },
+            "msbuild-hash" => valid with { MsBuild = valid.MsBuild with { Sha256 = new string('0', 64) } },
+            "msbuild-version" => valid with { MsBuild = valid.MsBuild with { FileVersion = "17.0" } },
+            "msbuild-handle" => valid with { MsBuild = valid.MsBuild with { OpenedHandleIdentity = "" } },
+            "runtime" => valid with { RuntimeAssembly = valid.RuntimeAssembly with { Mvid = new string('0', 32) } },
+            _ => throw new InvalidOperationException("unknown test field"),
+        };
+
+        var result = new EvidenceLaunchOrchestrator(
+            new FakeBuild(events, plan) { Override = invalid },
+            new FakeNative(events, plan)).Execute(plan);
 
         Assert.False(result.Success);
         Assert.Equal("build-attribution", result.Code);
@@ -103,6 +138,42 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal(
             new[] { "handles-dispose", "desktop-dispose", "worker-exit" },
             events.TakeLast(3));
+    }
+
+    [Fact]
+    public void Zero_acknowledgement_handle_is_rejected_before_process_creation()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan) { AcknowledgementHandleValue = "0" };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("handle-allowlist", result.Code);
+        Assert.DoesNotContain("process-create-suspended", events);
+    }
+
+    [Theory]
+    [InlineData("job-create")]
+    [InlineData("job-configure")]
+    [InlineData("job-assign")]
+    public void Suspended_process_is_terminated_if_job_ownership_cannot_be_established(string failureStage)
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan) { FailureStage = failureStage };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("native-boundary", result.Code);
+        Assert.Contains("process-terminate-unassigned", events);
+        Assert.DoesNotContain("resume-and-deadline", events);
+        if (failureStage != "job-create")
+        {
+            Assert.True(events.IndexOf("job-dispose") < events.IndexOf("process-terminate-unassigned"));
+        }
     }
 
     [Theory]
@@ -174,7 +245,7 @@ public sealed class EvidenceLaunchOrchestratorTests
     }
 
     [Fact]
-    public void Cooperative_nonzero_exit_after_ack_does_not_claim_forced_residue()
+    public void Cooperative_nonzero_exit_after_ack_preserves_published_residue()
     {
         var events = new List<string>();
         var plan = ValidPlan();
@@ -187,25 +258,108 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         Assert.False(result.Success);
         Assert.Equal("process-exit", result.Code);
-        Assert.Null(result.PreservedUnprovenResidueRoot);
+        Assert.Equal(plan.OutputRoot, result.PreservedUnprovenResidueRoot);
         Assert.Contains("ack-close:06", events);
     }
 
     [Fact]
-    public void Preflight_identity_or_topology_drift_refuses_before_private_desktop()
+    public void Foreground_event_after_ack_preserves_exact_output_residue()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan) { SawForegroundWindow = true };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("foreground-activation", result.Code);
+        Assert.Equal(plan.OutputRoot, result.PreservedUnprovenResidueRoot);
+    }
+
+    [Theory]
+    [InlineData("job-empty")]
+    [InlineData("desktop-change")]
+    [InlineData("postflight-exception")]
+    public void Every_post_ack_postflight_failure_preserves_exact_output_residue(string failure)
     {
         var events = new List<string>();
         var plan = ValidPlan();
         var native = new FakeNative(events, plan)
         {
-            Preflight = ValidPreflight(plan) with { OutputRootAbsent = false },
+            JobEmpty = failure != "job-empty",
+            PostflightDesktopIdentity = failure == "desktop-change" ? "WinSta0\\Changed" : null,
+            ThrowDuringForegroundStop = failure == "postflight-exception",
         };
 
         var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
 
         Assert.False(result.Success);
+        Assert.Equal(plan.OutputRoot, result.PreservedUnprovenResidueRoot);
+        Assert.Contains("ack-close:06", events);
+        if (failure == "job-empty")
+        {
+            Assert.Equal("job-not-empty", result.Code);
+            Assert.DoesNotContain("foreground-stop-read", events);
+        }
+        else if (failure == "desktop-change")
+        {
+            Assert.Equal("input-desktop-changed", result.Code);
+        }
+        else
+        {
+            Assert.Equal("native-boundary", result.Code);
+        }
+    }
+
+    [Fact]
+    public void Dedicated_worker_failure_after_ack_still_reports_exact_output_residue()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var native = new FakeNative(events, plan) { ThrowAfterWorkerOperation = true };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("native-boundary", result.Code);
+        Assert.Equal(plan.OutputRoot, result.PreservedUnprovenResidueRoot);
+        Assert.Contains("ack-close:06", events);
+    }
+
+    [Theory]
+    [InlineData("output")]
+    [InlineData("candidate")]
+    [InlineData("godot-identity")]
+    [InlineData("godot-hash")]
+    [InlineData("godot-version")]
+    [InlineData("godot-handle")]
+    [InlineData("runtime")]
+    public void Preflight_identity_or_topology_drift_refuses_immediately_before_process(string field)
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var valid = ValidPreflight(plan);
+        var invalid = field switch
+        {
+            "output" => valid with { OutputRootAbsent = false },
+            "candidate" => valid with { Candidate = valid.Candidate with { CleanHead = false } },
+            "godot-identity" => valid with { Godot = valid.Godot with { IdentityBound = false } },
+            "godot-hash" => valid with { Godot = valid.Godot with { Sha256 = new string('0', 64) } },
+            "godot-version" => valid with { Godot = valid.Godot with { ProductVersion = "4.7.2" } },
+            "godot-handle" => valid with { Godot = valid.Godot with { OpenedHandleIdentity = "" } },
+            "runtime" => valid with { RuntimeAssembly = valid.RuntimeAssembly with { Sha256 = new string('0', 64) } },
+            _ => throw new InvalidOperationException("unknown test field"),
+        };
+        var native = new FakeNative(events, plan) { Preflight = invalid };
+
+        var result = new EvidenceLaunchOrchestrator(new FakeBuild(events, plan), native).Execute(plan);
+
+        Assert.False(result.Success);
         Assert.Equal("preflight", result.Code);
-        Assert.DoesNotContain("desktop-create", events);
+        Assert.Contains("desktop-create", events);
+        Assert.Contains("handles-create", events);
+        Assert.Equal("preflight", events[^4]);
+        Assert.DoesNotContain("process-create-suspended", events);
         Assert.Equal("worker-exit", events[^1]);
     }
 
@@ -266,6 +420,7 @@ public sealed class EvidenceLaunchOrchestratorTests
             TimeSpan.FromSeconds(30),
             8 * 1024,
             64 * 1024,
+            repository + @"\game\.godot\mono\temp\bin\Debug\Rounds.Game.dll",
             new string('a', 64),
             new string('b', 32),
             "WinSta0\\Default",
@@ -275,10 +430,51 @@ public sealed class EvidenceLaunchOrchestratorTests
     private static EvidenceBuildAttestation ValidBuild(BaseProjectileEvidenceLaunchPlan plan) =>
         new(
             EvidenceBuildContract.Create(plan),
-            plan.CandidateCommit,
-            DeletedPriorOutput: true,
-            RecreatedRuntimeAssembly: true,
+            ValidCandidate(plan),
+            ValidMsBuild(),
+            ValidRuntimeAssembly(plan),
             ZeroWarnings: true,
+            DeletedPriorOutput: true);
+
+    private static EvidenceCandidateIdentity ValidCandidate(BaseProjectileEvidenceLaunchPlan plan) =>
+        new(
+            plan.RepositoryRoot,
+            plan.CandidateCommit,
+            CleanHead: true,
+            IdentityBound: true,
+            RepositoryHandleIdentity: "repo-volume:42:file:100");
+
+    private static EvidenceOpenedExecutableIdentity ValidMsBuild() =>
+        new(
+            BaseProjectileEvidenceLaunchPlanner.MsBuildPath,
+            Exists: true,
+            IdentityBound: true,
+            IsReparsePoint: false,
+            OpenedHandleIdentity: "msbuild-volume:1:file:200",
+            BaseProjectileEvidenceLaunchPlanner.MsBuildSha256,
+            BaseProjectileEvidenceLaunchPlanner.MsBuildFileVersion,
+            BaseProjectileEvidenceLaunchPlanner.MsBuildProductVersion);
+
+    private static EvidenceOpenedExecutableIdentity ValidGodot(BaseProjectileEvidenceLaunchPlan plan) =>
+        new(
+            plan.Executable,
+            Exists: true,
+            IdentityBound: true,
+            IsReparsePoint: false,
+            OpenedHandleIdentity: "godot-volume:42:file:300",
+            BaseProjectileEvidenceLaunchPlanner.GodotSha256,
+            BaseProjectileEvidenceLaunchPlanner.GodotFileVersion,
+            BaseProjectileEvidenceLaunchPlanner.GodotVersion);
+
+    private static EvidenceRuntimeAssemblyIdentity ValidRuntimeAssembly(
+        BaseProjectileEvidenceLaunchPlan plan) =>
+        new(
+            plan.RuntimeAssemblyPath,
+            Exists: true,
+            IdentityBound: true,
+            IsReparsePoint: false,
+            RecreatedByImmediateRebuild: true,
+            OpenedHandleIdentity: "runtime-volume:42:file:400",
             plan.RuntimeAssemblySha256,
             plan.RuntimeAssemblyMvid);
 
@@ -291,7 +487,10 @@ public sealed class EvidenceLaunchOrchestratorTests
                 PerMonitorV2DpiAware: true),
             plan.InputDesktopIdentity,
             OutputRootAbsent: true,
-            plan.OutputAncestors);
+            plan.OutputAncestors,
+            ValidCandidate(plan),
+            ValidGodot(plan),
+            ValidRuntimeAssembly(plan));
 
     private static EvidenceProtocolCapture ValidProtocol(BaseProjectileEvidenceLaunchPlan plan)
     {
@@ -339,6 +538,7 @@ public sealed class EvidenceLaunchOrchestratorTests
     {
         private readonly List<string> _events;
         private readonly BaseProjectileEvidenceLaunchPlan _plan;
+        private int _inputDesktopReads;
 
         public FakeNative(List<string> events, BaseProjectileEvidenceLaunchPlan plan)
         {
@@ -358,6 +558,20 @@ public sealed class EvidenceLaunchOrchestratorTests
         public EvidenceProcessTermination Termination { get; init; } = new(true, 0, false);
 
         public bool ThrowDuringFrameValidation { get; init; }
+
+        public string? FailureStage { get; init; }
+
+        public string AcknowledgementHandleValue { get; init; } = "4242";
+
+        public bool SawForegroundWindow { get; init; }
+
+        public bool JobEmpty { get; init; } = true;
+
+        public string? PostflightDesktopIdentity { get; init; }
+
+        public bool ThrowDuringForegroundStop { get; init; }
+
+        public bool ThrowAfterWorkerOperation { get; init; }
 
         public IReadOnlyList<EvidenceChildHandleDescriptor> Handles { get; init; } =
             Array.AsReadOnly(new[]
@@ -383,7 +597,12 @@ public sealed class EvidenceLaunchOrchestratorTests
             _events.Add("worker-enter");
             try
             {
-                return operation();
+                var result = operation();
+                if (ThrowAfterWorkerOperation)
+                {
+                    throw new InvalidOperationException("fake worker teardown failure");
+                }
+                return result;
             }
             finally
             {
@@ -394,7 +613,10 @@ public sealed class EvidenceLaunchOrchestratorTests
         public string ReadInputDesktopIdentity()
         {
             _events.Add("input-desktop");
-            return _plan.InputDesktopIdentity;
+            _inputDesktopReads++;
+            return _inputDesktopReads > 1 && PostflightDesktopIdentity is not null
+                ? PostflightDesktopIdentity
+                : _plan.InputDesktopIdentity;
         }
 
         public EvidenceNativePreflight RevalidatePreflight(BaseProjectileEvidenceLaunchPlan plan)
@@ -412,10 +634,10 @@ public sealed class EvidenceLaunchOrchestratorTests
         public IEvidenceLaunchHandleLease CreateHandleAllowlist()
         {
             _events.Add("handles-create");
-            return new FakeHandles(_events, Handles);
+            return new FakeHandles(_events, Handles, AcknowledgementHandleValue);
         }
 
-        public IEvidenceProcessLease CreateSuspendedProcess(
+        public EvidenceProcessLease CreateSuspendedProcess(
             BaseProjectileEvidenceLaunchPlan plan,
             IEvidenceDesktopLease desktop,
             IEvidenceLaunchHandleLease handles,
@@ -429,20 +651,43 @@ public sealed class EvidenceLaunchOrchestratorTests
         public IEvidenceJobLease CreateJob()
         {
             _events.Add("job-create");
+            if (FailureStage == "job-create")
+            {
+                throw new InvalidOperationException("fake job create failure");
+            }
             return new FakeJob(_events);
         }
 
         public void ConfigureJob(IEvidenceJobLease job, BaseProjectileEvidenceJobLimits limits)
         {
             _events.Add("job-configure");
+            if (FailureStage == "job-configure")
+            {
+                throw new InvalidOperationException("fake job configure failure");
+            }
             ObservedJobLimits = limits;
         }
 
-        public void AssignProcess(IEvidenceJobLease job, IEvidenceProcessLease process) =>
+        public void AssignProcess(IEvidenceJobLease job, EvidenceProcessLease process)
+        {
             _events.Add("job-assign");
+            if (FailureStage == "job-assign")
+            {
+                throw new InvalidOperationException("fake job assign failure");
+            }
+        }
+
+        public IEvidenceForegroundObserverLease StartForegroundObserver(IEvidenceJobLease job)
+        {
+            _events.Add("foreground-start");
+            return new FakeForegroundObserver(
+                _events,
+                SawForegroundWindow,
+                ThrowDuringForegroundStop);
+        }
 
         public EvidenceDeadlineToken ResumePrimaryThreadAndStartDeadline(
-            IEvidenceProcessLease process,
+            EvidenceProcessLease process,
             TimeSpan deadline)
         {
             _events.Add("resume-and-deadline");
@@ -451,7 +696,7 @@ public sealed class EvidenceLaunchOrchestratorTests
         }
 
         public EvidenceProtocolCapture CaptureProtocol(
-            IEvidenceProcessLease process,
+            EvidenceProcessLease process,
             EvidenceDeadlineToken deadline,
             int standardOutputCapBytes,
             int standardErrorCapBytes)
@@ -476,7 +721,7 @@ public sealed class EvidenceLaunchOrchestratorTests
         }
 
         public EvidenceProcessTermination WaitForProcessExit(
-            IEvidenceProcessLease process,
+            EvidenceProcessLease process,
             EvidenceDeadlineToken deadline)
         {
             _events.Add("process-wait");
@@ -486,13 +731,7 @@ public sealed class EvidenceLaunchOrchestratorTests
         public bool WaitForEmptyJob(IEvidenceJobLease job, EvidenceDeadlineToken deadline)
         {
             _events.Add("job-wait-empty");
-            return true;
-        }
-
-        public bool ForegroundObserverSawJobWindow(IEvidenceJobLease job)
-        {
-            _events.Add("foreground-check");
-            return false;
+            return JobEmpty;
         }
 
         private sealed class FakeDesktop(List<string> events, string name) : IEvidenceDesktopLease
@@ -504,13 +743,14 @@ public sealed class EvidenceLaunchOrchestratorTests
 
         private sealed class FakeHandles(
             List<string> events,
-            IReadOnlyList<EvidenceChildHandleDescriptor> handles) : IEvidenceLaunchHandleLease
+            IReadOnlyList<EvidenceChildHandleDescriptor> handles,
+            string acknowledgementHandleValue) : IEvidenceLaunchHandleLease
         {
             public IReadOnlyList<EvidenceChildHandleDescriptor> ChildHandles { get; } = handles;
 
             public bool ParentEndpointsAreNonInheritable => true;
 
-            public string AcknowledgementReadHandleValue => "4242";
+            public string AcknowledgementReadHandleValue { get; } = acknowledgementHandleValue;
 
             public void WriteAcknowledgementAndClose(byte value) =>
                 events.Add($"ack-close:{value:x2}");
@@ -518,14 +758,39 @@ public sealed class EvidenceLaunchOrchestratorTests
             public void Dispose() => events.Add("handles-dispose");
         }
 
-        private sealed class FakeProcess(List<string> events) : IEvidenceProcessLease
+        private sealed class FakeProcess(List<string> events) : EvidenceProcessLease
         {
-            public void Dispose() => events.Add("process-dispose");
+            protected override void OnTerminationTransferredToJob() =>
+                events.Add("process-transfer-to-job");
+
+            protected override void TerminateUnassignedSuspendedProcess() =>
+                events.Add("process-terminate-unassigned");
+
+            protected override void ReleaseProcessAndThreadHandles() =>
+                events.Add("process-dispose");
         }
 
         private sealed class FakeJob(List<string> events) : IEvidenceJobLease
         {
             public void Dispose() => events.Add("job-dispose");
+        }
+
+        private sealed class FakeForegroundObserver(
+            List<string> events,
+            bool sawForegroundWindow,
+            bool throwDuringStop) : IEvidenceForegroundObserverLease
+        {
+            public bool StopAndReadSawJobWindow()
+            {
+                events.Add("foreground-stop-read");
+                if (throwDuringStop)
+                {
+                    throw new InvalidOperationException("fake foreground stop failure");
+                }
+                return sawForegroundWindow;
+            }
+
+            public void Dispose() => events.Add("foreground-dispose");
         }
     }
 }

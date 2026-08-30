@@ -90,6 +90,7 @@ internal sealed record BaseProjectileEvidenceLaunchPlan(
     TimeSpan Deadline,
     int StandardOutputCapBytes,
     int StandardErrorCapBytes,
+    string RuntimeAssemblyPath,
     string RuntimeAssemblySha256,
     string RuntimeAssemblyMvid,
     string InputDesktopIdentity,
@@ -112,6 +113,7 @@ internal static class BaseProjectileEvidenceLaunchPlanner
     internal const int Screen = 3;
     internal const string GodotRelativePath = @".tools\godot-4.7.1\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe";
     internal const string GodotVersion = "4.7.1.stable.mono.official";
+    internal const string GodotFileVersion = "4.7.1";
     internal const string GodotSha256 = "b2c334ff6bf1e07ded41b80bd6f4785485650db6ddbb2740b802930f35237c26";
     internal const string MsBuildPath = @"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe";
     internal const string MsBuildFileVersion = "17.14.40.60911";
@@ -150,6 +152,7 @@ internal static class BaseProjectileEvidenceLaunchPlanner
 
         var expectedGodot = Path.GetFullPath(Path.Combine(repository, GodotRelativePath));
         if (!ValidPinnedFile(facts.Godot, expectedGodot, GodotSha256) ||
+            !string.Equals(facts.Godot.FileVersion, GodotFileVersion, StringComparison.Ordinal) ||
             !string.Equals(facts.Godot.ProductVersion, GodotVersion, StringComparison.Ordinal))
         {
             return Refuse("godot");
@@ -232,6 +235,7 @@ internal static class BaseProjectileEvidenceLaunchPlanner
                 TimeSpan.FromSeconds(30),
                 8 * 1024,
                 64 * 1024,
+                expectedAssembly,
                 facts.RuntimeAssembly.Sha256,
                 facts.RuntimeAssembly.Mvid,
                 facts.InputDesktopIdentity,
