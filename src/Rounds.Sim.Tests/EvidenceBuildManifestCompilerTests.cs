@@ -148,14 +148,11 @@ public sealed class EvidenceBuildManifestCompilerTests
     [Fact]
     public void Project_assets_normalizes_only_narrow_named_path_fields()
     {
-        var first = ProjectAssets(RepositoryRoot, PackageRoot, RepositoryRoot, reverseProperties: false);
-        var second = ProjectAssets(AlternateRepositoryRoot, AlternatePackageRoot, AlternateRepositoryRoot, reverseProperties: false);
+        var first = ProjectAssets(RepositoryRoot, PackageRoot, "unchanged", reverseProperties: false);
         var firstNormalized = EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(first, RepositoryRoot, PackageRoot);
-        var secondNormalized = EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(second, AlternateRepositoryRoot, AlternatePackageRoot);
 
-        Assert.NotEqual(firstNormalized, secondNormalized);
         using var normalized = JsonDocument.Parse(firstNormalized);
-        Assert.Equal(RepositoryRoot, normalized.RootElement.GetProperty("unrelated").GetString());
+        Assert.Equal("unchanged", normalized.RootElement.GetProperty("unrelated").GetString());
         Assert.Equal("${REPOSITORY_ROOT}/game/Rounds.Game.csproj",
             normalized.RootElement.GetProperty("project").GetProperty("restore").GetProperty("projectPath").GetString());
         Assert.True(normalized.RootElement.GetProperty("packageFolders").TryGetProperty("${PACKAGE_ROOT}/", out _));
@@ -200,21 +197,14 @@ public sealed class EvidenceBuildManifestCompilerTests
     }
 
     [Fact]
-    public void Project_assets_does_not_normalize_same_named_field_outside_admitted_structure()
+    public void Project_assets_refuses_root_bearing_string_outside_admitted_structure()
     {
         var first = JsonSerializer.SerializeToUtf8Bytes(new
         {
             untrusted = new { projectPath = RepositoryRoot + @"\game\Rounds.Game.csproj" },
         });
-        var second = JsonSerializer.SerializeToUtf8Bytes(new
-        {
-            untrusted = new { projectPath = AlternateRepositoryRoot + @"\game\Rounds.Game.csproj" },
-        });
-
-        var firstNormalized = EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(first, RepositoryRoot, PackageRoot);
-        var secondNormalized = EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(second, AlternateRepositoryRoot, AlternatePackageRoot);
-
-        Assert.NotEqual(firstNormalized, secondNormalized);
+        Assert.Throws<InvalidDataException>(() =>
+            EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(first, RepositoryRoot, PackageRoot));
     }
 
     [Fact]
@@ -223,11 +213,90 @@ public sealed class EvidenceBuildManifestCompilerTests
         var path = RepositoryRoot + @"\game\Rounds.Game.csproj";
         var json = Encoding.UTF8.GetBytes($"{{\"project/restore\":{{\"projectPath\":{JsonSerializer.Serialize(path)}}}}}");
 
-        var normalized = EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(json, RepositoryRoot, PackageRoot);
-        using var document = JsonDocument.Parse(normalized);
+        Assert.Throws<InvalidDataException>(() =>
+            EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(json, RepositoryRoot, PackageRoot));
+    }
 
-        Assert.Equal(path,
-            document.RootElement.GetProperty("project/restore").GetProperty("projectPath").GetString());
+    [Fact]
+    public void Actual_project_reference_dictionary_keys_and_nested_paths_normalize_across_roots()
+    {
+        var first = RealisticProjectAssets(RepositoryRoot, PackageRoot, mixedSeparators: true);
+        var second = RealisticProjectAssets(AlternateRepositoryRoot, AlternatePackageRoot, mixedSeparators: false);
+
+        var normalizedFirst = EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(first, RepositoryRoot, PackageRoot);
+        var normalizedSecond = EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(
+            second, AlternateRepositoryRoot, AlternatePackageRoot);
+
+        Assert.Equal(normalizedFirst, normalizedSecond);
+        using var document = JsonDocument.Parse(normalizedFirst);
+        var references = document.RootElement.GetProperty("project").GetProperty("restore")
+            .GetProperty("frameworks").GetProperty("net8.0").GetProperty("projectReferences");
+        var expected = "${REPOSITORY_ROOT}/src/Rounds.Sim/Rounds.Sim.csproj";
+        Assert.True(references.TryGetProperty(expected, out var reference));
+        Assert.Equal(expected, reference.GetProperty("projectPath").GetString());
+    }
+
+    [Fact]
+    public void Normalized_property_names_refuse_package_root_alias_and_project_reference_case_collisions()
+    {
+        var package = JsonSerializer.Serialize(PackageRoot);
+        var packageSlash = JsonSerializer.Serialize(PackageRoot + @"\");
+        var packageCollision = Encoding.UTF8.GetBytes(
+            $"{{\"packageFolders\":{{{package}:{{}},{packageSlash}:{{}}}}}}");
+        var firstKey = RepositoryRoot + @"\src\Rounds.Sim\Rounds.Sim.csproj";
+        var secondKey = RepositoryRoot.ToUpperInvariant() + @"/SRC/ROUNDS.SIM/ROUNDS.SIM.CSPROJ";
+        var projectCollision = ProjectReferenceMap(
+            (firstKey, firstKey),
+            (secondKey, secondKey));
+
+        Assert.Throws<InvalidDataException>(() => EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(
+            packageCollision, RepositoryRoot, PackageRoot));
+        Assert.Throws<InvalidDataException>(() => EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(
+            projectCollision, RepositoryRoot, PackageRoot));
+    }
+
+    [Fact]
+    public void Definition_total_budget_is_proven_before_any_entry_content_is_cloned()
+    {
+        var first = new TrackingEntrySource("a", [1, 2, 3]);
+        var later = new TrackingEntrySource("b", [4, 5, 6]);
+        var limits = new EvidenceManifestCompilationLimits(4, 64, 4, 5);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            EvidenceManifestDefinition.CreateForSources([first, later], null, limits));
+
+        Assert.Equal(0, first.CloneCalls);
+        Assert.Equal(0, later.CloneCalls);
+    }
+
+    [Fact]
+    public void Observed_later_entry_is_not_cloned_or_transformed_after_prior_transform_consumes_budget()
+    {
+        var json = Encoding.UTF8.GetBytes("{}");
+        var definition = new EvidenceManifestDefinition(
+            [NormalizedJson("a", json), NormalizedJson("b", json)]);
+        var first = new TrackingEntrySource(
+            "a", json, EvidenceManifestContentKind.RepositoryAndPackageRootNormalizedProjectAssetsJson);
+        var later = new TrackingEntrySource(
+            "b", json, EvidenceManifestContentKind.RepositoryAndPackageRootNormalizedProjectAssetsJson);
+        var normalizer = new TrackingNormalizer([1, 2, 3, 4, 5]);
+        var limits = new EvidenceManifestCompilationLimits(4, 64, 8, 6);
+
+        Assert.Throws<InvalidOperationException>(() => EvidenceBuildManifestCompiler.CompileExactForSources(
+            definition, [first, later], RepositoryRoot, PackageRoot, limits, normalizer));
+
+        Assert.Equal(1, first.CloneCalls);
+        Assert.Equal(0, later.CloneCalls);
+        Assert.Equal(1, normalizer.Calls);
+    }
+
+    [Fact]
+    public void Normalized_JSON_output_is_bounded_while_writer_is_emitting()
+    {
+        var json = Encoding.UTF8.GetBytes("{\"ordinary\":\"a value that expands past the bound\"}");
+
+        Assert.Throws<InvalidDataException>(() => EvidenceBuildManifestCompiler.NormalizeProjectAssetsJson(
+            json, RepositoryRoot, PackageRoot, maximumOutputBytes: 8));
     }
 
     [Fact]
@@ -282,5 +351,101 @@ public sealed class EvidenceBuildManifestCompilerTests
             : $"\"projectUniqueName\":{JsonSerializer.Serialize(projectPath)},\"projectPath\":{JsonSerializer.Serialize(projectPath)},\"packagesPath\":{JsonSerializer.Serialize(packageWithSlash)},\"outputPath\":{JsonSerializer.Serialize(outputPath)}";
         return Encoding.UTF8.GetBytes(
             $"{{\"version\":3,\"packageFolders\":{{{JsonSerializer.Serialize(packageWithSlash)}:{{}}}},\"project\":{{\"restore\":{{{restore}}}}},\"unrelated\":{JsonSerializer.Serialize(extraProperty)}}}");
+    }
+
+    private static byte[] RealisticProjectAssets(
+        string repositoryRoot,
+        string packageRoot,
+        bool mixedSeparators)
+    {
+        var game = repositoryRoot + @"\game\Rounds.Game.csproj";
+        var reference = repositoryRoot + @"\src\Rounds.Sim\Rounds.Sim.csproj";
+        var output = repositoryRoot + @"\game\.godot\mono\temp\obj";
+        string Mix(string value) => mixedSeparators
+            ? string.Concat(value.Select((character, index) => character == '\\' && index % 2 == 0 ? '/' : character))
+            : value;
+        var packageWithSlash = Mix(packageRoot) + (mixedSeparators ? "/" : @"\");
+        var referencePath = Mix(reference);
+        var root = new Dictionary<string, object?>
+        {
+            ["version"] = 3,
+            ["packageFolders"] = new Dictionary<string, object?> { [packageWithSlash] = new { } },
+            ["project"] = new
+            {
+                restore = new
+                {
+                    projectUniqueName = Mix(game),
+                    projectPath = Mix(game),
+                    packagesPath = packageWithSlash,
+                    outputPath = Mix(output),
+                    frameworks = new Dictionary<string, object?>
+                    {
+                        ["net8.0"] = new
+                        {
+                            projectReferences = new Dictionary<string, object?>
+                            {
+                                [referencePath] = new { projectPath = referencePath },
+                            },
+                        },
+                    },
+                },
+            },
+            ["unrelated"] = "stable",
+        };
+        return JsonSerializer.SerializeToUtf8Bytes(root);
+    }
+
+    private static byte[] ProjectReferenceMap(params (string Key, string ProjectPath)[] references)
+    {
+        var entries = references.ToDictionary(
+            value => value.Key,
+            value => (object)new { projectPath = value.ProjectPath },
+            StringComparer.Ordinal);
+        return JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            project = new
+            {
+                restore = new
+                {
+                    frameworks = new Dictionary<string, object?>
+                    {
+                        ["net8.0"] = new { projectReferences = entries },
+                    },
+                },
+            },
+        });
+    }
+
+    private sealed class TrackingEntrySource(
+        string relativePath,
+        byte[] bytes,
+        EvidenceManifestContentKind contentKind = EvidenceManifestContentKind.RawBytes) :
+        IEvidenceManifestEntrySource
+    {
+        public string RelativePath { get; } = relativePath;
+        public EvidenceManifestRecordKind Kind => EvidenceManifestRecordKind.File;
+        public EvidenceManifestContentKind ContentKind { get; } = contentKind;
+        public long ContentLength => bytes.LongLength;
+        internal int CloneCalls { get; private set; }
+        public byte[] CloneContent()
+        {
+            CloneCalls++;
+            return bytes.ToArray();
+        }
+    }
+
+    private sealed class TrackingNormalizer(byte[] output) : IEvidenceProjectAssetsNormalizer
+    {
+        internal int Calls { get; private set; }
+        public byte[] Normalize(
+            IReadOnlyList<byte> bytes,
+            string exactRepositoryRoot,
+            string exactPackageRoot,
+            int maximumOutputBytes)
+        {
+            Calls++;
+            Assert.True(output.Length <= maximumOutputBytes);
+            return output.ToArray();
+        }
     }
 }
