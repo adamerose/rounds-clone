@@ -53,5 +53,6 @@
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildIo.cs" Link="Tools\Win32EvidenceBuildIo.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\EvidenceBuildManifestCompiler.cs" Link="Tools\EvidenceBuildManifestCompiler.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\EvidenceBuildProcessPrimitives.cs" Link="Tools\EvidenceBuildProcessPrimitives.cs" />
+    <Compile Include="..\..\tools\Rounds.EvidenceLauncher\EvidenceBuildDeadlineDrain.cs" Link="Tools\EvidenceBuildDeadlineDrain.cs" />
   </ItemGroup>
 </Project>
