@@ -24,6 +24,7 @@ public sealed class Win32EvidenceBuildDriverTests
         Assert.Equal(3, lease.Attestation.RuntimeClosure.Count);
         Assert.DoesNotContain("runtime-dispose", rig.Events);
         Assert.DoesNotContain("environment-dispose", rig.Events);
+        Assert.Same(rig.ProvenanceCleanupOwner, rig.Provenance.CleanupOwnerSeen);
         Assert.Equal(
         [
             "msbuild-open", "provenance-open", "candidate", "prerequisites", "candidate", "environment",
@@ -113,6 +114,119 @@ public sealed class Win32EvidenceBuildDriverTests
         rig.Reaper.RunAll();
         Assert.Equal(0, rig.CleanupOwner.RetainedCount);
         Assert.Equal(2, rig.Environment.DisposeCalls);
+    }
+
+    [Fact]
+    public void Successful_attestation_transfers_failed_provenance_cleanup_without_manual_retry()
+    {
+        var rig = new Rig();
+        rig.Provenance.FailDisposeCount = 1;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+        var lease = rig.Driver.RebuildAndAttest(rig.Invocation, msbuild);
+
+        var failure = Assert.Throws<InvalidOperationException>(() => lease.Dispose());
+
+        Assert.Equal("provenance cleanup failed", failure.Message);
+        Assert.Equal(1, rig.Provenance.DisposeCalls);
+        Assert.Equal(1, rig.ProvenanceCleanupOwner.RetainedCount);
+        Assert.Equal(0, rig.CleanupOwner.RetainedCount);
+        Assert.Equal("provenance-dispose", rig.Events[^1]);
+
+        lease.Dispose();
+        Assert.Equal(1, rig.Provenance.DisposeCalls);
+        Assert.Equal(1, rig.ProvenanceCleanupOwner.RetainedCount);
+
+        rig.Reaper.RunAll();
+        Assert.Equal(2, rig.Provenance.DisposeCalls);
+        Assert.Equal(0, rig.ProvenanceCleanupOwner.RetainedCount);
+        lease.Dispose();
+        Assert.Equal(2, rig.Provenance.DisposeCalls);
+    }
+
+    [Fact]
+    public void Acquisition_validation_failure_transfers_exact_provenance_lease_before_throw()
+    {
+        var rig = new Rig();
+        rig.Provenance.RetainsChains = false;
+        rig.Provenance.FailDisposeCount = 1;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.Contains(failure.Flatten().InnerExceptions, value =>
+            value.Message.Contains("ancestor chains", StringComparison.Ordinal));
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "provenance cleanup failed");
+        Assert.Equal(1, rig.ProvenanceCleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.Provenance.DisposeCalls);
+        rig.Reaper.RunAll();
+        Assert.Equal(0, rig.ProvenanceCleanupOwner.RetainedCount);
+        Assert.Equal(2, rig.Provenance.DisposeCalls);
+    }
+
+    [Fact]
+    public void Build_failure_transfers_provenance_and_aggregates_environment_in_cleanup_order()
+    {
+        var rig = new Rig();
+        rig.Process.Failure = new OperationCanceledException("cancel build");
+        rig.Environment.FailDisposeOnce = true;
+        rig.Provenance.FailDisposeCount = 1;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            rig.Driver.RebuildAndAttest(rig.Invocation, msbuild));
+
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "environment exclusion cleanup failed");
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "provenance cleanup failed");
+        Assert.Equal(1, rig.CleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.ProvenanceCleanupOwner.RetainedCount);
+        Assert.True(rig.Events.LastIndexOf("environment-dispose") < rig.Events.LastIndexOf("provenance-dispose"));
+        rig.Reaper.RunAll();
+        Assert.Equal(0, rig.CleanupOwner.RetainedCount);
+        Assert.Equal(0, rig.ProvenanceCleanupOwner.RetainedCount);
+    }
+
+    [Fact]
+    public void Provenance_owner_is_strong_before_scheduler_failure_and_retry_is_exactly_once()
+    {
+        var rig = new Rig();
+        rig.Provenance.FailDisposeCount = 1;
+        using var msbuild = rig.Driver.OpenMsBuildExecutable(rig.Invocation);
+        var lease = rig.Driver.RebuildAndAttest(rig.Invocation, msbuild);
+        rig.Reaper.FailSchedule = true;
+
+        var failure = Assert.Throws<AggregateException>(() => lease.Dispose());
+
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "provenance cleanup failed");
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value.Message == "cleanup scheduling failed");
+        Assert.Equal(1, rig.ProvenanceCleanupOwner.RetainedCount);
+        Assert.Equal(1, rig.Provenance.DisposeCalls);
+        rig.Reaper.FailSchedule = false;
+        rig.ProvenanceCleanupOwner.RetryRetained();
+        rig.Reaper.RunAll();
+        Assert.Equal(0, rig.ProvenanceCleanupOwner.RetainedCount);
+        Assert.Equal(2, rig.Provenance.DisposeCalls);
+    }
+
+    [Fact]
+    public void Provenance_owner_retains_after_bounded_retries_until_a_later_cleanup_proves_success()
+    {
+        var rig = new Rig();
+        rig.Provenance.ThrowOnDispose = true;
+        var original = Assert.Throws<InvalidOperationException>(() => rig.Provenance.Dispose());
+        rig.ProvenanceCleanupOwner.Retain(rig.Provenance, original);
+
+        rig.Reaper.RunAll();
+
+        Assert.Equal(1, rig.ProvenanceCleanupOwner.RetainedCount);
+        Assert.Equal(4, rig.Provenance.DisposeCalls);
+        Assert.True(rig.ProvenanceCleanupOwner.Failures.Count >= 4);
+        rig.Provenance.ThrowOnDispose = false;
+        rig.ProvenanceCleanupOwner.RetryRetained();
+        rig.Reaper.RunAll();
+        Assert.Equal(0, rig.ProvenanceCleanupOwner.RetainedCount);
+        Assert.Equal(5, rig.Provenance.DisposeCalls);
     }
 
     [Fact]
@@ -609,6 +723,7 @@ public sealed class Win32EvidenceBuildDriverTests
         internal FakeRuntime Runtime { get; }
         internal FakeReaperScheduler Reaper { get; }
         internal Win32EvidenceBuildEnvironmentCleanupOwner CleanupOwner { get; }
+        internal Win32EvidenceBuildProvenanceCleanupOwner ProvenanceCleanupOwner { get; }
         internal Win32EvidenceBuildDriver Driver { get; }
 
         internal Rig()
@@ -621,8 +736,10 @@ public sealed class Win32EvidenceBuildDriverTests
             Runtime = new FakeRuntime(Events);
             Reaper = new FakeReaperScheduler();
             CleanupOwner = new Win32EvidenceBuildEnvironmentCleanupOwner(Reaper);
+            ProvenanceCleanupOwner = new Win32EvidenceBuildProvenanceCleanupOwner(Reaper);
             Driver = new Win32EvidenceBuildDriver(
-                MsBuild, Provenance, Environment, Output, Process, Runtime, CleanupOwner);
+                MsBuild, Provenance, Environment, Output, Process, Runtime,
+                CleanupOwner, ProvenanceCleanupOwner);
         }
     }
 
@@ -658,6 +775,9 @@ public sealed class Win32EvidenceBuildDriverTests
         internal EvidenceBuildPrerequisiteAttestation PrerequisitesValue { get; set; } = ValidPrerequisites();
         internal bool RetainsChains { get; set; } = true;
         internal bool ThrowOnDispose { get; set; }
+        internal int FailDisposeCount { get; set; }
+        internal int DisposeCalls { get; private set; }
+        internal IEvidenceBuildProvenanceCleanupOwner? CleanupOwnerSeen { get; private set; }
         internal string[] InputIdentities { get; } = Enumerable.Repeat("inputs-id", 6).ToArray();
         private int _read;
 
@@ -680,10 +800,13 @@ public sealed class Win32EvidenceBuildDriverTests
         public EvidenceTrustedDirectoryIdentity SystemRoot { get; set; } = Trusted(@"C:\Windows", "windows-id");
         public EvidenceTrustedDirectoryIdentity TemporaryDirectory { get; set; } = Trusted(@"C:\Temp", "temp-id");
         public bool RetainsExactRepositoryInputAndOutputAncestorChains => RetainsChains;
-        public IEvidenceBuildProvenanceLease OpenRetained(string exactRepositoryRoot)
+        public IEvidenceBuildProvenanceLease OpenRetained(
+            string exactRepositoryRoot,
+            IEvidenceBuildProvenanceCleanupOwner cleanupOwner)
         {
             events.Add("provenance-open");
             Assert.Equal(Root, exactRepositoryRoot);
+            CleanupOwnerSeen = cleanupOwner;
             return this;
         }
         public EvidenceBuildProvenanceSnapshot Revalidate()
@@ -695,8 +818,12 @@ public sealed class Win32EvidenceBuildDriverTests
         }
         public void Dispose()
         {
+            DisposeCalls++;
             events.Add("provenance-dispose");
-            if (ThrowOnDispose) throw new InvalidOperationException("provenance cleanup failed");
+            if (ThrowOnDispose || FailDisposeCount-- > 0)
+            {
+                throw new InvalidOperationException("provenance cleanup failed");
+            }
         }
     }
 
@@ -741,8 +868,13 @@ public sealed class Win32EvidenceBuildDriverTests
     private sealed class FakeReaperScheduler : IEvidenceBuildCleanupReaperScheduler
     {
         private readonly Queue<Action> _actions = [];
+        internal bool FailSchedule { get; set; }
 
-        public void Schedule(Action action) => _actions.Enqueue(action);
+        public void Schedule(Action action)
+        {
+            if (FailSchedule) throw new InvalidOperationException("cleanup scheduling failed");
+            _actions.Enqueue(action);
+        }
 
         public void Backoff(TimeSpan delay) => Assert.Equal(TimeSpan.FromSeconds(1), delay);
 

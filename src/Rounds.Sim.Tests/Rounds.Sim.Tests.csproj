@@ -51,5 +51,6 @@
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidencePublishedFrameValidator.cs" Link="Tools\Win32EvidencePublishedFrameValidator.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildDriver.cs" Link="Tools\Win32EvidenceBuildDriver.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceBuildIo.cs" Link="Tools\Win32EvidenceBuildIo.cs" />
+    <Compile Include="..\..\tools\Rounds.EvidenceLauncher\EvidenceBuildManifestCompiler.cs" Link="Tools\EvidenceBuildManifestCompiler.cs" />
   </ItemGroup>
 </Project>

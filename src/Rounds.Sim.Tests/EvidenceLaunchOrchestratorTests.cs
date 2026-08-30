@@ -256,6 +256,104 @@ public sealed class EvidenceLaunchOrchestratorTests
         Assert.Equal(2, environment.DisposeCalls);
     }
 
+    [Theory]
+    [InlineData("success")]
+    [InlineData("native-failure")]
+    [InlineData("build-attribution")]
+    public void Actual_attestation_one_shot_cleanup_transfers_provenance_before_execute_returns(
+        string mode)
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var scheduler = new EnvironmentReaperScheduler();
+        var provenanceOwner = new Win32EvidenceBuildProvenanceCleanupOwner(scheduler);
+        var provenance = new ActualProvenanceLease(events, failures: 1);
+        var attestation = mode == "build-attribution"
+            ? ValidBuild(plan) with { ZeroWarnings = false }
+            : ValidBuild(plan);
+        var actual = ActualBuildLease(
+            events,
+            new RetryingEnvironmentLease(events, failures: 0),
+            new Win32EvidenceBuildEnvironmentCleanupOwner(scheduler),
+            attestation,
+            provenance,
+            provenanceOwner);
+        var build = new FakeBuild(events, plan) { AttestationLeaseOverride = actual };
+        var native = new FakeNative(events, plan)
+        {
+            FailureStage = mode == "native-failure" ? "job-create" : null,
+        };
+
+        var result = new EvidenceLaunchOrchestrator(build, native).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("cleanup", result.Code);
+        Assert.Equal(1, provenanceOwner.RetainedCount);
+        Assert.Equal(1, provenance.DisposeCalls);
+        Assert.True(events.IndexOf("actual-environment-dispose") < events.IndexOf("actual-provenance-dispose"));
+        scheduler.RunAll();
+        Assert.Equal(0, provenanceOwner.RetainedCount);
+        Assert.Equal(2, provenance.DisposeCalls);
+    }
+
+    [Fact]
+    public void Actual_attestation_cancellation_transfers_provenance_before_throw()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var scheduler = new EnvironmentReaperScheduler();
+        var provenanceOwner = new Win32EvidenceBuildProvenanceCleanupOwner(scheduler);
+        var provenance = new ActualProvenanceLease(events, failures: 1);
+        var actual = new CancellationReadAttestationLease(ActualBuildLease(
+            events,
+            new RetryingEnvironmentLease(events, failures: 0),
+            new Win32EvidenceBuildEnvironmentCleanupOwner(scheduler),
+            ValidBuild(plan),
+            provenance,
+            provenanceOwner));
+        var build = new FakeBuild(events, plan) { AttestationLeaseOverride = actual };
+
+        var failure = Assert.Throws<AggregateException>(() =>
+            new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan));
+
+        Assert.Contains(failure.Flatten().InnerExceptions, value => value is OperationCanceledException);
+        Assert.Equal(1, provenanceOwner.RetainedCount);
+        Assert.Equal(1, provenance.DisposeCalls);
+        scheduler.RunAll();
+        Assert.Equal(0, provenanceOwner.RetainedCount);
+        Assert.Equal(2, provenance.DisposeCalls);
+    }
+
+    [Fact]
+    public void Actual_provenance_scheduler_failure_remains_strongly_owned_before_execute_returns()
+    {
+        var events = new List<string>();
+        var plan = ValidPlan();
+        var scheduler = new EnvironmentReaperScheduler { FailSchedule = true };
+        var provenanceOwner = new Win32EvidenceBuildProvenanceCleanupOwner(scheduler);
+        var provenance = new ActualProvenanceLease(events, failures: 1);
+        var actual = ActualBuildLease(
+            events,
+            new RetryingEnvironmentLease(events, failures: 0),
+            new Win32EvidenceBuildEnvironmentCleanupOwner(scheduler),
+            ValidBuild(plan),
+            provenance,
+            provenanceOwner);
+        var build = new FakeBuild(events, plan) { AttestationLeaseOverride = actual };
+
+        var result = new EvidenceLaunchOrchestrator(build, new FakeNative(events, plan)).Execute(plan);
+
+        Assert.False(result.Success);
+        Assert.Equal("cleanup", result.Code);
+        Assert.Equal(1, provenanceOwner.RetainedCount);
+        Assert.Equal(1, provenance.DisposeCalls);
+        scheduler.FailSchedule = false;
+        provenanceOwner.RetryRetained();
+        scheduler.RunAll();
+        Assert.Equal(0, provenanceOwner.RetainedCount);
+        Assert.Equal(2, provenance.DisposeCalls);
+    }
+
     [Fact]
     public void Msbuild_lease_close_failure_disposes_runtime_attestation_and_refuses_native()
     {
@@ -954,13 +1052,16 @@ public sealed class EvidenceLaunchOrchestratorTests
         List<string> events,
         RetryingEnvironmentLease environment,
         IEvidenceBuildEnvironmentCleanupOwner owner,
-        EvidenceBuildAttestation attestation) =>
+        EvidenceBuildAttestation attestation,
+        IEvidenceBuildProvenanceLease? provenance = null,
+        IEvidenceBuildProvenanceCleanupOwner? provenanceOwner = null) =>
         new Win32EvidenceBuildAttestationLease(
             new ActualRuntimeLease(events, attestation.RuntimeAssembly, attestation.RuntimeClosure),
             [],
             environment,
-            new ActualProvenanceLease(events),
+            provenance ?? new ActualProvenanceLease(events),
             owner,
+            provenanceOwner ?? new Win32EvidenceBuildProvenanceCleanupOwner(new EnvironmentReaperScheduler()),
             attestation);
 
     private sealed class RetryingEnvironmentLease(List<string> events, int failures) :
@@ -991,15 +1092,22 @@ public sealed class EvidenceLaunchOrchestratorTests
         public void Dispose() => events.Add("actual-runtime-dispose");
     }
 
-    private sealed class ActualProvenanceLease(List<string> events) : IEvidenceBuildProvenanceLease
+    private sealed class ActualProvenanceLease(List<string> events, int failures = 0) : IEvidenceBuildProvenanceLease
     {
+        private int _failures = failures;
+        internal int DisposeCalls { get; private set; }
         public EvidenceCandidateIdentity Candidate => throw new NotSupportedException();
         public EvidenceBuildPrerequisiteAttestation Prerequisites => throw new NotSupportedException();
         public EvidenceTrustedDirectoryIdentity SystemRoot => throw new NotSupportedException();
         public EvidenceTrustedDirectoryIdentity TemporaryDirectory => throw new NotSupportedException();
         public bool RetainsExactRepositoryInputAndOutputAncestorChains => true;
         public EvidenceBuildProvenanceSnapshot Revalidate() => throw new NotSupportedException();
-        public void Dispose() => events.Add("actual-provenance-dispose");
+        public void Dispose()
+        {
+            DisposeCalls++;
+            events.Add("actual-provenance-dispose");
+            if (_failures-- > 0) throw new InvalidOperationException("actual provenance cleanup failed");
+        }
     }
 
     private sealed class CancellationReadAttestationLease(IEvidenceBuildAttestationLease inner) :

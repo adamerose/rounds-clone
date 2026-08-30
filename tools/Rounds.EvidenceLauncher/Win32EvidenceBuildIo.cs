@@ -496,6 +496,136 @@ internal sealed class Win32EvidenceBuildEnvironmentCleanupOwner : IEvidenceBuild
     }
 }
 
+internal sealed class Win32EvidenceBuildProvenanceCleanupOwner : IEvidenceBuildProvenanceCleanupOwner
+{
+    internal static Win32EvidenceBuildProvenanceCleanupOwner Instance { get; } =
+        new(new Win32EvidenceBuildCleanupReaperScheduler());
+
+    private readonly object _sync = new();
+    private readonly IEvidenceBuildCleanupReaperScheduler _scheduler;
+    private readonly Dictionary<long, RetainedCleanup> _retained = [];
+    private readonly List<Exception> _failures = [];
+    private long _nextId;
+
+    internal Win32EvidenceBuildProvenanceCleanupOwner(IEvidenceBuildCleanupReaperScheduler scheduler)
+    {
+        _scheduler = scheduler;
+    }
+
+    internal int RetainedCount
+    {
+        get { lock (_sync) return _retained.Count; }
+    }
+
+    internal IReadOnlyList<Exception> Failures
+    {
+        get { lock (_sync) return _failures.ToArray(); }
+    }
+
+    public void Retain(IEvidenceBuildProvenanceLease lease, Exception cleanupFailure)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        ArgumentNullException.ThrowIfNull(cleanupFailure);
+        RetainedCleanup retained;
+        lock (_sync)
+        {
+            var id = checked(++_nextId);
+            retained = new RetainedCleanup(id, lease);
+            _retained.Add(id, retained); // strong ownership exists before scheduling can fail
+            _failures.Add(cleanupFailure);
+        }
+        Schedule(retained);
+    }
+
+    internal void RetryRetained()
+    {
+        RetainedCleanup[] retained;
+        lock (_sync) retained = _retained.Values.Where(value => !value.Scheduled).ToArray();
+        Exception? failure = null;
+        foreach (var item in retained)
+        {
+            try { Schedule(item); }
+            catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
+        }
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private void Schedule(RetainedCleanup retained)
+    {
+        lock (_sync)
+        {
+            if (!_retained.ContainsKey(retained.Id) || retained.Scheduled) return;
+            retained.Scheduled = true;
+        }
+        try
+        {
+            _scheduler.Schedule(() => Reap(retained));
+        }
+        catch (Exception failure)
+        {
+            lock (_sync)
+            {
+                retained.Scheduled = false;
+                _failures.Add(failure);
+            }
+            throw;
+        }
+    }
+
+    private void Reap(RetainedCleanup retained)
+    {
+        const int maximumAttempts = 3;
+        try
+        {
+            for (var attempt = 0; attempt < maximumAttempts; attempt++)
+            {
+                try
+                {
+                    retained.Lease.Dispose();
+                    lock (_sync) _retained.Remove(retained.Id);
+                    return;
+                }
+                catch (Exception failure)
+                {
+                    lock (_sync) _failures.Add(failure);
+                    try
+                    {
+                        System.Diagnostics.Trace.TraceError(
+                            "Retained build-provenance cleanup attempt {0} failed: {1}", attempt + 1, failure);
+                    }
+                    catch { }
+                    if (attempt + 1 < maximumAttempts)
+                    {
+                        try { _scheduler.Backoff(TimeSpan.FromSeconds(1)); }
+                        catch (Exception backoffFailure)
+                        {
+                            lock (_sync) _failures.Add(backoffFailure);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            lock (_sync)
+            {
+                if (_retained.ContainsKey(retained.Id))
+                {
+                    retained.Scheduled = false; // strongly owned for explicit retry/process exit
+                }
+            }
+        }
+    }
+
+    private sealed class RetainedCleanup(long id, IEvidenceBuildProvenanceLease lease)
+    {
+        internal long Id { get; } = id;
+        internal IEvidenceBuildProvenanceLease Lease { get; } = lease;
+        internal bool Scheduled { get; set; }
+    }
+}
+
 internal sealed class Win32EvidenceBuildCleanupReaperScheduler : IEvidenceBuildCleanupReaperScheduler
 {
     public void Schedule(Action action)
@@ -505,12 +635,12 @@ internal sealed class Win32EvidenceBuildCleanupReaperScheduler : IEvidenceBuildC
             try { action(); }
             catch (Exception failure)
             {
-                System.Diagnostics.Trace.TraceError("Build-environment cleanup reaper contained failure: {0}", failure);
+                System.Diagnostics.Trace.TraceError("Build cleanup reaper contained failure: {0}", failure);
             }
         })
         {
             IsBackground = true,
-            Name = "Rounds evidence environment cleanup reaper",
+            Name = "Rounds evidence build cleanup reaper",
             Priority = ThreadPriority.BelowNormal,
         };
         worker.Start();

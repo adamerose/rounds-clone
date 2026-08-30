@@ -74,12 +74,12 @@ internal static class EvidenceBuildManifest
     internal const string SdkTreeSha256 = "6eb01c93e060c47279dae895a8635d5758aba49fbd9de68f716786496d92c093";
     internal const string ReferencePackTreeSha256 = "6a711682d9729183e36aa0c5878af274a62285e1cd516637912861c63651434f";
     internal const string ExactTreeHashAlgorithm = "ordinal-relative-path-nul-raw-bytes-sha256-v1";
-    private const string GlobalJsonSha256 = "248c17bb46fd7ff31402c62dc1870e90005fc1d9bcbc9a31cefcc78691149d76";
+    internal const string GlobalJsonContentSha256 = "248c17bb46fd7ff31402c62dc1870e90005fc1d9bcbc9a31cefcc78691149d76";
 
     private static readonly IReadOnlyList<(string Path, string Sha256)> Inputs = Array.AsReadOnly(
     new (string Path, string Sha256)[]
     {
-        ("global.json", GlobalJsonSha256),
+        ("global.json", GlobalJsonContentSha256),
         (@"game\Rounds.Game.csproj", "e32100c13c6e55c3aadcb3c0aeba5b2a090b742e452c9ed7c699db2ae3ebc8d4"),
         (@"game\packages.lock.json", "a51a8e19de69f77ccb5c087d49124a5663cc09a413d9b249212fdfd157fc1ca7"),
         (@"game\.godot\mono\temp\obj\project.assets.json", "5a5952fe97201dad1c0c5cf7356b109e178ed8f5af77a0ee3b7219520a0ffae9"),
@@ -123,7 +123,7 @@ internal static class EvidenceBuildManifest
             value.ArchiveSha256, value.TreeSha256,
             ExtractedPackageTreeHashAlgorithm)).ToArray();
         return new EvidenceBuildPrerequisiteAttestation(
-            "8.0.423", GlobalJsonSha256, true, true, true,
+            "8.0.423", GlobalJsonContentSha256, true, true, true,
             Path.GetFullPath(Path.Combine(root, @".tools\dotnet\sdk\8.0.423\Sdks")), true, true,
             SdkTreeSha256, ExactTreeHashAlgorithm,
             Path.GetFullPath(Path.Combine(root, @".tools\dotnet\packs\Microsoft.NETCore.App.Ref\8.0.29\ref\net8.0")),
@@ -210,7 +210,15 @@ internal interface IEvidenceBuildProvenanceLease : IDisposable
 
 internal interface IEvidenceBuildProvenanceFactory
 {
-    IEvidenceBuildProvenanceLease OpenRetained(string exactRepositoryRoot);
+    IEvidenceBuildProvenanceLease OpenRetained(
+        string exactRepositoryRoot,
+        IEvidenceBuildProvenanceCleanupOwner cleanupOwner);
+}
+
+internal interface IEvidenceBuildProvenanceCleanupOwner
+{
+    // Implementations acquire strong ownership before scheduling and retain it even when this call throws.
+    void Retain(IEvidenceBuildProvenanceLease lease, Exception cleanupFailure);
 }
 
 internal interface IEvidenceBuildEnvironmentFactory
@@ -317,10 +325,13 @@ internal sealed class Win32EvidenceBuildDriver(
     IEvidenceBuildOutputApi outputs,
     IEvidenceBuildProcessRunner processes,
     IEvidenceRuntimeAssemblyFactory runtimeAssemblies,
-    IEvidenceBuildEnvironmentCleanupOwner? environmentCleanupOwner = null) : IEvidenceBuildDriver
+    IEvidenceBuildEnvironmentCleanupOwner? environmentCleanupOwner = null,
+    IEvidenceBuildProvenanceCleanupOwner? provenanceCleanupOwner = null) : IEvidenceBuildDriver
 {
     private readonly IEvidenceBuildEnvironmentCleanupOwner _environmentCleanupOwner =
         environmentCleanupOwner ?? Win32EvidenceBuildEnvironmentCleanupOwner.Instance;
+    private readonly IEvidenceBuildProvenanceCleanupOwner _provenanceCleanupOwner =
+        provenanceCleanupOwner ?? Win32EvidenceBuildProvenanceCleanupOwner.Instance;
     internal static readonly TimeSpan ExactBuildDeadline = TimeSpan.FromMinutes(5);
     internal const int ExactOutputCapBytes = 4 * 1024 * 1024;
     internal const int ExactErrorCapBytes = 4 * 1024 * 1024;
@@ -363,7 +374,7 @@ internal sealed class Win32EvidenceBuildDriver(
         var priorOutputLeases = new List<IEvidencePriorOutputLease>();
         try
         {
-            provenanceLease = provenance.OpenRetained(required.WorkingDirectory);
+            provenanceLease = provenance.OpenRetained(required.WorkingDirectory, _provenanceCleanupOwner);
             var candidateBefore = provenanceLease.Candidate;
             ValidateCandidate(candidateBefore, required.WorkingDirectory);
             ValidatePrerequisites(provenanceLease.Prerequisites, required);
@@ -470,7 +481,7 @@ internal sealed class Win32EvidenceBuildDriver(
                 Array.AsReadOnly(runtimeLease.RuntimeClosure.ToArray()), true, true);
             var completed = new Win32EvidenceBuildAttestationLease(
                 runtimeLease, priorOutputLeases.ToArray(), environmentLease, provenanceLease,
-                _environmentCleanupOwner, attestation);
+                _environmentCleanupOwner, _provenanceCleanupOwner, attestation);
             runtimeLease = null;
             priorOutputLeases.Clear();
             environmentLease = null;
@@ -500,8 +511,19 @@ internal sealed class Win32EvidenceBuildDriver(
                     }
                 }
             }
-            try { provenanceLease?.Dispose(); }
-            catch (Exception exception) { cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception); }
+            if (provenanceLease is not null)
+            {
+                try { provenanceLease.Dispose(); }
+                catch (Exception exception)
+                {
+                    cleanup = cleanup is null ? exception : new AggregateException(cleanup, exception);
+                    try { _provenanceCleanupOwner.Retain(provenanceLease, exception); }
+                    catch (Exception transfer)
+                    {
+                        cleanup = new AggregateException(cleanup, transfer);
+                    }
+                }
+            }
             throw cleanup is null ? failure : new AggregateException(failure, cleanup);
         }
     }
@@ -1057,6 +1079,7 @@ internal sealed class Win32EvidenceBuildAttestationLease(
     IEvidenceBuildEnvironmentLease environment,
     IEvidenceBuildProvenanceLease provenance,
     IEvidenceBuildEnvironmentCleanupOwner environmentCleanupOwner,
+    IEvidenceBuildProvenanceCleanupOwner provenanceCleanupOwner,
     EvidenceBuildAttestation attestation) : IEvidenceBuildAttestationLease
 {
     private readonly object _disposeSync = new();
@@ -1065,6 +1088,7 @@ internal sealed class Win32EvidenceBuildAttestationLease(
     private IEvidenceBuildEnvironmentLease? _environment = environment;
     private IEvidenceBuildProvenanceLease? _provenance = provenance;
     private readonly IEvidenceBuildEnvironmentCleanupOwner _environmentCleanupOwner = environmentCleanupOwner;
+    private readonly IEvidenceBuildProvenanceCleanupOwner _provenanceCleanupOwner = provenanceCleanupOwner;
 
     public EvidenceBuildAttestation Attestation { get; } = attestation;
 
@@ -1103,7 +1127,15 @@ internal sealed class Win32EvidenceBuildAttestationLease(
                 }
             }
             try { provenanceLease?.Dispose(); }
-            catch (Exception exception) { failure = failure is null ? exception : new AggregateException(failure, exception); }
+            catch (Exception exception)
+            {
+                failure = failure is null ? exception : new AggregateException(failure, exception);
+                try { _provenanceCleanupOwner.Retain(provenanceLease!, exception); }
+                catch (Exception transfer)
+                {
+                    failure = new AggregateException(failure, transfer);
+                }
+            }
             if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
