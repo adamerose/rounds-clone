@@ -29,6 +29,7 @@ internal static class Win32EvidenceConstants
     internal const uint FileFlagOpenReparsePoint = 0x00200000;
     internal const uint FileFlagBackupSemantics = 0x02000000;
     internal const uint JobObjectExtendedLimitInformation = 9;
+    internal const uint JobObjectBasicAccountingInformation = 1;
     internal const uint JobObjectBasicProcessIdList = 3;
     internal const uint JobObjectLimitWorkingSet = 0x00000001;
     internal const uint JobObjectLimitActiveProcess = 0x00000008;
@@ -40,6 +41,7 @@ internal static class Win32EvidenceConstants
     internal const uint BelowNormalPriorityClass = 0x00004000;
     internal const uint WaitObject0 = 0;
     internal const uint WaitTimeout = 258;
+    internal const uint ResumeThreadFailure = 0xffffffff;
     internal const uint Infinite = 0xffffffff;
     internal const uint TerminationFallbackWaitMilliseconds = 5_000;
     internal const int UoiName = 2;
@@ -156,6 +158,19 @@ internal struct Win32JobExtendedLimitInformation
 }
 
 [StructLayout(LayoutKind.Sequential)]
+internal struct Win32JobBasicAccountingInformation
+{
+    internal long TotalUserTime;
+    internal long TotalKernelTime;
+    internal long ThisPeriodTotalUserTime;
+    internal long ThisPeriodTotalKernelTime;
+    internal uint TotalPageFaultCount;
+    internal uint TotalProcesses;
+    internal uint ActiveProcesses;
+    internal uint TotalTerminatedProcesses;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 internal struct Win32FileIdInfo
 {
     internal ulong VolumeSerialNumber;
@@ -268,6 +283,22 @@ internal sealed class Win32ProcessLease(
         ? _process
         : throw new ObjectDisposedException(nameof(Win32ProcessLease));
 
+    internal nint DangerousPrimaryThreadHandle => _primaryThread != 0
+        ? _primaryThread
+        : throw new ObjectDisposedException(nameof(Win32ProcessLease));
+
+    internal bool PrimaryThreadWasResumed { get; private set; }
+
+    internal void MarkPrimaryThreadResumed()
+    {
+        if (PrimaryThreadWasResumed)
+        {
+            throw new InvalidOperationException("Primary thread was already resumed.");
+        }
+        _ = DangerousPrimaryThreadHandle;
+        PrimaryThreadWasResumed = true;
+    }
+
     protected override void TerminateAndWaitForExit()
     {
         var terminationRequested = api.TerminateProcess(DangerousProcessHandle, 1);
@@ -301,6 +332,42 @@ internal sealed class Win32JobLease(IWin32EvidenceApi api, nint handle) : IEvide
     internal nint DangerousHandle => _handle != 0
         ? _handle
         : throw new ObjectDisposedException(nameof(Win32JobLease));
+
+    internal bool Configured { get; private set; }
+
+    internal bool Assigned { get; private set; }
+
+    internal bool Resumed { get; private set; }
+
+    internal bool EmptyProven { get; private set; }
+
+    internal void MarkConfigured()
+    {
+        _ = DangerousHandle;
+        if (Configured) throw new InvalidOperationException("Job was already configured.");
+        Configured = true;
+    }
+
+    internal void MarkAssigned()
+    {
+        _ = DangerousHandle;
+        if (!Configured || Assigned) throw new InvalidOperationException("Job assignment state was invalid.");
+        Assigned = true;
+    }
+
+    internal void MarkResumed()
+    {
+        _ = DangerousHandle;
+        if (!Assigned || Resumed) throw new InvalidOperationException("Job resume state was invalid.");
+        Resumed = true;
+    }
+
+    internal void MarkEmptyProven()
+    {
+        _ = DangerousHandle;
+        if (!Assigned || !Resumed) throw new InvalidOperationException("A non-running job cannot be proven empty.");
+        EmptyProven = true;
+    }
 
     public void Dispose()
     {

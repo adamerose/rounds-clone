@@ -205,6 +205,8 @@ internal abstract class EvidenceProcessLease : IDisposable
     private bool _assignedToKillOnCloseJob;
     private bool _terminationFallbackDisarmed;
 
+    internal bool AssignedToKillOnCloseJob => _assignedToKillOnCloseJob;
+
     public void MarkAssignedToKillOnCloseJob()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

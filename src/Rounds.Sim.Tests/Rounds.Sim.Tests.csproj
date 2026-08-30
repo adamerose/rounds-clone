@@ -45,5 +45,6 @@
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceFileIdentity.cs" Link="Tools\Win32EvidenceFileIdentity.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceNative.cs" Link="Tools\Win32EvidenceNative.cs" />
     <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceProcessCreation.cs" Link="Tools\Win32EvidenceProcessCreation.cs" />
+    <Compile Include="..\..\tools\Rounds.EvidenceLauncher\Win32EvidenceJob.cs" Link="Tools\Win32EvidenceJob.cs" />
   </ItemGroup>
 </Project>
