@@ -380,7 +380,6 @@ public partial class Main : Node2D
         var radius = Mathf.Max(4.0f, (float)(bullet.Radius * camera.Scale));
         var color = bullet.OwnerId == 0 ? Red : Blue;
         DrawLine(center - (velocity * radius * 4.0f), center, color with { A = 0.45f }, radius * 0.9f);
-        DrawCircle(center, radius + 2.0f, Ink);
         DrawCircle(center, radius, Paper);
     }
 

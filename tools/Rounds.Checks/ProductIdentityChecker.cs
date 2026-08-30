@@ -9,7 +9,7 @@ namespace Rounds.Checks;
 public static partial class ProductIdentityChecker
 {
     private const string ExpectedShippedRuntimeBoundarySha256 =
-        "bbd578e6ce74af6fff7a0e3c6964f2cad91fd1ded079dc8f8a17642c4eecafcd";
+        "8e7a43b3c71f421f71ff5b14f3a618a0307ec2f0c1990a219710f5fa19298d84";
 
     private static readonly string[] ShippedRuntimeRoots =
     [
@@ -32,6 +32,7 @@ public static partial class ProductIdentityChecker
         {
             ".git",
             ".ivy",
+            ".tools",
         };
 
     private static readonly HashSet<string> BuildControlExtensions =

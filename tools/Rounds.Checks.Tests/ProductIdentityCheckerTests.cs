@@ -15,6 +15,33 @@ public sealed class ProductIdentityCheckerTests : IDisposable
     }
 
     [Fact]
+    public void BaseProjectileKeepsBrightCoreAndOwnerTrailWithoutDarkRing()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepository(), "game", "Main.cs"));
+        var start = source.IndexOf("private void DrawBullet", StringComparison.Ordinal);
+        var end = source.IndexOf("private void DrawHud", start, StringComparison.Ordinal);
+
+        Assert.True(start >= 0 && end > start);
+        var drawBullet = source[start..end];
+        Assert.Contains("color with { A = 0.45f }", drawBullet, StringComparison.Ordinal);
+        Assert.Contains("DrawCircle(center, radius, Paper);", drawBullet, StringComparison.Ordinal);
+        Assert.DoesNotContain("DrawCircle(center, radius + 2.0f, Ink);", drawBullet, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void IgnoredWorkspaceToolCacheDoesNotChangeRuntimeBoundary()
+    {
+        CopyIdentityFixture();
+        var cache = Path.Combine(_fixture, ".tools", "sdk", "nested");
+        Directory.CreateDirectory(cache);
+        File.WriteAllText(Path.Combine(cache, "Injected.targets"), "not repository-controlled");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.DoesNotContain(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void SupersededProductTitleOnActiveSurfaceIsRejected()
     {
         CopyIdentityFixture();

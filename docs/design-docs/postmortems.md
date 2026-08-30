@@ -1085,3 +1085,13 @@ Godot's dummy headless renderer has no viewport texture to save, so the first bo
 The route now detects the headless display driver first and exits cleanly with `stage=renderer-unavailable code=0`; the visible debug renderer remains the only path that attempts the PNG, while unit tests protect both completion and error marker grammar.
 Because renderer-owned pixels alone do not prove which physical monitor hosted the native window, the final capture protocol queries Godot's `DisplayServer` immediately before saving.
 It refuses any screen other than the project-mandated index 3 and includes the capture-time screen, client position, client size, and viewport size in the success marker, eliminating activation and racy external placement polling from the evidence path.
+
+## 2026-08-29 — The root SDK cache retained compiler files but lost its host
+
+Ticket 034's first focused test used the system `dotnet`, which has runtimes but no installed SDK and therefore refused the repository's pinned 8.0.423 request.
+The ignored root `.tools/dotnet` cache still contained SDK compiler files and the .NET 8 shared runtime, but no `dotnet.exe`, `host/fxr`, or `Current/Microsoft.Common.props`, so it could not run an ordinary build either.
+Redownloading the SDK was deliberately deferred while the user was playing an online game.
+The correction was still checked with the retained Roslyn compiler and installed .NET 8 runtime: the checker and its changed tests compiled, the real identity gate returned no failures, and the boundary reproduced exactly 73 files with SHA-256 `8e7a43b3c71f421f71ff5b14f3a618a0307ec2f0c1990a219710f5fa19298d84`.
+Full solution build and runner-driven tests remain required before ticket closure.
+Installed Visual Studio Build Tools supplied the complete MSBuild host, and the exact 6.45 MiB `Microsoft.NETCore.App.Ref` 8.0.29 package restored only the missing targeting pack after its NuGet-published SHA-512 matched.
+That local route passed the zero-warning solution build, 134 checker tests, and 251 applicable simulation tests; the temporary copied launcher still lacked the SDK's managed `dotnet.dll`, so it was removed rather than left as a misleading partial installation.
