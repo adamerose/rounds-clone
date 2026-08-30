@@ -204,6 +204,86 @@ public sealed class EvidenceBuildProcessPrimitivesTests
                 ["tool.exe", new string('x', EvidenceBuildProcessPrimitives.MaximumWindowsCommandLineCharactersIncludingTerminator)]));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("plain")]
+    [InlineData("two words")]
+    [InlineData("\"")]
+    [InlineData("\\")]
+    [InlineData(@" \")]
+    [InlineData("a\\\"b")]
+    [InlineData("a \\")]
+    [InlineData("\\\\\"tail\\\\")]
+    [InlineData("\t")]
+    public void CommandLineLengthPreflightExactlyMatchesEncoder(string argument)
+    {
+        string[] vector = [@"C:\Program Files\Tool\tool.exe", argument, "tail"];
+        var encoded = WindowsArgumentEncoding.Encode(vector);
+
+        Assert.Equal(
+            encoded.Length + 1,
+            EvidenceBuildProcessPrimitives.ComputeWindowsCommandLineCharactersIncludingTerminator(vector));
+    }
+
+    [Fact]
+    public void CommandLineLengthPreflightMatchesEverySlashQuoteBoundaryFamily()
+    {
+        var arguments = new List<string> { string.Empty, " ", "\t", "\"", "a b", "plain" };
+        for (var slashCount = 0; slashCount <= 8; slashCount++)
+        {
+            var slashes = new string('\\', slashCount);
+            arguments.Add(slashes + '"');
+            arguments.Add("prefix" + slashes + '"' + "suffix");
+            arguments.Add(" " + slashes);
+            arguments.Add("prefix " + slashes);
+        }
+
+        foreach (var argument in arguments)
+        {
+            string[] vector = [@"C:\Program Files\Tool\tool.exe", argument, "", @"tail with space\"];
+            Assert.Equal(
+                WindowsArgumentEncoding.Encode(vector).Length + 1,
+                EvidenceBuildProcessPrimitives.ComputeWindowsCommandLineCharactersIncludingTerminator(vector));
+        }
+    }
+
+    [Fact]
+    public void CommandLinePreflightAcceptsExactCapAndRefusesCapPlusOne()
+    {
+        var exact = new[] { "tool", new string('x', 32_761) };
+        var tooLong = new[] { "tool", new string('x', 32_762) };
+
+        Assert.Equal(32_767, EvidenceBuildProcessPrimitives.ComputeWindowsCommandLineCharactersIncludingTerminator(exact));
+        Assert.Throws<InvalidOperationException>(() =>
+            EvidenceBuildProcessPrimitives.ComputeWindowsCommandLineCharactersIncludingTerminator(tooLong));
+    }
+
+    [Fact]
+    public void CommandLinePreflightRefusesExpansionAndCountBeforeInvokingEncoder()
+    {
+        var encoderCalls = 0;
+        string EncodeTrap(IReadOnlyList<string> _)
+        {
+            encoderCalls++;
+            throw new InvalidOperationException("Encoder must not run.");
+        }
+
+        Assert.Throws<InvalidOperationException>(() =>
+            EvidenceBuildProcessPrimitives.BuildExecutableInclusiveCommandLine(
+                ["tool.exe", new string('"', 20_000)], EncodeTrap));
+        Assert.Equal(0, encoderCalls);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            EvidenceBuildProcessPrimitives.BuildExecutableInclusiveCommandLine(
+                ["tool.exe", " " + new string('\\', 20_000)], EncodeTrap));
+        Assert.Equal(0, encoderCalls);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            EvidenceBuildProcessPrimitives.BuildExecutableInclusiveCommandLine(
+                Enumerable.Repeat("x", 65).ToArray(), EncodeTrap));
+        Assert.Equal(0, encoderCalls);
+    }
+
     [Fact]
     public void EnvironmentBlockIsDeterministicCaseInsensitiveAndDoubleNulTerminated()
     {
@@ -277,6 +357,57 @@ public sealed class EvidenceBuildProcessPrimitivesTests
     {
         var summary = Bytes("    0 Warning(s)\r\n    0 Error(s)\r\n");
         Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(summary, summary));
+    }
+
+    [Theory]
+    [InlineData("    0 Warnung(en)\r\n    0 Fehler\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    [InlineData("    0 Warnings\r\n    0 Errors\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    [InlineData("    123 arbitrary-count-label\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    [InlineData("  0 Warnings\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    [InlineData("\t0\tWarnung(en)\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    [InlineData("Time Elapsed 00:00:01.00\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    public void WarningParserRejectsAnyAdditionalCountShapedOrMalformedEnglishSummary(string stdout) =>
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(Bytes(stdout), []));
+
+    [Fact]
+    public void WarningParserRejectsCanonicalAndLocalizedBlocksAcrossStreams()
+    {
+        var canonical = Bytes("    0 Warning(s)\r\n    0 Error(s)\r\n");
+        var localized = Bytes("    0 Avertissement(s)\r\n    0 Erreur(s)\r\n");
+
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(canonical, localized));
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(localized, canonical));
+    }
+
+    [Theory]
+    [InlineData("00:00:00.00")]
+    [InlineData("00:04:59.99")]
+    [InlineData("00:05:00.00")]
+    public void WarningParserAcceptsExactElapsedTimesThroughDeadline(string elapsed)
+    {
+        var output = Bytes($"    0 Warning(s)\r\n    0 Error(s)\r\n\r\nTime Elapsed {elapsed}\r\n");
+
+        var proof = EvidenceMsBuildWarningParser.Parse(output, []);
+
+        Assert.Equal(0, proof.WarningCount);
+    }
+
+    [Theory]
+    [InlineData("99:99:99.99")]
+    [InlineData("00:60:00.00")]
+    [InlineData("00:00:60.00")]
+    [InlineData("00:05:00.01")]
+    [InlineData("00:05:01.00")]
+    [InlineData("0:04:59.99")]
+    [InlineData("000:04:59.99")]
+    [InlineData("00:04:59.9")]
+    [InlineData("00:04:59.999")]
+    [InlineData("00-04-59.99")]
+    public void WarningParserRejectsMalformedOrOverDeadlineElapsedTimes(string elapsed)
+    {
+        var output = Bytes($"    0 Warning(s)\r\n    0 Error(s)\r\nTime Elapsed {elapsed}\r\n");
+
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(output, []));
     }
 
     [Fact]

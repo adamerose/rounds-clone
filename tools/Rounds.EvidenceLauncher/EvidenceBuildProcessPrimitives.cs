@@ -175,24 +175,128 @@ internal static class EvidenceBuildProcessPrimitives
     }
 
     internal static string BuildExecutableInclusiveCommandLine(IReadOnlyList<string> completeArgumentVector)
+        => BuildExecutableInclusiveCommandLine(completeArgumentVector, WindowsArgumentEncoding.Encode);
+
+    internal static string BuildExecutableInclusiveCommandLine(
+        IReadOnlyList<string> completeArgumentVector,
+        Func<IReadOnlyList<string>, string> encoder)
     {
         ArgumentNullException.ThrowIfNull(completeArgumentVector);
+        ArgumentNullException.ThrowIfNull(encoder);
         var snapshot = SnapshotArguments(completeArgumentVector);
         if (snapshot.Count == 0 || string.IsNullOrEmpty(snapshot[0]))
         {
             throw new InvalidOperationException("Windows command line requires an executable argv[0].");
         }
 
-        var commandLine = WindowsArgumentEncoding.Encode(snapshot);
-        if (checked(commandLine.Length + 1) > MaximumWindowsCommandLineCharactersIncludingTerminator)
+        var expectedLengthIncludingTerminator = ComputeFrozenWindowsCommandLineCharactersIncludingTerminator(snapshot);
+        var commandLine = encoder(snapshot);
+        if (checked(commandLine.Length + 1) != expectedLengthIncludingTerminator)
         {
-            throw new InvalidOperationException("Windows command line exceeded the admitted CreateProcessW bound.");
+            throw new InvalidOperationException("Windows argument encoder length drifted from its allocation-free preflight.");
         }
         if (!WindowsArgumentEncoding.DecodeModel(commandLine).SequenceEqual(snapshot, StringComparer.Ordinal))
         {
             throw new InvalidOperationException("Windows command line did not round-trip the frozen argument vector.");
         }
         return commandLine;
+    }
+
+    internal static int ComputeWindowsCommandLineCharactersIncludingTerminator(IReadOnlyList<string> completeArgumentVector)
+    {
+        ArgumentNullException.ThrowIfNull(completeArgumentVector);
+        var snapshot = SnapshotArguments(completeArgumentVector);
+        return ComputeFrozenWindowsCommandLineCharactersIncludingTerminator(snapshot);
+    }
+
+    private static int ComputeFrozenWindowsCommandLineCharactersIncludingTerminator(IReadOnlyList<string> completeArgumentVector)
+    {
+        if (completeArgumentVector.Count == 0)
+        {
+            throw new InvalidOperationException("Windows command line requires an executable argv[0].");
+        }
+
+        var total = 1; // terminal UTF-16 NUL consumed by CreateProcessW
+        for (var index = 0; index < completeArgumentVector.Count; index++)
+        {
+            var argument = completeArgumentVector[index] ??
+                throw new InvalidOperationException("Windows command-line argument was null.");
+            if (argument.Contains('\0'))
+            {
+                throw new InvalidOperationException("Windows command-line argument contained NUL.");
+            }
+            if (index > 0)
+            {
+                total = AddCommandLineLength(total, 1);
+            }
+
+            // Every admitted encoding is at least as long as its source. Refuse an obviously
+            // oversized value without scanning it for quoting or allocating an encoded copy.
+            if ((long)total + argument.Length > MaximumWindowsCommandLineCharactersIncludingTerminator)
+            {
+                throw new InvalidOperationException("Windows command line exceeded the admitted CreateProcessW bound.");
+            }
+            total = AddCommandLineLength(total, ComputeEncodedArgumentLength(argument));
+        }
+        return total;
+    }
+
+    private static int ComputeEncodedArgumentLength(string argument)
+    {
+        var needsQuotes = argument.Length == 0;
+        if (!needsQuotes)
+        {
+            foreach (var character in argument)
+            {
+                if (char.IsWhiteSpace(character) || character == '"')
+                {
+                    needsQuotes = true;
+                    break;
+                }
+            }
+        }
+        if (!needsQuotes)
+        {
+            return argument.Length;
+        }
+
+        var encodedLength = 1; // opening quote
+        var slashCount = 0;
+        foreach (var character in argument)
+        {
+            if (character == '\\')
+            {
+                slashCount = checked(slashCount + 1);
+                continue;
+            }
+            if (character == '"')
+            {
+                encodedLength = checked(encodedLength + checked(slashCount * 2) + 2);
+                slashCount = 0;
+                continue;
+            }
+            encodedLength = checked(encodedLength + slashCount + 1);
+            slashCount = 0;
+        }
+        return checked(encodedLength + checked(slashCount * 2) + 1); // trailing slashes + closing quote
+    }
+
+    private static int AddCommandLineLength(int current, int addition)
+    {
+        int result;
+        try
+        {
+            result = checked(current + addition);
+        }
+        catch (OverflowException exception)
+        {
+            throw new InvalidOperationException("Windows command-line length arithmetic overflowed.", exception);
+        }
+        if (result > MaximumWindowsCommandLineCharactersIncludingTerminator)
+        {
+            throw new InvalidOperationException("Windows command line exceeded the admitted CreateProcessW bound.");
+        }
+        return result;
     }
 
     internal static string EncodeUnicodeEnvironmentBlock(IReadOnlyDictionary<string, string> environment)
@@ -520,8 +624,6 @@ internal static class EvidenceMsBuildWarningParser
     {
         for (var index = 0; index < lines.Count; index++)
         {
-            var warningLike = lines[index].Contains("Warning(s)", StringComparison.OrdinalIgnoreCase);
-            var errorLike = lines[index].Contains("Error(s)", StringComparison.OrdinalIgnoreCase);
             if (TryParseCountLine(lines[index], " Warning(s)", out var warnings))
             {
                 if (index + 1 >= lines.Count || !TryParseCountLine(lines[index + 1], " Error(s)", out var errors))
@@ -530,12 +632,15 @@ internal static class EvidenceMsBuildWarningParser
                 }
                 summaries.Add((stream, index, warnings, errors));
                 ValidateFinalSummaryTail(lines, index + 2);
-                index++;
-                continue;
+                break;
             }
-            if (warningLike || errorLike)
+            if (lines[index].StartsWith("Time Elapsed", StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("MSBuild output contained a malformed or localized summary line.");
+                throw new InvalidOperationException("MSBuild output contained a misplaced or malformed elapsed-time trailer.");
+            }
+            if (TryParseSummaryCountShape(lines[index]) || ContainsEnglishSummaryLabel(lines[index]))
+            {
+                throw new InvalidOperationException("MSBuild output contained an additional, malformed, or localized count-shaped summary line.");
             }
         }
     }
@@ -550,20 +655,54 @@ internal static class EvidenceMsBuildWarningParser
                 continue;
             }
             const string prefix = "Time Elapsed ";
-            var time = lines[index].AsSpan();
-            if (sawElapsed || !time.StartsWith(prefix, StringComparison.Ordinal))
+            var line = lines[index].AsSpan();
+            if (sawElapsed || !line.StartsWith(prefix, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException("MSBuild summary was not the final admitted summary block.");
             }
-            time = time[prefix.Length..];
-            if (time.Length != 11 || time[2] != ':' || time[5] != ':' || time[8] != '.' ||
-                !AsciiDigits(time[..2]) || !AsciiDigits(time.Slice(3, 2)) ||
-                !AsciiDigits(time.Slice(6, 2)) || !AsciiDigits(time[9..]))
+            if (!ValidElapsed(line[prefix.Length..]))
             {
-                throw new InvalidOperationException("MSBuild elapsed-time trailer was malformed or localized.");
+                throw new InvalidOperationException("MSBuild elapsed-time trailer was malformed or exceeded the exact five-minute deadline.");
             }
             sawElapsed = true;
         }
+    }
+
+    private static bool ValidElapsed(ReadOnlySpan<char> value)
+    {
+        var firstColon = value.IndexOf(':');
+        if (firstColon < 2)
+        {
+            return false;
+        }
+        var secondRelativeColon = value[(firstColon + 1)..].IndexOf(':');
+        if (secondRelativeColon < 0)
+        {
+            return false;
+        }
+        var secondColon = firstColon + 1 + secondRelativeColon;
+        var dotRelative = value[(secondColon + 1)..].IndexOf('.');
+        if (dotRelative < 0)
+        {
+            return false;
+        }
+        var dot = secondColon + 1 + dotRelative;
+        var hours = value[..firstColon];
+        var minutes = value[(firstColon + 1)..secondColon];
+        var seconds = value[(secondColon + 1)..dot];
+        var hundredths = value[(dot + 1)..];
+        if (hours.Length != 2 || !AsciiDigits(hours) || minutes.Length != 2 || seconds.Length != 2 || hundredths.Length != 2 ||
+            !AsciiDigits(minutes) || !AsciiDigits(seconds) || !AsciiDigits(hundredths) ||
+            !ulong.TryParse(hours, NumberStyles.None, CultureInfo.InvariantCulture, out var hourValue) ||
+            !int.TryParse(minutes, NumberStyles.None, CultureInfo.InvariantCulture, out var minuteValue) ||
+            !int.TryParse(seconds, NumberStyles.None, CultureInfo.InvariantCulture, out var secondValue) ||
+            !int.TryParse(hundredths, NumberStyles.None, CultureInfo.InvariantCulture, out var hundredthValue) ||
+            minuteValue > 59 || secondValue > 59)
+        {
+            return false;
+        }
+        return hourValue == 0 &&
+            (minuteValue < 5 || (minuteValue == 5 && secondValue == 0 && hundredthValue == 0));
     }
 
     private static bool AsciiDigits(ReadOnlySpan<char> value) =>
@@ -580,6 +719,53 @@ internal static class EvidenceMsBuildWarningParser
         return digits.Length > 0 && digits.Length <= 10 &&
             (digits.Length == 1 || digits[0] != '0') && AsciiDigits(digits) &&
             int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out count);
+    }
+
+    private static bool TryParseSummaryCountShape(string line)
+    {
+        var value = line.AsSpan();
+        var indentation = 0;
+        while (indentation < value.Length && char.IsWhiteSpace(value[indentation]))
+        {
+            indentation++;
+        }
+        if (indentation == 0)
+        {
+            return false;
+        }
+        value = value[indentation..];
+        var digitCount = 0;
+        while (digitCount < value.Length && value[digitCount] is >= '0' and <= '9')
+        {
+            digitCount++;
+        }
+        if (digitCount == 0 || digitCount == value.Length || !char.IsWhiteSpace(value[digitCount]))
+        {
+            return false;
+        }
+        var labelStart = digitCount;
+        while (labelStart < value.Length && char.IsWhiteSpace(value[labelStart]))
+        {
+            labelStart++;
+        }
+        return labelStart < value.Length;
+    }
+
+    private static bool ContainsEnglishSummaryLabel(string line)
+    {
+        var value = line.AsSpan().TrimStart();
+        var digitCount = 0;
+        while (digitCount < value.Length && value[digitCount] is >= '0' and <= '9')
+        {
+            digitCount++;
+        }
+        if (digitCount == 0 || digitCount >= value.Length || !char.IsWhiteSpace(value[digitCount]))
+        {
+            return false;
+        }
+        var label = value[digitCount..].TrimStart();
+        return label.StartsWith("warning", StringComparison.OrdinalIgnoreCase) ||
+            label.StartsWith("error", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void RejectDiagnostics(IReadOnlyList<string> lines, int summaryIndex)
