@@ -9,11 +9,12 @@ namespace Rounds.Checks;
 public static partial class ProductIdentityChecker
 {
     private const string ExpectedShippedRuntimeBoundarySha256 =
-        "a1ed93a3495a2c0f9dfccdcc1a32f6b3df74aed54a5c692d285da647e8eb99a3";
+        "bbd578e6ce74af6fff7a0e3c6964f2cad91fd1ded079dc8f8a17642c4eecafcd";
 
     private static readonly string[] ShippedRuntimeRoots =
     [
         "game",
+        "spec",
         "src/Rounds.Sim",
         "src/Rounds.Replay",
     ];

@@ -191,6 +191,33 @@ public sealed class ProductIdentityCheckerTests : IDisposable
     }
 
     [Fact]
+    public void EmbeddedCombatSpecMutationRequiresRuntimeBoundaryReview()
+    {
+        CopyIdentityFixture();
+        var combat = Path.Combine(_fixture, "spec", "combat.json");
+        File.WriteAllText(combat, File.ReadAllText(combat).Replace(
+            "\"value\": 0.38",
+            "\"value\": 0.39",
+            StringComparison.Ordinal));
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CardSpecMutationRequiresRuntimeBoundaryReview()
+    {
+        CopyIdentityFixture();
+        var cards = Path.Combine(_fixture, "spec", "cards.json");
+        File.AppendAllText(cards, "\n");
+
+        var failures = ProductIdentityChecker.CheckRepository(_fixture);
+
+        Assert.Contains(failures, failure => failure.StartsWith("IDN010", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void NewReplaySourceRequiresRuntimeBoundaryReview()
     {
         CopyIdentityFixture();
@@ -320,12 +347,6 @@ public sealed class ProductIdentityCheckerTests : IDisposable
             "docs/architecture.md",
             "docs/design/visual-system.md",
             "research/notes/core-rules.md",
-            "spec/cards.json",
-            "spec/schema/cards.schema.json",
-            "spec/schema/maps.schema.json",
-            "spec/schema/measurements.schema.json",
-            "spec/schema/mechanics.schema.json",
-            "spec/schema/source-index.schema.json",
         })
         {
             var destination = Path.Combine(_fixture, relativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -336,7 +357,7 @@ public sealed class ProductIdentityCheckerTests : IDisposable
 
     private void CopyRuntimeBoundary(string repository)
     {
-        foreach (var relativeRoot in new[] { "game", "src/Rounds.Sim", "src/Rounds.Replay" })
+        foreach (var relativeRoot in new[] { "game", "spec", "src/Rounds.Sim", "src/Rounds.Replay" })
         {
             CopyRuntimeRoot(repository, relativeRoot);
         }
