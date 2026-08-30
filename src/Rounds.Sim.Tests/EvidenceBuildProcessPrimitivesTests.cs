@@ -362,9 +362,9 @@ public sealed class EvidenceBuildProcessPrimitivesTests
     [Theory]
     [InlineData("    0 Warnung(en)\r\n    0 Fehler\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
     [InlineData("    0 Warnings\r\n    0 Errors\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
-    [InlineData("    123 arbitrary-count-label\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    [InlineData("    123 arbitrary-count-label\r\n-0:::second-label\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
     [InlineData("  0 Warnings\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
-    [InlineData("\t0\tWarnung(en)\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
+    [InlineData("\t+0\tWarnung(en)\r\n-0:::Fehler\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
     [InlineData("Time Elapsed 00:00:01.00\r\n    0 Warning(s)\r\n    0 Error(s)\r\n")]
     public void WarningParserRejectsAnyAdditionalCountShapedOrMalformedEnglishSummary(string stdout) =>
         Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(Bytes(stdout), []));
@@ -389,6 +389,9 @@ public sealed class EvidenceBuildProcessPrimitivesTests
     [InlineData(" Time Elapsed 00:00:01.00 ")]
     [InlineData("TIMEELAPSED:00:00:01.00")]
     [InlineData("0TimeElapsed:00:00:01.00")]
+    [InlineData("identifierWarningsSuffix")]
+    [InlineData("identifierErrorsSuffix")]
+    [InlineData("prefix Time-/:/.Elapsed suffix")]
     public void WarningParserReservesSummaryMarkersInAnyOtherFormatting(string malformedMarker)
     {
         var output = Bytes($"{malformedMarker}\r\n    0 Warning(s)\r\n    0 Error(s)\r\n");
@@ -412,15 +415,38 @@ public sealed class EvidenceBuildProcessPrimitivesTests
     }
 
     [Fact]
-    public void WarningParserDoesNotConfuseUnrelatedPluralProseWithReservedMarker()
+    public void WarningParserConservativelyRejectsUnrelatedReservedPluralProse()
     {
         var output = Bytes(
             "Informational prose about warnings remains non-diagnostic.\r\n" +
             "    0 Warning(s)\r\n    0 Error(s)\r\n");
 
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(output, []));
+    }
+
+    [Fact]
+    public void WarningParserAllowsNonreservedProseAndOneUnpairedLocalizedCountShape()
+    {
+        var output = Bytes(
+            "+0 Warnung(en)\r\n" +
+            "A forewarning note separates the localized count from the summary.\r\n" +
+            "No singular error marker is reserved.\r\n" +
+            "    0 Warning(s)\r\n    0 Error(s)\r\n");
+
         var proof = EvidenceMsBuildWarningParser.Parse(output, []);
 
         Assert.Equal(0, proof.WarningCount);
+    }
+
+    [Fact]
+    public void WarningParserRejectsSignedLocalizedCountPairSameAndCrossStream()
+    {
+        var canonical = Bytes("    0 Warning(s)\r\n    0 Error(s)\r\n");
+        var localized = Bytes("+0 Warnung(en)\r\n-0:::Fehler\r\n");
+
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(
+            [.. localized, .. canonical], []));
+        Assert.Throws<InvalidOperationException>(() => EvidenceMsBuildWarningParser.Parse(canonical, localized));
     }
 
     [Theory]

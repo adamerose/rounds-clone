@@ -647,14 +647,6 @@ internal static class EvidenceMsBuildWarningParser
                 summaries.Add(new CanonicalSummary(stream, index, warnings, errors, elapsedIndex));
                 break;
             }
-            if (lines[index].StartsWith("Time Elapsed", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException("MSBuild output contained a misplaced or malformed elapsed-time trailer.");
-            }
-            if (TryParseSummaryCountShape(lines[index]) || ContainsEnglishSummaryLabel(lines[index]))
-            {
-                throw new InvalidOperationException("MSBuild output contained an additional, malformed, or localized count-shaped summary line.");
-            }
         }
     }
 
@@ -690,68 +682,81 @@ internal static class EvidenceMsBuildWarningParser
     {
         for (var index = 0; index < lines.Count; index++)
         {
-            if (allowed is { } summary &&
-                (index == summary.Index || index == summary.Index + 1 || index == summary.ElapsedIndex))
+            if (IsExemptCanonicalSummaryIndex(allowed, index))
             {
                 continue;
             }
-            if (ContainsReservedCountMarker(lines[index], "Warning(s)") ||
-                ContainsReservedCountMarker(lines[index], "Error(s)") ||
-                ContainsTimeElapsedMarker(lines[index]))
+            var folded = FoldAsciiLetters(lines[index]);
+            if (folded.Contains("warnings", StringComparison.Ordinal) ||
+                folded.Contains("errors", StringComparison.Ordinal) ||
+                folded.Contains("timeelapsed", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException("MSBuild output reused a reserved summary marker outside the exact canonical tail.");
             }
         }
-    }
 
-    private static bool ContainsReservedCountMarker(string line, string marker)
-    {
-        var start = 0;
-        while (start <= line.Length - marker.Length)
+        for (var index = 0; index + 1 < lines.Count; index++)
         {
-            var index = line.IndexOf(marker, start, StringComparison.OrdinalIgnoreCase);
-            if (index < 0)
-            {
-                return false;
-            }
-            var before = index == 0 ? '\0' : line[index - 1];
-            var afterIndex = index + marker.Length;
-            var after = afterIndex == line.Length ? '\0' : line[afterIndex];
-            if ((!IsIdentifierCharacter(before) || char.IsAsciiDigit(before)) && !IsIdentifierCharacter(after))
-            {
-                return true;
-            }
-            start = index + marker.Length;
-        }
-        return false;
-    }
-
-    private static bool ContainsTimeElapsedMarker(string line)
-    {
-        for (var index = 0; index <= line.Length - 4; index++)
-        {
-            if (!line.AsSpan(index).StartsWith("time", StringComparison.OrdinalIgnoreCase) ||
-                (index > 0 && IsIdentifierCharacter(line[index - 1]) && !char.IsAsciiDigit(line[index - 1])))
+            if (IsExemptCanonicalSummaryIndex(allowed, index) ||
+                IsExemptCanonicalSummaryIndex(allowed, index + 1))
             {
                 continue;
             }
-            var elapsed = index + 4;
-            while (elapsed < line.Length && char.IsWhiteSpace(line[elapsed]))
+            if (IsCountShaped(lines[index]) && IsCountShaped(lines[index + 1]))
             {
-                elapsed++;
-            }
-            const string token = "elapsed";
-            if (elapsed <= line.Length - token.Length &&
-                line.AsSpan(elapsed).StartsWith(token, StringComparison.OrdinalIgnoreCase))
-            {
-                var after = elapsed + token.Length;
-                if (after == line.Length || !IsIdentifierCharacter(line[after]))
-                {
-                    return true;
-                }
+                throw new InvalidOperationException("MSBuild output contained an additional malformed or localized count-shaped summary block.");
             }
         }
-        return false;
+    }
+
+    private static bool IsExemptCanonicalSummaryIndex(CanonicalSummary? allowed, int index) =>
+        allowed is { } summary &&
+        (index == summary.Index || index == summary.Index + 1 || index == summary.ElapsedIndex);
+
+    private static string FoldAsciiLetters(string line)
+    {
+        var folded = new StringBuilder(line.Length);
+        foreach (var value in line)
+        {
+            if (value is >= 'A' and <= 'Z')
+            {
+                folded.Append((char)(value + ('a' - 'A')));
+            }
+            else if (value is >= 'a' and <= 'z')
+            {
+                folded.Append(value);
+            }
+        }
+        return folded.ToString();
+    }
+
+    private static bool IsCountShaped(string line)
+    {
+        var value = line.AsSpan();
+        var index = 0;
+        while (index < value.Length && char.IsWhiteSpace(value[index]))
+        {
+            index++;
+        }
+        if (index < value.Length && value[index] is '+' or '-')
+        {
+            index++;
+        }
+        var digitStart = index;
+        while (index < value.Length && value[index] is >= '0' and <= '9')
+        {
+            index++;
+        }
+        if (index == digitStart)
+        {
+            return false;
+        }
+        while (index < value.Length &&
+            (char.IsWhiteSpace(value[index]) || char.IsPunctuation(value[index]) || char.IsSymbol(value[index])))
+        {
+            index++;
+        }
+        return index < value.Length;
     }
 
     private static bool ValidElapsed(ReadOnlySpan<char> value)
@@ -805,53 +810,6 @@ internal static class EvidenceMsBuildWarningParser
         return digits.Length > 0 && digits.Length <= 10 &&
             (digits.Length == 1 || digits[0] != '0') && AsciiDigits(digits) &&
             int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out count);
-    }
-
-    private static bool TryParseSummaryCountShape(string line)
-    {
-        var value = line.AsSpan();
-        var indentation = 0;
-        while (indentation < value.Length && char.IsWhiteSpace(value[indentation]))
-        {
-            indentation++;
-        }
-        if (indentation == 0)
-        {
-            return false;
-        }
-        value = value[indentation..];
-        var digitCount = 0;
-        while (digitCount < value.Length && value[digitCount] is >= '0' and <= '9')
-        {
-            digitCount++;
-        }
-        if (digitCount == 0 || digitCount == value.Length || !char.IsWhiteSpace(value[digitCount]))
-        {
-            return false;
-        }
-        var labelStart = digitCount;
-        while (labelStart < value.Length && char.IsWhiteSpace(value[labelStart]))
-        {
-            labelStart++;
-        }
-        return labelStart < value.Length;
-    }
-
-    private static bool ContainsEnglishSummaryLabel(string line)
-    {
-        var value = line.AsSpan().TrimStart();
-        var digitCount = 0;
-        while (digitCount < value.Length && value[digitCount] is >= '0' and <= '9')
-        {
-            digitCount++;
-        }
-        if (digitCount == 0 || digitCount >= value.Length || !char.IsWhiteSpace(value[digitCount]))
-        {
-            return false;
-        }
-        var label = value[digitCount..].TrimStart();
-        return label.StartsWith("warning", StringComparison.OrdinalIgnoreCase) ||
-            label.StartsWith("error", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void RejectDiagnostics(IReadOnlyList<string> lines, int summaryIndex)
