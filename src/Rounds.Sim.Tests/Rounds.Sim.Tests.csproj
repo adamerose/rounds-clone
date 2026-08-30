@@ -29,6 +29,7 @@
     <Compile Include="..\..\game\DebugEvidenceCaptureProtocol.cs" Link="Game\DebugEvidenceCaptureProtocol.cs" />
     <Compile Include="..\..\game\DebugEvidenceMatchFactory.cs" Link="Game\DebugEvidenceMatchFactory.cs" />
     <Compile Include="..\..\game\BaseProjectileEvidenceLaunchPlan.cs" Link="Game\BaseProjectileEvidenceLaunchPlan.cs" />
+    <Compile Include="..\..\game\BaseProjectileEvidenceAcknowledgement.cs" Link="Game\BaseProjectileEvidenceAcknowledgement.cs" />
     <Compile Include="..\..\game\FaithfulSubsetMatchShell.cs" Link="Game\FaithfulSubsetMatchShell.cs" />
     <Compile Include="..\..\game\StartupRoute.cs" Link="Game\StartupRoute.cs" />
     <Compile Include="..\..\game\AgentPlaytestArtifacts.cs" Link="Game\AgentPlaytestArtifacts.cs" />

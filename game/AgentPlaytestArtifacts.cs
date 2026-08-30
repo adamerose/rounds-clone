@@ -9,18 +9,29 @@ internal interface IAgentPlaytestRgba8Decoder
     DecodedAgentPlaytestFrame Decode(ReadOnlySpan<byte> encodedPng);
 }
 
-internal sealed class DecodedAgentPlaytestFrame
+internal interface IEvidenceRgba8Decoder
+{
+    DecodedEvidenceFrame Decode(ReadOnlySpan<byte> encodedPng);
+}
+
+internal abstract class DecodedRgba8Frame
 {
     private readonly byte[] _pixels;
 
-    public DecodedAgentPlaytestFrame(int width, int height, ReadOnlySpan<byte> topToBottomStraightSrgbRgba8)
+    protected DecodedRgba8Frame(
+        int width,
+        int height,
+        ReadOnlySpan<byte> topToBottomStraightSrgbRgba8,
+        int maximumWidth,
+        int maximumHeight,
+        bool requireExactDimensions)
     {
         if (width <= 0 || height <= 0 ||
-            width > DebugEvidenceCaptureProtocol.EvidenceViewportWidth ||
-            height > DebugEvidenceCaptureProtocol.EvidenceViewportHeight ||
+            (requireExactDimensions && (width != maximumWidth || height != maximumHeight)) ||
+            (!requireExactDimensions && (width > maximumWidth || height > maximumHeight)) ||
             topToBottomStraightSrgbRgba8.Length != checked(width * height * 4))
         {
-            throw new InvalidDataException("Decoded playtest frames must be bounded, tightly packed top-to-bottom straight-alpha sRGB RGBA8.");
+            throw new InvalidDataException("Decoded frames must have the required dimensions and tightly packed top-to-bottom straight-alpha sRGB RGBA8 pixels.");
         }
         Width = width;
         Height = height;
@@ -30,6 +41,34 @@ internal sealed class DecodedAgentPlaytestFrame
     public int Width { get; }
     public int Height { get; }
     public ReadOnlySpan<byte> Pixels => _pixels;
+}
+
+internal sealed class DecodedAgentPlaytestFrame : DecodedRgba8Frame
+{
+    public DecodedAgentPlaytestFrame(int width, int height, ReadOnlySpan<byte> topToBottomStraightSrgbRgba8)
+        : base(
+            width,
+            height,
+            topToBottomStraightSrgbRgba8,
+            AgentPlaytestLimits.MaximumWidth,
+            AgentPlaytestLimits.MaximumHeight,
+            requireExactDimensions: false)
+    {
+    }
+}
+
+internal sealed class DecodedEvidenceFrame : DecodedRgba8Frame
+{
+    public DecodedEvidenceFrame(int width, int height, ReadOnlySpan<byte> topToBottomStraightSrgbRgba8)
+        : base(
+            width,
+            height,
+            topToBottomStraightSrgbRgba8,
+            DebugEvidenceCaptureProtocol.EvidenceViewportWidth,
+            DebugEvidenceCaptureProtocol.EvidenceViewportHeight,
+            requireExactDimensions: true)
+    {
+    }
 }
 
 internal interface IAgentPlaytestRootLease : IDisposable
@@ -966,6 +1005,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
     private bool _completed;
     private bool _cleanupExhausted;
     private int _publishedFrameCount;
+    private AgentPlaytestFrameResponse? _singlePublishedFrame;
 
     private AgentPlaytestArtifactOwner(IAgentPlaytestRootLease rootLease, long maximumOutputBytes)
     {
@@ -1002,7 +1042,8 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         IAgentPlaytestRgba8Decoder decoder,
         bool terminal)
     {
-        var published = PublishFrameCore(sequence, encodedPng, decoder, terminal);
+        ArgumentNullException.ThrowIfNull(decoder);
+        var published = PublishFrameCore(sequence, encodedPng, bytes => decoder.Decode(bytes), terminal);
         return (
             published.Response,
             new HumanPlaytestObservation(
@@ -1014,25 +1055,17 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
 
     public AgentPlaytestFrameResponse PublishVerifiedSingleEvidenceFrame(
         ReadOnlySpan<byte> encodedPng,
-        IAgentPlaytestRgba8Decoder decoder)
+        IEvidenceRgba8Decoder decoder)
     {
-        var published = PublishFrameCore(0, encodedPng, decoder, terminal: true);
-        if (published.Decoded.Width != DebugEvidenceCaptureProtocol.EvidenceViewportWidth ||
-            published.Decoded.Height != DebugEvidenceCaptureProtocol.EvidenceViewportHeight)
-        {
-            throw new AgentPlaytestFailure(
-                0,
-                "frame",
-                "frame-publish-failed",
-                "Projectile evidence must decode to the exact evidence viewport dimensions.");
-        }
+        ArgumentNullException.ThrowIfNull(decoder);
+        var published = PublishFrameCore(0, encodedPng, bytes => decoder.Decode(bytes), terminal: true);
         return published.Response;
     }
 
-    private (AgentPlaytestFrameResponse Response, DecodedAgentPlaytestFrame Decoded) PublishFrameCore(
+    private (AgentPlaytestFrameResponse Response, DecodedRgba8Frame Decoded) PublishFrameCore(
         int sequence,
         ReadOnlySpan<byte> encodedPng,
-        IAgentPlaytestRgba8Decoder decoder,
+        Func<byte[], DecodedRgba8Frame> decode,
         bool terminal)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -1040,12 +1073,13 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         {
             throw new AgentPlaytestFailure(sequence, "resource", "resource-limit-exceeded", "The frame budget was exceeded.");
         }
-        ArgumentNullException.ThrowIfNull(decoder);
+        ArgumentNullException.ThrowIfNull(decode);
+        var encodedBytes = encodedPng.ToArray();
         var partial = ExpectedFramePath(sequence) + ".partial";
         var final = ExpectedFramePath(sequence);
         try
         {
-            EnsureCanAdd(encodedPng.Length, sequence);
+            EnsureCanAdd(encodedBytes.Length, sequence);
             using (var stream = new FileStream(
                 partial,
                 FileMode.CreateNew,
@@ -1053,16 +1087,17 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
                 FileShare.Read | FileShare.Delete))
             {
                 TrackOwnedFile(partial);
-                stream.Write(encodedPng);
+                stream.Write(encodedBytes);
                 stream.Flush(flushToDisk: true);
             }
-            var decoded = decoder.Decode(encodedPng);
-            var hash = Convert.ToHexString(SHA256.HashData(encodedPng)).ToLowerInvariant();
+            var decoded = decode(encodedBytes);
+            var hash = Convert.ToHexString(SHA256.HashData(encodedBytes)).ToLowerInvariant();
             File.Move(partial, final, overwrite: false);
             MoveOwnedFile(partial, final);
             var response = new AgentPlaytestFrameResponse(sequence, final, hash, decoded.Width, decoded.Height, terminal);
-            var verified = VerifyFinalizedFrame(response, decoder);
+            var verified = VerifyFinalizedFrame(response, decode);
             _publishedFrameCount = checked(_publishedFrameCount + 1);
+            _singlePublishedFrame = _publishedFrameCount == 1 ? response : null;
             return (response, verified);
         }
         catch (AgentPlaytestFailure)
@@ -1079,17 +1114,18 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         AgentPlaytestFrameResponse response,
         IAgentPlaytestRgba8Decoder decoder)
     {
-        var decoded = VerifyFinalizedFrame(response, decoder);
+        ArgumentNullException.ThrowIfNull(decoder);
+        var decoded = VerifyFinalizedFrame(response, bytes => decoder.Decode(bytes));
         return new HumanPlaytestObservation(response.FrameSequence, decoded.Pixels, decoded.Width, decoded.Height);
     }
 
-    private DecodedAgentPlaytestFrame VerifyFinalizedFrame(
+    private DecodedRgba8Frame VerifyFinalizedFrame(
         AgentPlaytestFrameResponse response,
-        IAgentPlaytestRgba8Decoder decoder)
+        Func<byte[], DecodedRgba8Frame> decode)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(response);
-        ArgumentNullException.ThrowIfNull(decoder);
+        ArgumentNullException.ThrowIfNull(decode);
         var expected = ExpectedFramePath(response.FrameSequence);
         if (!string.Equals(Path.GetFullPath(response.FramePath), expected, StringComparison.Ordinal) ||
             !response.FramePath.StartsWith(_rootWithSeparator, StringComparison.OrdinalIgnoreCase) ||
@@ -1099,7 +1135,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         }
         var bytes = ReadAllOwnedBytes(expected);
         var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-        var decoded = decoder.Decode(bytes);
+        var decoded = decode(bytes);
         if (!string.Equals(hash, response.FrameSha256, StringComparison.Ordinal) ||
             decoded.Width != response.Width || decoded.Height != response.Height)
         {
@@ -1154,8 +1190,26 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
         AgentPlaytestFrameResponse response,
         IAgentPlaytestRgba8Decoder decoder)
     {
+        ArgumentNullException.ThrowIfNull(decoder);
+        CompleteVerifiedSingleFrameCore(response, bytes => decoder.Decode(bytes));
+    }
+
+    public void CompleteVerifiedSingleFrame(
+        AgentPlaytestFrameResponse response,
+        IEvidenceRgba8Decoder decoder)
+    {
+        ArgumentNullException.ThrowIfNull(decoder);
+        CompleteVerifiedSingleFrameCore(response, bytes => decoder.Decode(bytes));
+    }
+
+    private void CompleteVerifiedSingleFrameCore(
+        AgentPlaytestFrameResponse response,
+        Func<byte[], DecodedRgba8Frame> decode)
+    {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_completed || _publishedFrameCount != 1 || response.FrameSequence != 0 || !response.Terminal)
+        if (_completed || _publishedFrameCount != 1 || _singlePublishedFrame is null ||
+            !ReferenceEquals(response, _singlePublishedFrame) || response.FrameSequence != 0 ||
+            !response.Terminal || !_singlePublishedFrame.Terminal)
         {
             throw new InvalidOperationException(
                 "Single-frame completion requires exactly one terminal frame at sequence zero.");
@@ -1173,7 +1227,7 @@ internal sealed class AgentPlaytestArtifactOwner : IDisposable, IAgentPlaytestFi
                 "Single-frame completion refuses missing, partial, repeated, or extra artifacts.");
         }
 
-        _ = VerifyFinalizedFrame(response, decoder);
+        _ = VerifyFinalizedFrame(response, decode);
         _completed = true;
     }
 

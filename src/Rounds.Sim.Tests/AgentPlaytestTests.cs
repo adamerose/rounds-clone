@@ -234,6 +234,8 @@ public sealed class AgentPlaytestTests
             decoder,
             terminal: true);
 
+        Assert.Throws<InvalidOperationException>(() =>
+            owner.CompleteVerifiedSingleFrame(published.Response with { }, decoder));
         owner.CompleteVerifiedSingleFrame(published.Response, decoder);
         owner.Dispose();
 
@@ -252,6 +254,9 @@ public sealed class AgentPlaytestTests
             var decoder = new FixedDecoder();
             var published = owner.PublishFrame(0, Encoding.ASCII.GetBytes("frame"), decoder, terminal: false);
             Assert.Throws<InvalidOperationException>(() => owner.CompleteVerifiedSingleFrame(published.Response, decoder));
+            Assert.Throws<InvalidOperationException>(() => owner.CompleteVerifiedSingleFrame(
+                published.Response with { Terminal = true },
+                decoder));
         }
         Assert.False(Directory.Exists(nonterminalRoot));
 
@@ -277,6 +282,25 @@ public sealed class AgentPlaytestTests
         File.Delete(Path.Combine(extraRoot, "foreign.txt"));
         File.Delete(Path.Combine(extraRoot, "frame-0000.png"));
         Directory.Delete(extraRoot);
+    }
+
+    [Fact]
+    public void EvidenceDecodeHasAnExactSeparateSizeBoundaryWithoutWideningPlaytestFrames()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            new DecodedAgentPlaytestFrame(1920, 1080, ReadOnlySpan<byte>.Empty));
+        Assert.Throws<InvalidDataException>(() =>
+            new DecodedEvidenceFrame(1280, 720, ReadOnlySpan<byte>.Empty));
+
+        var evidence = new DecodedEvidenceFrame(
+            DebugEvidenceCaptureProtocol.EvidenceViewportWidth,
+            DebugEvidenceCaptureProtocol.EvidenceViewportHeight,
+            new byte[checked(
+                DebugEvidenceCaptureProtocol.EvidenceViewportWidth *
+                DebugEvidenceCaptureProtocol.EvidenceViewportHeight * 4)]);
+
+        Assert.Equal(1920, evidence.Width);
+        Assert.Equal(1080, evidence.Height);
     }
 
     [Fact]

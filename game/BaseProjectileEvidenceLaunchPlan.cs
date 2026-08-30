@@ -43,12 +43,17 @@ internal sealed record EvidenceRuntimeAssemblyFacts(
     string Sha256,
     string Mvid);
 
+internal sealed record EvidenceAncestorIdentityFacts(
+    string RequestedPath,
+    string IdentityResolvedCanonicalPath,
+    bool Exists,
+    bool IsReparsePoint,
+    bool IdentityBound);
+
 internal sealed record EvidenceOutputRootFacts(
     string Root,
     bool RootAbsent,
-    bool ParentExists,
-    bool ParentIsReparsePoint,
-    bool ParentIdentityBound);
+    IReadOnlyList<EvidenceAncestorIdentityFacts> Ancestors);
 
 internal sealed record BaseProjectileEvidenceLaunchFacts(
     string RepositoryRoot,
@@ -89,7 +94,8 @@ internal sealed record BaseProjectileEvidenceLaunchPlan(
     string RuntimeAssemblyMvid,
     string InputDesktopIdentity)
 {
-    public string CommandLine => WindowsArgumentEncoding.Encode(Arguments);
+    public string CommandLine => WindowsArgumentEncoding.Encode(
+        new[] { Executable }.Concat(Arguments).ToArray());
 }
 
 internal readonly record struct BaseProjectileEvidencePlanDecision(
@@ -167,10 +173,10 @@ internal static class BaseProjectileEvidenceLaunchPlanner
             return Refuse("runtime-assembly");
         }
 
-        if (!TryFullPath(facts.Output.Root, out var outputRoot) ||
-            !facts.Output.RootAbsent || !facts.Output.ParentExists || facts.Output.ParentIsReparsePoint ||
-            !facts.Output.ParentIdentityBound || !TryFullPath(facts.OperatingSystemTemporaryDirectory, out var temporary) ||
-            IsWithin(outputRoot, repository) || IsWithin(outputRoot, temporary))
+        if (!TryFullPath(facts.Output.Root, out var outputRoot) || !facts.Output.RootAbsent ||
+            !TryFullPath(facts.OperatingSystemTemporaryDirectory, out var temporary) ||
+            IsWithin(outputRoot, repository) || IsWithin(outputRoot, temporary) ||
+            !HasSafeCompleteAncestorProof(outputRoot, facts.Output.Ancestors, repository, temporary))
         {
             return Refuse("output-root");
         }
@@ -283,8 +289,72 @@ internal static class BaseProjectileEvidenceLaunchPlanner
     {
         var relative = Path.GetRelativePath(parent, candidate);
         return relative == "." ||
-            (!relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+            (!string.Equals(relative, "..", StringComparison.Ordinal) &&
+             !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
              !Path.IsPathFullyQualified(relative));
+    }
+
+    private static bool HasSafeCompleteAncestorProof(
+        string outputRoot,
+        IReadOnlyList<EvidenceAncestorIdentityFacts>? ancestors,
+        string repository,
+        string temporary)
+    {
+        if (ancestors is null)
+        {
+            return false;
+        }
+        var expected = EnumerateAncestors(outputRoot);
+        if (ancestors.Count != expected.Count)
+        {
+            return false;
+        }
+        string? previousResolved = null;
+        for (var index = 0; index < expected.Count; index++)
+        {
+            var proof = ancestors[index];
+            if (!TryFullPath(proof.RequestedPath, out var requested) ||
+                !string.Equals(requested, expected[index], StringComparison.OrdinalIgnoreCase) ||
+                !TryFullPath(proof.IdentityResolvedCanonicalPath, out var resolved) ||
+                !proof.Exists || proof.IsReparsePoint || !proof.IdentityBound ||
+                IsWithin(resolved, repository) || IsWithin(resolved, temporary))
+            {
+                return false;
+            }
+            var canonicalParent = Directory.GetParent(resolved)?.FullName;
+            if (index == 0)
+            {
+                if (canonicalParent is not null)
+                {
+                    return false;
+                }
+            }
+            else if (!string.Equals(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(canonicalParent!)),
+                previousResolved,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            previousResolved = resolved;
+        }
+
+        var resolvedParent = Path.GetFullPath(ancestors[^1].IdentityResolvedCanonicalPath);
+        var resolvedOutput = Path.GetFullPath(Path.Combine(resolvedParent, Path.GetFileName(outputRoot)));
+        return !IsWithin(resolvedOutput, repository) && !IsWithin(resolvedOutput, temporary);
+    }
+
+    private static IReadOnlyList<string> EnumerateAncestors(string outputRoot)
+    {
+        var ancestors = new List<string>();
+        var current = Directory.GetParent(outputRoot);
+        while (current is not null)
+        {
+            ancestors.Add(Path.TrimEndingDirectorySeparator(Path.GetFullPath(current.FullName)));
+            current = current.Parent;
+        }
+        ancestors.Reverse();
+        return ancestors;
     }
 
     private static BaseProjectileEvidencePlanDecision Refuse(string code) => new(null, code);
@@ -326,5 +396,66 @@ internal static class WindowsArgumentEncoding
         }
         encoded.Append('\\', checked(slashCount * 2)).Append('"');
         return encoded.ToString();
+    }
+
+    public static IReadOnlyList<string> DecodeModel(string commandLine)
+    {
+        ArgumentNullException.ThrowIfNull(commandLine);
+        var arguments = new List<string>();
+        var index = 0;
+        while (index < commandLine.Length)
+        {
+            while (index < commandLine.Length && char.IsWhiteSpace(commandLine[index]))
+            {
+                index++;
+            }
+            if (index == commandLine.Length)
+            {
+                break;
+            }
+
+            var argument = new StringBuilder();
+            var inQuotes = false;
+            var started = false;
+            while (index < commandLine.Length && (inQuotes || !char.IsWhiteSpace(commandLine[index])))
+            {
+                started = true;
+                var slashCount = 0;
+                while (index < commandLine.Length && commandLine[index] == '\\')
+                {
+                    slashCount++;
+                    index++;
+                }
+                if (index < commandLine.Length && commandLine[index] == '"')
+                {
+                    argument.Append('\\', slashCount / 2);
+                    if ((slashCount & 1) == 0)
+                    {
+                        inQuotes = !inQuotes;
+                    }
+                    else
+                    {
+                        argument.Append('"');
+                    }
+                    index++;
+                    continue;
+                }
+                argument.Append('\\', slashCount);
+                if (index < commandLine.Length && (inQuotes || !char.IsWhiteSpace(commandLine[index])))
+                {
+                    argument.Append(commandLine[index]);
+                    index++;
+                }
+            }
+            if (inQuotes)
+            {
+                throw new FormatException("The modeled Windows command line has an unmatched quote.");
+            }
+            if (started)
+            {
+                arguments.Add(argument.ToString());
+            }
+        }
+        return arguments;
     }
 }

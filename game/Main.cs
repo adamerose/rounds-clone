@@ -291,7 +291,8 @@ public partial class Main : Node2D
                     published.FrameSha256,
                     Path.GetFileName(published.FramePath)));
 
-            Console.Out.WriteLine(marker);
+            Console.Out.Write(marker);
+            Console.Out.Write('\n');
             Console.Out.Flush();
             var acknowledged = await EvidenceAcknowledgementReader.WaitAsync(
                 System.Environment.GetEnvironmentVariable(

@@ -50,6 +50,9 @@ public sealed class BaseProjectileEvidenceLaunchPlanTests
         Assert.Equal("false", plan.Environment["MSBuildEnableWorkloadResolver"]);
         Assert.Equal(plan.Desktop, plan.Environment[DebugEvidenceCaptureProtocol.EvidenceDesktopEnvironmentVariable]);
         Assert.DoesNotContain(DebugEvidenceCaptureProtocol.EvidenceAckHandleEnvironmentVariable, plan.Environment.Keys);
+        var completeArgv = new[] { plan.Executable }.Concat(plan.Arguments).ToArray();
+        Assert.Equal(completeArgv, WindowsArgumentEncoding.DecodeModel(plan.CommandLine));
+        Assert.StartsWith(WindowsArgumentEncoding.Encode(new[] { plan.Executable }) + " ", plan.CommandLine, StringComparison.Ordinal);
         Assert.False(Directory.Exists(facts.Output.Root));
     }
 
@@ -72,8 +75,45 @@ public sealed class BaseProjectileEvidenceLaunchPlanTests
         AssertRefusal(valid with { RuntimeAssembly = valid.RuntimeAssembly with { RecreatedByImmediateRebuild = false } }, "runtime-assembly");
         AssertRefusal(valid with { RuntimeAssembly = valid.RuntimeAssembly with { BuildHadZeroWarnings = false } }, "runtime-assembly");
         AssertRefusal(valid with { Output = valid.Output with { RootAbsent = false } }, "output-root");
-        AssertRefusal(valid with { Output = valid.Output with { ParentIsReparsePoint = true } }, "output-root");
-        AssertRefusal(valid with { Output = valid.Output with { ParentIdentityBound = false } }, "output-root");
+        AssertRefusal(valid with { Output = valid.Output with { Ancestors = valid.Output.Ancestors.Skip(1).ToArray() } }, "output-root");
+        AssertRefusal(valid with
+        {
+            Output = valid.Output with
+            {
+                Ancestors = ReplaceLast(valid.Output.Ancestors, valid.Output.Ancestors[^1] with { IdentityBound = false }),
+            },
+        }, "output-root");
+        AssertRefusal(valid with
+        {
+            Output = valid.Output with
+            {
+                Ancestors = ReplaceLast(valid.Output.Ancestors, valid.Output.Ancestors[^1] with
+                {
+                    IdentityResolvedCanonicalPath = @"D:\discontinuous-safe-parent",
+                }),
+            },
+        }, "output-root");
+        AssertRefusal(valid with
+        {
+            Output = valid.Output with
+            {
+                Ancestors = ReplaceLast(valid.Output.Ancestors, valid.Output.Ancestors[^1] with
+                {
+                    IsReparsePoint = true,
+                    IdentityResolvedCanonicalPath = Path.Combine(valid.RepositoryRoot, "aliased-output"),
+                }),
+            },
+        }, "output-root");
+        AssertRefusal(valid with
+        {
+            Output = valid.Output with
+            {
+                Ancestors = ReplaceLast(valid.Output.Ancestors, valid.Output.Ancestors[^1] with
+                {
+                    IdentityResolvedCanonicalPath = Path.Combine(valid.OperatingSystemTemporaryDirectory, "aliased-output"),
+                }),
+            },
+        }, "output-root");
         AssertRefusal(valid with { Output = valid.Output with { Root = Path.Combine(valid.RepositoryRoot, "evidence") } }, "output-root");
         AssertRefusal(valid with { Output = valid.Output with { Root = Path.Combine(valid.OperatingSystemTemporaryDirectory, "evidence") } }, "output-root");
         AssertRefusal(valid with { InputDesktopIdentity = "" }, "input-desktop");
@@ -117,6 +157,7 @@ public sealed class BaseProjectileEvidenceLaunchPlanTests
     public void WindowsArgumentEncodingMatchesCreateProcessRules(string argument, string expected)
     {
         Assert.Equal(expected, WindowsArgumentEncoding.Encode(new[] { argument }));
+        Assert.Equal(argument, Assert.Single(WindowsArgumentEncoding.DecodeModel(expected)));
     }
 
     private static void AssertRefusal(BaseProjectileEvidenceLaunchFacts facts, string code) =>
@@ -174,10 +215,31 @@ public sealed class BaseProjectileEvidenceLaunchPlanTests
             new EvidenceOutputRootFacts(
                 output,
                 RootAbsent: true,
-                ParentExists: true,
-                ParentIsReparsePoint: false,
-                ParentIdentityBound: true),
+                ValidAncestors(output)),
             temporary,
             "WinSta0\\Default:input-desktop-identity");
     }
+
+    private static IReadOnlyList<EvidenceAncestorIdentityFacts> ValidAncestors(string outputRoot)
+    {
+        var ancestors = new List<string>();
+        var current = Directory.GetParent(outputRoot);
+        while (current is not null)
+        {
+            ancestors.Add(Path.TrimEndingDirectorySeparator(Path.GetFullPath(current.FullName)));
+            current = current.Parent;
+        }
+        ancestors.Reverse();
+        return ancestors.Select(path => new EvidenceAncestorIdentityFacts(
+            path,
+            path,
+            Exists: true,
+            IsReparsePoint: false,
+            IdentityBound: true)).ToArray();
+    }
+
+    private static IReadOnlyList<EvidenceAncestorIdentityFacts> ReplaceLast(
+        IReadOnlyList<EvidenceAncestorIdentityFacts> source,
+        EvidenceAncestorIdentityFacts replacement) =>
+        source.Take(source.Count - 1).Append(replacement).ToArray();
 }

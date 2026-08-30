@@ -1,15 +1,13 @@
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using Godot;
-using Microsoft.Win32.SafeHandles;
 
 namespace Rounds.Game;
 
-internal sealed class GodotEvidencePngDecoder : IAgentPlaytestRgba8Decoder
+internal sealed class GodotEvidencePngDecoder : IEvidenceRgba8Decoder
 {
-    public DecodedAgentPlaytestFrame Decode(ReadOnlySpan<byte> encodedPng)
+    public DecodedEvidenceFrame Decode(ReadOnlySpan<byte> encodedPng)
     {
         using var image = new Image();
         var error = image.LoadPngFromBuffer(encodedPng.ToArray());
@@ -21,7 +19,7 @@ internal sealed class GodotEvidencePngDecoder : IAgentPlaytestRgba8Decoder
         {
             image.Convert(Image.Format.Rgba8);
         }
-        return new DecodedAgentPlaytestFrame(image.GetWidth(), image.GetHeight(), image.GetData());
+        return new DecodedEvidenceFrame(image.GetWidth(), image.GetHeight(), image.GetData());
     }
 }
 
@@ -81,69 +79,5 @@ internal static class EvidenceDesktopIdentityReader
         StringBuilder information,
         int length,
         out int needed);
-#pragma warning restore SYSLIB1054
-}
-
-internal static class EvidenceAcknowledgementReader
-{
-    private const int BrokenPipe = 109;
-    private const int PipeNotConnected = 233;
-
-    public static async Task<bool> WaitAsync(string? encodedHandle, TimeSpan timeout)
-    {
-        if (!OperatingSystem.IsWindows() || timeout <= TimeSpan.Zero ||
-            !ulong.TryParse(encodedHandle, NumberStyles.None, CultureInfo.InvariantCulture, out var rawHandle) ||
-            rawHandle == 0 || rawHandle > (ulong)nuint.MaxValue)
-        {
-            return false;
-        }
-
-        var handle = new SafeFileHandle((nint)(nuint)rawHandle, ownsHandle: true);
-        try
-        {
-            var deadline = DateTime.UtcNow + timeout;
-            var oneByte = new byte[1];
-            while (DateTime.UtcNow < deadline)
-            {
-                if (!PeekNamedPipe(handle, IntPtr.Zero, 0, IntPtr.Zero, out var available, IntPtr.Zero))
-                {
-                    _ = Marshal.GetLastWin32Error() is BrokenPipe or PipeNotConnected;
-                    return false;
-                }
-                if (available > 0)
-                {
-                    return ReadFile(handle, oneByte, 1, out var read, IntPtr.Zero) &&
-                        read == 1 && oneByte[0] == DebugEvidenceCaptureProtocol.EvidenceAcknowledgement;
-                }
-                await Task.Delay(10).ConfigureAwait(true);
-            }
-            return false;
-        }
-        finally
-        {
-            handle.Dispose();
-        }
-    }
-
-#pragma warning disable SYSLIB1054
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool PeekNamedPipe(
-        SafeFileHandle namedPipe,
-        IntPtr buffer,
-        uint bufferSize,
-        IntPtr bytesRead,
-        out uint totalBytesAvailable,
-        IntPtr bytesLeftThisMessage);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool ReadFile(
-        SafeFileHandle file,
-        byte[] buffer,
-        uint bytesToRead,
-        out uint bytesRead,
-        IntPtr overlapped);
-
 #pragma warning restore SYSLIB1054
 }

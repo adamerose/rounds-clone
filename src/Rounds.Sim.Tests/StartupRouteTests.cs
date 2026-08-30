@@ -244,6 +244,15 @@ public sealed class StartupRouteTests
     }
 
     [Fact]
+    public void BaseProjectileCompletionWritesOneLiteralLfInsteadOfPlatformNewline()
+    {
+        var main = File.ReadAllText(Path.Combine(FindRepository(), "game", "Main.cs"));
+        Assert.Contains("Console.Out.Write(marker);", main, StringComparison.Ordinal);
+        Assert.Contains("Console.Out.Write('\\n');", main, StringComparison.Ordinal);
+        Assert.DoesNotContain("Console.Out.WriteLine(marker);", main, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EvidencePngPublicationCreatesANewDestinationAndNeverOverwrites()
     {
         var directory = Path.Combine(
