@@ -29,7 +29,8 @@ After ticket 035 closes, preserve any unique evidence and remove only proven-red
 
 - Wait for ticket 035 to close so an apparently redundant worktree cannot still be active delivery evidence or the intended continuation base.
 - Reuse ticket 013's preservation-first inventory method, but do not mutate or reclassify its frozen ticket-009 through ticket-011 artifacts.
-- Treat registered worktrees, branch refs, ignored generated output, active claims, run-ledger references, and unique commits as separate ownership facts. Containment by `main` alone does not authorize directory or ref deletion.
+- Treat registered worktrees, branch refs, ignored generated output, active claims, run-ledger references, and unique commits as separate ownership facts.
+Containment by `main` alone does not authorize directory or ref deletion.
 - Do not modify product files or rewrite history while reconciling residue.
 
 ## Evidence required
