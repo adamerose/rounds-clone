@@ -39,4 +39,4 @@ The project goal says the rendered nightly reel is how unattended regressions be
 
 - 2026-08-29T02:40:49Z stage design start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Assigning the missing nightly reel and diagnostics required by the founding goal.
 - 2026-08-29T02:40:49Z stage design end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Bound the reel to verified complete-match replay, faithful clone rendering, reproducible metadata, and visible failure retention.
-- 2026-09-02T02:09:33Z — Reflection verdict: wait. The nightly reel, diagnostics, and linked daily summary remain the intended project observability path, but a truthful real-match artifact waits for faithful presentation and complete-match replay from tickets 020 and 022.
+- 2026-09-02T02:09:33Z — Reflection verdict: wait because the nightly reel, diagnostics, and linked daily summary remain the intended project observability path but need faithful presentation and complete-match replay from tickets 020 and 022 to produce a truthful real-match artifact.

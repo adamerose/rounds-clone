@@ -41,4 +41,4 @@ Ticket 019 verifies and safely gates the current 16-card subset, while 51 catalo
 
 - 2026-08-29T02:50:41Z stage design start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Splitting card expansion after current-subset verification and headless self-play so acceptance evidence has a legal owner.
 - 2026-08-29T02:50:41Z stage design end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Bound all 51 remaining cards to behavior-complete groups, reachable-combination gates, direct evidence, and pre-existing self-play infrastructure.
-- 2026-09-02T02:09:33Z — Reflection verdict: wait. The remaining 51 cataloged cards are still required, but safe group expansion waits for the current-card audit, faithful presentation, and complete-match self-play infrastructure in tickets 019, 020, and 022.
+- 2026-09-02T02:09:33Z — Reflection verdict: wait because safe expansion of the still-required remaining 51 cataloged cards needs the current-card audit, faithful presentation, and complete-match self-play infrastructure in tickets 019, 020, and 022.
