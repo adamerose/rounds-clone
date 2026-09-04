@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::env;
 use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 
 #[derive(Serialize)]
 struct SmokeEvidence {
@@ -16,6 +16,35 @@ struct SmokeEvidence {
     clients_agree: bool,
     local_host_agrees: bool,
     state_hash: String,
+}
+
+struct ChildGuard {
+    child: Child,
+    finished: bool,
+}
+
+impl ChildGuard {
+    fn new(child: Child) -> Self {
+        Self {
+            child,
+            finished: false,
+        }
+    }
+
+    fn wait(&mut self) -> std::io::Result<ExitStatus> {
+        let status = self.child.wait()?;
+        self.finished = true;
+        Ok(status)
+    }
+}
+
+impl Drop for ChildGuard {
+    fn drop(&mut self) {
+        if !self.finished {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
 }
 
 fn main() {
@@ -38,21 +67,25 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     let ticks = argument(arguments, "--ticks", 180_u32)?;
     let seed = argument(arguments, "--seed", 38_u64)?;
     let server_binary = sibling_binary("rounds-server")?;
-    let client_binary = sibling_binary("rounds-client")?;
-    let mut server = Command::new(&server_binary)
-        .args([
-            "--port",
-            "0",
-            "--ticks",
-            &ticks.to_string(),
-            "--seed",
-            &seed.to_string(),
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| format!("start {}: {error}", server_binary.display()))?;
+    let default_client_binary = sibling_binary("rounds-client")?;
+    let mut server = ChildGuard::new(
+        Command::new(&server_binary)
+            .args([
+                "--port",
+                "0",
+                "--ticks",
+                &ticks.to_string(),
+                "--seed",
+                &seed.to_string(),
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| format!("start {}: {error}", server_binary.display()))?,
+    );
+    let server_pid = server.child.id();
     let server_stdout = server
+        .child
         .stdout
         .take()
         .ok_or("server stdout was not captured")?;
@@ -71,6 +104,9 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
 
     let clients = (0..2)
         .map(|client_id| {
+            let client_binary = env::var_os(format!("ROUNDS_SMOKE_CLIENT_{client_id}_BINARY"))
+                .map(PathBuf::from)
+                .unwrap_or_else(|| default_client_binary.clone());
             Command::new(&client_binary)
                 .args([
                     "remote",
@@ -86,24 +122,46 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
-                .map_err(|error| format!("start client {client_id}: {error}"))
+                .map(ChildGuard::new)
+                .map_err(|error| {
+                    format!(
+                        "start client {client_id} for server {address} pid {server_pid}: {error}"
+                    )
+                })
         })
         .collect::<Result<Vec<_>, _>>()?;
 
+    let mut clients = clients;
     let reports = clients
-        .into_iter()
+        .iter_mut()
         .enumerate()
         .map(|(client_id, client)| {
-            let output = client
-                .wait_with_output()
+            let status = client
+                .wait()
                 .map_err(|error| format!("wait for client {client_id}: {error}"))?;
-            if !output.status.success() {
+            let mut stdout = Vec::new();
+            client
+                .child
+                .stdout
+                .take()
+                .ok_or_else(|| format!("client {client_id} stdout was not captured"))?
+                .read_to_end(&mut stdout)
+                .map_err(|error| format!("read client {client_id} stdout: {error}"))?;
+            let mut stderr = Vec::new();
+            client
+                .child
+                .stderr
+                .take()
+                .ok_or_else(|| format!("client {client_id} stderr was not captured"))?
+                .read_to_end(&mut stderr)
+                .map_err(|error| format!("read client {client_id} stderr: {error}"))?;
+            if !status.success() {
                 return Err(format!(
                     "client {client_id} failed: {}",
-                    String::from_utf8_lossy(&output.stderr).trim()
+                    String::from_utf8_lossy(&stderr).trim()
                 ));
             }
-            serde_json::from_slice::<ServerReport>(&output.stdout)
+            serde_json::from_slice::<ServerReport>(&stdout)
                 .map_err(|error| format!("decode client {client_id} report: {error}"))
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -112,18 +170,23 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     server_reader
         .read_to_string(&mut server_tail)
         .map_err(|error| format!("read server report: {error}"))?;
-    let server_output = server
-        .wait_with_output()
+    let server_status = server
+        .wait()
         .map_err(|error| format!("wait for server: {error}"))?;
-    if !server_output.status.success() {
-        return Err(format!(
-            "server failed: {}",
-            String::from_utf8_lossy(&server_output.stderr).trim()
-        ));
+    let mut server_stderr = String::new();
+    server
+        .child
+        .stderr
+        .take()
+        .ok_or("server stderr was not captured")?
+        .read_to_string(&mut server_stderr)
+        .map_err(|error| format!("read server stderr: {error}"))?;
+    if !server_status.success() {
+        return Err(format!("server failed: {}", server_stderr.trim()));
     }
     let server_report: ServerReport = serde_json::from_str(server_tail.trim())
         .map_err(|error| format!("decode server report: {error}"))?;
-    let local_output = Command::new(&client_binary)
+    let local_output = Command::new(&default_client_binary)
         .args([
             "local",
             "--ticks",

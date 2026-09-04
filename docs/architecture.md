@@ -64,5 +64,6 @@ The capture command must reproduce the same frame and metadata digests when the 
 ## Testing rule
 
 Keep tests at the public and deep boundaries: deterministic simulation, bounded inspection, the UDP client/server agreement path, and deterministic rendering.
+The smoke boundary deliberately forces a second-client launch failure and proves that its already-started server is gone; the capture boundary supplies two resolved-equivalent destinations and proves rejection happens before either file is written.
 Do not retain tests for private layout or retired implementation details.
 When test or support machinery outweighs the behavior it protects, rethink the slice instead of hardening the machinery by default.

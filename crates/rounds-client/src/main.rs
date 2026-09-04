@@ -76,6 +76,14 @@ fn run() -> Result<(), String> {
 fn capture(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
     let output = path_argument(arguments, "--output")?;
     let metadata = path_argument(arguments, "--metadata")?;
+    let resolved_output = resolved_path(&output)?;
+    let resolved_metadata = resolved_path(&metadata)?;
+    if paths_equal(&resolved_output, &resolved_metadata) {
+        return Err(format!(
+            "--output and --metadata must resolve to different paths: {}",
+            resolved_output.display()
+        ));
+    }
     let scripts = scripted_inputs(seed, ticks);
     let script_bytes = serde_json::to_vec(&scripts).map_err(|error| error.to_string())?;
     let (state, state_hash) = run_scripted_match(seed, ticks);
@@ -111,6 +119,42 @@ fn capture(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
         serde_json::to_string(&evidence).map_err(|error| error.to_string())?
     );
     Ok(())
+}
+
+fn resolved_path(path: &Path) -> Result<PathBuf, String> {
+    let absolute = std::path::absolute(path)
+        .map_err(|error| format!("resolve {}: {error}", path.display()))?;
+    if absolute.exists() {
+        return fs::canonicalize(&absolute)
+            .map_err(|error| format!("resolve {}: {error}", path.display()));
+    }
+
+    let mut ancestor = absolute.as_path();
+    let mut missing = Vec::new();
+    while !ancestor.exists() {
+        let name = ancestor
+            .file_name()
+            .ok_or_else(|| format!("resolve {}: no existing ancestor", path.display()))?;
+        missing.push(name.to_owned());
+        ancestor = ancestor
+            .parent()
+            .ok_or_else(|| format!("resolve {}: no existing ancestor", path.display()))?;
+    }
+    let mut resolved = fs::canonicalize(ancestor)
+        .map_err(|error| format!("resolve {}: {error}", path.display()))?;
+    for name in missing.into_iter().rev() {
+        resolved.push(name);
+    }
+    Ok(resolved)
+}
+
+fn paths_equal(left: &Path, right: &Path) -> bool {
+    if cfg!(windows) {
+        left.to_string_lossy()
+            .eq_ignore_ascii_case(&right.to_string_lossy())
+    } else {
+        left == right
+    }
 }
 
 fn sha256(bytes: &[u8]) -> String {
