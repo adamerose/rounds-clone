@@ -81,18 +81,18 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo build --workspace --locked
 cargo test --workspace --locked
-target/debug/rounds-automation smoke --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/smoke
-target/debug/rounds-automation inspect --profile timber-collapse-replay --seed 40 --ticks 1440
-target/debug/rounds-client capture-replay --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/clone-anchors --metadata out/ticket-040/clone-anchors.json
-target/debug/rounds-client visible --profile timber-collapse-replay --seed 40 --ticks 1440 --frames 180
-target/debug/rounds-automation smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/smoke
-target/debug/rounds-automation inspect --profile rematch-draft-replay --seed 41 --ticks 2400
-target/debug/rounds-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/anchors --metadata out/ticket-041/anchors.json
-target/debug/rounds-client visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
-target/debug/rounds-automation smoke --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/smoke
-target/debug/rounds-automation inspect --profile radial-saw-half-blue-replay --seed 42 --ticks 938
-target/debug/rounds-client capture-replay --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/anchors --metadata out/ticket-042/anchors.json
-target/debug/rounds-client visible --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --frames 180
+out/cargo-target/debug/rounds-automation smoke --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/smoke
+out/cargo-target/debug/rounds-automation inspect --profile timber-collapse-replay --seed 40 --ticks 1440
+out/cargo-target/debug/rounds-client capture-replay --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/clone-anchors --metadata out/ticket-040/clone-anchors.json
+out/cargo-target/debug/rounds-client visible --profile timber-collapse-replay --seed 40 --ticks 1440 --frames 180
+out/cargo-target/debug/rounds-automation smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/smoke
+out/cargo-target/debug/rounds-automation inspect --profile rematch-draft-replay --seed 41 --ticks 2400
+out/cargo-target/debug/rounds-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/anchors --metadata out/ticket-041/anchors.json
+out/cargo-target/debug/rounds-client visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
+out/cargo-target/debug/rounds-automation smoke --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/smoke
+out/cargo-target/debug/rounds-automation inspect --profile radial-saw-half-blue-replay --seed 42 --ticks 938
+out/cargo-target/debug/rounds-client capture-replay --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/anchors --metadata out/ticket-042/anchors.json
+out/cargo-target/debug/rounds-client visible --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --frames 180
 ```
 
 The smoke command must report every handshake, input sequence and progressive snapshot, agreement among the headless server, both UDP clients and local client-host, and a live client render bound to the agreed state hash.
