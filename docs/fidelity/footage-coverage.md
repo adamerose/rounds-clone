@@ -15,7 +15,7 @@ No interval is unclassified.
 | `S3-arena-motion` | reproduce suspended, rotating, sliding and articulated arena pieces with authoritative networked physics | first suspended-weight and released-joint sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; remaining arena motion unresolved |
 | `S4-reactive-world` | reproduce destructible platforms, debris, explosions, ice and other reactive arena materials | first explosive timber-collapse sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; ice and remaining reactive worlds unresolved |
 | `S5-card-combat` | reproduce every visible named card and its stacked combat interaction across rounds | Dazzle and Explosive Bullet first implemented in the 02:40.00–03:20.00 sub-slice; remaining card behavior unresolved |
-| `S6-match` | reproduce round, half, score, color handoff, match completion and rematch cadence | first 5–4 victory/rematch/0–0 reset sub-slice implemented at recording `453954a7…a18c` 02:40.00–03:20.00; remaining lifecycle unresolved |
+| `S6-match` | reproduce round, half, score, color handoff, match completion and rematch cadence | first blue 4–5 victory/rematch/0–0 reset sub-slice implemented at recording `453954a7…a18c` 02:40.00–03:20.00; remaining lifecycle unresolved |
 | `S7-presentation` | reproduce characters, lighting, camera, shake, trails, hit-stop, chromatic/radial effects, particles, text and audio | first static-duel and explosive-collapse visual sub-slices implemented; audio, hit-stop, and remaining presentation unresolved |
 | `S8-online` | replace the localhost scripted UDP scaffold with production online prediction, interpolation, reconciliation and eventual Steam transport | unresolved fidelity gap; Steam is not implemented |
 
@@ -44,7 +44,7 @@ Source: `reference/MedalTVRounds20260903165304088.mp4`, duration `600.13` second
 | 02:10–02:20 | neon stepped arena duel | S2, S4, S5, S7, S8 |
 | 02:20–02:30 | neon combat, shots and trails | S2, S4, S5, S7, S8 |
 | 02:30–02:40 | high-energy hit and explosion effects | S2, S4, S5, S7, S8 |
-| 02:40–02:50 | 5–4 victory, `REMATCH?`, fade, and orange card fan | S1/S6/S7 implemented sub-slice; remaining match variants unresolved |
+| 02:40–02:50 | blue 4–5 victory, `REMATCH?`, fade, and orange card fan | S1/S6/S7 implemented sub-slice; remaining match variants unresolved |
 | 02:50–03:00 | orange navigation and `DAZZLE` confirmation inferred from its persistent badge | S1/S5/S7 implemented sub-slice; non-selected offer behavior remains catalog-only |
 | 03:00–03:10 | handoff and blue card fan with `LIFESTEALER` hover | S1/S5/S7 implemented sub-slice; non-selected offer behavior remains catalog-only |
 | 03:10–03:20 | blue navigation, `EXPLOSIVE BULLET` confirmation, 0–0 reset, and upgraded projectiles | S1/S5/S6/S7 implemented sub-slice; production S8 and remaining card behavior unresolved |

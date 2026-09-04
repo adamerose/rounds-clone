@@ -288,6 +288,36 @@ pub enum RematchVote {
     No,
 }
 
+/// Source-visible badge abbreviations from the concluded match. Their full
+/// card identities are not legible in the bounded recording, so the authority
+/// preserves the observed values without inventing item definitions.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub enum PriorBadge {
+    Po,
+    De,
+    Th,
+    Qu,
+    Bu,
+    Ca,
+    Co,
+    Fa,
+}
+
+impl PriorBadge {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Po => "Po",
+            Self::De => "De",
+            Self::Th => "Th",
+            Self::Qu => "Qu",
+            Self::Bu => "Bu",
+            Self::Ca => "Ca",
+            Self::Co => "Co",
+            Self::Fa => "Fa",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FlowAction {
@@ -337,6 +367,10 @@ pub struct FlowSnapshot {
     pub phase_tick: u32,
     pub active_player: Option<u8>,
     pub scores: [u8; 2],
+    pub winner: Option<u8>,
+    pub eliminated: Option<u8>,
+    pub fighter_alive: [bool; 2],
+    pub prior_badges: [Vec<PriorBadge>; 2],
     pub rematch_votes: [RematchVote; 2],
     pub offers: [Vec<ItemId>; 2],
     pub hovered: [Option<ItemId>; 2],
@@ -362,12 +396,31 @@ impl FlowAuthority {
                 phase_tick: 0,
                 active_player: None,
                 scores: [4, 5],
+                winner: Some(1),
+                eliminated: Some(0),
+                fighter_alive: [false, true],
+                prior_badges: [
+                    vec![
+                        PriorBadge::Po,
+                        PriorBadge::De,
+                        PriorBadge::Th,
+                        PriorBadge::Qu,
+                        PriorBadge::Bu,
+                    ],
+                    vec![
+                        PriorBadge::Bu,
+                        PriorBadge::Ca,
+                        PriorBadge::Co,
+                        PriorBadge::Co,
+                        PriorBadge::Fa,
+                    ],
+                ],
                 rematch_votes: [RematchVote::Pending; 2],
                 offers: [source_offers(seed, 0), source_offers(seed, 1)],
                 hovered: [None, None],
                 selected: [None, None],
                 revealed: None,
-                loadouts: [vec![ItemId::Burst, ItemId::Combine], vec![ItemId::Echo]],
+                loadouts: [Vec::new(), Vec::new()],
                 capabilities: [FighterCapabilities::default(); 2],
                 last_results: [ActionResult::None; 2],
                 accepted_actions: 0,
@@ -386,6 +439,10 @@ impl FlowAuthority {
 
     pub fn accepts_combat(&self) -> bool {
         self.snapshot.phase == FlowPhase::ResumedCombat
+    }
+
+    pub fn has_terminal_result(&self) -> bool {
+        self.snapshot.winner.is_some()
     }
 
     pub fn advance(&mut self, commands: [Option<FlowCommand>; 2]) {
@@ -418,9 +475,9 @@ impl FlowAuthority {
                     self.transition(FlowPhase::ArenaTransition, None);
                 }
             }
-            FlowPhase::Handoff if self.snapshot.phase_tick >= 630 => {
+            FlowPhase::Handoff if self.snapshot.phase_tick >= 30 => {
                 self.transition(FlowPhase::Draft, Some(1));
-                self.snapshot.hovered[1] = self.snapshot.offers[1].get(2).copied();
+                self.snapshot.hovered[1] = self.snapshot.offers[1].get(4).copied();
             }
             FlowPhase::ArenaTransition if self.snapshot.phase_tick >= 59 => {
                 self.transition(FlowPhase::ResumedCombat, None);
@@ -458,6 +515,10 @@ impl FlowAuthority {
             self.transition(FlowPhase::TerminalMatch, None);
         } else if self.snapshot.rematch_votes == [RematchVote::Yes; 2] {
             self.snapshot.scores = [0, 0];
+            self.snapshot.winner = None;
+            self.snapshot.eliminated = None;
+            self.snapshot.fighter_alive = [true, true];
+            self.snapshot.prior_badges = [Vec::new(), Vec::new()];
             self.snapshot.loadouts = [Vec::new(), Vec::new()];
             self.snapshot.capabilities = [FighterCapabilities::default(); 2];
             self.transition(FlowPhase::ArenaFade, None);
@@ -570,6 +631,29 @@ mod tests {
     #[test]
     fn both_yes_resets_score_and_old_loadouts_but_either_no_terminates() {
         let mut accepted = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        assert_eq!(accepted.snapshot.scores, [4, 5]);
+        assert_eq!(accepted.snapshot.winner, Some(1));
+        assert_eq!(accepted.snapshot.eliminated, Some(0));
+        assert_eq!(accepted.snapshot.fighter_alive, [false, true]);
+        assert_eq!(
+            accepted.snapshot.prior_badges,
+            [
+                vec![
+                    PriorBadge::Po,
+                    PriorBadge::De,
+                    PriorBadge::Th,
+                    PriorBadge::Qu,
+                    PriorBadge::Bu,
+                ],
+                vec![
+                    PriorBadge::Bu,
+                    PriorBadge::Ca,
+                    PriorBadge::Co,
+                    PriorBadge::Co,
+                    PriorBadge::Fa,
+                ],
+            ]
+        );
         advance_to_prompt(&mut accepted);
         accepted.advance([
             Some(FlowCommand {
@@ -583,6 +667,10 @@ mod tests {
         ]);
         assert_eq!(accepted.snapshot.phase, FlowPhase::ArenaFade);
         assert_eq!(accepted.snapshot.scores, [0, 0]);
+        assert_eq!(accepted.snapshot.winner, None);
+        assert_eq!(accepted.snapshot.eliminated, None);
+        assert_eq!(accepted.snapshot.fighter_alive, [true, true]);
+        assert_eq!(accepted.snapshot.prior_badges, [Vec::new(), Vec::new()]);
         assert_eq!(accepted.snapshot.loadouts, [Vec::new(), Vec::new()]);
 
         let mut rejected = FlowAuthority::new(SOURCE_DRAFT_SEED);
@@ -596,6 +684,10 @@ mod tests {
         ]);
         assert_eq!(rejected.snapshot.phase, FlowPhase::TerminalMatch);
         assert_eq!(rejected.snapshot.scores, [4, 5]);
+        assert_eq!(rejected.snapshot.winner, Some(1));
+        assert_eq!(rejected.snapshot.eliminated, Some(0));
+        assert_eq!(rejected.snapshot.fighter_alive, [false, true]);
+        assert!(!rejected.snapshot.prior_badges[0].is_empty());
     }
 
     #[test]
@@ -685,6 +777,21 @@ mod tests {
         assert_eq!(flow.capabilities[0].dazzle_stun_pulses, 3);
         assert_eq!(flow.capabilities[1].explosion_radius_milli, 150_000);
         assert_eq!(flow.scores, [0, 0]);
+    }
+
+    #[test]
+    fn source_cadence_has_blues_complete_fan_by_two_fifty_six() {
+        let replay = crate::run_profile_snapshots(
+            crate::ReplayProfile::RematchDraftReplay,
+            SOURCE_DRAFT_SEED,
+            960,
+        );
+        let flow = replay.last().unwrap().flow.as_ref().unwrap();
+        assert_eq!(flow.phase, FlowPhase::Draft);
+        assert_eq!(flow.active_player, Some(1));
+        assert_eq!(flow.offers[1].len(), 5);
+        assert_eq!(flow.hovered[1], Some(ItemId::Dazzle));
+        assert_eq!(flow.selected[0], Some(ItemId::Dazzle));
     }
 
     #[test]

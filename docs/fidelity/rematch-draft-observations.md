@@ -59,36 +59,38 @@ Printed plus signs are transcribed as displayed even when the named property mak
 
 ## Match reset
 
-- At 02:43 the orange row has four filled pips and one empty pip while the blue row has five filled pips: blue has won the match 5–4.
-- The 5–4 pips and both old loadout stacks remain visible through `VICTORY!` and `REMATCH?`; the arena continues behind both overlays.
+- At 02:43 the orange row has four filled pips and one empty pip while the blue row has five filled pips: blue has won, with the displayed score ordered orange–blue as 4–5.
+- The 4–5 pips and exact old stacks `Po De Th Qu Bu` for orange and `Bu Ca Co Co Fa` for blue remain visible through `VICTORY!` and `REMATCH?`; the arena continues behind both overlays.
 - At 03:16 both five-pip rows are empty and the old multi-card stacks are gone. The new match therefore resets the visible score to 0–0 and clears prior-match cards before adding orange `Da` and blue `Ex`.
 - Pixels do not establish whether one host, one local player, or both players must accept rematch. Requiring one vote from each client is the clone's explicit authority rule, not a claim about hidden ROUNDS networking.
 
 ## Source-to-clone inspection
 
-The original-resolution comparison uses the thirteen named anchors emitted under `out/ticket-041/`; generated source decodes and clone PNGs remain ignored.
-The first candidate did not preserve source cadence: it inserted a blank `NEXT PLAYER` frame at the 02:56 anchor where blue's complete fan is already visible. Corrected evidence must replace that claim and show blue at the source-bound time.
-Card titles and wrapped rules were readable at 1280×720, but the first candidate ignored item `art_key` values, substituted rarity polygons for card-specific art, and left hands and expression fixed while cards moved. Corrected comparison must show distinct item motifs and authoritative hover/reveal pose response through the same received-state path.
+The original-resolution comparison uses the thirteen named source frames under `out/ticket-041/correction-source/` and the thirteen final clone frames under `out/ticket-041/final-cold-clone/`; all generated PNGs remain ignored.
+The corrected replay keeps only a half-second dark bridge after orange's reveal. Blue's complete fan is present at tick 960, the 02:56 source-bound anchor, with `DAZZLE` raised; `LIFESTEALER` is raised later at the 03:06 anchor.
+All nine stable `art_key` values now select distinct visible motifs: a frost ring, merged rounds, blood drop and fang, burst rays, stun stars, impact burst, echo rings, vampire orbit, and electric ring. The same authoritative hover and reveal state that moves the cards also moves the arms and hands, directs the pupils, and changes the mouth; original-resolution inspection confirmed the response on both orange and blue anchors.
+The victory anchor now renders blue as winner, orange as out, the 4–5 score, and both exact prior-card stacks. The accepted rematch clears that terminal result and both stacks before the new draft and restores both fighters and the score to 0–0.
+Capture waits for the complete expected scene, an empty Bevy pipeline queue, and two consecutive complete extracted render frames before requesting a screenshot. The focused repeated-capture test produced byte-identical frames for the same immutable draft state and observed all expected scene roles without changing the flow or loadout digests.
 
 The remaining visible differences are concrete rather than hidden behind an equivalence claim.
 The source uses thinner outlined prompt lettering, denser low-poly character faces, hats, moustache and hand poses, richer bespoke card illustrations, more overlap and perspective in the fan, and smoother eased selection motion.
-The clone uses geometric stand-in art, a simpler face and straight arms, bolder prompt type, shallower card depth, and deterministic linear phase envelopes.
+The clone uses simpler geometric item motifs and face construction, bolder prompt type, shallower card depth, less curved arms, and deterministic linear phase envelopes.
 The resumed source arena has taller timber columns and a much denser faceted yellow impact/canopy field; the clone approximates it with stable yellow platforms, paired timber caps, long shadows, typed Dazzle spark trails, and a large presentation-only faceted burst sourced from the authoritative Explosive Bullet impact.
 Audio, exact animation curves, and frame-identical typography remain outside this slice.
 
 ## Delivery evidence
 
-The final rebuild identifies `rounds-client.exe` as SHA-256 `7019c1e10918a9b83ee8df6929467fe926af0b4228946bd6a02a2b9f3ba9bc83`.
-The thirteen-anchor metadata is SHA-256 `53c0b32362b05f9fe5b4dcdf76dbdc250afdd5c4400f9a9675110d93fe5c748c`; representative final frame hashes are `23083a9d8293ac70eedbc3c7c5f437e2f47034f4de5e006ca8c4ddf2d54106cf` for the prompt, `54e6609c2b71463d191655c7b1e4eaa9e6bc02caf3c160dc092d97a921f17367` for orange's initial fan, `baafaedcab76a1f76d0078f2412b3cd209761786c02c4320e7a212a42b278f3a` for blue's initial fan, and `30b76790c4018b0115324969920c1be7504fc59729b826463b41391e4c79193f` for the upgraded-projectile exchange.
-The live UDP run completed 2,400 snapshots on each of two separately launched clients and reported matching state hash `026308b7f82c25b1256c2bb7f71ea541dd500724ddc19d799dd82ecc445e295a`, flow digest `75a0ce8a912bb6f7ceddccc6b3819f7cf312534d9d49b2fe407c4068e8989550`, and loadout digest `2489e426cddc787ffa978da316025d7d72a1f5adefa5a7ed016185e85c24cfeb` across both clients, the server, and the local host.
+The final cold rebuild identifies `rounds-client.exe` as SHA-256 `510ee7755a8230f44b9912a158465db5e48bca04dd9d4e03d009264fd7ac11bb`.
+The thirteen-anchor metadata is SHA-256 `558bc4c6d97d00e5eb00a0c364af5a6af4ae1df1405f9a69921d0b49dcbf2dc8`; representative final frame hashes are `b82a81a2a1210aaeb621ccd934ac03235c466f7776f7d47fadfbf9d90ccc472f` for the authoritative victory, `995ad57a0d6aa0b630935e2cb8691bf389147d43d89d3b9112bced64a18b2e22` for the prompt, `ff311d561b08fb7d8e46817c120c2c912b35d8f754124b31588f27ec708e26b3` for orange's initial fan, `9a238ec92cc9ead3e9a2bae778175afa42f02d615a37680a02a6cbd8a066409f` for blue's initial fan, and `8cb0392da6506277560449e1d6d76cb5b9f2172c9ea505c308ebca26d84ae1d2` for the upgraded-projectile exchange.
+The live UDP run completed 2,400 snapshots on each of two separately launched clients and reported matching state hash `f0d6a9f19e518521993035f376c0dee98e8b5d7811e0e66ceb18bf91375413f1`, flow digest `f46412500c26324502b01a3c793a45fa2527696bffd780c60a221ea52fe738c3`, and loadout digest `2489e426cddc787ffa978da316025d7d72a1f5adefa5a7ed016185e85c24cfeb` across both clients, the server, and the local host. Both clients also observed the exact terminal authority, accepted-rematch reset, and complete blue fan by tick 960.
 The bounded visible run used the same final state, selected and re-verified the project display at `(364,-1080)`, 1920×1080 before showing, exited normally, and left no `rounds-*` process.
 
 The line inventory counts inserted Rust lines only; documentation is excluded.
 
 | Responsibility | Added lines | Breakdown |
 |---|---:|---|
-| Product behavior | 1,491 | flow model 539; simulation 221; networking 18; presentation 682; client 31 |
-| Tests | 330 | flow 168; simulation 88; networking 59; presentation 15 |
-| Automation support | 25 | existing smoke/inspection entry point only |
+| Product behavior | 2,318 | flow model 600; simulation 257; networking 66; presentation 1,364; client 31 |
+| Tests | 451 | flow 214; simulation 114; networking 64; presentation 59 |
+| Automation support | 43 | existing smoke/inspection entry point only |
 
-Tests plus automation support total 355 lines, well below the product behavior they protect.
+Tests plus automation support total 494 lines, well below the product behavior they protect.

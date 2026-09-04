@@ -31,6 +31,9 @@ struct SmokeEvidence {
     flow_digest: Option<String>,
     loadout_digest: Option<String>,
     both_clients_observed_same_flow: bool,
+    both_clients_observed_source_terminal_state: bool,
+    both_clients_observed_rematch_reset: bool,
+    both_clients_observed_blue_fan_by_tick_960: bool,
     observed_flow_phases: Vec<FlowPhase>,
     flow_completed_with_source_loadouts: bool,
     live_frame_path: String,
@@ -233,6 +236,14 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     });
     let both_clients_observed_same_flow =
         reports[0].observed_flow_phases == reports[1].observed_flow_phases;
+    let both_clients_observed_source_terminal_state = reports
+        .iter()
+        .all(|report| report.observed_source_terminal_state);
+    let both_clients_observed_rematch_reset =
+        reports.iter().all(|report| report.observed_rematch_reset);
+    let both_clients_observed_blue_fan_by_tick_960 = reports
+        .iter()
+        .all(|report| report.observed_blue_fan_by_tick_960);
     let flow_completed_with_source_loadouts =
         server_report.state.flow.as_ref().is_some_and(|flow| {
             flow.phase == FlowPhase::ResumedCombat
@@ -243,7 +254,11 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
         || (profile == ReplayProfile::TimberCollapseReplay
             && !progressive_explosion_transition_observed)
         || (profile == ReplayProfile::RematchDraftReplay
-            && (!both_clients_observed_same_flow || !flow_completed_with_source_loadouts))
+            && (!both_clients_observed_same_flow
+                || !both_clients_observed_source_terminal_state
+                || !both_clients_observed_rematch_reset
+                || !both_clients_observed_blue_fan_by_tick_960
+                || !flow_completed_with_source_loadouts))
         || reports
             .iter()
             .any(|report| report.snapshots_received != ticks)
@@ -272,6 +287,9 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             flow_digest: server_report.flow_digest,
             loadout_digest: server_report.loadout_digest,
             both_clients_observed_same_flow,
+            both_clients_observed_source_terminal_state,
+            both_clients_observed_rematch_reset,
+            both_clients_observed_blue_fan_by_tick_960,
             observed_flow_phases: reports[0].observed_flow_phases.clone(),
             flow_completed_with_source_loadouts,
             live_frame_path: slash_path(&live_frame),

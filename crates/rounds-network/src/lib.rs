@@ -1,6 +1,6 @@
 use rounds_sim::{
-    AuthoritativeMatch, FlowPhase, MatchSnapshot, PlayerInput, ReplayProfile, TIMBER_IMPACT_TICK,
-    dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest,
+    AuthoritativeMatch, FlowPhase, ItemId, MatchSnapshot, PlayerInput, PriorBadge, ReplayProfile,
+    TIMBER_IMPACT_TICK, dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest,
 };
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -74,6 +74,9 @@ pub struct ClientSessionReport {
     pub observed_pre_explosion_constraints: bool,
     pub observed_post_explosion_release: bool,
     pub observed_flow_phases: Vec<FlowPhase>,
+    pub observed_source_terminal_state: bool,
+    pub observed_rematch_reset: bool,
+    pub observed_blue_fan_by_tick_960: bool,
     pub final_report: ServerReport,
 }
 
@@ -245,6 +248,9 @@ pub fn send_inputs(
     let mut observed_pre_explosion_constraints = false;
     let mut observed_post_explosion_release = false;
     let mut observed_flow_phases = Vec::new();
+    let mut observed_source_terminal_state = false;
+    let mut observed_rematch_reset = false;
+    let mut observed_blue_fan_by_tick_960 = false;
     for (sequence, input) in inputs.iter().copied().enumerate() {
         let sequence = sequence as u32;
         send_client(
@@ -296,6 +302,45 @@ pub fn send_inputs(
                 {
                     observed_flow_phases.push(flow.phase);
                 }
+                if let Some(flow) = &state.flow {
+                    observed_source_terminal_state |= flow.scores == [4, 5]
+                        && flow.winner == Some(1)
+                        && flow.eliminated == Some(0)
+                        && flow.fighter_alive == [false, true]
+                        && flow.prior_badges
+                            == [
+                                vec![
+                                    PriorBadge::Po,
+                                    PriorBadge::De,
+                                    PriorBadge::Th,
+                                    PriorBadge::Qu,
+                                    PriorBadge::Bu,
+                                ],
+                                vec![
+                                    PriorBadge::Bu,
+                                    PriorBadge::Ca,
+                                    PriorBadge::Co,
+                                    PriorBadge::Co,
+                                    PriorBadge::Fa,
+                                ],
+                            ]
+                        && state.winner == Some(1)
+                        && !state.players[0].alive
+                        && state.players[1].alive;
+                    observed_rematch_reset |= flow.scores == [0, 0]
+                        && flow.winner.is_none()
+                        && flow.eliminated.is_none()
+                        && flow.fighter_alive == [true, true]
+                        && flow.prior_badges.iter().all(Vec::is_empty)
+                        && state.winner.is_none()
+                        && state.players.iter().all(|player| player.alive);
+                    observed_blue_fan_by_tick_960 |= state.tick == 960
+                        && flow.phase == FlowPhase::Draft
+                        && flow.active_player == Some(1)
+                        && flow.offers[1].len() == 5
+                        && flow.hovered[1] == Some(ItemId::Dazzle)
+                        && flow.selected[0] == Some(ItemId::Dazzle);
+                }
                 last = Some((*state, state_hash));
             }
             AuthorityPacket::Welcome { .. } => {
@@ -318,6 +363,9 @@ pub fn send_inputs(
         observed_pre_explosion_constraints,
         observed_post_explosion_release,
         observed_flow_phases,
+        observed_source_terminal_state,
+        observed_rematch_reset,
+        observed_blue_fan_by_tick_960,
         final_report: ServerReport {
             protocol: NETWORK_PROTOCOL,
             clients_handshaken: 2,
@@ -511,6 +559,11 @@ mod tests {
                 FlowPhase::ResumedCombat,
             ]
         );
+        assert!(reports.iter().all(|report| {
+            report.observed_source_terminal_state
+                && report.observed_rematch_reset
+                && report.observed_blue_fan_by_tick_960
+        }));
         assert!(server_report.flow_digest.is_some());
         assert!(server_report.loadout_digest.is_some());
     }

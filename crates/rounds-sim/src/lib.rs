@@ -899,7 +899,7 @@ impl AuthoritativeMatch {
         } else {
             BTreeMap::new()
         };
-        Self {
+        let mut simulation = Self {
             world,
             physics: PhysicsBoundary::new(profile),
             player_entities,
@@ -915,16 +915,35 @@ impl AuthoritativeMatch {
             winner: None,
             explosion_strength: TIMBER_EXPLOSION_IMPULSE,
             flow: (profile == ReplayProfile::RematchDraftReplay).then(|| FlowAuthority::new(seed)),
+        };
+        if profile == ReplayProfile::RematchDraftReplay {
+            let mut orange = simulation.world.entity_mut(simulation.player_entities[0]);
+            let mut state = orange
+                .get_mut::<PlayerState>()
+                .expect("orange player state");
+            state.health = 0;
+            state.alive = false;
+            simulation.winner = Some(1);
         }
+        simulation
     }
 
     pub fn step(&mut self, inputs: [PlayerInput; 2]) {
         self.tick += 1;
+        let mut rematch_reset = false;
         if let Some(flow) = &mut self.flow {
+            let had_terminal_result = flow.has_terminal_result();
             flow.advance(inputs.map(|input| input.flow));
+            rematch_reset = had_terminal_result && !flow.has_terminal_result();
             if !flow.accepts_combat() {
+                if rematch_reset {
+                    self.reset_fighters_for_rematch();
+                }
                 return;
             }
+        }
+        if rematch_reset {
+            self.reset_fighters_for_rematch();
         }
         if self.winner.is_some() && self.flow.is_none() {
             return;
@@ -1186,6 +1205,22 @@ impl AuthoritativeMatch {
         if dead.len() == 1 {
             self.winner = Some(1 - dead[0]);
         }
+    }
+
+    fn reset_fighters_for_rematch(&mut self) {
+        for entity in self.player_entities {
+            let mut player = self.world.entity_mut(entity);
+            let mut state = player.get_mut::<PlayerState>().expect("player state");
+            state.health = 100;
+            state.alive = true;
+            state.fire_cooldown = 0;
+            state.block_ticks = 0;
+            state.hit_flash_ticks = 0;
+            state.stun_ticks = 0;
+            state.stun_pulses_remaining = 0;
+            state.stun_pulse_cooldown = 0;
+        }
+        self.winner = None;
     }
 
     pub fn snapshot(&mut self) -> MatchSnapshot {
@@ -1851,6 +1886,32 @@ mod tests {
                         || left.rotation_milliradians != right.rotation_milliradians
                 })
         );
+    }
+
+    #[test]
+    fn rematch_clears_the_terminal_winner_and_elimination_in_match_state() {
+        let mut simulation = AuthoritativeMatch::new_with_profile(
+            SOURCE_DRAFT_SEED,
+            ReplayProfile::RematchDraftReplay,
+        );
+        let concluded = simulation.snapshot();
+        assert_eq!(concluded.winner, Some(1));
+        assert!(!concluded.players[0].alive);
+        assert_eq!(concluded.players[0].health, 0);
+        assert!(concluded.players[1].alive);
+
+        let scripts =
+            scripted_inputs_for(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, 331);
+        for (&orange, &blue) in scripts[0].iter().zip(&scripts[1]) {
+            simulation.step([orange, blue]);
+        }
+        let reset = simulation.snapshot();
+        assert_eq!(reset.winner, None);
+        assert!(reset.players.iter().all(|player| player.alive));
+        assert!(reset.players.iter().all(|player| player.health == 100));
+        let flow = reset.flow.unwrap();
+        assert_eq!(flow.scores, [0, 0]);
+        assert!(flow.prior_badges.iter().all(Vec::is_empty));
     }
 
     #[test]

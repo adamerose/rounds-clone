@@ -9,8 +9,10 @@ use bevy::{
     },
     prelude::*,
     render::{
-        RenderPlugin,
-        render_resource::{Extent3d, PollType, TextureDimension, TextureFormat, TextureUsages},
+        ExtractSchedule, MainWorld, RenderApp, RenderPlugin,
+        render_resource::{
+            Extent3d, PipelineCache, PollType, TextureDimension, TextureFormat, TextureUsages,
+        },
         renderer::RenderDevice,
         view::screenshot::{Screenshot, ScreenshotCaptured},
     },
@@ -36,6 +38,7 @@ const DEVICE_POLL_TIMEOUT: Duration = Duration::from_secs(2);
 const PROJECT_DISPLAY_POSITION: IVec2 = IVec2::new(364, -1_080);
 const PROJECT_DISPLAY_SIZE: UVec2 = UVec2::new(1_920, 1_080);
 const MONITOR_DISCOVERY_FRAME_LIMIT: u16 = 120;
+const REQUIRED_COMPLETE_RENDER_FRAMES: u8 = 2;
 
 #[derive(Resource)]
 struct SceneSnapshot(MatchSnapshot);
@@ -66,6 +69,36 @@ struct MonitorDiscovery {
 
 #[derive(Component)]
 struct SceneVisual;
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+enum CaptureElement {
+    Background,
+    Character,
+    Hand,
+    Card,
+    CardArt,
+}
+
+#[derive(Resource, Clone, Debug, Default, PartialEq, Eq)]
+struct CaptureReadiness {
+    scene_complete: bool,
+    pipelines_ready: bool,
+    complete_render_frames: u8,
+    visual_count: usize,
+    background_count: usize,
+    character_count: usize,
+    hand_count: usize,
+    card_count: usize,
+    card_art_count: usize,
+}
+
+impl CaptureReadiness {
+    fn ready(&self) -> bool {
+        self.scene_complete
+            && self.pipelines_ready
+            && self.complete_render_frames >= REQUIRED_COMPLETE_RENDER_FRAMES
+    }
+}
 
 #[derive(Resource)]
 struct InteractiveAuthority {
@@ -154,6 +187,13 @@ fn draft_navigation_command(
 }
 
 pub fn render_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Vec<u8>, String> {
+    render_png_with_readiness(snapshot, output).map(|(bytes, _)| bytes)
+}
+
+fn render_png_with_readiness(
+    snapshot: &MatchSnapshot,
+    output: &Path,
+) -> Result<(Vec<u8>, CaptureReadiness), String> {
     let render_plugin = RenderPlugin {
         synchronous_pipeline_compilation: true,
         ..default()
@@ -173,7 +213,11 @@ pub fn render_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Vec<u8>, St
     )
     .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
     .insert_resource(SceneSnapshot(snapshot.clone()))
-    .add_systems(Startup, setup_offscreen_scene);
+    .init_resource::<CaptureReadiness>()
+    .add_systems(Startup, setup_offscreen_scene)
+    .add_systems(Update, update_capture_scene_readiness);
+    app.sub_app_mut(RenderApp)
+        .add_systems(ExtractSchedule, update_pipeline_readiness);
     app.finish();
     app.cleanup();
     let mut sub_apps = std::mem::take(app.sub_apps_mut());
@@ -183,8 +227,7 @@ pub fn render_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Vec<u8>, St
         .world_mut()
         .insert_resource(CaptureTarget(target.clone()));
 
-    update_and_wait(&mut sub_apps)?;
-    update_and_wait(&mut sub_apps)?;
+    let readiness = wait_for_capture_readiness(&mut sub_apps)?;
     let (sender, receiver) = sync_channel(1);
     sub_apps
         .main
@@ -214,7 +257,7 @@ pub fn render_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Vec<u8>, St
     create_parent(output)?;
     std::fs::write(output, &bytes)
         .map_err(|error| format!("write {}: {error}", output.display()))?;
-    Ok(bytes)
+    Ok((bytes, readiness))
 }
 
 pub fn frame_sha256(frame: &[u8]) -> String {
@@ -389,6 +432,73 @@ fn update_and_wait(sub_apps: &mut SubApps) -> Result<(), String> {
         })
         .map_err(|error| format!("poll Bevy render device: {error}"))?;
     Ok(())
+}
+
+fn wait_for_capture_readiness(sub_apps: &mut SubApps) -> Result<CaptureReadiness, String> {
+    let deadline = Instant::now() + CAPTURE_TIMEOUT;
+    loop {
+        update_and_wait(sub_apps)?;
+        let readiness = sub_apps.main.world().resource::<CaptureReadiness>().clone();
+        if readiness.ready() {
+            return Ok(readiness);
+        }
+        if Instant::now() >= deadline {
+            return Err(format!(
+                "Bevy scene/pipeline readiness timed out: {readiness:?}"
+            ));
+        }
+    }
+}
+
+fn update_capture_scene_readiness(
+    snapshot: Res<SceneSnapshot>,
+    cameras: Query<(), With<Camera2d>>,
+    visuals: Query<(), With<SceneVisual>>,
+    elements: Query<&CaptureElement>,
+    mut readiness: ResMut<CaptureReadiness>,
+) {
+    let mut counts = [0_usize; 5];
+    for element in &elements {
+        let index = match element {
+            CaptureElement::Background => 0,
+            CaptureElement::Character => 1,
+            CaptureElement::Hand => 2,
+            CaptureElement::Card => 3,
+            CaptureElement::CardArt => 4,
+        };
+        counts[index] += 1;
+    }
+    readiness.visual_count = visuals.iter().count();
+    readiness.background_count = counts[0];
+    readiness.character_count = counts[1];
+    readiness.hand_count = counts[2];
+    readiness.card_count = counts[3];
+    readiness.card_art_count = counts[4];
+    let draft_face = snapshot
+        .0
+        .flow
+        .as_ref()
+        .is_some_and(|flow| matches!(flow.phase, FlowPhase::Draft | FlowPhase::Reveal));
+    readiness.scene_complete = cameras.iter().count() == 1
+        && readiness.visual_count > 0
+        && readiness.background_count == 1
+        && (!draft_face
+            || (readiness.character_count == 1
+                && readiness.hand_count == 4
+                && readiness.card_count == 5
+                && readiness.card_art_count == 5));
+}
+
+fn update_pipeline_readiness(mut main_world: ResMut<MainWorld>, pipelines: Res<PipelineCache>) {
+    let pipelines_ready = pipelines.waiting_pipelines().next().is_none();
+    if let Some(mut readiness) = main_world.get_resource_mut::<CaptureReadiness>() {
+        readiness.pipelines_ready = pipelines_ready;
+        readiness.complete_render_frames = if readiness.scene_complete && pipelines_ready {
+            readiness.complete_render_frames.saturating_add(1)
+        } else {
+            0
+        };
+    }
 }
 
 fn encode_png(image: Image) -> Result<Vec<u8>, String> {
@@ -677,6 +787,7 @@ fn spawn_snapshot_scene(
 
     commands.spawn((
         SceneVisual,
+        CaptureElement::Background,
         Sprite::from_color(
             if timber_scene {
                 Color::srgb_u8(2, 32, 49)
@@ -1010,6 +1121,8 @@ fn spawn_snapshot_scene(
         let y = player.y_milli as f32 / 1_000.0;
         let body_color = if player.hit_flash_ticks > 0 {
             Color::WHITE
+        } else if !player.alive {
+            Color::srgba_u8(96, 42, 54, 150)
         } else if player.id == 0 {
             Color::srgb_u8(244, 63, 86)
         } else {
@@ -1059,7 +1172,17 @@ fn spawn_snapshot_scene(
         ));
         commands.spawn((
             SceneVisual,
-            Text2d::new(if player.id == 0 { "ORANGE" } else { "BLUE" }),
+            Text2d::new(if !player.alive {
+                if player.id == 0 {
+                    "ORANGE • OUT"
+                } else {
+                    "BLUE • OUT"
+                }
+            } else if player.id == 0 {
+                "ORANGE"
+            } else {
+                "BLUE"
+            }),
             TextFont {
                 font_size: FontSize::Px(12.0),
                 ..default()
@@ -1172,16 +1295,6 @@ fn spawn_draft_scene(
         return;
     }
     if flow.phase == FlowPhase::Handoff {
-        commands.spawn((
-            SceneVisual,
-            Text2d::new("NEXT PLAYER"),
-            TextFont {
-                font_size: FontSize::Px(34.0),
-                ..default()
-            },
-            TextColor(Color::srgba_u8(190, 232, 235, 180)),
-            Transform::from_xyz(0.0, 0.0, 35.0),
-        ));
         return;
     }
     let player = flow.active_player.unwrap_or(0);
@@ -1195,9 +1308,17 @@ fn spawn_draft_scene(
     } else {
         Color::srgb_u8(78, 204, 255)
     };
+    let offers = &flow.offers[usize::from(player)];
+    let hovered = flow.hovered[usize::from(player)];
+    let focused_index = hovered
+        .and_then(|item| offers.iter().position(|offer| *offer == item))
+        .unwrap_or(2);
+    let focus = (focused_index as f32 - 2.0) / 2.0;
+    let reveal_pose = if flow.revealed.is_some() { 1.0 } else { 0.0 };
     let breathe = (snapshot.tick as f32 * 0.045).sin() * 5.0;
     commands.spawn((
         SceneVisual,
+        CaptureElement::Character,
         Mesh2d(meshes.add(Circle::new(240.0))),
         MeshMaterial2d(materials.add(Color::srgba_u8(
             if player == 0 { 222 } else { 25 },
@@ -1208,18 +1329,28 @@ fn spawn_draft_scene(
         Transform::from_xyz(0.0, -265.0 + breathe, 30.0).with_scale(Vec3::new(1.55, 1.0, 1.0)),
     ));
     for side in [-1.0_f32, 1.0] {
-        let hand_x = side * 490.0;
+        let focus_affinity = (1.0 - (focus - side).abs() * 0.5).clamp(0.0, 1.0);
+        let hand_x = side * (490.0 - reveal_pose * 42.0) + focus * 18.0;
+        let hand_y = -25.0 + breathe + focus_affinity * 32.0 + reveal_pose * 48.0;
         commands.spawn((
             SceneVisual,
+            CaptureElement::Hand,
             Sprite::from_color(base, Vec2::new(62.0, 340.0)),
-            Transform::from_xyz(side * 425.0, -190.0, 38.0)
-                .with_rotation(Quat::from_rotation_z(side * -0.24)),
+            Transform::from_xyz(
+                side * (425.0 - reveal_pose * 25.0),
+                -190.0 + hand_y * 0.18,
+                38.0,
+            )
+            .with_rotation(Quat::from_rotation_z(
+                side * (-0.24 - focus_affinity * 0.06 - reveal_pose * 0.08),
+            )),
         ));
         commands.spawn((
             SceneVisual,
+            CaptureElement::Hand,
             Mesh2d(meshes.add(Circle::new(43.0))),
             MeshMaterial2d(materials.add(accent)),
-            Transform::from_xyz(hand_x, -25.0 + breathe, 42.0),
+            Transform::from_xyz(hand_x, hand_y, 42.0),
         ));
     }
     commands.spawn((
@@ -1243,12 +1374,28 @@ fn spawn_draft_scene(
             SceneVisual,
             Mesh2d(meshes.add(Circle::new(6.0))),
             MeshMaterial2d(materials.add(Color::srgb_u8(25, 31, 37))),
-            Transform::from_xyz(side * 46.0, -137.0 + breathe, 43.0),
+            Transform::from_xyz(
+                side * 46.0 + focus * 6.0,
+                -137.0 + breathe + focus.abs() * 2.0 - reveal_pose * 4.0,
+                43.0,
+            ),
         ));
     }
+    commands.spawn((
+        SceneVisual,
+        if reveal_pose > 0.0 {
+            Mesh2d(meshes.add(Circle::new(13.0)))
+        } else {
+            Mesh2d(meshes.add(RegularPolygon::new(11.0, 4)))
+        },
+        MeshMaterial2d(materials.add(Color::srgb_u8(45, 28, 31))),
+        Transform::from_xyz(focus * 3.0, -170.0 + breathe, 43.0).with_scale(Vec3::new(
+            1.5,
+            if reveal_pose > 0.0 { 1.0 } else { 0.25 },
+            1.0,
+        )),
+    ));
 
-    let offers = &flow.offers[usize::from(player)];
-    let hovered = flow.hovered[usize::from(player)];
     for (index, item_id) in offers.iter().enumerate() {
         let item = flow
             .catalog
@@ -1307,6 +1454,7 @@ fn spawn_card(
     ));
     commands.spawn((
         SceneVisual,
+        CaptureElement::Card,
         Sprite::from_color(
             Color::srgba_u8(palette[0] / 5, palette[1] / 5, palette[2] / 5, alpha),
             Vec2::new(166.0, 268.0),
@@ -1325,21 +1473,17 @@ fn spawn_card(
             .with_rotation(Quat::from_rotation_z(angle))
             .with_scale(Vec3::splat(scale)),
     ));
-    commands.spawn((
-        SceneVisual,
-        Mesh2d(meshes.add(RegularPolygon::new(
-            34.0,
-            match item.rarity {
-                rounds_sim::ItemRarity::Common => 3,
-                rounds_sim::ItemRarity::Uncommon => 5,
-                rounds_sim::ItemRarity::Rare => 8,
-            },
-        ))),
-        MeshMaterial2d(materials.add(Color::srgba_u8(palette[0], palette[1], palette[2], alpha))),
-        Transform::from_xyz(position.x, position.y + 55.0, z + 2.0)
-            .with_rotation(Quat::from_rotation_z(angle + 0.35))
-            .with_scale(Vec3::splat(scale)),
-    ));
+    spawn_card_art(
+        commands,
+        meshes,
+        materials,
+        item,
+        position,
+        angle,
+        scale,
+        alpha,
+        z + 2.0,
+    );
     commands.spawn((
         SceneVisual,
         Text2d::new(item.title.clone()),
@@ -1366,6 +1510,515 @@ fn spawn_card(
             .with_rotation(Quat::from_rotation_z(angle))
             .with_scale(Vec3::splat(scale)),
     ));
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "card art is projected from one definition into the existing card pose"
+)]
+fn spawn_card_art(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    item: &ItemDefinition,
+    position: Vec2,
+    angle: f32,
+    scale: f32,
+    alpha: u8,
+    z: f32,
+) {
+    let palette = item.palette_rgb;
+    let color = Color::srgba_u8(palette[0], palette[1], palette[2], alpha);
+    let dark = Color::srgba_u8(palette[0] / 7, palette[1] / 7, palette[2] / 7, alpha);
+    match item.art_key.as_str() {
+        "frost-ring" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                36.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                24.0,
+                dark,
+                z + 0.1,
+                false,
+            );
+            for spoke in 0..6 {
+                spawn_art_bar(
+                    commands,
+                    position,
+                    angle,
+                    scale,
+                    Vec2::new(0.0, 55.0),
+                    Vec2::new(4.0, 48.0),
+                    spoke as f32 * std::f32::consts::PI / 3.0,
+                    color,
+                    z + 0.2,
+                    false,
+                );
+            }
+        }
+        "merged-rounds" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-17.0, 55.0),
+                24.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(17.0, 55.0),
+                24.0,
+                color,
+                z + 0.1,
+                false,
+            );
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                Vec2::new(46.0, 9.0),
+                0.0,
+                Color::srgba_u8(255, 229, 211, alpha),
+                z + 0.2,
+                false,
+            );
+        }
+        "fang-drop" => {
+            spawn_art_polygon(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 62.0),
+                29.0,
+                3,
+                std::f32::consts::PI,
+                color,
+                z,
+                true,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 75.0),
+                19.0,
+                color,
+                z + 0.1,
+                false,
+            );
+            spawn_art_polygon(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(12.0, 42.0),
+                12.0,
+                3,
+                -0.35,
+                Color::srgba_u8(255, 205, 216, alpha),
+                z + 0.2,
+                false,
+            );
+        }
+        "burst-rays" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                18.0,
+                color,
+                z + 0.2,
+                true,
+            );
+            for ray in 0..8 {
+                let ray_angle = ray as f32 * std::f32::consts::PI / 4.0;
+                let offset =
+                    Vec2::new(ray_angle.cos(), ray_angle.sin()) * 35.0 + Vec2::new(0.0, 55.0);
+                spawn_art_bar(
+                    commands,
+                    position,
+                    angle,
+                    scale,
+                    offset,
+                    Vec2::new(7.0, 27.0),
+                    ray_angle - std::f32::consts::FRAC_PI_2,
+                    color,
+                    z,
+                    false,
+                );
+            }
+        }
+        "stun-stars" => {
+            spawn_art_polygon(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                25.0,
+                4,
+                0.25,
+                color,
+                z,
+                true,
+            );
+            spawn_art_polygon(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-31.0, 75.0),
+                13.0,
+                4,
+                0.55,
+                color,
+                z + 0.1,
+                false,
+            );
+            spawn_art_polygon(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(32.0, 70.0),
+                10.0,
+                4,
+                0.1,
+                Color::srgba_u8(255, 240, 108, alpha),
+                z + 0.2,
+                false,
+            );
+        }
+        "impact-burst" => {
+            spawn_art_polygon(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                23.0,
+                8,
+                0.2,
+                color,
+                z + 0.2,
+                true,
+            );
+            for ray in 0..6 {
+                let ray_angle = ray as f32 * std::f32::consts::PI / 3.0;
+                let offset =
+                    Vec2::new(ray_angle.cos(), ray_angle.sin()) * 37.0 + Vec2::new(0.0, 55.0);
+                spawn_art_polygon(
+                    commands, meshes, materials, position, angle, scale, offset, 12.0, 3,
+                    ray_angle, color, z, false,
+                );
+            }
+        }
+        "echo-rings" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-10.0, 55.0),
+                34.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-10.0, 55.0),
+                25.0,
+                dark,
+                z + 0.1,
+                false,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(20.0, 55.0),
+                22.0,
+                color,
+                z + 0.2,
+                false,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(20.0, 55.0),
+                14.0,
+                dark,
+                z + 0.3,
+                false,
+            );
+        }
+        "vampire-orbit" => {
+            spawn_art_polygon(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                27.0,
+                6,
+                0.25,
+                color,
+                z,
+                true,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-39.0, 65.0),
+                9.0,
+                Color::srgba_u8(255, 203, 231, alpha),
+                z + 0.2,
+                false,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(38.0, 44.0),
+                7.0,
+                Color::srgba_u8(255, 203, 231, alpha),
+                z + 0.2,
+                false,
+            );
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                Vec2::new(84.0, 3.0),
+                -0.25,
+                color,
+                z + 0.1,
+                false,
+            );
+        }
+        "electric-ring" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                34.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                25.0,
+                dark,
+                z + 0.1,
+                false,
+            );
+            for (offset, tilt) in [(-18.0, -0.45), (0.0, 0.45), (18.0, -0.45)] {
+                spawn_art_bar(
+                    commands,
+                    position,
+                    angle,
+                    scale,
+                    Vec2::new(offset, 55.0),
+                    Vec2::new(7.0, 35.0),
+                    tilt,
+                    Color::srgba_u8(188, 248, 255, alpha),
+                    z + 0.2,
+                    false,
+                );
+            }
+        }
+        unknown => panic!("unregistered card art key {unknown}"),
+    }
+}
+
+fn card_art_transform(
+    position: Vec2,
+    card_angle: f32,
+    scale: f32,
+    offset: Vec2,
+    local_angle: f32,
+    z: f32,
+) -> Transform {
+    let (sine, cosine) = card_angle.sin_cos();
+    let offset = offset * scale;
+    let rotated = Vec2::new(
+        offset.x * cosine - offset.y * sine,
+        offset.x * sine + offset.y * cosine,
+    );
+    Transform::from_xyz(position.x + rotated.x, position.y + rotated.y, z)
+        .with_rotation(Quat::from_rotation_z(card_angle + local_angle))
+        .with_scale(Vec3::splat(scale))
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "small card-art primitive keeps its complete local pose explicit"
+)]
+fn spawn_art_circle(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    position: Vec2,
+    angle: f32,
+    scale: f32,
+    offset: Vec2,
+    radius: f32,
+    color: Color,
+    z: f32,
+    primary: bool,
+) {
+    let mut entity = commands.spawn((
+        SceneVisual,
+        Mesh2d(meshes.add(Circle::new(radius))),
+        MeshMaterial2d(materials.add(color)),
+        card_art_transform(position, angle, scale, offset, 0.0, z),
+    ));
+    if primary {
+        entity.insert(CaptureElement::CardArt);
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "small card-art primitive keeps its complete local pose explicit"
+)]
+fn spawn_art_polygon(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    position: Vec2,
+    angle: f32,
+    scale: f32,
+    offset: Vec2,
+    radius: f32,
+    sides: u32,
+    local_angle: f32,
+    color: Color,
+    z: f32,
+    primary: bool,
+) {
+    let mut entity = commands.spawn((
+        SceneVisual,
+        Mesh2d(meshes.add(RegularPolygon::new(radius, sides))),
+        MeshMaterial2d(materials.add(color)),
+        card_art_transform(position, angle, scale, offset, local_angle, z),
+    ));
+    if primary {
+        entity.insert(CaptureElement::CardArt);
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "small card-art primitive keeps its complete local pose explicit"
+)]
+fn spawn_art_bar(
+    commands: &mut Commands,
+    position: Vec2,
+    angle: f32,
+    scale: f32,
+    offset: Vec2,
+    size: Vec2,
+    local_angle: f32,
+    color: Color,
+    z: f32,
+    primary: bool,
+) {
+    let mut entity = commands.spawn((
+        SceneVisual,
+        Sprite::from_color(color, size),
+        card_art_transform(position, angle, scale, offset, local_angle, z),
+    ));
+    if primary {
+        entity.insert(CaptureElement::CardArt);
+    }
 }
 
 fn wrapped_rules(item: &ItemDefinition) -> String {
@@ -1422,6 +2075,24 @@ fn spawn_flow_hud(
             TextColor(Color::srgb_u8(100, 238, 237)),
             Transform::from_xyz(0.0, 70.0, 31.0),
         ));
+        if flow.phase == FlowPhase::CombatConclusion
+            && let Some(winner) = flow.winner
+        {
+            commands.spawn((
+                SceneVisual,
+                Text2d::new(if winner == 0 { "ORANGE" } else { "BLUE" }),
+                TextFont {
+                    font_size: FontSize::Px(28.0),
+                    ..default()
+                },
+                TextColor(if winner == 0 {
+                    Color::srgb_u8(255, 153, 50)
+                } else {
+                    Color::srgb_u8(78, 204, 255)
+                }),
+                Transform::from_xyz(0.0, 15.0, 31.0),
+            ));
+        }
         if flow.phase == FlowPhase::RematchPrompt {
             commands.spawn((
                 SceneVisual,
@@ -1466,10 +2137,14 @@ fn spawn_flow_hud(
                 ),
             ));
         }
-        for (index, item) in flow.loadouts[player].iter().enumerate() {
+        let badges = flow.prior_badges[player]
+            .iter()
+            .map(|badge| badge.label())
+            .chain(flow.loadouts[player].iter().map(|item| item.short_badge()));
+        for (index, badge) in badges.enumerate() {
             commands.spawn((
                 SceneVisual,
-                Text2d::new(item.short_badge()),
+                Text2d::new(badge),
                 TextFont {
                     font_size: FontSize::Px(19.0),
                     ..default()
@@ -1480,8 +2155,8 @@ fn spawn_flow_hud(
                     Color::srgb_u8(103, 206, 255)
                 }),
                 Transform::from_xyz(
-                    560.0 + index as f32 * 42.0,
-                    326.0 - player as f32 * 36.0,
+                    552.0 + (index % 3) as f32 * 34.0,
+                    326.0 - player as f32 * 88.0 - (index / 3) as f32 * 30.0,
                     35.0,
                 ),
             ));
@@ -1661,5 +2336,49 @@ mod tests {
         assert_eq!(keyboard, controller);
         assert_eq!(keyboard.phase_revision, flow.phase_revision);
         assert!(matches!(keyboard.action, FlowAction::Hover(_)));
+    }
+
+    #[test]
+    fn repeated_draft_capture_waits_for_the_same_complete_scene() {
+        let snapshot = rounds_sim::run_profile_snapshots(
+            ReplayProfile::RematchDraftReplay,
+            rounds_sim::SOURCE_DRAFT_SEED,
+            600,
+        )
+        .pop()
+        .unwrap();
+        let flow_before = rounds_sim::flow_digest(snapshot.flow.as_ref().unwrap());
+        let loadout_before = rounds_sim::loadout_digest(snapshot.flow.as_ref().unwrap());
+        let directory = std::env::temp_dir();
+        let first_path = directory.join(format!(
+            "rounds-complete-draft-{}-first.png",
+            std::process::id()
+        ));
+        let second_path = directory.join(format!(
+            "rounds-complete-draft-{}-second.png",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&first_path);
+        let _ = std::fs::remove_file(&second_path);
+        let (first, first_ready) = render_png_with_readiness(&snapshot, &first_path).unwrap();
+        let (second, second_ready) = render_png_with_readiness(&snapshot, &second_path).unwrap();
+        assert_eq!(first, second);
+        assert_eq!(first_ready, second_ready);
+        assert!(first_ready.ready());
+        assert_eq!(first_ready.background_count, 1);
+        assert_eq!(first_ready.character_count, 1);
+        assert_eq!(first_ready.hand_count, 4);
+        assert_eq!(first_ready.card_count, 5);
+        assert_eq!(first_ready.card_art_count, 5);
+        assert_eq!(
+            rounds_sim::flow_digest(snapshot.flow.as_ref().unwrap()),
+            flow_before
+        );
+        assert_eq!(
+            rounds_sim::loadout_digest(snapshot.flow.as_ref().unwrap()),
+            loadout_before
+        );
+        std::fs::remove_file(first_path).unwrap();
+        std::fs::remove_file(second_path).unwrap();
     }
 }
