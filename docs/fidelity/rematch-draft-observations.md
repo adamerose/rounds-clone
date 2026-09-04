@@ -22,6 +22,7 @@ The observations below describe pixels and timing visible in the supplied record
 | 02:56.000 | Blue already fills the lower screen with its complete five-card fan; the source does not contain a long blank `NEXT PLAYER` handoff at this anchor. | `af1a2f00bafcd1c66bc64cb7f8b8c153ac6f126ab160a09255edea9c5c0958a5` |
 | 03:06.000 | Blue fills the lower screen; `LIFESTEALER` is raised and purple-highlighted among its five offers while the `Da` prior-loadout badge remains at top right. | `20c22057dfbee77c4cc360fee851c27c0bfec4e2e087f18a7b32eaab6f587ef8` |
 | 03:14.000 | Blue continues navigating the same fan with `ECHO` raised; this proves a raised face is hover/focus, not necessarily the confirmed choice. | `03a3cdd4d4cdeef67caa388b34cb282795b7302121677c2aac2bf391abc5c0da` |
+| 03:15.333 | Blue's selected `EXPLOSIVE BULLET` face is gone while the other four cards sit lowered/dimmed; orange `Da` and blue `Ex` persist at top right. | `42693ecc2e6ddd8383cf3c7791edf25a67fe3c658d25a558e4355256c37c44e5` |
 | 03:16.000 | A new timber-and-yellow-canopy arena is visible after the draft fade. Both five-pip score rows are empty and old loadouts are cleared; top-right stacks contain only orange `Da` and blue `Ex`, identifying the confirmed `DAZZLE` and `EXPLOSIVE BULLET` choices. | `20bca7620b188e9cac596cb42f9cb1b895e24a9c1595f3ecaf0c014716b01712` |
 | 03:17.000–03:20.000 | Both fighters move and exchange bright projectiles beneath the canopy; the chosen badges persist through resumed combat. | direct one-second sequence in `flow-d.png`; comparison anchors must retain separate frames rather than this contact sheet |
 
@@ -66,10 +67,10 @@ Printed plus signs are transcribed as displayed even when the named property mak
 
 ## Source-to-clone inspection
 
-The original-resolution comparison uses the thirteen named source frames under `out/ticket-041/correction-source/` and the thirteen final clone frames under `out/ticket-041/final-cold-clone/`; all generated PNGs remain ignored.
-The corrected replay keeps only a half-second dark bridge after orange's reveal. Blue's complete fan is present at tick 960, the 02:56 source-bound anchor, with `DAZZLE` raised; `LIFESTEALER` is raised later at the 03:06 anchor.
+The original-resolution comparison uses the thirteen named source frames under `out/ticket-041/correction-source/` and the thirteen final clone frames under `out/ticket-041/final-verified-v2-clone/`; all generated PNGs remain ignored. `final-verified` deliberately names an ordinary locked workspace build, not the isolated cold executable.
+The corrected replay follows the source focus sequence: orange raises `COMBINE` at tick 540/02:49 and `BURST` at tick 600/02:50, then tick 840/02:54 shows its fan lowered and dimmed with the new `Da` badge. After only a half-second dark bridge, blue's complete fan is present at tick 960/02:56 with `DAZZLE` raised; it raises `LIFESTEALER` at tick 1560/03:06 and `ECHO` at tick 2040/03:14. At tick 2120/03:15.33 the selected `EXPLOSIVE BULLET` face is gone, the remaining fan is lowered, and `Da` plus `Ex` persist.
 All nine stable `art_key` values now select distinct visible motifs: a frost ring, merged rounds, blood drop and fang, burst rays, stun stars, impact burst, echo rings, vampire orbit, and electric ring. The same authoritative hover and reveal state that moves the cards also moves the arms and hands, directs the pupils, and changes the mouth; original-resolution inspection confirmed the response on both orange and blue anchors.
-The victory anchor now renders blue as winner, orange as out, the 4–5 score, and both exact prior-card stacks. The accepted rematch clears that terminal result and both stacks before the new draft and restores both fighters and the score to 0–0.
+The victory anchor renders blue as winner, orange as out, the 4–5 score, and both exact prior-card stacks. The accepted rematch clears that terminal result and both stacks before the new draft and restores both fighters and the score to 0–0. Ten hollow pip positions remain visible during every draft/reveal anchor; `Da` persists from orange confirmation onward and `Ex` joins it at blue confirmation through the shared HUD path.
 Capture waits for the complete expected scene, an empty Bevy pipeline queue, and two consecutive complete extracted render frames before requesting a screenshot. The focused repeated-capture test produced byte-identical frames for the same immutable draft state and observed all expected scene roles without changing the flow or loadout digests.
 
 The remaining visible differences are concrete rather than hidden behind an equivalence claim.
@@ -80,8 +81,8 @@ Audio, exact animation curves, and frame-identical typography remain outside thi
 
 ## Delivery evidence
 
-The first corrected candidate mislabeled the ordinary final locked build as a cold rebuild. Its `rounds-client.exe` SHA-256 `510ee7755a8230f44b9912a158465db5e48bca04dd9d4e03d009264fd7ac11bb` does not match the preserved isolated cold-target executable `317ffe7b…`; corrected evidence must either use and hash the isolated executable or rename the ordinary-build evidence `final-verified` without a cold claim.
-The thirteen-anchor metadata is SHA-256 `558bc4c6d97d00e5eb00a0c364af5a6af4ae1df1405f9a69921d0b49dcbf2dc8`; representative final frame hashes are `b82a81a2a1210aaeb621ccd934ac03235c466f7776f7d47fadfbf9d90ccc472f` for the authoritative victory, `995ad57a0d6aa0b630935e2cb8691bf389147d43d89d3b9112bced64a18b2e22` for the prompt, `ff311d561b08fb7d8e46817c120c2c912b35d8f754124b31588f27ec708e26b3` for orange's initial fan, `9a238ec92cc9ead3e9a2bae778175afa42f02d615a37680a02a6cbd8a066409f` for blue's initial fan, and `8cb0392da6506277560449e1d6d76cb5b9f2172c9ea505c308ebca26d84ae1d2` for the upgraded-projectile exchange.
+The authoritative evidence was regenerated from the ordinary locked workspace executable and is therefore named `final-verified-v2`, never `cold`. Every metadata record identifies that exact `rounds-client.exe` SHA-256 as `0947eca34dde8b8c3af8dcc9e72dd156ee8501b585f8c41ec7b73157797fa049`; a focused process-boundary test independently hashes the invoked executable and requires the emitted value to match.
+The thirteen-anchor metadata is SHA-256 `d09cc2c935369b3b530d8b80df9ad7fa82df18ca0bbd7a14ccf87c750726ab72`; all 13 frame hashes and paths revalidated against 13 distinct 1280×720 PNGs. Representative final frame hashes are `594510960f556a0c7791fa6f5b367d3b35891b3b4598e7a773fe7eb6bfb0c172` for the authoritative victory, `c4521181fad9397dc9e7cd581794ec7e142e1d3cf86285a1dd10bba6b9f9d4ec` for the prompt, `29f3cbf79d6bd089cab9695ca630c8eea1d1cc2610d0a838b3d448ec62cc6ec3` for orange's `COMBINE` focus, `891d2d67b4f374ac3b1bb48aa61da33a531934f9e1de83b7e4ff53a1c37e9fda` for its lowered `DAZZLE` confirmation, `d2d2e4304b17f81b0e913f254d13284c88717ab89b7facc9d2f9a93d75593a26` for blue's initial fan, `9252af7cb52f8b206a37f3206ad31b3a75d01aa83b241f8335e32dddfb2325c7` for its lowered `EXPLOSIVE BULLET` confirmation, and `520b14b13b5cacca60a3c0f7c1b460feb5bf246abf302dd0c24f25b58b0cde2e` for the upgraded-projectile exchange.
 The live UDP run completed 2,400 snapshots on each of two separately launched clients and reported matching state hash `f0d6a9f19e518521993035f376c0dee98e8b5d7811e0e66ceb18bf91375413f1`, flow digest `f46412500c26324502b01a3c793a45fa2527696bffd780c60a221ea52fe738c3`, and loadout digest `2489e426cddc787ffa978da316025d7d72a1f5adefa5a7ed016185e85c24cfeb` across both clients, the server, and the local host. Both clients also observed the exact terminal authority, accepted-rematch reset, and complete blue fan by tick 960.
 The bounded visible run used the same final state, selected and re-verified the project display at `(364,-1080)`, 1920×1080 before showing, exited normally, and left no `rounds-*` process.
 
@@ -89,8 +90,8 @@ The line inventory counts inserted Rust lines only; documentation is excluded.
 
 | Responsibility | Added lines | Breakdown |
 |---|---:|---|
-| Product behavior | 2,318 | flow model 600; simulation 257; networking 66; presentation 1,364; client 31 |
-| Tests | 451 | flow 214; simulation 114; networking 64; presentation 59 |
+| Product behavior | 2,379 | flow model 600; simulation 257; networking 66; presentation 1,425; client 31 |
+| Tests | 635 | flow 258; simulation 114; networking 64; presentation 164; client process boundary 35 |
 | Automation support | 43 | existing smoke/inspection entry point only |
 
-Tests plus automation support total 494 lines, well below the product behavior they protect.
+Tests plus automation support total 678 lines, well below the product behavior they protect.

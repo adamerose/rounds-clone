@@ -21,7 +21,7 @@ use bevy::{
 };
 use rounds_sim::{
     AuthoritativeMatch, DynamicBodyShape, FlowAction, FlowCommand, FlowPhase, FlowSnapshot,
-    ItemDefinition, MatchSnapshot, PlayerInput, ReplayProfile, scripted_inputs_for,
+    ItemDefinition, ItemId, MatchSnapshot, PlayerInput, ReplayProfile, scripted_inputs_for,
 };
 use sha2::{Digest, Sha256};
 use std::{
@@ -69,6 +69,26 @@ struct MonitorDiscovery {
 
 #[derive(Component)]
 struct SceneVisual;
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+struct HudScorePip {
+    player: u8,
+    index: u8,
+    filled: bool,
+}
+
+#[derive(Component, Clone, Debug, PartialEq, Eq)]
+struct HudBadge {
+    player: u8,
+    label: String,
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+struct CardPresentation {
+    item: ItemId,
+    highlighted: bool,
+    selected_offscreen: bool,
+}
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 enum CaptureElement {
@@ -836,6 +856,7 @@ fn spawn_snapshot_scene(
         )
     {
         spawn_draft_scene(commands, meshes, materials, snapshot);
+        spawn_flow_hud(commands, meshes, materials, snapshot);
         return;
     }
 
@@ -1315,6 +1336,12 @@ fn spawn_draft_scene(
         .unwrap_or(2);
     let focus = (focused_index as f32 - 2.0) / 2.0;
     let reveal_pose = if flow.revealed.is_some() { 1.0 } else { 0.0 };
+    let confirmation_progress = if flow.phase == FlowPhase::Reveal {
+        (flow.phase_tick as f32 / 18.0).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let confirmation_settled = flow.phase == FlowPhase::Reveal && flow.phase_tick >= 12;
     let breathe = (snapshot.tick as f32 * 0.045).sin() * 5.0;
     commands.spawn((
         SceneVisual,
@@ -1403,10 +1430,17 @@ fn spawn_draft_scene(
             .find(|item| item.id == *item_id)
             .expect("offered item registered");
         let centered = index as f32 - 2.0;
-        let highlighted = hovered == Some(*item_id) || flow.revealed == Some(*item_id);
+        let selected_offscreen = confirmation_settled && flow.revealed == Some(*item_id);
+        let highlighted = if flow.phase == FlowPhase::Reveal {
+            !confirmation_settled && flow.revealed == Some(*item_id)
+        } else {
+            hovered == Some(*item_id)
+        };
         let angle = centered * -0.10;
         let x = centered * 190.0;
-        let y = 73.0 - centered.abs().powf(1.35) * 22.0 + if highlighted { 72.0 } else { 0.0 };
+        let y = 73.0 - centered.abs().powf(1.35) * 22.0 + if highlighted { 72.0 } else { 0.0 }
+            - confirmation_progress * 135.0
+            - if selected_offscreen { 520.0 } else { 0.0 };
         spawn_card(
             commands,
             meshes,
@@ -1417,6 +1451,11 @@ fn spawn_draft_scene(
             highlighted,
             flow.revealed == Some(*item_id),
             50.0 + index as f32,
+            CardPresentation {
+                item: *item_id,
+                highlighted,
+                selected_offscreen,
+            },
         );
     }
 }
@@ -1435,6 +1474,7 @@ fn spawn_card(
     highlighted: bool,
     revealed: bool,
     z: f32,
+    presentation: CardPresentation,
 ) {
     let scale = if revealed {
         1.20
@@ -1455,6 +1495,7 @@ fn spawn_card(
     commands.spawn((
         SceneVisual,
         CaptureElement::Card,
+        presentation,
         Sprite::from_color(
             Color::srgba_u8(palette[0] / 5, palette[1] / 5, palette[2] / 5, alpha),
             Vec2::new(166.0, 268.0),
@@ -2121,14 +2162,30 @@ fn spawn_flow_hud(
         }
     }
     for player in 0..2 {
-        for (index, _) in (0..flow.scores[player]).enumerate() {
+        for index in 0..5_u8 {
+            let filled = index < flow.scores[player];
+            let color = if player == 0 {
+                Color::srgb_u8(255, 116, 45)
+            } else {
+                Color::srgb_u8(76, 184, 255)
+            };
+            let mesh = if filled {
+                Mesh::from(Circle::new(8.0))
+            } else {
+                Mesh::from(Annulus::new(5.5, 8.0))
+            };
             commands.spawn((
                 SceneVisual,
-                Mesh2d(meshes.add(Circle::new(8.0))),
-                MeshMaterial2d(materials.add(if player == 0 {
-                    Color::srgb_u8(255, 116, 45)
+                HudScorePip {
+                    player: player as u8,
+                    index,
+                    filled,
+                },
+                Mesh2d(meshes.add(mesh)),
+                MeshMaterial2d(materials.add(if filled {
+                    color
                 } else {
-                    Color::srgb_u8(76, 184, 255)
+                    color.with_alpha(0.38)
                 })),
                 Transform::from_xyz(
                     -610.0 + index as f32 * 22.0,
@@ -2144,6 +2201,10 @@ fn spawn_flow_hud(
         for (index, badge) in badges.enumerate() {
             commands.spawn((
                 SceneVisual,
+                HudBadge {
+                    player: player as u8,
+                    label: badge.to_owned(),
+                },
                 Text2d::new(badge),
                 TextFont {
                     font_size: FontSize::Px(19.0),
@@ -2297,7 +2358,73 @@ fn spawn_triangle(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::SystemState;
     use rounds_sim::{TIMBER_IMPACT_TICK, hash_snapshot, run_scripted_match};
+
+    fn draft_scene_at(tick: u32) -> World {
+        let snapshot = rounds_sim::run_profile_snapshots(
+            ReplayProfile::RematchDraftReplay,
+            rounds_sim::SOURCE_DRAFT_SEED,
+            tick,
+        )
+        .pop()
+        .unwrap();
+        let mut world = World::new();
+        world.init_resource::<Assets<Mesh>>();
+        world.init_resource::<Assets<ColorMaterial>>();
+        let mut state = SystemState::<(
+            Commands,
+            ResMut<Assets<Mesh>>,
+            ResMut<Assets<ColorMaterial>>,
+        )>::new(&mut world);
+        {
+            let (mut commands, mut meshes, mut materials) = state.get_mut(&mut world).unwrap();
+            spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot);
+        }
+        state.apply(&mut world);
+        world
+    }
+
+    fn assert_empty_score_and_badges(world: &mut World, expected_badges: &[(u8, &str)]) {
+        let mut pips = world
+            .query::<&HudScorePip>()
+            .iter(world)
+            .copied()
+            .collect::<Vec<_>>();
+        pips.sort_by_key(|pip| (pip.player, pip.index));
+        assert_eq!(pips.len(), 10);
+        assert!(pips.iter().all(|pip| !pip.filled));
+        assert_eq!(
+            pips.iter()
+                .map(|pip| (pip.player, pip.index))
+                .collect::<Vec<_>>(),
+            (0..2)
+                .flat_map(|player| (0..5).map(move |index| (player, index)))
+                .collect::<Vec<_>>()
+        );
+
+        let mut badges = world
+            .query::<&HudBadge>()
+            .iter(world)
+            .map(|badge| (badge.player, badge.label.clone()))
+            .collect::<Vec<_>>();
+        badges.sort();
+        let mut expected = expected_badges
+            .iter()
+            .map(|(player, label)| (*player, (*label).to_owned()))
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(badges, expected);
+    }
+
+    fn card_state(world: &mut World, item: ItemId) -> CardPresentation {
+        world
+            .query::<&CardPresentation>()
+            .iter(world)
+            .copied()
+            .find(|card| card.item == item)
+            .unwrap()
+    }
 
     #[test]
     fn bevy_offscreen_renderer_captures_the_peak_builtin_shock() {
@@ -2380,5 +2507,44 @@ mod tests {
         );
         std::fs::remove_file(first_path).unwrap();
         std::fs::remove_file(second_path).unwrap();
+    }
+
+    #[test]
+    fn draft_projection_preserves_focus_confirmation_pips_and_badges() {
+        let mut orange_initial = draft_scene_at(540);
+        assert!(card_state(&mut orange_initial, ItemId::Combine).highlighted);
+        assert_empty_score_and_badges(&mut orange_initial, &[]);
+
+        let mut orange_confirmed = draft_scene_at(840);
+        assert!(card_state(&mut orange_confirmed, ItemId::Dazzle).selected_offscreen);
+        assert!(
+            orange_confirmed
+                .query::<&CardPresentation>()
+                .iter(&orange_confirmed)
+                .all(|card| !card.highlighted)
+        );
+        assert_empty_score_and_badges(&mut orange_confirmed, &[(0, "Da")]);
+
+        let mut blue_initial = draft_scene_at(960);
+        assert!(card_state(&mut blue_initial, ItemId::Dazzle).highlighted);
+        assert_empty_score_and_badges(&mut blue_initial, &[(0, "Da")]);
+
+        let mut blue_lifestealer = draft_scene_at(1_560);
+        assert!(card_state(&mut blue_lifestealer, ItemId::Lifestealer).highlighted);
+        assert_empty_score_and_badges(&mut blue_lifestealer, &[(0, "Da")]);
+
+        let mut blue_echo = draft_scene_at(2_040);
+        assert!(card_state(&mut blue_echo, ItemId::Echo).highlighted);
+        assert_empty_score_and_badges(&mut blue_echo, &[(0, "Da")]);
+
+        let mut blue_confirmed = draft_scene_at(2_120);
+        assert!(card_state(&mut blue_confirmed, ItemId::ExplosiveBullet).selected_offscreen);
+        assert!(
+            blue_confirmed
+                .query::<&CardPresentation>()
+                .iter(&blue_confirmed)
+                .all(|card| !card.highlighted)
+        );
+        assert_empty_score_and_badges(&mut blue_confirmed, &[(0, "Da"), (1, "Ex")]);
     }
 }

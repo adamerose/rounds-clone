@@ -459,7 +459,7 @@ impl FlowAuthority {
             }
             FlowPhase::ArenaFade if self.snapshot.phase_tick >= 150 => {
                 self.transition(FlowPhase::Draft, Some(0));
-                self.snapshot.hovered[0] = self.snapshot.offers[0].get(2).copied();
+                self.snapshot.hovered[0] = self.snapshot.offers[0].get(1).copied();
             }
             FlowPhase::Reveal
                 if self.snapshot.phase_tick
@@ -792,6 +792,50 @@ mod tests {
         assert_eq!(flow.offers[1].len(), 5);
         assert_eq!(flow.hovered[1], Some(ItemId::Dazzle));
         assert_eq!(flow.selected[0], Some(ItemId::Dazzle));
+    }
+
+    #[test]
+    fn source_anchors_preserve_exact_focus_and_confirmation_sequence() {
+        let at = |tick| {
+            crate::run_profile_snapshots(
+                crate::ReplayProfile::RematchDraftReplay,
+                SOURCE_DRAFT_SEED,
+                tick,
+            )
+            .pop()
+            .unwrap()
+            .flow
+            .unwrap()
+        };
+
+        let orange_initial = at(540);
+        assert_eq!(orange_initial.phase, FlowPhase::Draft);
+        assert_eq!(orange_initial.active_player, Some(0));
+        assert_eq!(orange_initial.hovered[0], Some(ItemId::Combine));
+        assert_eq!(orange_initial.scores, [0, 0]);
+
+        assert_eq!(at(600).hovered[0], Some(ItemId::Burst));
+
+        let orange_confirmed = at(840);
+        assert_eq!(orange_confirmed.phase, FlowPhase::Reveal);
+        assert_eq!(orange_confirmed.selected[0], Some(ItemId::Dazzle));
+        assert_eq!(orange_confirmed.loadouts[0], vec![ItemId::Dazzle]);
+
+        assert_eq!(at(960).hovered[1], Some(ItemId::Dazzle));
+        assert_eq!(at(1_560).hovered[1], Some(ItemId::Lifestealer));
+        assert_eq!(at(2_040).hovered[1], Some(ItemId::Echo));
+
+        let blue_confirmed = at(2_120);
+        assert_eq!(blue_confirmed.phase, FlowPhase::Reveal);
+        assert_eq!(
+            blue_confirmed.selected,
+            [Some(ItemId::Dazzle), Some(ItemId::ExplosiveBullet)]
+        );
+        assert_eq!(
+            blue_confirmed.loadouts,
+            [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+        );
+        assert_eq!(blue_confirmed.scores, [0, 0]);
     }
 
     #[test]

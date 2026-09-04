@@ -1488,7 +1488,7 @@ pub fn scripted_inputs_for(
                     phase_revision: 1,
                     action: FlowAction::VoteYes,
                 }),
-                1_560 => Some(FlowCommand {
+                1_559 => Some(FlowCommand {
                     phase_revision: 6,
                     action: FlowAction::Hover(ItemId::Lifestealer),
                 }),
