@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-04T08:25:00Z
 origin: human-request
 tags: ["bevy", "cards", "flow", "multiplayer", "fidelity", "vertical-slice"]
@@ -81,3 +81,6 @@ Reconstruct the complete transition visible from 02:40.00 through 03:20.00 in `r
 - 2026-09-04T09:41:59.169Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06bbf-86e8-75a3-8fec-0d47c4dd9162 — Rejected delivery because item art keys, hand pose, and expression were not projected; a 10.5-second blank handoff contradicted the 02:56 blue-draft source frame; capture could race scene readiness and emit incomplete frames; and `VICTORY!` lacked authoritative winner, terminal fighter, and old-badge state.
 - 2026-09-04T09:43:36.697Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Reopened the frozen contract and began correcting the four delivery findings against direct source cadence, authoritative terminal state, item-specific presentation, and repeatable complete capture requirements.
 - 2026-09-04T09:44:55.520Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572 — Required authoritative winner, terminal fighter state, and both observed old badge stacks; removed the invented long handoff; bound blue's full fan to 02:56; required item-key art, responsive hands/expression, and repeatably complete readiness-gated captures; and returned the ticket to pre-admission for review.
+- 2026-09-04T09:45:38.970Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06b87-1778-7283-b7e1-8090fc186167 — Began independent re-admission review of amended delivery contract range `bb1ef5168f4b1fcd3bb131b82170dbe4443c6557..316349ca6f1e1931a7fe8fc33efcfe101911a33b`.
+- 2026-09-04T09:47:18.323Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06b87-1778-7283-b7e1-8090fc186167 — Approved the amended risk-4 contract with no findings after verifying all four delivery corrections, source/frame hashes, feasibility, proportional evidence, chronology, ancestry, and absence of an open human decision.
+- 2026-09-04T09:47:35.839Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Re-admitted ticket 041 after independent review approved the source-corrected cadence, authoritative prior-match state, item-specific responsive presentation, and complete repeatable capture contract.
