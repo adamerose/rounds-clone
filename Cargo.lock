@@ -4535,6 +4535,7 @@ dependencies = [
  "bevy",
  "png",
  "rounds-sim",
+ "serde",
  "sha2",
 ]
 

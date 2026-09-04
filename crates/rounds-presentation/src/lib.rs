@@ -444,6 +444,103 @@ pub fn frame_sha256(frame: &[u8]) -> String {
     format!("{:x}", Sha256::digest(frame))
 }
 
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YellowFrameSignature {
+    pub hot_core_pixels: u32,
+    pub hot_core_centroid_x: Option<u32>,
+    pub hot_core_centroid_y: Option<u32>,
+    pub white_core_pixels: u32,
+    pub arena_hard_edge_pixels: u32,
+    pub hud_hard_edge_pixels: u32,
+    pub result_orange_left_pixels: u32,
+    pub result_orange_right_pixels: u32,
+}
+
+/// Measures the source-bound yellow replay signature from the actual composited GPU PNG.
+pub fn yellow_frame_signature(frame: &[u8]) -> Result<YellowFrameSignature, String> {
+    let decoder = png::Decoder::new(std::io::Cursor::new(frame));
+    let mut reader = decoder
+        .read_info()
+        .map_err(|error| format!("decode yellow signature PNG header: {error}"))?;
+    if reader.info().width != FRAME_WIDTH
+        || reader.info().height != FRAME_HEIGHT
+        || reader.info().color_type != png::ColorType::Rgb
+        || reader.info().bit_depth != png::BitDepth::Eight
+    {
+        return Err("yellow signature requires a 1280x720 RGB8 capture".to_owned());
+    }
+    let mut pixels = vec![
+        0;
+        reader
+            .output_buffer_size()
+            .ok_or_else(|| "yellow signature PNG has no output size".to_owned())?
+    ];
+    let info = reader
+        .next_frame(&mut pixels)
+        .map_err(|error| format!("decode yellow signature PNG pixels: {error}"))?;
+    pixels.truncate(info.buffer_size());
+
+    let mut signature = YellowFrameSignature {
+        hot_core_pixels: 0,
+        hot_core_centroid_x: None,
+        hot_core_centroid_y: None,
+        white_core_pixels: 0,
+        arena_hard_edge_pixels: 0,
+        hud_hard_edge_pixels: 0,
+        result_orange_left_pixels: 0,
+        result_orange_right_pixels: 0,
+    };
+    let (mut hot_x, mut hot_y) = (0_u64, 0_u64);
+    for y in 0..FRAME_HEIGHT {
+        for x in 0..FRAME_WIDTH {
+            let index = ((y * FRAME_WIDTH + x) * 3) as usize;
+            let rgb = [pixels[index], pixels[index + 1], pixels[index + 2]];
+            let hot = x > 750 && y < 280 && rgb[0] > 245 && rgb[1] > 210 && rgb[2] > 120;
+            if hot {
+                signature.hot_core_pixels += 1;
+                hot_x += u64::from(x);
+                hot_y += u64::from(y);
+            }
+            if (760..1260).contains(&x)
+                && (20..280).contains(&y)
+                && rgb.iter().all(|channel| *channel > 220)
+            {
+                signature.white_core_pixels += 1;
+            }
+            let orange = rgb[0] > 180 && rgb[1] > 55 && rgb[1] < 210 && rgb[2] < 100;
+            if orange && (480..596).contains(&x) && (300..440).contains(&y) {
+                if x < 538 {
+                    signature.result_orange_left_pixels += 1;
+                } else {
+                    signature.result_orange_right_pixels += 1;
+                }
+            }
+            if x == 0 {
+                continue;
+            }
+            let previous = index - 3;
+            let edge = rgb
+                .iter()
+                .enumerate()
+                .map(|(channel, value)| value.abs_diff(pixels[previous + channel]))
+                .max()
+                .unwrap_or(0);
+            if x < 1_050 && (70..680).contains(&y) && edge > 80 {
+                signature.arena_hard_edge_pixels += 1;
+            }
+            if x < 200 && y < 90 && edge > 50 {
+                signature.hud_hard_edge_pixels += 1;
+            }
+        }
+    }
+    if signature.hot_core_pixels > 0 {
+        signature.hot_core_centroid_x = Some((hot_x / u64::from(signature.hot_core_pixels)) as u32);
+        signature.hot_core_centroid_y = Some((hot_y / u64::from(signature.hot_core_pixels)) as u32);
+    }
+    Ok(signature)
+}
+
 /// Runs the same scene model in a real Bevy window. The window starts hidden and
 /// is revealed only after Bevy reports the exact configured project display.
 pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
@@ -937,27 +1034,53 @@ fn camera_state(
         .last()
         .map(|explosion| snapshot.tick.saturating_sub(explosion.tick));
     let yellow = snapshot.profile == rounds_sim::YELLOW_REPLAY_PROFILE;
-    let flash = explosion_age.map(flash_envelope).unwrap_or(0.0);
+    let flash = explosion_age
+        .map(if yellow {
+            yellow_flash_envelope
+        } else {
+            flash_envelope
+        })
+        .unwrap_or(0.0);
     let shock = if yellow {
         radial_echo_settings(snapshot).strength
     } else {
         explosion_age.map(shock_envelope).unwrap_or(0.0)
     };
-    let shake_x = (snapshot.tick as f32 * 2.31).sin() * (7.0 * flash + 24.0 * shock);
-    let shake_y = (snapshot.tick as f32 * 1.73).cos() * (5.0 * flash + 16.0 * shock);
-    let transform = Transform::from_xyz(player_nudge.clamp(-5.0, 5.0) + shake_x, shake_y, 0.0);
+    let shake_x = (snapshot.tick as f32 * 2.31).sin() * (5.0 * flash + 8.0 * shock);
+    let shake_y = (snapshot.tick as f32 * 1.73).cos() * (4.0 * flash + 6.0 * shock);
+    let transform = Transform::from_xyz(
+        player_nudge.clamp(-5.0, 5.0) + shake_x,
+        if yellow { 48.0 } else { 0.0 } + shake_y,
+        0.0,
+    );
     let bloom = Bloom {
-        intensity: 0.12 + flash * 0.25 + shock * 0.12,
+        intensity: if yellow {
+            0.10 + flash * 0.12 + shock * 0.03
+        } else {
+            0.12 + flash * 0.25 + shock * 0.12
+        },
         ..Bloom::NATURAL
     };
     let chromatic = ChromaticAberration {
-        intensity: flash * 0.025 + shock * 0.115,
-        max_samples: 20,
+        intensity: if yellow {
+            flash * 0.012 + shock * 0.018
+        } else {
+            flash * 0.025 + shock * 0.115
+        },
+        max_samples: if yellow { 8 } else { 20 },
         ..default()
     };
     let lens = LensDistortion {
-        intensity: flash * -0.04 + shock * -0.30,
-        scale: 1.0 + flash * 0.015 + shock * 0.10,
+        intensity: if yellow {
+            flash * -0.025 + shock * -0.045
+        } else {
+            flash * -0.04 + shock * -0.30
+        },
+        scale: if yellow {
+            1.0 + flash * 0.008 + shock * 0.018
+        } else {
+            1.0 + flash * 0.015 + shock * 0.10
+        },
         ..default()
     };
     (transform, bloom, chromatic, lens)
@@ -975,7 +1098,7 @@ fn spawn_yellow_hud(
         .map(|round| round.scores)
         .unwrap_or([2, 1]);
     for player in 0..2_u8 {
-        let y = 330.0 - player as f32 * 30.0;
+        let y = 378.0 - player as f32 * 30.0;
         let color = if player == 0 {
             Color::srgb_u8(255, 185, 37)
         } else {
@@ -1016,14 +1139,18 @@ fn spawn_yellow_result(
     commands.spawn((
         SceneVisual,
         Sprite::from_color(
-            Color::srgba(0.0, 0.02, 0.065, 0.78),
-            Vec2::new(1_280.0, 720.0),
+            Color::srgba(0.0, 0.02, 0.065, 0.84),
+            Vec2::new(1_500.0, 900.0),
         ),
         Transform::from_xyz(0.0, 0.0, 40.0),
     ));
-    let scale = 1.0;
     for player in 0..2 {
-        let center = Vec2::new(-210.0 + player as f32 * 162.0, -22.0);
+        let center = Vec2::new(-102.0 + player as f32 * 200.0, 37.0);
+        let scale = if established && player == 0 {
+            (1.0 - round.phase_tick.saturating_sub(22) as f32 * 0.024).clamp(0.43, 1.0)
+        } else {
+            1.0
+        };
         let color = if player == 0 {
             Color::srgb_u8(255, 167, 24)
         } else {
@@ -1035,7 +1162,7 @@ fn spawn_yellow_result(
             MeshMaterial2d(materials.add(color)),
             Transform::from_xyz(center.x, center.y, 43.0),
         ));
-        if round.scores[player] >= 2 {
+        if round.scores[player] >= 2 && (established || player != 0) {
             commands.spawn((
                 SceneVisual,
                 Mesh2d(meshes.add(Circle::new(51.0 * scale))),
@@ -1048,6 +1175,9 @@ fn spawn_yellow_result(
                 Transform::from_xyz(center.x, center.y, 42.5),
             ));
         }
+        if !established && player == 0 && round.scores[player] >= 2 {
+            spawn_half_disc(commands, meshes, materials, center, color, 51.0, 42.5);
+        }
     }
     if established {
         commands.spawn((
@@ -1058,13 +1188,66 @@ fn spawn_yellow_result(
                 ..default()
             },
             TextColor(Color::srgb_u8(255, 183, 44)),
-            Transform::from_xyz(-160.0, 92.0, 44.0),
+            Transform::from_xyz(-130.0, 216.0, 44.0),
         ));
     }
 }
 
+fn spawn_half_disc(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    center: Vec2,
+    color: Color,
+    radius: f32,
+    z: f32,
+) {
+    let fill = Color::srgba(
+        color.to_linear().red,
+        color.to_linear().green,
+        color.to_linear().blue,
+        0.9,
+    );
+    for segment in 0..12 {
+        let first = std::f32::consts::FRAC_PI_2 + segment as f32 * std::f32::consts::PI / 12.0;
+        let second =
+            std::f32::consts::FRAC_PI_2 + (segment + 1) as f32 * std::f32::consts::PI / 12.0;
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            [
+                center,
+                center + Vec2::new(first.cos(), first.sin()) * radius,
+                center + Vec2::new(second.cos(), second.sin()) * radius,
+            ],
+            fill,
+            z,
+        );
+    }
+    commands.spawn((
+        SceneVisual,
+        Sprite::from_color(color, Vec2::new(2.0, radius * 2.0)),
+        Transform::from_xyz(center.x, center.y, z + 0.1),
+    ));
+}
+
 fn flash_envelope(age: u32) -> f32 {
     (1.0 - age as f32 / 36.0).clamp(0.0, 1.0)
+}
+
+fn yellow_flash_envelope(age: u32) -> f32 {
+    match age {
+        0 => 0.015,
+        1 => 0.22,
+        2 => 0.58,
+        3 => 1.0,
+        4..=8 => 1.0 - (age - 3) as f32 * 0.14,
+        9..=18 => 0.30 - (age - 8) as f32 * 0.015,
+        19..=29 => 0.15 - (age - 18) as f32 * 0.012,
+        _ => 0.0,
+    }
+    .clamp(0.0, 1.0)
 }
 
 fn shock_envelope(age: u32) -> f32 {
@@ -1086,18 +1269,57 @@ fn radial_echo_settings(snapshot: &MatchSnapshot) -> RadialEchoSettings {
         .last()
         .map(|explosion| snapshot.tick.saturating_sub(explosion.tick))
         .map(|age| match age {
-            0..=8 => (age + 1) as f32 / 9.0,
-            9..=21 => 1.0 - (age - 8) as f32 / 24.0,
-            22..=29 => 0.46 - (age - 21) as f32 * 0.045,
+            0 => 0.025,
+            1..=4 => 0.04 + age as f32 * 0.055,
+            5..=8 => 0.34 + (age - 4) as f32 * 0.165,
+            9..=21 => 1.0 - (age - 8) as f32 / 22.0,
+            22..=29 => 0.41 - (age - 21) as f32 * 0.047,
             _ => 0.0,
         })
         .unwrap_or(0.0)
         .clamp(0.0, 1.0);
     RadialEchoSettings {
         strength,
-        spacing: 0.035 + strength * 0.018,
-        red_offset: 0.008 * strength,
+        spacing: 0.011 + strength * 0.008,
+        red_offset: 0.0025 * strength,
         _padding: 0.0,
+    }
+}
+
+fn spawn_yellow_paper(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    tick: u32,
+) {
+    let drift = tick as f32 * 0.0025;
+    for facet in 0..54_u32 {
+        let column = facet % 9;
+        let row = facet / 9;
+        let seed = facet as f32 * 1.731;
+        let center = Vec2::new(
+            -620.0 + column as f32 * 154.0 + (seed + drift).sin() * 34.0,
+            -330.0 + row as f32 * 132.0 + (seed * 0.73 - drift).cos() * 31.0,
+        );
+        let width = 82.0 + (facet.wrapping_mul(47) % 105) as f32;
+        let height = 58.0 + (facet.wrapping_mul(31) % 78) as f32;
+        let skew = (seed * 0.41).sin() * 30.0;
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            [
+                center + Vec2::new(-width * 0.5, -height * 0.5),
+                center + Vec2::new(width * 0.5, -height * 0.42),
+                center + Vec2::new(skew, height * 0.5),
+            ],
+            if facet % 3 == 0 {
+                Color::srgba_u8(9, 77, 78, 16)
+            } else {
+                Color::srgba_u8(0, 21, 48, 22)
+            },
+            -94.0 + (facet % 3) as f32,
+        );
     }
 }
 
@@ -1115,8 +1337,9 @@ fn spawn_snapshot_scene(
     let draft_replay = profile == ReplayProfile::RematchDraftReplay;
     let radial_replay = profile == ReplayProfile::RadialSawHalfBlueReplay;
     let yellow_replay = profile == ReplayProfile::YellowCrateTerminalBlastReplay;
-    let circle = meshes.add(Circle::new(22.0));
-    let block_ring = meshes.add(Annulus::new(29.0, 33.0));
+    let fighter_scale = if yellow_replay { 0.62 } else { 1.0 };
+    let circle = meshes.add(Circle::new(22.0 * fighter_scale));
+    let block_ring = meshes.add(Annulus::new(29.0 * fighter_scale, 33.0 * fighter_scale));
     let bullet = meshes.add(Circle::new(5.0));
 
     commands.spawn((
@@ -1134,11 +1357,16 @@ fn spawn_snapshot_scene(
             } else {
                 Color::srgb_u8(2, 48, 54)
             },
-            Vec2::new(1_280.0, 720.0),
+            Vec2::new(
+                if yellow_replay { 1_500.0 } else { 1_280.0 },
+                if yellow_replay { 900.0 } else { 720.0 },
+            ),
         ),
         Transform::from_xyz(0.0, 0.0, -100.0),
     ));
-    if !radial_replay {
+    if yellow_replay {
+        spawn_yellow_paper(commands, meshes, materials, snapshot.tick);
+    } else if !radial_replay {
         let drift = snapshot.tick as f32 * 0.035;
         for (index, x) in [-520.0_f32, -260.0, 0.0, 260.0, 520.0]
             .into_iter()
@@ -1374,12 +1602,19 @@ fn spawn_snapshot_scene(
     }) {
         let age = snapshot.tick.saturating_sub(explosion.tick);
         if age <= 48 {
-            let center = Vec2::new(
+            let mut center = Vec2::new(
                 explosion.x_milli as f32 / 1_000.0,
                 explosion.y_milli as f32 / 1_000.0,
             );
-            let flash = flash_envelope(age);
-            if explosion.id >= 10_000 && flash > 0.0 && (!yellow_replay || age <= 12) {
+            if yellow_replay {
+                center.y -= 40.0;
+            }
+            let flash = if yellow_replay {
+                yellow_flash_envelope(age)
+            } else {
+                flash_envelope(age)
+            };
+            if explosion.id >= 10_000 && flash > 0.0 && !yellow_replay {
                 for wedge in 0..18 {
                     let angle = wedge as f32 * std::f32::consts::TAU / 18.0;
                     let radius = (90.0 + age as f32 * 13.0) * flash.sqrt();
@@ -1420,30 +1655,52 @@ fn spawn_snapshot_scene(
                 ));
                 commands.spawn((
                     SceneVisual,
-                    Mesh2d(meshes.add(Circle::new(7.0 + flash * 8.0))),
-                    MeshMaterial2d(materials.add(Color::linear_rgba(
-                        4.5 * flash,
-                        3.2 * flash,
-                        0.8 * flash,
-                        0.95,
-                    ))),
+                    Mesh2d(meshes.add(Circle::new(if yellow_replay {
+                        12.0 + flash * 17.0
+                    } else {
+                        7.0 + flash * 8.0
+                    }))),
+                    MeshMaterial2d(materials.add(if yellow_replay {
+                        Color::linear_rgba(8.5 * flash, 7.2 * flash, 2.4 * flash, 0.98)
+                    } else {
+                        Color::linear_rgba(4.5 * flash, 3.2 * flash, 0.8 * flash, 0.95)
+                    })),
                     Transform::from_xyz(center.x, center.y, 22.0),
                 ));
-                for lobe in 0..19 {
+                let lobe_count = if yellow_replay { 33 } else { 19 };
+                for lobe in 0..lobe_count {
                     let angle = lobe as f32 * 2.399 + age as f32 * 0.018;
-                    let distance = 7.0
-                        + (lobe % 5) as f32 * 4.4
-                        + age as f32 * (0.24 + (lobe % 3) as f32 * 0.07);
-                    let size = (8.0 + (lobe * 7 % 13) as f32) * flash.powf(0.65);
-                    let green = if lobe % 3 == 0 { 2.4 } else { 1.1 };
+                    let distance = if yellow_replay {
+                        5.0 + (lobe % 7) as f32 * 5.2
+                            + age as f32 * (0.38 + (lobe % 3) as f32 * 0.08)
+                    } else {
+                        7.0 + (lobe % 5) as f32 * 4.4
+                            + age as f32 * (0.24 + (lobe % 3) as f32 * 0.07)
+                    };
+                    let size = if yellow_replay {
+                        (6.0 + (lobe * 7 % 17) as f32) * flash.powf(0.55)
+                    } else {
+                        (8.0 + (lobe * 7 % 13) as f32) * flash.powf(0.65)
+                    };
+                    let green = if yellow_replay {
+                        if lobe % 4 == 0 { 4.6 } else { 2.5 }
+                    } else if lobe % 3 == 0 {
+                        2.4
+                    } else {
+                        1.1
+                    };
                     commands.spawn((
                         SceneVisual,
                         Mesh2d(meshes.add(Circle::new(size.max(1.5)))),
                         MeshMaterial2d(materials.add(Color::linear_rgba(
-                            3.2 * flash,
+                            if yellow_replay {
+                                6.3 * flash
+                            } else {
+                                3.2 * flash
+                            },
                             green * flash,
-                            0.05,
-                            0.78,
+                            if yellow_replay { 0.35 * flash } else { 0.05 },
+                            if yellow_replay { 0.9 } else { 0.78 },
                         ))),
                         Transform::from_xyz(
                             center.x + angle.cos() * distance,
@@ -1557,8 +1814,8 @@ fn spawn_snapshot_scene(
 
     for player in &snapshot.players {
         let x = player.x_milli as f32 / 1_000.0;
-        let y = player.y_milli as f32 / 1_000.0;
-        let body_color = if player.hit_flash_ticks > 0 {
+        let y = player.y_milli as f32 / 1_000.0 - if yellow_replay { 32.0 } else { 0.0 };
+        let body_color = if player.hit_flash_ticks > 0 && !yellow_replay {
             Color::WHITE
         } else if !player.alive {
             Color::srgba_u8(96, 42, 54, 150)
@@ -1567,11 +1824,15 @@ fn spawn_snapshot_scene(
         } else {
             Color::srgb_u8(39, 166, 255)
         };
-        for (offset, angle) in [(-9.0, -0.38), (9.0, 0.38)] {
+        let stride = (snapshot.tick as f32 * 0.31 + player.id as f32 * 1.7).sin() * 0.16;
+        for (offset, angle) in [(-9.0, -0.38 - stride), (9.0, 0.38 + stride)] {
             commands.spawn((
                 SceneVisual,
-                Sprite::from_color(body_color, Vec2::new(7.0, 25.0)),
-                Transform::from_xyz(x + offset, y - 28.0, 4.0)
+                Sprite::from_color(
+                    body_color,
+                    Vec2::new(7.0 * fighter_scale, 25.0 * fighter_scale),
+                ),
+                Transform::from_xyz(x + offset * fighter_scale, y - 28.0 * fighter_scale, 4.0)
                     .with_rotation(Quat::from_rotation_z(angle)),
             ));
         }
@@ -1584,14 +1845,24 @@ fn spawn_snapshot_scene(
         let aim = Vec2::new(f32::from(player.aim_x), f32::from(player.aim_y)).normalize_or(Vec2::X);
         commands.spawn((
             SceneVisual,
-            Sprite::from_color(Color::srgb_u8(35, 39, 44), Vec2::new(42.0, 9.0)),
-            Transform::from_xyz(x + aim.x * 25.0, y + aim.y * 25.0, 7.0)
-                .with_rotation(Quat::from_rotation_z(aim.y.atan2(aim.x))),
+            Sprite::from_color(
+                Color::srgb_u8(35, 39, 44),
+                Vec2::new(42.0 * fighter_scale, 9.0 * fighter_scale),
+            ),
+            Transform::from_xyz(
+                x + aim.x * 25.0 * fighter_scale,
+                y + aim.y * 25.0 * fighter_scale,
+                7.0,
+            )
+            .with_rotation(Quat::from_rotation_z(aim.y.atan2(aim.x))),
         ));
         commands.spawn((
             SceneVisual,
-            Sprite::from_color(Color::srgb_u8(22, 27, 31), Vec2::new(70.0, 7.0)),
-            Transform::from_xyz(x, y + 48.0, 8.0),
+            Sprite::from_color(
+                Color::srgb_u8(22, 27, 31),
+                Vec2::new(70.0 * fighter_scale, 7.0 * fighter_scale),
+            ),
+            Transform::from_xyz(x, y + 35.0 * fighter_scale, 8.0),
         ));
         commands.spawn((
             SceneVisual,
@@ -1601,11 +1872,16 @@ fn spawn_snapshot_scene(
                 } else {
                     Color::srgb_u8(70, 188, 255)
                 },
-                Vec2::new(70.0 * f32::from(player.health) / 100.0, 5.0),
+                Vec2::new(
+                    70.0 * fighter_scale * f32::from(player.health) / 100.0,
+                    5.0 * fighter_scale,
+                ),
             ),
             Transform::from_xyz(
-                x - (70.0 - 70.0 * f32::from(player.health) / 100.0) / 2.0,
-                y + 48.0,
+                x - (70.0 * fighter_scale
+                    - 70.0 * fighter_scale * f32::from(player.health) / 100.0)
+                    / 2.0,
+                y + 35.0 * fighter_scale,
                 9.0,
             ),
         ));
@@ -1623,11 +1899,11 @@ fn spawn_snapshot_scene(
                 "BLUE"
             }),
             TextFont {
-                font_size: FontSize::Px(12.0),
+                font_size: FontSize::Px(12.0 * fighter_scale),
                 ..default()
             },
             TextColor(Color::WHITE),
-            Transform::from_xyz(x, y + 62.0, 9.0),
+            Transform::from_xyz(x, y + 49.0 * fighter_scale, 9.0),
         ));
         if player.block_ticks > 0 {
             commands.spawn((
@@ -1640,14 +1916,18 @@ fn spawn_snapshot_scene(
     }
 
     for projectile in &snapshot.projectiles {
-        let start = Vec2::new(
+        let mut start = Vec2::new(
             projectile.previous_x_milli as f32 / 1_000.0,
             projectile.previous_y_milli as f32 / 1_000.0,
         );
-        let end = Vec2::new(
+        let mut end = Vec2::new(
             projectile.x_milli as f32 / 1_000.0,
             projectile.y_milli as f32 / 1_000.0,
         );
+        if yellow_replay {
+            start.y -= 32.0;
+            end.y -= 32.0;
+        }
         let segment = end - start;
         let length = segment.length().clamp(2.0, 92.0);
         commands.spawn((
@@ -3255,32 +3535,48 @@ mod tests {
     }
 
     #[test]
-    fn yellow_peak_uses_the_shared_gpu_scene_and_single_echo_pass() {
-        let calm = rounds_sim::run_profile_match(
-            ReplayProfile::YellowCrateTerminalBlastReplay,
-            43,
-            rounds_sim::YELLOW_LAST_CALM_TICK,
-        )
-        .0;
-        let peak = rounds_sim::run_profile_match(
-            ReplayProfile::YellowCrateTerminalBlastReplay,
-            43,
-            rounds_sim::YELLOW_PEAK_ECHO_TICK,
-        )
-        .0;
+    fn yellow_sequence_uses_the_shared_gpu_scene_and_preserves_its_visual_signature() {
+        let snapshot_at = |tick| {
+            rounds_sim::run_profile_match(ReplayProfile::YellowCrateTerminalBlastReplay, 43, tick).0
+        };
+        let signature_at = |tick| {
+            let snapshot = snapshot_at(tick);
+            let path = std::env::temp_dir().join(format!(
+                "rounds-yellow-signature-{}-{tick}.png",
+                std::process::id()
+            ));
+            let _ = std::fs::remove_file(&path);
+            let frame = render_png(&snapshot, &path).unwrap();
+            let signature = yellow_frame_signature(&frame).unwrap();
+            std::fs::remove_file(path).unwrap();
+            signature
+        };
+        let calm = snapshot_at(rounds_sim::YELLOW_LAST_CALM_TICK);
+        let peak = snapshot_at(rounds_sim::YELLOW_PEAK_ECHO_TICK);
         assert_eq!(radial_echo_settings(&calm).strength, 0.0);
         assert_eq!(radial_echo_settings(&peak).strength, 1.0);
-        let directory = std::env::temp_dir();
-        let calm_path = directory.join(format!("rounds-yellow-calm-{}.png", std::process::id()));
-        let peak_path = directory.join(format!("rounds-yellow-peak-{}.png", std::process::id()));
-        let _ = std::fs::remove_file(&calm_path);
-        let _ = std::fs::remove_file(&peak_path);
-        let calm_frame = render_png(&calm, &calm_path).unwrap();
-        let peak_frame = render_png(&peak, &peak_path).unwrap();
-        assert_ne!(frame_sha256(&calm_frame), frame_sha256(&peak_frame));
         assert!(peak.explosions.iter().any(|explosion| explosion.tick == 81));
-        std::fs::remove_file(calm_path).unwrap();
-        std::fs::remove_file(peak_path).unwrap();
+
+        let onset = signature_at(rounds_sim::YELLOW_IMPACT_TICK);
+        assert!((1..150).contains(&onset.hot_core_pixels));
+        assert!((1_050..1_160).contains(&onset.hot_core_centroid_x.unwrap()));
+        assert!((125..190).contains(&onset.hot_core_centroid_y.unwrap()));
+        let burst = signature_at(rounds_sim::YELLOW_LOCAL_BURST_TICK);
+        assert!(burst.hot_core_pixels > 4_000);
+        assert!(burst.white_core_pixels > 2_000);
+        let peak = signature_at(rounds_sim::YELLOW_PEAK_ECHO_TICK);
+        assert!(peak.arena_hard_edge_pixels > 500);
+        assert!(peak.white_core_pixels < 1_500);
+        assert!(peak.hud_hard_edge_pixels > 0);
+        let trails = signature_at(rounds_sim::YELLOW_TRAILS_TICK);
+        assert!(trails.arena_hard_edge_pixels > 900);
+        assert!(trails.hud_hard_edge_pixels > 50);
+        let result = signature_at(rounds_sim::YELLOW_RESULT_ONSET_TICK);
+        assert!(result.result_orange_left_pixels > 3_000);
+        assert!(result.result_orange_left_pixels > result.result_orange_right_pixels * 3);
+        let established = signature_at(rounds_sim::YELLOW_ROUND_ORANGE_TICK);
+        let tail = signature_at(rounds_sim::YELLOW_REPLAY_TICKS);
+        assert!(tail.result_orange_left_pixels < established.result_orange_left_pixels / 2);
     }
 
     #[test]

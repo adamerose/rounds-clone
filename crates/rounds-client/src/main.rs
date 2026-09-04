@@ -1,7 +1,7 @@
 use rounds_network::{NETWORK_PROTOCOL, ServerReport, send_inputs};
 use rounds_presentation::{
-    FRAME_HEIGHT, FRAME_WIDTH, RENDERER_IDENTITY, frame_sha256, render_png,
-    run_interactive_visible, run_visible,
+    FRAME_HEIGHT, FRAME_WIDTH, RENDERER_IDENTITY, YellowFrameSignature, frame_sha256, render_png,
+    run_interactive_visible, run_visible, yellow_frame_signature,
 };
 use rounds_sim::{
     MatchSnapshot, RADIAL_HALF_BLUE_TICK, RADIAL_LAST_COMBAT_TICK, RADIAL_RESULT_ONSET_TICK,
@@ -49,6 +49,7 @@ struct CaptureEvidence {
     live_client_id: Option<u8>,
     composited_echo_pass: Option<&'static str>,
     impact_audio_hook_tick: Option<u32>,
+    visual_signature: Option<YellowFrameSignature>,
 }
 
 fn main() {
@@ -281,6 +282,9 @@ fn capture_state(
     let resolved_output = resolved_path(output)?;
     let frame = render_png(state, output)?;
     let executable = env::current_exe().map_err(|error| error.to_string())?;
+    let visual_signature = (profile == ReplayProfile::YellowCrateTerminalBlastReplay)
+        .then(|| yellow_frame_signature(&frame))
+        .transpose()?;
     Ok(CaptureEvidence {
         format: 3,
         package: format!("rounds-client@{}", env!("CARGO_PKG_VERSION")),
@@ -316,6 +320,7 @@ fn capture_state(
             .then_some("rounds-radial-echo-final-composite-single-pass"),
         impact_audio_hook_tick: (profile == ReplayProfile::YellowCrateTerminalBlastReplay)
             .then_some(YELLOW_IMPACT_TICK),
+        visual_signature,
     })
 }
 
