@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-04T08:25:00Z
 origin: human-request
 tags: ["bevy", "cards", "flow", "multiplayer", "fidelity", "vertical-slice"]
@@ -68,3 +68,6 @@ Reconstruct the complete transition visible from 02:40.00 through 03:20.00 in `r
 - 2026-09-04T08:39:34.951Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06b87-1778-7283-b7e1-8090fc186167 — Rejected the corrected contract solely because two work-log stage-end timestamps postdated the commits that already contained them; all three substantive source, selection, and rematch findings were resolved.
 - 2026-09-04T08:40:03.699Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Correcting the impossible stage chronology to actual pre-commit and review times without changing the approved product contract.
 - 2026-09-04T08:40:35.869Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572 — Replaced the two future stage-end markers with times before their containing commits and recorded the second review and chronology-only correction in actual order.
+- 2026-09-04T08:41:08.890Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06b87-1778-7283-b7e1-8090fc186167 — Began final independent admission re-review of chronology-only correction range `759426504c051c81b3e97603ef9a374546535f79..78091dccde15ba24fd057215b4a7bffd35d1e8e8`.
+- 2026-09-04T08:41:24.180Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06b87-1778-7283-b7e1-8090fc186167 — Approved the corrected risk-4 contract with no findings after confirming valid work-log chronology and no regression in the resolved source, catalog-only selection, score-reset, rematch-authority, architecture, scope, and evidence decisions.
+- 2026-09-04T08:41:50.551Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Admitted ticket 041 at risk 4 after independent review approved the corrected rematch, draft, selected-card, presentation, multiplayer, and evidence contract.
