@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-04T08:25:00Z
 origin: human-request
 tags: ["bevy", "cards", "flow", "multiplayer", "fidelity", "vertical-slice"]
@@ -95,3 +95,6 @@ Reconstruct the complete transition visible from 02:40.00 through 03:20.00 in `r
 - 2026-09-04T10:43:51.875Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06bbf-86e8-75a3-8fec-0d47c4dd9162 — Rejected delivery because 02:49 is `COMBINE`, not `TASTE OF BLOOD`; both confirmation anchors kept raised cards after the source lowered them; draft/reveal omitted persistent reset pips and `Da`/`Ex` HUD badges; and final evidence falsely called an ordinary-target executable a cold rebuild.
 - 2026-09-04T10:45:04.594Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Reopened the contract to correct exact hover/confirmation phases, persistent draft HUD projection, and truthful final-build provenance before implementation resumes.
 - 2026-09-04T10:45:44.376Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572 — Bound exact orange and blue focus order plus lowered confirmation frames, required persistent 0–0 pips and `Da`/`Ex` badges through draft/reveal, corrected the 02:49 source observation to `COMBINE`, and reserved `cold` evidence naming for the executable from the matching isolated target.
+- 2026-09-04T10:46:29.761Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06b87-1778-7283-b7e1-8090fc186167 — Began independent re-admission review of exact amended contract range `ae86fa5db7295ec824e2f1617902d5a5b5aa9b1c..bc1fb20a4e661b03b466e7014513d44f00c0e40f`.
+- 2026-09-04T10:48:31.571Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06b87-1778-7283-b7e1-8090fc186167 — Approved the second amended risk-4 contract with no findings after directly confirming every focus/confirmation frame, persistent empty pips and badges, HUD ownership, truthful provenance boundary, feasibility, proportional evidence, and chronology.
+- 2026-09-04T10:48:53.587Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Re-admitted ticket 041 with the source-correct card sequence, persistent draft HUD, and executable provenance contract before the second implementation correction.
