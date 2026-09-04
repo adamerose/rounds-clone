@@ -499,3 +499,7 @@ The contract makes no claim about hidden card formulas and defers final audio fi
 ## 2026-09-04 — Reject soft zoom smear as the yellow blast echo
 
 Ticket 043's first delivery candidate proved the desired Bevy architecture, real crate physics, authority and UDP flow, and one final-composite GPU pass, but its own original-resolution pairs disproved visual completion. The peak lost the readable local explosion and produced broad soft smearing where the source shows crisp discrete green, yellow, and red copies of the whole scene, including HUD. Delivery therefore requires tuning the existing single pass and shared scene—not adding an evidence renderer, weakening the contract, or accepting effect presence as effect fidelity.
+
+## 2026-09-04 — Keep yellow convergence and impact impulse authoritative
+
+The corrected ticket 043 presentation now matches the bounded blast signature, but review found two simulation facts that its successful rendering concealed: both fighters remain stationary throughout the source's calm convergence, and the published impact event omits the health-scaled portion of the impulse authority applies. The replay must therefore drive the observed approach through ordinary authority inputs and publish the exact applied gameplay impulse in its stable event. Presentation motion and a merely nonzero event field are not substitutes for those authority-owned facts.
