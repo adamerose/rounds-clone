@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-04T12:13:08Z
 origin: system-detected
 tags: ["bevy", "physics", "fidelity", "multiplayer", "presentation", "match-flow", "vertical-slice"]
@@ -93,3 +93,5 @@ This adds one evidence-backed moving-hazard arena and its exact combat-to-result
 - 2026-09-04T12:40:06.869Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572/reflect_042 — Began rebinding the contract to source PTS, RGBA pixel hashes, the adjacent-frame result boundary, and arena-child provenance.
 - 2026-09-04T12:43:54.956Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572/reflect_042 — Replaced the rejected premise with a native-frame contract for the radial-saw duel and `HALF BLUE`, recorded canonical hashing and provenance, and passed ticket and whitespace checks.
 - 2026-09-04T12:45:14.529Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06c5b-0eb9-7e10-98b8-7e2813eeda52 — Began independent re-review of the native-frame correction, exact combat/result boundary, and umbrella provenance.
+- 2026-09-04T12:49:16.470Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06c5b-0eb9-7e10-98b8-7e2813eeda52 — Approved the corrected risk-4 contract with no findings after reproducing all five canonical RGBA hashes, verifying the adjacent combat/result frames, and confirming ownership and feasibility.
+- 2026-09-04T12:49:16.470Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Admitted ticket 042 after independent review approved its native-frame radial-saw duel, `HALF BLUE` transition, multiplayer, presentation, and proportional evidence contract.

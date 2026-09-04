@@ -474,3 +474,12 @@ The rematch profile carries phase revisions and semantic vote, hover, and confir
 One stable nine-definition registry projects the ten visible offers because `DAZZLE` appears in both fans, and the seven distinct unselected definitions remain catalog-only even though navigation may focus them.
 The selected definitions fold into one `FighterCapabilities` value rather than one component per card: Dazzle marks bullets with an explicit three-pulse stun and Explosive Bullet marks them with an explicit radial impact, impulse, and reload tradeoff.
 This is enough compositional ECS state for the observed return to combat without introducing a string effect interpreter or a framework for unimplemented cards.
+
+## 2026-09-04 — Admit the radial-saw duel and HALF BLUE transition
+
+Ticket 042 binds recording `1460e670…15f9` from native source PTS 2320490718 through 2476823426 to one continuous moving-hazard duel and result transition.
+The project owns stable saw identities, angle, and angular velocity through Rapier, ECS snapshots, digests, and UDP state; the renderer consumes that state and cannot advance saw pose, winner, or score locally.
+Canonical source identity uses the first decoded frame at or after an integer source PTS and SHA-256 over the native 1280×720 packed RGBA plane, avoiding route-dependent PNG bytes and coarse-frame ambiguity.
+Native consecutive frames disproved the first contract's supposed ice burst, fullscreen distortion, and burst-audio premise, so the admitted slice contains only observed ordinary projectile feedback, rotating saws, background motion, and the exact adjacent-frame handoff into `HALF BLUE`.
+Ticket 042 is the first radial-saw child split from arena umbrella ticket 018; it contributes evidence toward but does not close or depend on the older base-feel, projectile-presentation, overall-presentation/audio, or full-match-replay umbrellas.
+Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/01a06c5b-0eb9-7e10-98b8-7e2813eeda52` admitted the corrected risk-4 contract after independently reproducing all five native RGBA hashes, the last-combat/result-onset boundary, source scope, ownership, feasibility, and proportional evidence.
