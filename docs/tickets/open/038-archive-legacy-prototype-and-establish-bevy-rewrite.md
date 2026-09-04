@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-04T00:43:56Z
 origin: human-request
 tags: ["architecture", "bevy", "multiplayer", "fidelity", "project-reset"]
@@ -57,5 +57,10 @@ Preserve that work as recoverable history, then establish a Bevy codebase whose 
 
 - 2026-09-04T00:43:56Z stage design start session codex:01a06920-7449-74d0-9b09-57855a012572 — Began the recoverable Bevy reset after Adam made complete replication of both supplied gameplay videos, including multiplayer, the final product goal and asked to archive the old implementation.
 - 2026-09-04T00:45:24Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Bound the recoverable legacy tag, footage-first product target, multiplayer-first Bevy boundaries, proportional testing rule, and command-line server, client, inspection, and capture evidence; the repository-local `playbook` checker path named by newly injected guidance was absent, so the identical installed Ivy checker was resolved from the active plugin cache and passed across all registered worktrees.
+- 2026-09-04T00:46:05.861Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a069e1-2a76-7c51-b7f4-5750932d7c06 — Began fresh review of the first records-only ticket candidate `f7fd66fc6063bf5ea605abe3360e38ae42d30853`.
+- 2026-09-04T00:50:20.413Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a069e1-2a76-7c51-b7f4-5750932d7c06 — Rejected the first candidate because it incorrectly superseded two maintenance tickets and did not durably identify or coverage-gate the two supplied recordings.
 - 2026-09-04T00:51:05Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Correcting fresh-review findings by retaining tickets 036 and 037, binding every supplied media file through a tracked hash manifest, and requiring timestamp-complete coverage of both recordings.
 - 2026-09-04T00:52:55Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572 — Retained the two maintenance tickets, added repository-visible raw-media ignore rules and a verified eleven-file hash manifest, and required a timestamp-indexed ledger to account for every distinct behavior across both recordings; the installed ticket checker and whitespace validation passed.
+- 2026-09-04T00:53:59.013Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a069e1-2a76-7c51-b7f4-5750932d7c06 — Began fresh review of corrected records-only candidate `592bf066245cae9ee65d1c06376c542702333434`.
+- 2026-09-04T00:55:06.971Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a069e1-2a76-7c51-b7f4-5750932d7c06 — Approved the corrected candidate with no findings after independently verifying all eleven media hashes and sizes, ignore behavior, archive-tag identity, retained maintenance tickets, full-duration footage coverage requirement, ticket format, and clean whitespace.
+- 2026-09-04T00:55:23.510Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Marked the risk-4 contract ready after independent admission review resolved every finding and confirmed that no open human decision remained.
