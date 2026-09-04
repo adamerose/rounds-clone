@@ -433,3 +433,11 @@ The `teal-duel-replay` therefore ends at tick 786 with a damage winner and no ri
 Capture now waits for Bevy's screenshot-completion event with bounded failure, and metadata plus every generated PNG destination are resolved and checked pairwise before rendering, networking, or writing.
 Visible execution requires the observed physical display identity `(364,-1080)`, 1920×1080, while visible and offscreen rendering share one snapshot-derived camera transform.
 Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/01a06a55-572e-7bd2-be97-605bb16bb6bb` approved re-admission of exact amended range `4b4f21cb822c2ffccdf397d3120bde4b2f8bb2bd..91f65999d708e435a293e82fdb478a6b6ce8ecb7` with no findings; the owner then restored the admitted ticket to `ready` in commit `21c1798ebb57a045022a8c74d7bb37dba363c921` before implementation correction resumed.
+
+## 2026-09-04 — Admit the explosive timber-collapse stress slice
+
+Ticket 040 binds recording `453954a7…a18c` from 03:26.00–03:50.00 to one vertical slice that combines authoritative Rapier bodies and joints, an explosion-driven persistent debris field, progressive two-client dynamic-world snapshots, received-state rendering, and the footage's bloom, chromatic/radial shock, particles, camera response, background, and shadows.
+The existing private physics boundary remains: `bevy_rapier2d` 0.36.0 resolves `rapier2d` 0.35.0-glamx0.2, while project-owned stable body identities and quantized snapshots cross ECS and network boundaries instead of engine handles.
+Presentation first uses Bevy 0.19's public bloom, chromatic-aberration, and lens-distortion components; custom fullscreen machinery is allowed only after a source comparison demonstrates a concrete missing effect.
+The slice extends the shipped replay, capture, and smoke paths rather than creating another evidence launcher, and support plus test growth must remain smaller than the product behavior it protects.
+Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/01a06af4-05f6-7233-a557-3f5709224503` admitted the corrected contract at risk 4 with no findings after independently decoding the source sequence and confirming feasibility, ordering after closed ticket 039, and absence of an open human decision.

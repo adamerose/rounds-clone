@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-04T05:42:59Z
 origin: human-request
 tags: ["bevy", "physics", "fidelity", "multiplayer", "presentation", "vertical-slice"]
@@ -65,3 +65,6 @@ Reconstruct the intact-to-collapsed timber-arena sequence visible from approxima
 - 2026-09-04T05:56:40.588Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06af4-05f6-7233-a557-3f5709224503 — Rejected admission because the contract mandated a custom fullscreen pass before testing Bevy's built-in post-process effects and named the integration crate version as the underlying Rapier version; source, architecture, risk, ordering, and remaining evidence were otherwise sound.
 - 2026-09-04T05:57:10.000Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Correcting the two admission findings and incorporating the reviewer's direct source decode without widening the product outcome.
 - 2026-09-04T05:57:25.000Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572 — Preferred Bevy's public bloom, chromatic-aberration, and lens-distortion components unless comparison proves a missing effect, named both pinned physics crate versions accurately, and fixed the directly observed source sequence and bounds.
+- 2026-09-04T05:58:00.725Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06af4-05f6-7233-a557-3f5709224503 — Began independent re-review of corrected admission range `2afeff1d4c0fd8e6cfa552002e6af0f748cdd5cc..8013c5b15c68a060ecb6099ffa352872147abd18`.
+- 2026-09-04T05:58:49.391Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06af4-05f6-7233-a557-3f5709224503 — Approved the corrected risk-4 contract with no findings after confirming the built-in-first post-process rule, exact physics versions, direct source sequence, feasible boundaries, ordering, scope, ancestry, and absence of a human decision.
+- 2026-09-04T05:59:10.000Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Admitted ticket 040 at risk 4 after independent review approved the corrected reactive-collapse contract.
