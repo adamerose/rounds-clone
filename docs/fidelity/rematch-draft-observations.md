@@ -19,6 +19,7 @@ The observations below describe pixels and timing visible in the supplied record
 | 02:49.000 | Orange fills the lower screen with hat, moustache, face, hands, and five curved cards; `TASTE OF BLOOD` is raised/highlighted while neighboring faces are dim. | `e9867700616fb7dd91d59c61090c0a256a8776e9fce1791f1a35d54517683f0f` |
 | 02:50.000 | Orange has moved the highlight to the gold `BURST` face; its art, outline, title, and rules brighten while the other four remain readable but subdued. This is hover evidence only. | `b0407242f0504813c1e7da673c239f8fdf7fa7d24a3171d203cf3f501c484d6e` |
 | 02:54.000 | Orange's cards are lowering/dimming after confirmation; the top-right orange badge is `Da`, proving `DAZZLE` was confirmed despite the earlier `BURST` hover. | `98c8d1b27eb51939ae193ae4477a0821d3d5088d3a55d882e65140ccd3810dd0` |
+| 02:56.000 | Blue already fills the lower screen with its complete five-card fan; the source does not contain a long blank `NEXT PLAYER` handoff at this anchor. | `af1a2f00bafcd1c66bc64cb7f8b8c153ac6f126ab160a09255edea9c5c0958a5` |
 | 03:06.000 | Blue fills the lower screen; `LIFESTEALER` is raised and purple-highlighted among its five offers while the `Da` prior-loadout badge remains at top right. | `20c22057dfbee77c4cc360fee851c27c0bfec4e2e087f18a7b32eaab6f587ef8` |
 | 03:14.000 | Blue continues navigating the same fan with `ECHO` raised; this proves a raised face is hover/focus, not necessarily the confirmed choice. | `03a3cdd4d4cdeef67caa388b34cb282795b7302121677c2aac2bf391abc5c0da` |
 | 03:16.000 | A new timber-and-yellow-canopy arena is visible after the draft fade. Both five-pip score rows are empty and old loadouts are cleared; top-right stacks contain only orange `Da` and blue `Ex`, identifying the confirmed `DAZZLE` and `EXPLOSIVE BULLET` choices. | `20bca7620b188e9cac596cb42f9cb1b895e24a9c1595f3ecaf0c014716b01712` |
@@ -66,8 +67,8 @@ Printed plus signs are transcribed as displayed even when the named property mak
 ## Source-to-clone inspection
 
 The original-resolution comparison uses the thirteen named anchors emitted under `out/ticket-041/`; generated source decodes and clone PNGs remain ignored.
-The clone preserves the source sequence: live-arena result, large cyan rematch prompt, dark fade, orange character and curved five-card fan, raised focus changes, Dazzle reveal, blank player handoff, blue recolor and fan, Explosive Bullet reveal, new 0–0 arena, persistent `Da`/`Ex` badges, and modifier-marked projectile exchange.
-Card titles and wrapped rules remain readable at 1280×720, highlighted faces rise and brighten while neighbors dim, rarity changes the accent color and art polygon, and the same received snapshot drives offscreen and visible presentation.
+The first candidate did not preserve source cadence: it inserted a blank `NEXT PLAYER` frame at the 02:56 anchor where blue's complete fan is already visible. Corrected evidence must replace that claim and show blue at the source-bound time.
+Card titles and wrapped rules were readable at 1280×720, but the first candidate ignored item `art_key` values, substituted rarity polygons for card-specific art, and left hands and expression fixed while cards moved. Corrected comparison must show distinct item motifs and authoritative hover/reveal pose response through the same received-state path.
 
 The remaining visible differences are concrete rather than hidden behind an equivalence claim.
 The source uses thinner outlined prompt lettering, denser low-poly character faces, hats, moustache and hand poses, richer bespoke card illustrations, more overlap and perspective in the fan, and smoother eased selection motion.
