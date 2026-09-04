@@ -8,10 +8,10 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 pub const TICKS_PER_SECOND: u32 = 60;
-pub const REPLAY_TICKS: u32 = 780;
+pub const REPLAY_TICKS: u32 = 786;
 pub const MAX_INSPECTED_PROJECTILES: usize = 64;
 pub const REPLAY_PROFILE: &str = "teal-duel-replay";
-pub const SOURCE_INTERVAL: &str = "00:22.50-00:35.50";
+pub const SOURCE_INTERVAL: &str = "00:22.50-00:35.60";
 pub const SOURCE_SHA256: &str = "1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9";
 
 const PLAYER_RADIUS: f32 = 22.0;
@@ -23,9 +23,9 @@ const BULLET_SPEED: f32 = 3_600.0;
 const BULLET_LIFETIME: u16 = 150;
 const FIRE_COOLDOWN: u16 = 24;
 const BLOCK_DURATION: u16 = 18;
-const DAMAGE_PER_HIT: u16 = 25;
+const DAMAGE_PER_HIT: u16 = 100;
 const RECOIL_IMPULSE: f32 = 72.0;
-const HIT_IMPULSE: f32 = 2_000.0;
+const HIT_IMPULSE: f32 = 420.0;
 const KILL_X: f32 = 760.0;
 const KILL_Y: f32 = -440.0;
 
@@ -440,7 +440,7 @@ impl AuthoritativeMatch {
                     self.metrics.jumps += 1;
                     state.grounded = false;
                 }
-                if input.fire && state.fire_cooldown == 0 {
+                if state.health > 0 && input.fire && state.fire_cooldown == 0 {
                     state.fire_cooldown = FIRE_COOLDOWN;
                     fire = Some((state.id, state.aim));
                 }
@@ -523,6 +523,10 @@ impl AuthoritativeMatch {
                 self.metrics.hits += 1;
                 self.metrics.health_scaled_knockbacks += 1;
                 removals.push(projectile_id);
+                if target_state.health == 0 {
+                    target_state.alive = false;
+                    self.winner = Some(projectile.owner);
+                }
             } else if self.physics.bullet_platform_contact(projectile_id) {
                 self.metrics.bullet_ccd_contacts += 1;
                 removals.push(projectile_id);
@@ -694,25 +698,40 @@ pub fn scripted_inputs(_seed: u64, ticks: u32) -> [Vec<PlayerInput>; 2] {
             ..PlayerInput::default()
         };
         if (40..100).contains(&tick) {
-            orange.move_axis = 1;
-        }
-        if (40..100).contains(&tick) {
             blue.move_axis = -1;
         }
-        if (115..175).contains(&tick) {
+        if (115..155).contains(&tick) {
+            blue.move_axis = 1;
+        }
+        if (330..670).contains(&tick) {
             orange.move_axis = 1;
+        }
+        if (500..560).contains(&tick) {
             blue.move_axis = -1;
         }
-        orange.jump = matches!(tick, 40 | 115);
-        blue.jump = matches!(tick, 40 | 115 | 670);
-        if tick == 490 {
-            orange.aim_y = -500;
+        orange.jump = (330..670).contains(&tick);
+        blue.jump = matches!(tick, 40 | 500 | 650);
+        if tick == 292 {
+            orange.aim_y = 180;
         }
-        if tick == 740 {
-            orange.aim_y = -150;
+        if tick == 416 {
+            orange.aim_y = -300;
         }
-        orange.fire = matches!(tick, 292 | 490 | 620 | 680 | 740);
-        blue.block = (290..480).contains(&tick);
+        if tick == 620 {
+            orange.aim_y = 500;
+        }
+        if tick == 785 {
+            orange.aim_x = 120;
+            orange.aim_y = -1_000;
+        }
+        if tick == 690 {
+            blue.aim_x = 200;
+            blue.aim_y = 1_000;
+        }
+        orange.fire = matches!(tick, 292 | 416 | 620 | 785);
+        orange.block = (650..720).contains(&tick);
+        blue.fire = tick == 690;
+        blue.block = (410..450).contains(&tick);
         scripts[0].push(orange);
         scripts[1].push(blue);
     }
@@ -772,24 +791,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn platform_contact_and_two_jump_route_reach_the_upper_tier() {
-        let replay = run_scripted_snapshots(38, 190);
-        let first_landing = &replay[99];
-        let upper_landing = &replay[174];
-        assert!(first_landing.players.iter().all(|player| player.grounded));
-        assert!(first_landing.players[0].x_milli > -430_000);
-        assert!(first_landing.players[1].x_milli < 430_000);
-        assert!(upper_landing.players.iter().all(|player| player.grounded));
-        assert!(upper_landing.players[0].x_milli > -310_000);
-        assert!(upper_landing.players[1].x_milli < 310_000);
+    fn platform_contact_and_asymmetric_route_match_the_source_order() {
+        let replay = run_scripted_snapshots(38, REPLAY_TICKS);
+        let source_24_50 = &replay[119];
+        assert!(source_24_50.players[0].x_milli < -480_000);
+        assert!(source_24_50.players[0].grounded);
+        assert!(source_24_50.players[1].x_milli > 250_000);
+        assert!(source_24_50.players[1].y_milli > -80_000);
+        assert!(source_24_50.metrics.platform_contact_ticks > 120);
+        let terminal = replay.last().unwrap();
         assert!(
-            upper_landing
+            terminal
                 .players
                 .iter()
-                .all(|player| player.y_milli > 50_000)
+                .all(|player| player.x_milli > 300_000 && player.y_milli > -100_000)
         );
-        assert!(upper_landing.metrics.platform_contact_ticks > 60);
-        assert_eq!(upper_landing.metrics.jumps, 4);
     }
 
     #[test]
@@ -797,16 +813,38 @@ mod tests {
         let first = run_scripted_match(38, REPLAY_TICKS);
         let second = run_scripted_match(38, REPLAY_TICKS);
         assert_eq!(first, second);
+        let before_impact = run_scripted_match(38, REPLAY_TICKS - 1).0;
         let metrics = &first.0.metrics;
-        assert!(metrics.shots_fired >= 5, "{:?}", first.0);
-        assert!(metrics.recoil_impulses >= 5);
+        assert_eq!(metrics.shots_fired, 5);
+        assert_eq!(metrics.recoil_impulses, 5);
         assert!(metrics.block_activations >= 1);
-        assert!(metrics.reflections >= 1, "{:?}", first.0);
-        assert!(metrics.hits >= 2, "{:?}", first.0);
-        assert!(metrics.health_scaled_knockbacks >= 2);
-        assert!(metrics.bullet_ccd_contacts >= 1);
-        assert_eq!(metrics.ring_outs, 1);
-        assert!(first.0.winner.is_some());
+        assert_eq!(metrics.reflections, 1);
+        assert_eq!(metrics.hits, 1);
+        assert_eq!(metrics.health_scaled_knockbacks, 1);
+        assert_eq!(metrics.bullet_ccd_contacts, 1);
+        assert_eq!(first.0.metrics.ring_outs, 0);
+        assert!(
+            first
+                .0
+                .players
+                .iter()
+                .all(|player| player.x_milli.abs() < 760_000)
+        );
+        assert_eq!(before_impact.winner, None);
+        assert_eq!(first.0.winner, Some(0));
+        assert!(first.0.players[1].hit_flash_ticks > 0);
+    }
+
+    #[test]
+    fn ring_out_remains_a_separate_authoritative_capability() {
+        let mut simulation = AuthoritativeMatch::new(38);
+        let body = simulation.physics.players[1].body;
+        simulation.physics.rapier.bodies[body]
+            .set_translation(Vector::new(KILL_X + 10.0, 0.0), true);
+        simulation.step([PlayerInput::default(); 2]);
+        let snapshot = simulation.snapshot();
+        assert_eq!(snapshot.metrics.ring_outs, 1);
+        assert_eq!(snapshot.winner, Some(0));
     }
 
     #[test]

@@ -1,6 +1,6 @@
 # Teal static duel observation
 
-This record binds the first `S2-static-duel` slice to `reference/MedalTVRounds20260903170709695.mp4`, SHA-256 `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9`, from 00:22.50 through 00:35.50.
+This record binds the first `S2-static-duel` slice to `reference/MedalTVRounds20260903170709695.mp4`, SHA-256 `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9`, from 00:22.50 through the last in-arena frame at 00:35.60.
 The supplied video was read without modification; source crops and every clone render remain ignored under `out/ticket-039/`.
 
 ## Source observations
@@ -19,32 +19,32 @@ Those measurements guided the clone's dark teal base, alternating cyan/lime face
 | Source anchor | Observed action | Clone anchor |
 |---|---|---|
 | 00:22.83 | The arena is established with orange and blue separated near the outer platforms. | `spawn`, tick 20 |
-| 00:24.50 | Both fighters leave their initial level and traverse upward/inward across the stepped faces. | `traversal`, tick 120 |
-| 00:27.66 | Gunfire crosses the middle tiers while a circular block response is visible. | `shot-block`, tick 310 |
-| 00:34.00 | The exchange converges on the right half with a visible impact and strong displacement. | `hit-knockback`, tick 690 |
-| 00:35.48 | The losing fighter exits the playable composition at the end of the duel; the separate result treatment begins outside this slice. | `round-end`, tick 779 |
+| 00:24.50 | Orange remains on the outer-left platform while blue has moved to the upper-right tier. | `asymmetric-traversal`, tick 120 |
+| 00:29.75 | Gunfire crosses the middle tiers as orange begins its delayed inward and upward route. | `shot`, tick 435 |
+| 00:34.16 | Both fighters have reached the right half; a circular block response and reflected projectile are visible in the exchange. | `block-reflection`, tick 700 |
+| 00:35.60 | Both fighters converge at the upper right in the terminal white impact burst. | `terminal-impact`, tick 786 |
 
-The source timestamps are the nearest reviewed contact-sheet samples to the named replay events.
+These observations come from frames decoded directly from the source video with FFmpeg, including an additional 00:35.70 frame that confirms the result transition starts outside the selected interval.
 The clone maps its 60 Hz replay to the selected interval and does not claim frame-exact recovery of the card-modified source inputs.
 
 ## Derived frame identity
 
-All five frames are 1280×720 PNGs rendered by `bevy-0.19.1-2d-offscreen` with seed 38 and input-trace SHA-256 `1360ea1a9efc3c6e7196c1e05fe6f65251f78416bc410d232240c4585e9eac1f`.
-The checked command records the executable and full metadata bundle under ignored `out/ticket-039/evidence-anchors.json`.
+All five frames are 1280×720 PNGs rendered by `bevy-0.19.1-2d-offscreen` with seed 38 and input-trace SHA-256 `447242f70b01d86f2b30606cdaaebec8f9f49f8638baccf514a4c4e4ada40b62`.
+The checked command records the executable and full metadata bundle under ignored `out/ticket-039/corrected-anchors.json`.
 
 | Anchor | Source timestamp and SHA-256 | Tick | State SHA-256 | Frame SHA-256 |
 |---|---|---:|---|---|
-| spawn | 00:22.83 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 20 | `062d3968f6639a2b0416f65b250c873deac314d991a5ae32a784b5f3d2511f6b` | `358f9c947ef8d01b55b8c0028e0787b9d9eb8e407a2631a4d24b33ae1693d31e` |
-| traversal | 00:24.50 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 120 | `13067d040fef2913f20b80363780d34fde64f8e4d2cd2234e3a54ca792a6989d` | `07e6595ae7ddbe06cb65c897b07ee6e1c864edf2a7452968b9a19dd551f24300` |
-| shot-block | 00:27.66 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 310 | `684ade6db838d5bdffeedb06cd5ca6de49d2f47f3d0855094cec8974e7f24c85` | `4a374433909ee460517197aa20984dd8fb2ee8a3ee949f09f33599d58933ca4c` |
-| hit-knockback | 00:34.00 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 690 | `e83a34407c7ce3562f8a6b24466be5c97be69731df901582bf70d557d329deac` | `8b5bbc304f01678a6977d672d09f652831f47f5764c0b14281ae436c2f53311f` |
-| round-end | 00:35.48 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 779 | `b9b796f5cf90656c15ae45ba1b43a5042b583f481ca67723156b30983f37bfe9` | `43ff6c2a225bd1050a8ac6df7ddcc11a61f28da3adaf5b8f91bad50a9ac2963a` |
+| spawn | 00:22.83 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 20 | `062d3968f6639a2b0416f65b250c873deac314d991a5ae32a784b5f3d2511f6b` | `481132e47a59208973e35278b1b85c60d52aef36099ac9c517de8ce19497559e` |
+| asymmetric-traversal | 00:24.50 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 120 | `74b83cb16d1b3e2a35bcacbeb4e5e0b645d58c09faad4664eb72dad000c3f0d6` | `689f9ff359552ccf03b42ed6e451ada70c954ecffe1eafa6994937538c2d7992` |
+| shot | 00:29.75 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 435 | `abfbe5f47521b0adfeef9e86eadbcbf973561a4101cc293082a8666555ecabd6` | `7f5c8f47dc436085b1cf8a9e8f4a621e4f46a88731fd35654241444c4b042430` |
+| block-reflection | 00:34.16 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 700 | `2867579215680a7f73f5e430115f2cee6637001e69699a9f75f9795e05984410` | `e7e787648cdb204b326a8daaf73fd0b73cb7a56de7317fa5053ef43b478e5925` |
+| terminal-impact | 00:35.60 · `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9` | 786 | `ccc3a488dfe11b8e718677cad19044332b8b386063320988461274584a95b7a3` | `f323d45f195596038abd55e980444c9fcdb549b1da8885103fa9231203f705b1` |
 
 ## Visual review
 
-The source-and-clone sheet at ignored `out/ticket-039/source-clone-contact-final.png` was inspected at original resolution.
-Both sides now share the ten-face stepped silhouette, nine lower faces, cyan/lime and brown-gray palette, separated outer spawn, inward upper-tier traversal, long center-facing dark gaps, block ring, projectile trail, white hit flash, and right-side knockback/ring-out sequence.
-The clone deliberately leaves the 00:35.50 result overlay to `S6-match` rather than inventing result text inside this duel.
+The source-and-clone sheet at ignored `out/ticket-039/source-clone-contact-corrected.png` was inspected at original resolution.
+Both sides share the ten-face stepped silhouette, nine lower faces, cyan/lime and brown-gray palette, separated outer spawn, orange's 00:24.50 outer-left position, delayed inward traversal, right-side convergence, projectile and block feedback, and white terminal hit flash.
+The clone ends at the 00:35.60 impact with both fighters in the upper-right composition, records zero ring-outs, and leaves the result transition to `S6-match`.
 
 Remaining differences are visible and bounded.
 The source faces are narrower and bloom softly, while the clone faces are wider and hard-edged.
@@ -52,16 +52,19 @@ Source shadows taper and merge organically; the clone uses straight columns.
 The source backdrop has fine smoke/noise and slow organic motion, while the clone uses broad deterministic moving veils.
 Source fighters have more articulated bodies, denser name/health detail, particles, camera movement, and source HUD elements.
 The clone retains the observed circular silhouette, limbs, directional gun, health/name treatment, block, flash, trail, and restrained snapshot-driven camera nudge, but does not claim the unresolved advanced `S7-presentation` work.
-The action route and event order correspond, while timing and exact poses remain tuned approximations because the recording follows card picks whose numeric effects are not recoverable from this interval alone.
+At 00:29.75 clone orange is farther inward and higher than source orange, which still occupies the outer-left area.
+At 00:34.16 the clone fighters overlap more than the source fighters, although both sequences have reached the right-side convergence.
+The source terminal burst has richer particles, and its character art and camera response remain more expressive.
+The broad action route and event order correspond, while intermediate timing and exact poses remain tuned approximations because the recording follows card picks whose numeric effects are not recoverable from this interval alone.
 
 ## Verification and proportionality
 
 The implementation keeps physics, rendering, transport, process orchestration, and evidence ownership in their existing crates rather than adding a parallel harness.
-The simulation tests protect stable contact plus the two-jump route, the complete reflected-shot-to-ring-out replay, one-tick bullet CCD, and bounded public JSON.
+The simulation tests protect stable contact plus the asymmetric route, the complete reflected-shot-to-terminal-impact replay, separate ring-out capability, one-tick bullet CCD, and bounded public JSON.
 The network test protects two live input sequences and every progressive snapshot.
 The presentation test executes the actual Bevy offscreen renderer and verifies the PNG dimensions.
-The client alias test protects capture destination safety, and the automation child test protects cleanup after a partial launch failure.
-This is seven focused product-boundary tests plus one bounded-state check and the automation test's inert UDP helper entry point; all nine executed test cases pass, and no test-only physics, rendering, or network implementation was added.
+Three client process tests protect single-capture, replay-capture, and remote-render destination safety, including validation before the remote network request, and the automation child test protects cleanup after a partial launch failure.
+The workspace has twelve focused executed test cases: two automation, three client, one network, one presentation, and five simulation tests; no test-only physics, rendering, or network implementation was added.
 
 ### Line and responsibility inventory
 
@@ -69,11 +72,11 @@ Counts below are LF source lines after formatting.
 
 | File | Lines | Responsibility and proportional test ownership |
 |---|---:|---|
-| `crates/rounds-sim/src/lib.rs` | 840 | Authoritative ECS/Rapier rules, snapshots, arena, replay profile; lines 771–840 contain route/contact, complete replay, real Rapier CCD, and bounded-JSON tests. |
+| `crates/rounds-sim/src/lib.rs` | 878 | Authoritative ECS/Rapier rules, snapshots, arena, replay profile; lines 789–878 contain route/contact, terminal-impact replay, separate ring-out, real Rapier CCD, and bounded-JSON tests. |
 | `crates/rounds-network/src/lib.rs` | 387 | Private packet grammar, handshake barrier, sequenced input and progressive snapshot transport; lines 355–387 run two real UDP clients against one authority. |
-| `crates/rounds-presentation/src/lib.rs` | 481 | Shared visible/offscreen Bevy scene, hidden monitor selection, renderer capture; lines 460–481 execute the GPU renderer and inspect the PNG dimensions. |
-| `crates/rounds-client/src/main.rs` | 332 | Local, live remote, visible replay, single capture, named anchor capture, and metadata entry points; no private unit-test mirror. |
-| `crates/rounds-client/tests/capture_cli.rs` | 37 | One process-boundary regression proving equivalent image/metadata destinations are rejected before writing. |
+| `crates/rounds-presentation/src/lib.rs` | 565 | Shared visible/offscreen Bevy scene, event-driven bounded capture, common camera transform, and exact hidden monitor selection; lines 543–565 execute the GPU renderer and inspect the PNG dimensions. |
+| `crates/rounds-client/src/main.rs` | 358 | Local, live remote, visible replay, single capture, named anchor capture, and pairwise destination validation; no private unit-test mirror. |
+| `crates/rounds-client/tests/capture_cli.rs` | 99 | Three process-boundary regressions prove resolved-equivalent single capture, replay anchor/metadata, and remote image/metadata destinations are rejected before rendering, networking, or writing. |
 | `crates/rounds-server/src/main.rs` | 41 | Thin headless authority process; protected through network and three-process smoke evidence rather than duplicate tests. |
 | `crates/rounds-automation/src/main.rs` | 416 | Owns three-process lifecycle, agreement checks, and live-render binding; lines 345–416 prove a partial client-start failure releases the owned server, with one inert helper test entry point. |
 
@@ -82,15 +85,18 @@ Automation remains a single process runner around public executables, and its on
 
 ## Completed evidence
 
-Verification started after deleting the exact resolved worktree `target` directory and confirming it no longer existed. The following commands then passed against the candidate:
+Before the correction's first Cargo command, the exact resolved `CARGO_TARGET_DIR` `out/ticket-039/cold-first-target-20260904-correction` was deleted and checked as neither a directory nor a file.
+`cargo test --workspace --locked -- --nocapture` was then the first Cargo command and passed from that verified absent target in 3 minutes 24 seconds: 12 passed, 0 failed, 0 ignored.
+After the final correction, the following commands passed against the same isolated build graph:
 
 - `cargo fmt --all -- --check` — exit 0.
-- `cargo clippy --workspace --all-targets --locked -- -D warnings` — exit 0 after rebuilding the absent target graph.
-- `cargo build --workspace --locked` — exit 0; the clean development build completed in 2 minutes 36 seconds.
-- `cargo test --workspace --locked -- --nocapture` — exit 0; 9 passed, 0 failed, 0 ignored across unit, integration, renderer, and documentation targets.
-- `target\\debug\\rounds-automation.exe smoke --seed 38 --ticks 780 --output-dir out/ticket-039/final-smoke` — exit 0; two handshakes completed, both clients sent sequences 0–779 and received ticks 1–780, both clients and the local authority agreed on state SHA-256 `9ecf33a52f1e8b57937e066b18092606a7766533ae131e09bff5098968d050bb`, and the frame rendered from client 0's received snapshot agreed with that state.
-- `target\\debug\\rounds-client.exe capture-replay --seed 38 --ticks 780 --output-dir out/ticket-039/evidence-anchors --metadata out/ticket-039/evidence-anchors.json` — exit 0; the five renderer/state hashes above were reproduced exactly.
-- `target\\debug\\rounds-client.exe visible --seed 38 --ticks 780 --frames 180` — exit 0; the hidden-first guard selected and re-verified monitor index 3 at `(364,-1080)`, 1920×1080 before showing the replay, then completed all 780 ticks with the same final state hash as the smoke run.
+- `cargo clippy --workspace --all-targets --locked -- -D warnings` — exit 0 in 1 minute 17 seconds.
+- `cargo build --workspace --locked` — exit 0 in 22 seconds.
+- `cargo test --workspace --locked -- --nocapture` — exit 0 in 40 seconds; 12 passed, 0 failed, 0 ignored across unit, integration, renderer, and documentation targets.
+- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\rounds-automation.exe smoke --seed 38 --ticks 786 --output-dir out/ticket-039/corrected-smoke` — exit 0; two handshakes completed, both clients sent sequences 0–785 and received ticks 1–786, both clients and the local authority agreed on state SHA-256 `ccc3a488dfe11b8e718677cad19044332b8b386063320988461274584a95b7a3`, and the frame rendered from client 0's received snapshot agreed with that state.
+- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\rounds-automation.exe inspect --seed 38 --ticks 786` — exit 0; the bounded final state reports 1,006 platform-contact ticks, 17 jumps, five shots and recoil impulses, seven block activations, one reflection, one CCD contact, one damage-scaled hit, zero ring-outs, both fighters at the upper right, and winner 0.
+- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\rounds-client.exe capture-replay --seed 38 --ticks 786 --output-dir out/ticket-039/corrected-anchors --metadata out/ticket-039/corrected-anchors.json` — exit 0; the five renderer/state hashes above were reproduced exactly.
+- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\rounds-client.exe visible --seed 38 --ticks 786 --frames 180` — exit 0; while hidden, the guard observed exactly one display at `(364,-1080)`, 1920×1080, re-verified that identity before showing, and completed all 786 ticks with the same final state hash as the smoke run.
 - `cargo tree -e features -i bevy_rapier2d` — exit 0; only the workspace `dim2` and `headless` feature requests are active, with no `enhanced-determinism` feature.
 - `node C:\\Users\\Adam\\.codex\\worktrees\\3d6a\\ivy\\playbook\\checks\\scripts\\check-tickets.mjs .` — exit 0; ticket format check passed. The ticket's documented repository-local checker path is absent in this checkout, so the installed Ivy checker was used.
 - `git diff --check` — exit 0.

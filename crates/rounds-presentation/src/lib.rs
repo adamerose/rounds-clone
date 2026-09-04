@@ -8,18 +8,27 @@ use bevy::{
         RenderPlugin,
         render_resource::{Extent3d, PollType, TextureDimension, TextureFormat, TextureUsages},
         renderer::RenderDevice,
-        view::screenshot::{Screenshot, save_to_disk},
+        view::screenshot::{Screenshot, ScreenshotCaptured},
     },
     window::{ExitCondition, Monitor, OnMonitor, PrimaryWindow},
     winit::WinitPlugin,
 };
 use rounds_sim::MatchSnapshot;
 use sha2::{Digest, Sha256};
-use std::path::Path;
+use std::{
+    path::Path,
+    sync::mpsc::{TryRecvError, sync_channel},
+    time::{Duration, Instant},
+};
 
 pub const FRAME_WIDTH: u32 = 1_280;
 pub const FRAME_HEIGHT: u32 = 720;
 pub const RENDERER_IDENTITY: &str = "bevy-0.19.1-2d-offscreen";
+const CAPTURE_TIMEOUT: Duration = Duration::from_secs(15);
+const DEVICE_POLL_TIMEOUT: Duration = Duration::from_secs(2);
+const PROJECT_DISPLAY_POSITION: IVec2 = IVec2::new(364, -1_080);
+const PROJECT_DISPLAY_SIZE: UVec2 = UVec2::new(1_920, 1_080);
+const MONITOR_DISCOVERY_FRAME_LIMIT: u16 = 120;
 
 #[derive(Resource)]
 struct SceneSnapshot(MatchSnapshot);
@@ -42,23 +51,16 @@ struct VisibleReplay {
 #[derive(Resource, Default)]
 struct VisibleWindowRequested(bool);
 
+#[derive(Resource, Default)]
+struct MonitorDiscovery {
+    frames: u16,
+    failed: bool,
+}
+
 #[derive(Component)]
 struct SceneVisual;
 
-#[allow(clippy::unnecessary_to_owned)] // Bevy's observer owns a 'static capture path.
 pub fn render_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Vec<u8>, String> {
-    if output.exists() {
-        std::fs::remove_file(output)
-            .map_err(|error| format!("remove stale {}: {error}", output.display()))?;
-    }
-    if let Some(parent) = output
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        std::fs::create_dir_all(parent)
-            .map_err(|error| format!("create {}: {error}", parent.display()))?;
-    }
-
     let render_plugin = RenderPlugin {
         synchronous_pipeline_compilation: true,
         ..default()
@@ -88,24 +90,37 @@ pub fn render_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Vec<u8>, St
         .world_mut()
         .insert_resource(CaptureTarget(target.clone()));
 
-    update_and_wait(&mut sub_apps);
-    update_and_wait(&mut sub_apps);
+    update_and_wait(&mut sub_apps)?;
+    update_and_wait(&mut sub_apps)?;
+    let (sender, receiver) = sync_channel(1);
     sub_apps
         .main
         .world_mut()
         .spawn(Screenshot::image(target))
-        .observe(save_to_disk(output.to_path_buf()));
-    for _ in 0..6 {
-        update_and_wait(&mut sub_apps);
-        if output.is_file() {
-            break;
+        .observe(move |captured: On<ScreenshotCaptured>| {
+            let _ = sender.send(captured.image.clone());
+        });
+    let deadline = Instant::now() + CAPTURE_TIMEOUT;
+    let captured = loop {
+        update_and_wait(&mut sub_apps)?;
+        match receiver.try_recv() {
+            Ok(image) => break image,
+            Err(TryRecvError::Disconnected) => {
+                return Err("Bevy screenshot observer disconnected before completion".to_owned());
+            }
+            Err(TryRecvError::Empty) if Instant::now() >= deadline => {
+                return Err(format!(
+                    "Bevy screenshot did not complete within {} seconds",
+                    CAPTURE_TIMEOUT.as_secs()
+                ));
+            }
+            Err(TryRecvError::Empty) => {}
         }
-    }
-    let bytes = std::fs::read(output)
-        .map_err(|error| format!("Bevy did not write {}: {error}", output.display()))?;
-    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
-        return Err("Bevy capture did not produce a PNG".to_owned());
-    }
+    };
+    let bytes = encode_png(captured)?;
+    create_parent(output)?;
+    std::fs::write(output, &bytes)
+        .map_err(|error| format!("write {}: {error}", output.display()))?;
     Ok(bytes)
 }
 
@@ -113,9 +128,8 @@ pub fn frame_sha256(frame: &[u8]) -> String {
     format!("{:x}", Sha256::digest(frame))
 }
 
-/// Runs the same scene model in a real Bevy window. The window starts hidden,
-/// requests zero-based monitor index 3, and is only revealed after Bevy reports
-/// that winit placed it on the project's required 1920x1080 display.
+/// Runs the same scene model in a real Bevy window. The window starts hidden and
+/// is revealed only after Bevy reports the exact configured project display.
 pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
     if snapshots.is_empty() {
         return Err("visible replay needs at least one snapshot".to_owned());
@@ -130,6 +144,7 @@ pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
         .insert_resource(SceneSnapshot(snapshots[0].clone()))
         .insert_resource(VisibleReplay { snapshots, next: 0 })
         .init_resource::<VisibleWindowRequested>()
+        .init_resource::<MonitorDiscovery>()
         .insert_resource(VisibleLifetime {
             frames: u32::MAX,
             shown: false,
@@ -140,22 +155,47 @@ pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
             Update,
             (verify_monitor_show_and_exit, advance_visible_scene).chain(),
         )
-        .run();
-    Ok(())
+        .run()
+        .is_success()
+        .then_some(())
+        .ok_or_else(|| "visible replay exited before verifying the project display".to_owned())
 }
 
 fn create_monitor_four_window(
     mut commands: Commands,
     monitors: Query<(Entity, &Monitor)>,
     mut requested: ResMut<VisibleWindowRequested>,
+    mut discovery: ResMut<MonitorDiscovery>,
+    mut exit: MessageWriter<AppExit>,
 ) {
-    if requested.0 {
+    if requested.0 || discovery.failed {
         return;
     }
-    let Some((monitor_entity, monitor)) = monitors
+    let matches = monitors
         .iter()
-        .find(|(_, monitor)| (monitor.physical_width, monitor.physical_height) == (1_920, 1_080))
-    else {
+        .filter(|(_, monitor)| is_project_display(monitor))
+        .collect::<Vec<_>>();
+    if matches.len() > 1 {
+        discovery.failed = true;
+        eprintln!(
+            "multiple displays reported the configured project-display identity; window remained hidden"
+        );
+        exit.write(AppExit::error());
+        return;
+    }
+    let Some((monitor_entity, monitor)) = matches.into_iter().next() else {
+        discovery.frames += 1;
+        if discovery.frames >= MONITOR_DISCOVERY_FRAME_LIMIT {
+            discovery.failed = true;
+            eprintln!(
+                "configured project display at ({},{}) {}x{} was not reported; window remained hidden",
+                PROJECT_DISPLAY_POSITION.x,
+                PROJECT_DISPLAY_POSITION.y,
+                PROJECT_DISPLAY_SIZE.x,
+                PROJECT_DISPLAY_SIZE.y
+            );
+            exit.write(AppExit::error());
+        }
         return;
     };
     commands.spawn((
@@ -170,7 +210,7 @@ fn create_monitor_four_window(
     ));
     requested.0 = true;
     println!(
-        "{{\"event\":\"monitorFourSelected\",\"width\":{},\"height\":{},\"x\":{},\"y\":{}}}",
+        "{{\"event\":\"projectDisplaySelected\",\"width\":{},\"height\":{},\"x\":{},\"y\":{}}}",
         monitor.physical_width,
         monitor.physical_height,
         monitor.physical_position.x,
@@ -197,7 +237,7 @@ fn new_render_target(sub_apps: &mut SubApps, width: u32, height: u32) -> Handle<
         .add(target)
 }
 
-fn update_and_wait(sub_apps: &mut SubApps) {
+fn update_and_wait(sub_apps: &mut SubApps) -> Result<(), String> {
     sub_apps.update();
     sub_apps
         .main
@@ -206,9 +246,41 @@ fn update_and_wait(sub_apps: &mut SubApps) {
         .wgpu_device()
         .poll(PollType::Wait {
             submission_index: None,
-            timeout: None,
+            timeout: Some(DEVICE_POLL_TIMEOUT),
         })
-        .expect("poll Bevy render device");
+        .map_err(|error| format!("poll Bevy render device: {error}"))?;
+    Ok(())
+}
+
+fn encode_png(image: Image) -> Result<Vec<u8>, String> {
+    let rgb = image
+        .try_into_dynamic()
+        .map_err(|error| format!("decode Bevy screenshot: {error}"))?
+        .to_rgb8();
+    let mut bytes = Vec::new();
+    {
+        let mut encoder = png::Encoder::new(&mut bytes, rgb.width(), rgb.height());
+        encoder.set_color(png::ColorType::Rgb);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder
+            .write_header()
+            .map_err(|error| format!("encode Bevy screenshot header: {error}"))?;
+        writer
+            .write_image_data(rgb.as_raw())
+            .map_err(|error| format!("encode Bevy screenshot pixels: {error}"))?;
+    }
+    Ok(bytes)
+}
+
+fn create_parent(path: &Path) -> Result<(), String> {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    }
+    Ok(())
 }
 
 fn setup_offscreen_scene(
@@ -218,23 +290,16 @@ fn setup_offscreen_scene(
     snapshot: Res<SceneSnapshot>,
     target: Res<CaptureTarget>,
 ) {
-    let camera_nudge = snapshot
-        .0
-        .players
-        .iter()
-        .map(|player| player.velocity_x_milli_per_second)
-        .sum::<i32>() as f32
-        / 600_000.0;
     commands.spawn((
         Camera2d,
         RenderTarget::Image(target.0.clone().into()),
-        Transform::from_xyz(camera_nudge.clamp(-5.0, 5.0), 0.0, 0.0),
+        camera_transform(&snapshot.0),
     ));
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot.0);
 }
 
-fn setup_visible_scene(mut commands: Commands) {
-    commands.spawn(Camera2d);
+fn setup_visible_scene(mut commands: Commands, snapshot: Res<SceneSnapshot>) {
+    commands.spawn((Camera2d, camera_transform(&snapshot.0)));
 }
 
 fn advance_visible_scene(
@@ -242,6 +307,7 @@ fn advance_visible_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     visuals: Query<Entity, With<SceneVisual>>,
+    mut camera: Single<&mut Transform, With<Camera2d>>,
     mut replay: ResMut<VisibleReplay>,
     mut lifetime: ResMut<VisibleLifetime>,
 ) {
@@ -252,6 +318,7 @@ fn advance_visible_scene(
         commands.entity(entity).despawn();
     }
     let snapshot = &replay.snapshots[replay.next];
+    **camera = camera_transform(snapshot);
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
     replay.next += 1;
     if replay.next == replay.snapshots.len() {
@@ -270,15 +337,17 @@ fn verify_monitor_show_and_exit(
         let monitor = monitors
             .get(primary.1.0)
             .expect("primary window did not report its monitor");
-        assert_eq!(
-            (monitor.physical_width, monitor.physical_height),
-            (1_920, 1_080),
-            "monitor index 3 is not the required 1920x1080 project display; window remained hidden"
-        );
+        if !is_project_display(monitor) {
+            eprintln!(
+                "primary window was not associated with the configured project display; window remained hidden"
+            );
+            exit.write(AppExit::error());
+            return;
+        }
         primary.0.visible = true;
         lifetime.shown = true;
         println!(
-            "{{\"event\":\"windowPlacementVerified\",\"monitorIndex\":3,\"width\":{},\"height\":{},\"x\":{},\"y\":{}}}",
+            "{{\"event\":\"windowPlacementVerified\",\"width\":{},\"height\":{},\"x\":{},\"y\":{}}}",
             monitor.physical_width,
             monitor.physical_height,
             monitor.physical_position.x,
@@ -288,6 +357,21 @@ fn verify_monitor_show_and_exit(
     if lifetime.frames == 0 {
         exit.write(AppExit::Success);
     }
+}
+
+fn is_project_display(monitor: &Monitor) -> bool {
+    monitor.physical_position == PROJECT_DISPLAY_POSITION
+        && monitor.physical_size() == PROJECT_DISPLAY_SIZE
+}
+
+fn camera_transform(snapshot: &MatchSnapshot) -> Transform {
+    let camera_nudge = snapshot
+        .players
+        .iter()
+        .map(|player| player.velocity_x_milli_per_second)
+        .sum::<i32>() as f32
+        / 600_000.0;
+    Transform::from_xyz(camera_nudge.clamp(-5.0, 5.0), 0.0, 0.0)
 }
 
 fn spawn_snapshot_scene(

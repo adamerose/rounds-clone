@@ -19,8 +19,10 @@ Repeatability is required on the same locked build and platform, not across plat
 
 Presentation reads an immutable authoritative snapshot through `rounds-presentation`.
 Pixels, camera motion, and other presentation-only state never enter the replicated snapshot or its hash.
-The shipped Bevy 2D scene draws the static platforms and long shadows, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, hit flash, and winner treatment.
-The same scene model has an offscreen 1280×720 GPU render path for PNG evidence and a visible command-line path that starts hidden on monitor index 3, verifies Bevy's reported 1920×1080 monitor, and only then reveals the window.
+The shipped Bevy 2D scene draws the static platforms and long shadows, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, and hit flash.
+Visible and offscreen modes apply the same snapshot-derived camera transform.
+The offscreen 1280×720 GPU path waits for Bevy's screenshot-completion event, bounds both device polling and the total capture, encodes the returned image, and writes the PNG only after capture succeeds.
+The visible path starts hidden, requires exactly one physical display at `(364,-1080)` with extent 1920×1080, verifies the window against that observed identity, and only then reveals it; missing or ambiguous displays fail closed.
 
 `rounds-network` owns the wire records and the transport-facing API.
 Its current adapter uses bounded IPv4 UDP datagrams on the local development machine.
@@ -57,18 +59,19 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo build --workspace --locked
 cargo test --workspace --locked
-target/debug/rounds-automation smoke --seed 38 --ticks 780 --output-dir out/ticket-039/smoke
-target/debug/rounds-automation inspect --seed 38 --ticks 780
-target/debug/rounds-client capture-replay --seed 38 --ticks 780 --output-dir out/ticket-039/anchors --metadata out/ticket-039/anchors.json
-target/debug/rounds-client visible --seed 38 --ticks 780 --frames 180
+target/debug/rounds-automation smoke --seed 38 --ticks 786 --output-dir out/ticket-039/smoke
+target/debug/rounds-automation inspect --seed 38 --ticks 786
+target/debug/rounds-client capture-replay --seed 38 --ticks 786 --output-dir out/ticket-039/anchors --metadata out/ticket-039/anchors.json
+target/debug/rounds-client visible --seed 38 --ticks 786 --frames 180
 ```
 
 The smoke command must report every handshake, input sequence and progressive snapshot, agreement among the headless server, both UDP clients and local client-host, and a live client render bound to the agreed state hash.
-Replay capture emits five named Bevy-rendered anchors spanning spawn through round end.
+Replay capture emits five named Bevy-rendered anchors spanning the separated spawn, asymmetric route, exchanged shots and block, and terminal upper-right impact.
 
 ## Testing rule
 
 Keep tests at the public and deep boundaries: stable contact and jump behavior, the complete duel, one-tick bullet CCD, bounded inspection, progressive UDP agreement, and the real Bevy offscreen renderer.
-A deep process-lifecycle test starts a minimal test-owned UDP child, forces the next child launch to fail, and proves cleanup releases the server; the capture boundary supplies two resolved-equivalent destinations and proves rejection happens before either file is written.
+A deep process-lifecycle test starts a minimal test-owned UDP child, forces the next child launch to fail, and proves cleanup releases the server.
+The capture boundary resolves metadata and every PNG destination before rendering or writing, compares every pair, and rejects aliases; process tests cover single capture, replay capture, and remote rendering before any network request or file write.
 Do not retain tests for private layout or retired implementation details.
 When test or support machinery outweighs the behavior it protects, rethink the slice instead of hardening the machinery by default.

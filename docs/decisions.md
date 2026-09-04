@@ -425,3 +425,10 @@ The teal duel keeps the six-crate process shape but replaces the foundation's in
 `rounds-sim` now owns stable Bevy ECS identities around a private Rapier 2D service; `rounds-presentation` renders the same snapshot scene through Bevy in visible and offscreen modes; and `rounds-network` advances one authority from per-tick sequenced inputs while returning each progressive snapshot.
 Only project snapshots and inputs cross those boundaries, so Rapier handles and Bevy entity IDs remain local implementation details.
 Rapier's `enhanced-determinism` feature stays disabled because it conflicts with the pinned Bevy dependency graph, and this server-authority design requires repeatability only for the same locked build and platform.
+
+## 2026-09-04 — Correct the teal duel against direct source frames
+
+Direct frame decoding corrected the first review's interpretation of recording `1460e670…15f9`: orange remains on the outer-left platform at 00:24.50, both fighters converge at the upper right for the terminal impact at 00:35.60, and the result presentation begins after that frame.
+The `teal-duel-replay` therefore ends at tick 786 with a damage winner and no ring-out; ring-out remains a separately tested simulation capability instead of a claim about this footage.
+Capture now waits for Bevy's screenshot-completion event with bounded failure, and metadata plus every generated PNG destination are resolved and checked pairwise before rendering, networking, or writing.
+Visible execution requires the observed physical display identity `(364,-1080)`, 1920×1080, while visible and offscreen rendering share one snapshot-derived camera transform.

@@ -82,33 +82,40 @@ fn run() -> Result<(), String> {
 fn remote(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
     let address = string_argument(arguments, "--address")?;
     let client_id = argument(arguments, "--client", 0_u8)?;
-    let scripts = scripted_inputs(seed, ticks);
-    let inputs = scripts
-        .get(usize::from(client_id))
-        .ok_or_else(|| "client must be 0 or 1".to_owned())?;
-    let report = send_inputs(address, client_id, seed, inputs)?;
-    match (
+    let render_paths = match (
         optional_path_argument(arguments, "--render-output"),
         optional_path_argument(arguments, "--render-metadata"),
     ) {
         (Some(output), Some(metadata)) => {
-            let evidence = capture_state(
-                &report.final_report.state,
-                &report.final_report.state_hash,
-                &output,
-                seed,
-                ticks,
-                "live-network",
-                Some(client_id),
-            )?;
-            write_metadata(&metadata, &evidence)?;
+            reject_path_aliases(&[
+                ("--render-output", output.as_path()),
+                ("--render-metadata", metadata.as_path()),
+            ])?;
+            Some((output, metadata))
         }
-        (None, None) => {}
+        (None, None) => None,
         _ => {
             return Err(
                 "--render-output and --render-metadata must be provided together".to_owned(),
             );
         }
+    };
+    let scripts = scripted_inputs(seed, ticks);
+    let inputs = scripts
+        .get(usize::from(client_id))
+        .ok_or_else(|| "client must be 0 or 1".to_owned())?;
+    let report = send_inputs(address, client_id, seed, inputs)?;
+    if let Some((output, metadata)) = render_paths {
+        let evidence = capture_state(
+            &report.final_report.state,
+            &report.final_report.state_hash,
+            &output,
+            seed,
+            ticks,
+            "live-network",
+            Some(client_id),
+        )?;
+        write_metadata(&metadata, &evidence)?;
     }
     print_json(&report)
 }
@@ -116,7 +123,7 @@ fn remote(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
 fn capture(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
     let output = path_argument(arguments, "--output")?;
     let metadata = path_argument(arguments, "--metadata")?;
-    reject_same_path(&output, &metadata)?;
+    reject_path_aliases(&[("--output", &output), ("--metadata", &metadata)])?;
     let (state, state_hash) = run_scripted_match(seed, ticks);
     let evidence = capture_state(&state, &state_hash, &output, seed, ticks, "single", None)?;
     write_metadata(&metadata, &evidence)?;
@@ -133,15 +140,26 @@ fn capture_replay(arguments: &[String], seed: u64, ticks: u32) -> Result<(), Str
     let metadata = path_argument(arguments, "--metadata")?;
     let anchors = [
         ("spawn", 20),
-        ("traversal", 120),
-        ("shot-block", 310),
-        ("hit-knockback", 690),
-        ("round-end", 779),
+        ("asymmetric-traversal", 120),
+        ("shot", 435),
+        ("block-reflection", 700),
+        ("terminal-impact", REPLAY_TICKS),
     ];
+    let outputs = anchors
+        .iter()
+        .map(|(anchor, tick)| output_dir.join(format!("{tick:04}-{anchor}.png")))
+        .collect::<Vec<_>>();
+    let mut destinations = Vec::with_capacity(outputs.len() + 1);
+    destinations.push(("--metadata", metadata.as_path()));
+    destinations.extend(
+        outputs
+            .iter()
+            .map(|output| ("generated replay PNG", output.as_path())),
+    );
+    reject_path_aliases(&destinations)?;
     let mut evidence = Vec::with_capacity(anchors.len());
-    for (anchor, tick) in anchors {
+    for ((anchor, tick), output) in anchors.into_iter().zip(outputs) {
         let (state, state_hash) = run_scripted_match(seed, tick);
-        let output = output_dir.join(format!("{tick:04}-{anchor}.png"));
         evidence.push(capture_state(
             &state,
             &state_hash,
@@ -223,14 +241,22 @@ fn write_metadata(path: &Path, evidence: &impl Serialize) -> Result<(), String> 
     .map_err(|error| format!("write {}: {error}", path.display()))
 }
 
-fn reject_same_path(left: &Path, right: &Path) -> Result<(), String> {
-    let left = resolved_path(left)?;
-    let right = resolved_path(right)?;
-    if paths_equal(&left, &right) {
-        return Err(format!(
-            "--output and --metadata must resolve to different paths: {}",
-            left.display()
-        ));
+fn reject_path_aliases(destinations: &[(&str, &Path)]) -> Result<(), String> {
+    let destinations = destinations
+        .iter()
+        .map(|(name, path)| Ok((*name, resolved_path(path)?)))
+        .collect::<Result<Vec<_>, String>>()?;
+    for left in 0..destinations.len() {
+        for right in left + 1..destinations.len() {
+            if paths_equal(&destinations[left].1, &destinations[right].1) {
+                return Err(format!(
+                    "{} and {} must resolve to different paths: {}",
+                    destinations[left].0,
+                    destinations[right].0,
+                    destinations[left].1.display()
+                ));
+            }
+        }
     }
     Ok(())
 }
