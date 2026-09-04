@@ -49,6 +49,7 @@ struct SmokeEvidence {
     yellow_terminal_blast_observed: bool,
     yellow_crate_motion_observed: bool,
     yellow_result_onset_observed: bool,
+    yellow_following_result_observed: bool,
     yellow_round_orange_observed: bool,
     live_frame_path: String,
     live_metadata_path: String,
@@ -284,6 +285,9 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     let yellow_result_onset_observed = reports
         .iter()
         .all(|report| report.observed_yellow_result_onset);
+    let yellow_following_result_observed = reports
+        .iter()
+        .all(|report| report.observed_yellow_following_result);
     let yellow_round_orange_observed = reports
         .iter()
         .all(|report| report.observed_yellow_round_orange);
@@ -306,6 +310,7 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 || !yellow_terminal_blast_observed
                 || !yellow_crate_motion_observed
                 || !yellow_result_onset_observed
+                || !yellow_following_result_observed
                 || !yellow_round_orange_observed))
         || reports
             .iter()
@@ -352,6 +357,7 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             yellow_terminal_blast_observed,
             yellow_crate_motion_observed,
             yellow_result_onset_observed,
+            yellow_following_result_observed,
             yellow_round_orange_observed,
             live_frame_path: slash_path(&live_frame),
             live_metadata_path: slash_path(&live_metadata),

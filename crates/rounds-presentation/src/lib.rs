@@ -1136,6 +1136,7 @@ fn spawn_yellow_result(
         return;
     }
     let established = round.phase == rounds_sim::RoundPhase::RoundOrange;
+    let transition_scale = (0.45 + round.phase_tick as f32 * 0.55).min(1.0);
     commands.spawn((
         SceneVisual,
         Sprite::from_color(
@@ -1148,6 +1149,8 @@ fn spawn_yellow_result(
         let center = Vec2::new(-102.0 + player as f32 * 200.0, 37.0);
         let scale = if established && player == 0 {
             (1.0 - round.phase_tick.saturating_sub(22) as f32 * 0.024).clamp(0.43, 1.0)
+        } else if !established {
+            transition_scale
         } else {
             1.0
         };
@@ -1176,7 +1179,15 @@ fn spawn_yellow_result(
             ));
         }
         if !established && player == 0 && round.scores[player] >= 2 {
-            spawn_half_disc(commands, meshes, materials, center, color, 51.0, 42.5);
+            spawn_half_disc(
+                commands,
+                meshes,
+                materials,
+                center,
+                color,
+                51.0 * scale,
+                42.5,
+            );
         }
     }
     if established {
@@ -3571,9 +3582,13 @@ mod tests {
         let trails = signature_at(rounds_sim::YELLOW_TRAILS_TICK);
         assert!(trails.arena_hard_edge_pixels > 900);
         assert!(trails.hud_hard_edge_pixels > 50);
+        let last_combat = signature_at(rounds_sim::YELLOW_LAST_COMBAT_TICK);
         let result = signature_at(rounds_sim::YELLOW_RESULT_ONSET_TICK);
-        assert!(result.result_orange_left_pixels > 3_000);
+        assert!(result.result_orange_left_pixels > 500);
+        assert!(result.result_orange_left_pixels > last_combat.result_orange_left_pixels * 20);
         assert!(result.result_orange_left_pixels > result.result_orange_right_pixels * 3);
+        let following = signature_at(rounds_sim::YELLOW_FOLLOWING_RESULT_TICK);
+        assert!(following.result_orange_left_pixels > result.result_orange_left_pixels * 2);
         let established = signature_at(rounds_sim::YELLOW_ROUND_ORANGE_TICK);
         let tail = signature_at(rounds_sim::YELLOW_REPLAY_TICKS);
         assert!(tail.result_orange_left_pixels < established.result_orange_left_pixels / 2);

@@ -71,7 +71,7 @@ Source: `reference/MedalTVRounds20260903165304088.mp4`, duration `600.13` second
 | 06:30–06:40 | card selection and transition | S1, S5, S7 |
 | 06:40–06:50 | bright stepped arena combat | S2, S4, S5, S7, S8 |
 | 06:50–07:00 | hanging-platform arena duel | S2, S3, S5, S7, S8 |
-| 07:00–07:10 | yellow-crate duel, terminal blast/radial screen echo through final combat PTS 4238316380, adjacent result onset at PTS 4238483046, then `ROUND ORANGE` | S2/S4/S5/S6/S7/S8 ticket 043 candidate implemented but delivery blocked for source-boundary amendment; other yellow-arena combat remains incomplete |
+| 07:00–07:10 | yellow-crate duel, terminal blast/radial screen echo through final combat PTS 4238316380, adjacent result onset at PTS 4238483046, then `ROUND ORANGE` | S2/S4/S5/S6/S7/S8 implemented sub-slice; other yellow-arena combat remains incomplete |
 | 07:10–07:20 | chromatic hit effect and reactive geometry | S2, S4, S5, S7, S8 |
 | 07:20–07:30 | layered wooden arena duel | S2, S3, S4, S5, S7, S8 |
 | 07:30–07:40 | wooden structure collapse | S2, S3, S4, S5, S7, S8 |

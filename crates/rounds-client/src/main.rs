@@ -5,10 +5,10 @@ use rounds_presentation::{
 };
 use rounds_sim::{
     MatchSnapshot, RADIAL_HALF_BLUE_TICK, RADIAL_LAST_COMBAT_TICK, RADIAL_RESULT_ONSET_TICK,
-    REPLAY_TICKS, ReplayProfile, YELLOW_IMPACT_TICK, YELLOW_LAST_CALM_TICK,
-    YELLOW_LAST_COMBAT_TICK, YELLOW_LOCAL_BURST_TICK, YELLOW_PEAK_ECHO_TICK, YELLOW_REPLAY_TICKS,
-    YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, YELLOW_TRAILS_TICK, arena_digest,
-    combat_digest, dynamic_body_digest, flow_digest, loadout_digest, round_digest,
+    REPLAY_TICKS, ReplayProfile, YELLOW_FOLLOWING_RESULT_TICK, YELLOW_IMPACT_TICK,
+    YELLOW_LAST_CALM_TICK, YELLOW_LAST_COMBAT_TICK, YELLOW_LOCAL_BURST_TICK, YELLOW_PEAK_ECHO_TICK,
+    YELLOW_REPLAY_TICKS, YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, YELLOW_TRAILS_TICK,
+    arena_digest, combat_digest, dynamic_body_digest, flow_digest, loadout_digest, round_digest,
     run_profile_match, run_profile_snapshots, saw_digest, scripted_inputs_for,
 };
 use serde::Serialize;
@@ -219,6 +219,7 @@ fn capture_replay(
             ("directional-trails", YELLOW_TRAILS_TICK),
             ("last-combat", YELLOW_LAST_COMBAT_TICK),
             ("result-onset", YELLOW_RESULT_ONSET_TICK),
+            ("following-result-transition", YELLOW_FOLLOWING_RESULT_TICK),
             ("round-orange", YELLOW_ROUND_ORANGE_TICK),
             ("result-tail", YELLOW_REPLAY_TICKS),
         ],
@@ -371,10 +372,14 @@ fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static st
                 "82feb79de9feb66b2fc6d600257b3107d9d833a3c86c71ff4fecacf5601cf8ca",
             )),
             YELLOW_LAST_COMBAT_TICK => Some((
+                4_238_316_380,
+                "c2e0df8612a7ea782e40f94e1c8a941971368db55fd767cdbc742bc27e460124",
+            )),
+            YELLOW_RESULT_ONSET_TICK => Some((
                 4_238_483_046,
                 "74636191cb28cb44ac48d8f6106f5f9637b202b0097a35a966d2ac394a618c60",
             )),
-            YELLOW_RESULT_ONSET_TICK => Some((
+            YELLOW_FOLLOWING_RESULT_TICK => Some((
                 4_238_649_712,
                 "e315638c3fff8b0904470c38938dd9690349e26ff3c36be9c112a93d39e7f518",
             )),

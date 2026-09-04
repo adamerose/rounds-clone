@@ -1,7 +1,7 @@
 # ROUNDS clean-room rewrite
 
 This repository starts from the two supplied ten-minute ROUNDS recordings and builds the clone in Rust with Bevy.
-Five footage-derived slices now exist: four delivered slices cover a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, and the radial-saw duel through `HALF BLUE`; a fifth implemented candidate covers the yellow-crate terminal blast through `ROUND ORANGE` but remains blocked while its source-frame boundary is amended and re-admitted.
+Five footage-derived slices now exist: a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, the radial-saw duel through `HALF BLUE`, and the yellow-crate terminal blast through `ROUND ORANGE`.
 Two clients drive one 60 Hz Rapier authority through sequenced local UDP input, the same rules run as a client-host, and the shared Bevy 2D scene renders visibly or to offscreen evidence frames.
 
 ## Build and verify
@@ -11,16 +11,16 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo build --workspace --locked
 cargo test --workspace --locked
-.\target\debug\rounds-automation.exe smoke --seed 38 --ticks 786 --output-dir out\ticket-039\smoke
-.\target\debug\rounds-automation.exe inspect --seed 38 --ticks 786
-.\target\debug\rounds-client.exe capture-replay --seed 38 --ticks 786 --output-dir out\ticket-039\anchors --metadata out\ticket-039\anchors.json
-.\target\debug\rounds-client.exe visible --seed 38 --ticks 786 --frames 180
-.\target\debug\rounds-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\smoke
-.\target\debug\rounds-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\anchors --metadata out\ticket-041\anchors.json
-.\target\debug\rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
-.\target\debug\rounds-automation.exe smoke --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --output-dir out\ticket-043\smoke
-.\target\debug\rounds-client.exe capture-replay --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --output-dir out\ticket-043\anchors --metadata out\ticket-043\anchors.json
-.\target\debug\rounds-client.exe visible --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --frames 155
+.\out\cargo-target\debug\rounds-automation.exe smoke --seed 38 --ticks 786 --output-dir out\ticket-039\smoke
+.\out\cargo-target\debug\rounds-automation.exe inspect --seed 38 --ticks 786
+.\out\cargo-target\debug\rounds-client.exe capture-replay --seed 38 --ticks 786 --output-dir out\ticket-039\anchors --metadata out\ticket-039\anchors.json
+.\out\cargo-target\debug\rounds-client.exe visible --seed 38 --ticks 786 --frames 180
+.\out\cargo-target\debug\rounds-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\smoke
+.\out\cargo-target\debug\rounds-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\anchors --metadata out\ticket-041\anchors.json
+.\out\cargo-target\debug\rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
+.\out\cargo-target\debug\rounds-automation.exe smoke --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --output-dir out\ticket-043\smoke
+.\out\cargo-target\debug\rounds-client.exe capture-replay --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --output-dir out\ticket-043\anchors --metadata out\ticket-043\anchors.json
+.\out\cargo-target\debug\rounds-client.exe visible --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --frames 155
 ```
 
 The smoke result proves that both client processes handshake, send monotonic input sequences, receive every progressive snapshot, agree with the authority and local host, and bind one real Bevy render to the received final state.
@@ -34,7 +34,7 @@ The teal slice has stable Bevy ECS identities, Rapier bodies and contacts behind
 Ring-out remains a separately tested simulation capability; the named replay ends before the result transition and records no ring-out.
 Its named replay profile matches this card-modified interval without claiming base-game constants.
 The radial-saw slice adds stable authoritative moving hazards, ordinary projectile feedback, a moving painted background, and the adjacent `HALF BLUE` result handoff without claiming unobserved saw damage.
-The blocked yellow-crate candidate adds stable-ID dynamic Rapier crates, an authority-owned terminal projectile contact and blast impulse, blue elimination and orange scoring, and one private final-composite fullscreen pass for the source-proved discrete radial RGB echoes. Visible and offscreen runs use that same GPU scene and effect pass; its capture labels and replay boundary still require the ticket 043 amendment before delivery.
+The yellow-crate slice adds stable-ID dynamic Rapier crates, an authority-owned terminal projectile contact and blast impulse, blue elimination and orange scoring, and one private final-composite fullscreen pass for the source-proved discrete radial RGB echoes. Visible and offscreen runs use that same GPU scene and effect pass; its eleven capture anchors preserve the adjacent tick-109 combat, tick-110 result onset, and tick-111 larger result transition.
 Production reliability and Steam transport, the remaining card mechanics, other arenas, complete match lifecycle, audio, and menus remain explicit gaps in `docs/fidelity/footage-coverage.md`.
 
 ## Recover the retired prototype

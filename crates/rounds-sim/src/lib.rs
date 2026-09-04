@@ -39,8 +39,9 @@ pub const YELLOW_IMPACT_TICK: u32 = 81;
 pub const YELLOW_LOCAL_BURST_TICK: u32 = 84;
 pub const YELLOW_PEAK_ECHO_TICK: u32 = 89;
 pub const YELLOW_TRAILS_TICK: u32 = 102;
-pub const YELLOW_LAST_COMBAT_TICK: u32 = 110;
-pub const YELLOW_RESULT_ONSET_TICK: u32 = 111;
+pub const YELLOW_LAST_COMBAT_TICK: u32 = 109;
+pub const YELLOW_RESULT_ONSET_TICK: u32 = 110;
+pub const YELLOW_FOLLOWING_RESULT_TICK: u32 = 111;
 pub const YELLOW_ROUND_ORANGE_TICK: u32 = 125;
 
 const PLAYER_RADIUS: f32 = 22.0;
@@ -2399,7 +2400,8 @@ mod tests {
         let calm = &replay[(YELLOW_LAST_CALM_TICK - 1) as usize];
         let impact = &replay[(YELLOW_IMPACT_TICK - 1) as usize];
         let last_combat = &replay[(YELLOW_LAST_COMBAT_TICK - 1) as usize];
-        let result = &replay[(YELLOW_RESULT_ONSET_TICK - 1) as usize];
+        let result_onset = &replay[(YELLOW_RESULT_ONSET_TICK - 1) as usize];
+        let following_result = &replay[(YELLOW_FOLLOWING_RESULT_TICK - 1) as usize];
         let orange = &replay[(YELLOW_ROUND_ORANGE_TICK - 1) as usize];
         let fighter_separation = |snapshot: &MatchSnapshot| {
             (snapshot.players[1].x_milli - snapshot.players[0].x_milli).abs()
@@ -2459,10 +2461,16 @@ mod tests {
             RoundPhase::Combat
         );
         assert_eq!(
-            result.round.as_ref().unwrap().phase,
+            result_onset.round.as_ref().unwrap().phase,
             RoundPhase::ResultTransition
         );
-        assert_eq!(result.round.as_ref().unwrap().scores, [3, 1]);
+        assert_eq!(result_onset.round.as_ref().unwrap().phase_tick, 0);
+        assert_eq!(result_onset.round.as_ref().unwrap().scores, [3, 1]);
+        assert_eq!(
+            following_result.round.as_ref().unwrap().phase,
+            RoundPhase::ResultTransition
+        );
+        assert_eq!(following_result.round.as_ref().unwrap().phase_tick, 1);
         assert_eq!(
             orange.round.as_ref().unwrap().phase,
             RoundPhase::RoundOrange

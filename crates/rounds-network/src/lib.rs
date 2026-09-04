@@ -1,9 +1,9 @@
 use rounds_sim::{
     AuthoritativeMatch, FlowPhase, ItemId, MatchSnapshot, PlayerInput, PriorBadge,
     RADIAL_HALF_BLUE_TICK, RADIAL_RESULT_ONSET_TICK, ReplayProfile, RoundPhase, TIMBER_IMPACT_TICK,
-    YELLOW_IMPACT_TICK, YELLOW_LAST_CALM_TICK, YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK,
-    arena_digest, combat_digest, dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest,
-    round_digest, saw_digest,
+    YELLOW_FOLLOWING_RESULT_TICK, YELLOW_IMPACT_TICK, YELLOW_LAST_CALM_TICK,
+    YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, arena_digest, combat_digest,
+    dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest, round_digest, saw_digest,
 };
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -92,6 +92,7 @@ pub struct ClientSessionReport {
     pub observed_yellow_terminal_blast: bool,
     pub observed_yellow_crate_motion: bool,
     pub observed_yellow_result_onset: bool,
+    pub observed_yellow_following_result: bool,
     pub observed_yellow_round_orange: bool,
     pub final_report: ServerReport,
 }
@@ -280,6 +281,7 @@ pub fn send_inputs(
     let mut observed_yellow_terminal_blast = false;
     let mut observed_yellow_crate_motion = false;
     let mut observed_yellow_result_onset = false;
+    let mut observed_yellow_following_result = false;
     let mut observed_yellow_round_orange = false;
     let mut yellow_crate_origin = None;
     for (sequence, input) in inputs.iter().copied().enumerate() {
@@ -445,6 +447,14 @@ pub fn send_inputs(
                                 && round.winner == Some(0)
                                 && round.eliminated == Some(1)
                         });
+                    observed_yellow_following_result |= state.tick == YELLOW_FOLLOWING_RESULT_TICK
+                        && state.round.as_ref().is_some_and(|round| {
+                            round.phase == RoundPhase::ResultTransition
+                                && round.phase_tick == 1
+                                && round.scores == [3, 1]
+                                && round.winner == Some(0)
+                                && round.eliminated == Some(1)
+                        });
                     observed_yellow_round_orange |= state.tick == YELLOW_ROUND_ORANGE_TICK
                         && state.round.as_ref().is_some_and(|round| {
                             round.phase == RoundPhase::RoundOrange
@@ -485,6 +495,7 @@ pub fn send_inputs(
         observed_yellow_terminal_blast,
         observed_yellow_crate_motion,
         observed_yellow_result_onset,
+        observed_yellow_following_result,
         observed_yellow_round_orange,
         final_report: ServerReport {
             protocol: NETWORK_PROTOCOL,
@@ -614,6 +625,7 @@ mod tests {
                 && report.observed_yellow_terminal_blast
                 && report.observed_yellow_crate_motion
                 && report.observed_yellow_result_onset
+                && report.observed_yellow_following_result
                 && report.observed_yellow_round_orange
         }));
         assert_eq!(server_report.state.round.as_ref().unwrap().scores, [3, 1]);
