@@ -22,6 +22,8 @@ The timber-collapse profile begins with 17 dynamic timber bodies held by fixed R
 Its authoritative explosion releases the fixed joints, wakes and impulses nearby bodies, and leaves the rope joints active; contacts and Rapier integration determine the resulting pile.
 Snapshots report ordered transforms, velocities, sleep state, constraint activity, and the stable explosion event.
 
+The radial-saw profile uses the same boundary for two kinematic Rapier bodies with project IDs 200 and 201. ECS owns each saw's initial pose, radius, eight-tooth silhouette, and measured 7.43 rad/s angular velocity; snapshots read the collider pose and body angular velocity, while reset immediately propagates the restored body pose to its collider before another snapshot can cross the wire. The source does not show saw contact, so their colliders carry no damage rule. Ordinary CCD projectiles remain the only damage path in this slice. A small authoritative round resource preserves orange's existing half, awards blue's half on the tick-909 ordinary hit, freezes combat, then exposes the established `HalfBlue` phase at tick 938.
+
 The rematch/draft profile adds an authoritative match-flow resource above combat.
 It owns blue's 4–5 terminal win, orange's elimination, both fighters' exact prior-card badge stacks, one rematch vote per player, and the both-yes reset that clears the result and old cards, revives both fighters, and starts the score at 0–0.
 It also owns seeded ordered offers, active drafter, hover, confirmation, reveal, phase revision, and persistent new-match loadouts.
@@ -42,6 +44,7 @@ For the draft profile the same renderer projects received phase state into the l
 Every stable item `art_key` selects a distinct card motif, while authoritative hover and reveal state drives the card lift, arms, hands, eyes, and mouth.
 Offscreen capture does not guess how many updates rendering needs: it requires the expected camera, background, character, hands, cards, and item-art entities, observes an empty Bevy pipeline queue, and then waits for two consecutive complete extracted render frames before requesting the screenshot.
 Keyboard arrows plus Enter/Space and controller D-pad plus south button map to the same revisioned `FlowCommand` values used by automation and the UDP clients; these mappings never apply an item in presentation.
+For the radial profile, that same shared scene reads rotated platform and saw poses from the snapshot, then adds tick-derived paper-brush motion, long shadows, ordinary trails and impact particles, result dimming, half-score circles, and `HALF BLUE`. Those render entities are absent from authority hashes and cannot advance the frozen result locally.
 
 `rounds-network` owns the wire records and the transport-facing API.
 Its current adapter uses bounded IPv4 UDP datagrams on the local development machine.
@@ -51,8 +54,8 @@ It is not a production reliability protocol and does not claim prediction, inter
 A future Steam adapter belongs behind this boundary and must preserve the same simulation inputs and snapshots.
 
 `rounds-server` runs one headless authoritative session.
-`rounds-client` runs the same simulation as a local client-host, submits one input sequence to a remote development server, renders a received live snapshot, runs visibly, or emits named replay anchors with source, input, state, dynamic-body, flow, loadout, executable, renderer, and frame identity.
-`rounds-automation` starts the headless server and two real client processes, proves each received the same progressive phase sequence, binds one client's render to its received final snapshot, checks complete flow/loadout and local-host agreement, and emits bounded JSON evidence.
+`rounds-client` runs the same simulation as a local client-host, submits one input sequence to a remote development server, renders a received live snapshot, runs visibly, or emits named replay anchors with source, input, state, arena, saw, combat, round, dynamic-body, flow, loadout, executable, renderer, and frame identity.
+`rounds-automation` starts the headless server and two real client processes, proves each received the same progressive phase sequence, binds one client's render to its received final snapshot, checks the profile-specific authority projections and local-host agreement, and emits bounded JSON evidence.
 
 ## Workspace boundaries
 
@@ -86,12 +89,17 @@ target/debug/rounds-automation smoke --profile rematch-draft-replay --seed 41 --
 target/debug/rounds-automation inspect --profile rematch-draft-replay --seed 41 --ticks 2400
 target/debug/rounds-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/anchors --metadata out/ticket-041/anchors.json
 target/debug/rounds-client visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
+target/debug/rounds-automation smoke --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/smoke
+target/debug/rounds-automation inspect --profile radial-saw-half-blue-replay --seed 42 --ticks 938
+target/debug/rounds-client capture-replay --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/anchors --metadata out/ticket-042/anchors.json
+target/debug/rounds-client visible --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --frames 180
 ```
 
 The smoke command must report every handshake, input sequence and progressive snapshot, agreement among the headless server, both UDP clients and local client-host, and a live client render bound to the agreed state hash.
 Replay capture emits twelve named Bevy-rendered timber anchors spanning the intact structure, pre-impact combat, bright impact, 100 ms impact progression, first release, deformation, debris, settlement, and continued combat.
 The earlier teal-duel profile remains available by passing `--profile teal-duel-replay --ticks 786`.
 The rematch/draft replay emits thirteen anchors from `VICTORY!` through both five-card fans and the upgraded projectile exchange.
+The radial replay emits eight anchors from arena reveal through traversal, ordinary projectile exchange, adjacent tick-908/tick-909 combat and result frames, and established tick-938 `HALF BLUE`.
 
 ## Testing rule
 
@@ -99,5 +107,6 @@ Keep tests at the public and deep boundaries: stable contact and jump behavior, 
 For match flow, one compact set covers the complete phase order, terminal authority and exact prior badges, accepted-rematch clearing, source-bound blue-fan cadence, vote outcomes, invalid actions, exact source offers, catalog-only rejection, one-time typed picks, seed/loadout perturbations, concrete keyboard/controller mapping, and real Dazzle/Explosive projectile behavior.
 A deep process-lifecycle test starts a minimal test-owned UDP child, forces the next child launch to fail, and proves cleanup releases the server.
 The capture boundary resolves metadata and every PNG destination before rendering or writing, compares every pair, and rejects aliases; process tests cover single capture, replay capture, and remote rendering before any network request or file write. A focused renderer test captures the same immutable draft state twice and requires byte-identical complete frames and unchanged authoritative digests.
+The radial checks protect stable saw IDs and measured motion, immediate collider-pose reset, an outcome-sensitive angular-speed perturbation, the exact ordinary-damage/result/score boundary, and two clients observing the same final authority projections.
 Do not retain tests for private layout or retired implementation details.
 When test or support machinery outweighs the behavior it protects, rethink the slice instead of hardening the machinery by default.

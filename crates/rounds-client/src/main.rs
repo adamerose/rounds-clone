@@ -4,8 +4,10 @@ use rounds_presentation::{
     run_interactive_visible, run_visible,
 };
 use rounds_sim::{
-    MatchSnapshot, REPLAY_TICKS, ReplayProfile, dynamic_body_digest, flow_digest, loadout_digest,
-    run_profile_match, run_profile_snapshots, scripted_inputs_for,
+    MatchSnapshot, RADIAL_HALF_BLUE_TICK, RADIAL_LAST_COMBAT_TICK, RADIAL_RESULT_ONSET_TICK,
+    REPLAY_TICKS, ReplayProfile, arena_digest, combat_digest, dynamic_body_digest, flow_digest,
+    loadout_digest, round_digest, run_profile_match, run_profile_snapshots, saw_digest,
+    scripted_inputs_for,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -24,11 +26,17 @@ struct CaptureEvidence {
     anchor: String,
     source_interval: &'static str,
     source_timestamp: String,
+    source_pts: Option<i64>,
+    source_rgba_sha256: Option<&'static str>,
     source_sha256: &'static str,
     input_trace: &'static str,
     input_trace_sha256: String,
     state_sha256: String,
     dynamic_body_sha256: String,
+    arena_sha256: String,
+    saw_sha256: String,
+    combat_sha256: String,
+    round_sha256: Option<String>,
     flow_sha256: Option<String>,
     loadout_sha256: Option<String>,
     renderer: &'static str,
@@ -187,6 +195,16 @@ fn capture_replay(
             ("block-reflection", 700),
             ("terminal-impact", profile.replay_ticks()),
         ],
+        ReplayProfile::RadialSawHalfBlueReplay => vec![
+            ("arena-reveal", 0),
+            ("upper-slope-traversal", 180),
+            ("projectile-exchange", 360),
+            ("ordinary-impact", 540),
+            ("late-traversal", 840),
+            ("last-combat", RADIAL_LAST_COMBAT_TICK),
+            ("result-onset", RADIAL_RESULT_ONSET_TICK),
+            ("half-blue", RADIAL_HALF_BLUE_TICK),
+        ],
         ReplayProfile::RematchDraftReplay => vec![
             ("victory", 180),
             ("rematch-prompt", 300),
@@ -248,7 +266,7 @@ fn capture_state(
     let frame = render_png(state, output)?;
     let executable = env::current_exe().map_err(|error| error.to_string())?;
     Ok(CaptureEvidence {
-        format: 2,
+        format: 3,
         package: format!("rounds-client@{}", env!("CARGO_PKG_VERSION")),
         executable_sha256: sha256(
             &fs::read(&executable)
@@ -259,11 +277,17 @@ fn capture_state(
         anchor: anchor.to_owned(),
         source_interval: profile.source_interval(),
         source_timestamp: source_timestamp(profile, state.tick),
+        source_pts: source_binding(profile, state.tick).map(|binding| binding.0),
+        source_rgba_sha256: source_binding(profile, state.tick).map(|binding| binding.1),
         source_sha256: profile.source_sha256(),
         input_trace: profile.name(),
         input_trace_sha256: sha256(&script_bytes),
         state_sha256: state_hash.to_owned(),
         dynamic_body_sha256: dynamic_body_digest(state),
+        arena_sha256: arena_digest(state),
+        saw_sha256: saw_digest(state),
+        combat_sha256: combat_digest(state),
+        round_sha256: round_digest(state),
         flow_sha256: state.flow.as_ref().map(flow_digest),
         loadout_sha256: state.flow.as_ref().map(loadout_digest),
         renderer: RENDERER_IDENTITY,
@@ -276,6 +300,15 @@ fn capture_state(
 }
 
 fn source_timestamp(profile: ReplayProfile, tick: u32) -> String {
+    if let Some((pts, _)) = source_binding(profile, tick) {
+        let micros = pts / 10;
+        return format!(
+            "{:02}:{:02}.{:06}",
+            micros / 60_000_000,
+            (micros / 1_000_000) % 60,
+            micros % 1_000_000
+        );
+    }
     let hundredths = profile.source_start_hundredths() + (u64::from(tick) * 100 / 60);
     format!(
         "{:02}:{:02}.{:02}",
@@ -283,6 +316,47 @@ fn source_timestamp(profile: ReplayProfile, tick: u32) -> String {
         (hundredths / 100) % 60,
         hundredths % 100
     )
+}
+
+fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static str)> {
+    if profile != ReplayProfile::RadialSawHalfBlueReplay {
+        return None;
+    }
+    match tick {
+        0 => Some((
+            2_320_490_718,
+            "6266d4e7fe24f1d0c7069279479c341dca5229d7b596e077368e4e73eb9c236f",
+        )),
+        180 => Some((
+            2_350_657_264,
+            "67b696e933729bc62463cffd3469a1a54ba15682e3dcc45bfce782626677e87e",
+        )),
+        360 => Some((
+            2_380_657_144,
+            "71c7b2c860cef7110992984f26f8e821c5f9b1caa9bb1d8d17f58fbf2ea62887",
+        )),
+        540 => Some((
+            2_410_657_024,
+            "6751167ed9f01b1a81c50abc64c650393d2e4d63e2f62a770c78e595e0073ec5",
+        )),
+        840 => Some((
+            2_460_656_824,
+            "faac3f7dbed16d238f44090b4d2fdf3db6fd025d438a867b97817eba2afab7a7",
+        )),
+        RADIAL_LAST_COMBAT_TICK => Some((
+            2_471_823_446,
+            "687acf71fb2fce461692bd7443b7703274dcb895a6b17b6a86e1bbfd136e92ce",
+        )),
+        RADIAL_RESULT_ONSET_TICK => Some((
+            2_471_990_112,
+            "d9161d231c3e90438ea7c638abe2dfe1feba2f1bf28edc3a94a841d4b69b7cca",
+        )),
+        RADIAL_HALF_BLUE_TICK => Some((
+            2_476_823_426,
+            "0b9d2136b7e010a359d95e3d2310a3e55c1e851429537cefcbd7cece12d185ca",
+        )),
+        _ => None,
+    }
 }
 
 fn local_report(profile: ReplayProfile, seed: u64, ticks: u32) -> ServerReport {
@@ -296,6 +370,10 @@ fn local_report(profile: ReplayProfile, seed: u64, ticks: u32) -> ServerReport {
         last_snapshot_tick: ticks,
         state_hash,
         dynamic_body_digest: dynamic_body_digest(&state),
+        arena_digest: arena_digest(&state),
+        saw_digest: saw_digest(&state),
+        combat_digest: combat_digest(&state),
+        round_digest: round_digest(&state),
         flow_digest: state.flow.as_ref().map(flow_digest),
         loadout_digest: state.flow.as_ref().map(loadout_digest),
         state,

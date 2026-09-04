@@ -3,7 +3,7 @@
 This record bounds the next footage-derived slice in `reference/MedalTVRounds20260903170709695.mp4`, SHA-256 `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9`.
 The selected continuous interval begins with the fully revealed radial-saw arena at source PTS 2320490718, or 03:52.049072, and ends with established `HALF BLUE` presentation at source PTS 2476823426, or 04:07.682343.
 The last undimmed combat frame is PTS 2471823446, or 04:07.182345, and the result transition begins on the immediately following frame at PTS 2471990112, or 04:07.199011.
-Source media stays ignored and unchanged, and decoded working files remain disposable evidence under `out/ticket-042-correction/`.
+Source media stays ignored and unchanged, and decoded working files remain disposable evidence under the candidate-specific `out/ticket-042/` directory.
 
 ## Canonical frame method
 
@@ -49,3 +49,22 @@ The saws visibly rotate, but the interval does not show a fighter touching one, 
 - Measure saw direction, period, phase relationship, silhouette, and authoritative reset across sequences rather than one still.
 - Separate fixed collision geometry and authority-owned saw pose from background animation, trails, small impact particles, long shadows, result dimming, and UI interpolation.
 - Do not infer sound behavior from this visual audit; ticket 042 carries no audio-specific outcome.
+
+## Implemented motion measurement
+
+A 120-frame native crop from PTS 2320490718 through 2340490638 was measured from the central saw rather than inferred from one still. The strongest eightfold silhouette harmonic advances counter-clockwise at approximately 7.43 rad/s, a 0.846-second period, with linear phase fit R² 0.99995. The lower saw begins approximately 0.33 rad ahead of the central saw in the reveal frame. The replay therefore uses stable saw IDs 200 and 201, eight teeth, +7.43 rad/s, central phase 0.18 rad, and lower phase 0.51 rad. Rapier owns the advancing and reset poses; renderer time is not involved.
+
+The canonical audit also decoded the first frame at or after every ten-second request from 03:00 through 04:40. Those actual PTS values and RGBA hashes now replace the shifted descriptions in `footage-coverage.md`. This locates `WAITING` at 03:20.015867, the blue `PARASITE` draft at 03:30.015827, the lime modular arena at 03:40.015787, the radial arena beginning at 03:52.049072, the result at 04:07, the hanging articulated arena from 04:10, and `FAST FORWARD` at 04:40.015547.
+
+## Source/clone motion comparison
+
+| Signal | Native source | Implemented replay | Remaining difference |
+|---|---|---|---|
+| Arena silhouette and scale | broad dark notched diamond reaches near the frame edges | notched dark enclosure spans x ±448 with the same two upper bars, two lower bars, center diamonds, and partly cropped lower saw | clone edges and platform facets are cleaner and less brush-textured |
+| Saw period and phase | eight-tooth, counter-clockwise, about 0.846 s; lower saw about 0.33 rad ahead | IDs 200/201, +7.43 rad/s, 0.18/0.51 rad initial phases, snapshot pose from Rapier | source teeth have hand-painted edge variation |
+| Platform/background motion | fixed bright surfaces over continuously shifting white/cyan brush work | fixed authoritative rotated colliders; background strokes move only from snapshot tick | clone brush marks are broader, more regular, and lower-frequency |
+| Long shadows | deep navy surface projections down the enclosure | render-only quads extend from each rotated platform along one consistent light vector | source shadows contain more texture and local variation |
+| Projectiles and ordinary hit | brief warm trail; compact white cloud and small orange particles near upper left at the final exchange | ordinary CCD bullets, short snapshot trails, and a compact white/orange particle response sourced from the authoritative impact | replay choreography resolves farther down and left than the source impact |
+| Result and cadence | last combat PTS 2471823446, dim/result onset on adjacent PTS 2471990112, established text by PTS 2476823426 | tick 908 combat, tick 909 `ResultTransition`, tick 938 `HalfBlue`; authoritative score persists from `[1,0]` to `[1,1]` | clone font weight and dim color are approximate |
+
+The remaining differences are presentation fidelity gaps, not evidence for the rejected ice burst, distortion, burst event, audio, or saw damage.

@@ -1,13 +1,15 @@
 use rounds_sim::{
-    AuthoritativeMatch, FlowPhase, ItemId, MatchSnapshot, PlayerInput, PriorBadge, ReplayProfile,
-    TIMBER_IMPACT_TICK, dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest,
+    AuthoritativeMatch, FlowPhase, ItemId, MatchSnapshot, PlayerInput, PriorBadge,
+    RADIAL_HALF_BLUE_TICK, RADIAL_RESULT_ONSET_TICK, ReplayProfile, RoundPhase, TIMBER_IMPACT_TICK,
+    arena_digest, combat_digest, dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest,
+    round_digest, saw_digest,
 };
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 3;
+pub const NETWORK_PROTOCOL: u16 = 4;
 pub const MAX_NETWORK_TICKS: u32 = 3_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
@@ -54,6 +56,10 @@ pub struct ServerReport {
     pub last_snapshot_tick: u32,
     pub state_hash: String,
     pub dynamic_body_digest: String,
+    pub arena_digest: String,
+    pub saw_digest: String,
+    pub combat_digest: String,
+    pub round_digest: Option<String>,
     pub flow_digest: Option<String>,
     pub loadout_digest: Option<String>,
     pub state: MatchSnapshot,
@@ -77,6 +83,10 @@ pub struct ClientSessionReport {
     pub observed_source_terminal_state: bool,
     pub observed_rematch_reset: bool,
     pub observed_blue_fan_by_tick_960: bool,
+    pub observed_radial_saw_motion: bool,
+    pub observed_radial_damage: bool,
+    pub observed_radial_result_onset: bool,
+    pub observed_radial_half_blue: bool,
     pub final_report: ServerReport,
 }
 
@@ -198,6 +208,10 @@ impl BoundServer {
             last_snapshot_tick: state.tick,
             state_hash,
             dynamic_body_digest: dynamic_body_digest(&state),
+            arena_digest: arena_digest(&state),
+            saw_digest: saw_digest(&state),
+            combat_digest: combat_digest(&state),
+            round_digest: round_digest(&state),
             flow_digest: state.flow.as_ref().map(flow_digest),
             loadout_digest: state.flow.as_ref().map(loadout_digest),
             state,
@@ -251,6 +265,11 @@ pub fn send_inputs(
     let mut observed_source_terminal_state = false;
     let mut observed_rematch_reset = false;
     let mut observed_blue_fan_by_tick_960 = false;
+    let mut first_radial_angles = None;
+    let mut observed_radial_saw_motion = false;
+    let mut observed_radial_damage = false;
+    let mut observed_radial_result_onset = false;
+    let mut observed_radial_half_blue = false;
     for (sequence, input) in inputs.iter().copied().enumerate() {
         let sequence = sequence as u32;
         send_client(
@@ -341,6 +360,40 @@ pub fn send_inputs(
                         && flow.hovered[1] == Some(ItemId::Dazzle)
                         && flow.selected[0] == Some(ItemId::Dazzle);
                 }
+                if profile == ReplayProfile::RadialSawHalfBlueReplay {
+                    let angles = state
+                        .saws
+                        .iter()
+                        .map(|saw| saw.angle_milliradians)
+                        .collect::<Vec<_>>();
+                    if first_radial_angles.is_none() {
+                        first_radial_angles = Some(angles.clone());
+                    }
+                    observed_radial_saw_motion |= first_radial_angles
+                        .as_ref()
+                        .is_some_and(|initial| initial != &angles)
+                        && state.saws.iter().map(|saw| saw.id).collect::<Vec<_>>() == [200, 201]
+                        && state
+                            .saws
+                            .iter()
+                            .all(|saw| saw.angular_velocity_milliradians_per_second == 7_430);
+                    observed_radial_damage |= state.metrics.hits > 0
+                        && state.players.iter().any(|player| player.health < 100);
+                    observed_radial_result_onset |= state.tick == RADIAL_RESULT_ONSET_TICK
+                        && state.round.as_ref().is_some_and(|round| {
+                            round.phase == RoundPhase::ResultTransition
+                                && round.phase_tick == 0
+                                && round.scores == [1, 1]
+                                && round.winner == Some(1)
+                                && round.eliminated == Some(0)
+                        });
+                    observed_radial_half_blue |= state.tick == RADIAL_HALF_BLUE_TICK
+                        && state.round.as_ref().is_some_and(|round| {
+                            round.phase == RoundPhase::HalfBlue
+                                && round.scores == [1, 1]
+                                && round.winner == Some(1)
+                        });
+                }
                 last = Some((*state, state_hash));
             }
             AuthorityPacket::Welcome { .. } => {
@@ -366,6 +419,10 @@ pub fn send_inputs(
         observed_source_terminal_state,
         observed_rematch_reset,
         observed_blue_fan_by_tick_960,
+        observed_radial_saw_motion,
+        observed_radial_damage,
+        observed_radial_result_onset,
+        observed_radial_half_blue,
         final_report: ServerReport {
             protocol: NETWORK_PROTOCOL,
             clients_handshaken: 2,
@@ -375,6 +432,10 @@ pub fn send_inputs(
             last_snapshot_tick: ticks,
             state_hash,
             dynamic_body_digest: dynamic_body_digest(&state),
+            arena_digest: arena_digest(&state),
+            saw_digest: saw_digest(&state),
+            combat_digest: combat_digest(&state),
+            round_digest: round_digest(&state),
             flow_digest: state.flow.as_ref().map(flow_digest),
             loadout_digest: state.flow.as_ref().map(loadout_digest),
             state,
@@ -566,5 +627,45 @@ mod tests {
         }));
         assert!(server_report.flow_digest.is_some());
         assert!(server_report.loadout_digest.is_some());
+    }
+
+    #[test]
+    fn two_udp_clients_observe_radial_motion_damage_and_half_blue() {
+        let seed = 42;
+        let profile = ReplayProfile::RadialSawHalfBlueReplay;
+        let ticks = rounds_sim::RADIAL_REPLAY_TICKS;
+        let scripts = scripted_inputs_for(profile, seed, ticks);
+        let server = BoundServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_thread = thread::spawn(move || server.run(seed, ticks, profile).unwrap());
+        let clients = scripts
+            .into_iter()
+            .enumerate()
+            .map(|(client_id, inputs)| {
+                thread::spawn(move || {
+                    send_inputs(address, client_id as u8, seed, profile, &inputs).unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let reports = clients
+            .into_iter()
+            .map(|client| client.join().unwrap())
+            .collect::<Vec<_>>();
+        let server_report = server_thread.join().unwrap();
+
+        assert_eq!(reports[0].final_report, reports[1].final_report);
+        assert_eq!(reports[0].final_report, server_report);
+        assert!(reports.iter().all(|report| {
+            report.observed_radial_saw_motion
+                && report.observed_radial_damage
+                && report.observed_radial_result_onset
+                && report.observed_radial_half_blue
+        }));
+        assert_eq!(server_report.state.round.as_ref().unwrap().scores, [1, 1]);
+        assert_eq!(server_report.state.metrics.hits, 1);
+        assert!(server_report.arena_digest.len() == 64);
+        assert!(server_report.saw_digest.len() == 64);
+        assert!(server_report.combat_digest.len() == 64);
+        assert_eq!(server_report.round_digest.as_ref().unwrap().len(), 64);
     }
 }

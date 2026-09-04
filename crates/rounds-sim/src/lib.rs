@@ -2,7 +2,7 @@ use bevy_ecs::prelude::*;
 use bevy_rapier2d::rapier::prelude::{
     ColliderBuilder, ColliderHandle, FixedJointBuilder, GenericJoint, Group, ImpulseJointHandle,
     InteractionGroups, InteractionTestMode, PhysicsWorld as RapierWorld, RigidBodyBuilder,
-    RigidBodyHandle, RopeJointBuilder, Vector,
+    RigidBodyHandle, RopeJointBuilder, Rotation, Vector,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -23,6 +23,13 @@ pub const TEAL_REPLAY_PROFILE: &str = "teal-duel-replay";
 pub const TEAL_SOURCE_INTERVAL: &str = "00:22.50-00:35.60";
 pub const TEAL_SOURCE_SHA256: &str =
     "1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9";
+pub const RADIAL_REPLAY_TICKS: u32 = 938;
+pub const RADIAL_REPLAY_PROFILE: &str = "radial-saw-half-blue-replay";
+pub const RADIAL_SOURCE_INTERVAL: &str = "03:52.049072-04:07.682343";
+pub const RADIAL_SOURCE_START_PTS: i64 = 2_320_490_718;
+pub const RADIAL_LAST_COMBAT_TICK: u32 = 908;
+pub const RADIAL_RESULT_ONSET_TICK: u32 = 909;
+pub const RADIAL_HALF_BLUE_TICK: u32 = 938;
 
 const PLAYER_RADIUS: f32 = 22.0;
 const RUN_SPEED: f32 = 220.0;
@@ -39,6 +46,7 @@ const HIT_IMPULSE: f32 = 420.0;
 const KILL_X: f32 = 760.0;
 const KILL_Y: f32 = -440.0;
 const DYNAMIC_GROUP: Group = Group::GROUP_6;
+const SAW_GROUP: Group = Group::GROUP_7;
 const TIMBER_EXPLOSION_CENTER: Vector = Vector::new(-245.0, 135.0);
 const TIMBER_EXPLOSION_RADIUS: f32 = 520.0;
 const TIMBER_EXPLOSION_IMPULSE: f32 = 4_800.0;
@@ -48,6 +56,7 @@ const TIMBER_EXPLOSION_IMPULSE: f32 = 4_800.0;
 pub enum ReplayProfile {
     TealDuelReplay,
     RematchDraftReplay,
+    RadialSawHalfBlueReplay,
     #[default]
     TimberCollapseReplay,
 }
@@ -57,6 +66,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => TEAL_REPLAY_PROFILE,
             Self::RematchDraftReplay => REMATCH_DRAFT_PROFILE,
+            Self::RadialSawHalfBlueReplay => RADIAL_REPLAY_PROFILE,
             Self::TimberCollapseReplay => REPLAY_PROFILE,
         }
     }
@@ -65,6 +75,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => TEAL_REPLAY_TICKS,
             Self::RematchDraftReplay => REMATCH_DRAFT_TICKS,
+            Self::RadialSawHalfBlueReplay => RADIAL_REPLAY_TICKS,
             Self::TimberCollapseReplay => REPLAY_TICKS,
         }
     }
@@ -73,6 +84,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => TEAL_SOURCE_INTERVAL,
             Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_INTERVAL,
+            Self::RadialSawHalfBlueReplay => RADIAL_SOURCE_INTERVAL,
             Self::TimberCollapseReplay => SOURCE_INTERVAL,
         }
     }
@@ -81,6 +93,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => TEAL_SOURCE_SHA256,
             Self::RematchDraftReplay => SOURCE_SHA256,
+            Self::RadialSawHalfBlueReplay => TEAL_SOURCE_SHA256,
             Self::TimberCollapseReplay => SOURCE_SHA256,
         }
     }
@@ -89,6 +102,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => 2_250,
             Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_START_HUNDREDTHS,
+            Self::RadialSawHalfBlueReplay => 23_204,
             Self::TimberCollapseReplay => 20_600,
         }
     }
@@ -101,9 +115,10 @@ impl std::str::FromStr for ReplayProfile {
         match value {
             TEAL_REPLAY_PROFILE => Ok(Self::TealDuelReplay),
             REMATCH_DRAFT_PROFILE => Ok(Self::RematchDraftReplay),
+            RADIAL_REPLAY_PROFILE => Ok(Self::RadialSawHalfBlueReplay),
             REPLAY_PROFILE => Ok(Self::TimberCollapseReplay),
             _ => Err(format!(
-                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, or {REPLAY_PROFILE}"
+                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, {RADIAL_REPLAY_PROFILE}, or {REPLAY_PROFILE}"
             )),
         }
     }
@@ -139,7 +154,49 @@ pub struct ArenaSurfaceSnapshot {
     pub center_y_milli: i32,
     pub width_milli: i32,
     pub height_milli: i32,
+    pub rotation_milliradians: i32,
     pub face_rgb: [u8; 3],
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SawSnapshot {
+    pub id: u16,
+    pub x_milli: i32,
+    pub y_milli: i32,
+    pub angle_milliradians: i32,
+    pub angular_velocity_milliradians_per_second: i32,
+    pub radius_milli: i32,
+    pub teeth: u8,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImpactSnapshot {
+    pub id: u32,
+    pub tick: u32,
+    pub owner: u8,
+    pub target: u8,
+    pub x_milli: i32,
+    pub y_milli: i32,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RoundPhase {
+    Combat,
+    ResultTransition,
+    HalfBlue,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoundStateSnapshot {
+    pub phase: RoundPhase,
+    pub phase_tick: u32,
+    pub scores: [u8; 2],
+    pub winner: Option<u8>,
+    pub eliminated: Option<u8>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -261,14 +318,17 @@ pub struct MatchSnapshot {
     pub profile: String,
     pub tick: u32,
     pub arena: Vec<ArenaSurfaceSnapshot>,
+    pub saws: Vec<SawSnapshot>,
     pub dynamic_bodies: Vec<DynamicBodySnapshot>,
     pub constraints: Vec<ConstraintSnapshot>,
     pub explosions: Vec<ExplosionSnapshot>,
+    pub impacts: Vec<ImpactSnapshot>,
     pub players: Vec<PlayerSnapshot>,
     pub projectiles: Vec<ProjectileSnapshot>,
     pub metrics: CombatMetrics,
     pub winner: Option<u8>,
     pub flow: Option<FlowSnapshot>,
+    pub round: Option<RoundStateSnapshot>,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -316,6 +376,16 @@ struct ConstraintState {
     active: bool,
 }
 
+#[derive(Component, Clone, Copy)]
+struct SawState {
+    id: u16,
+    radius: f32,
+    teeth: u8,
+    initial_position: Vector,
+    initial_angle: f32,
+    angular_velocity: f32,
+}
+
 #[derive(Clone, Copy)]
 struct PlayerPhysics {
     body: RigidBodyHandle,
@@ -342,6 +412,41 @@ struct ConstraintPhysics {
     release_on_explosion: bool,
     active: bool,
 }
+
+#[derive(Clone, Copy)]
+struct SawPhysics {
+    body: RigidBodyHandle,
+    collider: ColliderHandle,
+}
+
+#[derive(Clone, Copy)]
+struct SawDefinition {
+    id: u16,
+    position: Vector,
+    radius: f32,
+    teeth: u8,
+    initial_angle: f32,
+    angular_velocity: f32,
+}
+
+const RADIAL_SAWS: [SawDefinition; 2] = [
+    SawDefinition {
+        id: 200,
+        position: Vector::new(0.0, 0.0),
+        radius: 82.0,
+        teeth: 8,
+        initial_angle: 0.18,
+        angular_velocity: 7.43,
+    },
+    SawDefinition {
+        id: 201,
+        position: Vector::new(0.0, -348.0),
+        radius: 76.0,
+        teeth: 8,
+        initial_angle: 0.51,
+        angular_velocity: 7.43,
+    },
+];
 
 #[derive(Clone, Copy)]
 struct DynamicBodyDefinition {
@@ -417,6 +522,7 @@ struct PhysicsBoundary {
     bullets: BTreeMap<u32, BulletPhysics>,
     dynamic_bodies: BTreeMap<u16, DynamicBodyPhysics>,
     constraints: BTreeMap<u16, ConstraintPhysics>,
+    saws: BTreeMap<u16, SawPhysics>,
 }
 
 impl PhysicsBoundary {
@@ -439,6 +545,7 @@ impl PhysicsBoundary {
                         surface.width_milli as f32 / 2_000.0,
                         surface.height_milli as f32 / 2_000.0,
                     )
+                    .rotation(surface.rotation_milliradians as f32 / 1_000.0)
                     .friction(0.92)
                     .restitution(0.02)
                     .collision_groups(groups(
@@ -457,6 +564,7 @@ impl PhysicsBoundary {
         let player_spawns = match profile {
             ReplayProfile::TealDuelReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
             ReplayProfile::RematchDraftReplay => [(-500.0, -150.0, 0_u8), (500.0, -150.0, 1_u8)],
+            ReplayProfile::RadialSawHalfBlueReplay => [(-285.0, 145.0, 0_u8), (285.0, 145.0, 1_u8)],
             ReplayProfile::TimberCollapseReplay => [(-500.0, -210.0, 0_u8), (500.0, -210.0, 1_u8)],
         };
         let players = player_spawns.map(|(x, y, id)| {
@@ -499,11 +607,81 @@ impl PhysicsBoundary {
             bullets: BTreeMap::new(),
             dynamic_bodies: BTreeMap::new(),
             constraints: BTreeMap::new(),
+            saws: BTreeMap::new(),
         };
         if profile == ReplayProfile::TimberCollapseReplay {
             boundary.insert_timber_structure();
         }
+        if profile == ReplayProfile::RadialSawHalfBlueReplay {
+            boundary.insert_radial_bounds();
+            boundary.insert_radial_saws();
+        }
         boundary
+    }
+
+    fn insert_radial_saws(&mut self) {
+        for definition in RADIAL_SAWS {
+            let (body, collider) = self.rapier.insert(
+                RigidBodyBuilder::kinematic_velocity_based()
+                    .translation(definition.position)
+                    .rotation(definition.initial_angle)
+                    .angvel(definition.angular_velocity)
+                    .can_sleep(false),
+                ColliderBuilder::cuboid(definition.radius * 0.57, definition.radius * 0.57)
+                    .friction(0.0)
+                    .restitution(0.85)
+                    .collision_groups(groups(SAW_GROUP, Group::NONE)),
+            );
+            self.saws
+                .insert(definition.id, SawPhysics { body, collider });
+        }
+    }
+
+    fn insert_radial_bounds(&mut self) {
+        for (position, half_width, half_height) in [
+            (Vector::new(0.0, -330.0), 470.0, 28.0),
+            (Vector::new(-485.0, 0.0), 24.0, 360.0),
+            (Vector::new(485.0, 0.0), 24.0, 360.0),
+        ] {
+            let (_, collider) = self.rapier.insert(
+                RigidBodyBuilder::fixed().translation(position),
+                ColliderBuilder::cuboid(half_width, half_height)
+                    .friction(0.92)
+                    .restitution(0.02)
+                    .collision_groups(groups(
+                        Group::GROUP_3,
+                        Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4 | Group::GROUP_5,
+                    )),
+            );
+            self.platforms.push(collider);
+        }
+    }
+
+    fn reset_saw(&mut self, id: u16, position: Vector, angle: f32, angular_velocity: f32) {
+        let physics = self
+            .saws
+            .get(&id)
+            .expect("radial saw registry remains complete");
+        let body = &mut self.rapier.bodies[physics.body];
+        body.set_translation(position, true);
+        body.set_rotation(Rotation::new(angle), true);
+        body.set_linvel(Vector::ZERO, true);
+        body.set_angvel(angular_velocity, true);
+        self.rapier
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
+    }
+
+    fn saw_pose(&self, id: u16) -> Option<(Vector, f32, f32)> {
+        self.saws.get(&id).map(|physics| {
+            let body = &self.rapier.bodies[physics.body];
+            let collider = &self.rapier.colliders[physics.collider];
+            (
+                collider.position().translation,
+                collider.position().rotation.angle(),
+                body.angvel(),
+            )
+        })
     }
 
     fn insert_timber_structure(&mut self) {
@@ -809,7 +987,9 @@ pub struct AuthoritativeMatch {
     projectile_entities: BTreeMap<u32, Entity>,
     dynamic_body_entities: BTreeMap<u16, Entity>,
     constraint_entities: BTreeMap<u16, Entity>,
+    saw_entities: BTreeMap<u16, Entity>,
     explosions: Vec<ExplosionSnapshot>,
+    impacts: Vec<ImpactSnapshot>,
     profile: ReplayProfile,
     seed: u64,
     tick: u32,
@@ -818,6 +998,7 @@ pub struct AuthoritativeMatch {
     winner: Option<u8>,
     explosion_strength: f32,
     flow: Option<FlowAuthority>,
+    round: Option<RoundStateSnapshot>,
 }
 
 impl AuthoritativeMatch {
@@ -899,6 +1080,27 @@ impl AuthoritativeMatch {
         } else {
             BTreeMap::new()
         };
+        let saw_entities = if profile == ReplayProfile::RadialSawHalfBlueReplay {
+            RADIAL_SAWS
+                .into_iter()
+                .map(|definition| {
+                    let id = definition.id;
+                    let entity = world
+                        .spawn(SawState {
+                            id,
+                            radius: definition.radius,
+                            teeth: definition.teeth,
+                            initial_position: definition.position,
+                            initial_angle: definition.initial_angle,
+                            angular_velocity: definition.angular_velocity,
+                        })
+                        .id();
+                    (id, entity)
+                })
+                .collect()
+        } else {
+            BTreeMap::new()
+        };
         let mut simulation = Self {
             world,
             physics: PhysicsBoundary::new(profile),
@@ -906,7 +1108,9 @@ impl AuthoritativeMatch {
             projectile_entities: BTreeMap::new(),
             dynamic_body_entities,
             constraint_entities,
+            saw_entities,
             explosions: Vec::new(),
+            impacts: Vec::new(),
             profile,
             seed,
             tick: 0,
@@ -915,6 +1119,15 @@ impl AuthoritativeMatch {
             winner: None,
             explosion_strength: TIMBER_EXPLOSION_IMPULSE,
             flow: (profile == ReplayProfile::RematchDraftReplay).then(|| FlowAuthority::new(seed)),
+            round: (profile == ReplayProfile::RadialSawHalfBlueReplay).then_some(
+                RoundStateSnapshot {
+                    phase: RoundPhase::Combat,
+                    phase_tick: 0,
+                    scores: [1, 0],
+                    winner: None,
+                    eliminated: None,
+                },
+            ),
         };
         if profile == ReplayProfile::RematchDraftReplay {
             let mut orange = simulation.world.entity_mut(simulation.player_entities[0]);
@@ -928,8 +1141,45 @@ impl AuthoritativeMatch {
         simulation
     }
 
+    pub fn reset_radial_arena(&mut self) -> Result<(), String> {
+        if self.profile != ReplayProfile::RadialSawHalfBlueReplay {
+            return Err("radial arena reset requires radial-saw-half-blue-replay".to_owned());
+        }
+        for entity in self.saw_entities.values() {
+            let state = *self
+                .world
+                .entity(*entity)
+                .get::<SawState>()
+                .expect("saw state");
+            self.physics.reset_saw(
+                state.id,
+                state.initial_position,
+                state.initial_angle,
+                state.angular_velocity,
+            );
+        }
+        self.round = Some(RoundStateSnapshot {
+            phase: RoundPhase::Combat,
+            phase_tick: 0,
+            scores: [1, 0],
+            winner: None,
+            eliminated: None,
+        });
+        self.winner = None;
+        Ok(())
+    }
+
     pub fn step(&mut self, inputs: [PlayerInput; 2]) {
         self.tick += 1;
+        if let Some(round) = &mut self.round
+            && round.phase != RoundPhase::Combat
+        {
+            round.phase_tick += 1;
+            if round.phase == RoundPhase::ResultTransition && self.tick >= RADIAL_HALF_BLUE_TICK {
+                round.phase = RoundPhase::HalfBlue;
+            }
+            return;
+        }
         let mut rematch_reset = false;
         if let Some(flow) = &mut self.flow {
             let had_terminal_result = flow.has_terminal_result();
@@ -1128,6 +1378,19 @@ impl AuthoritativeMatch {
                     .apply_impulse(target, velocity * HIT_IMPULSE * damage_scale);
                 self.metrics.hits += 1;
                 self.metrics.health_scaled_knockbacks += 1;
+                let impact_position = self
+                    .physics
+                    .bullet_pose(projectile_id)
+                    .map(|pose| pose.0)
+                    .unwrap_or_else(|| self.physics.player_pose(target).0);
+                self.impacts.push(ImpactSnapshot {
+                    id: projectile_id,
+                    tick: self.tick,
+                    owner: projectile.owner,
+                    target,
+                    x_milli: quantize(impact_position.x),
+                    y_milli: quantize(impact_position.y),
+                });
                 if projectile.explosive_radius_milli > 0 {
                     let center = self
                         .physics
@@ -1204,6 +1467,16 @@ impl AuthoritativeMatch {
         }
         if dead.len() == 1 {
             self.winner = Some(1 - dead[0]);
+        }
+        if let Some(winner) = self.winner
+            && let Some(round) = &mut self.round
+            && round.phase == RoundPhase::Combat
+        {
+            round.phase = RoundPhase::ResultTransition;
+            round.phase_tick = 0;
+            round.scores[usize::from(winner)] += 1;
+            round.winner = Some(winner);
+            round.eliminated = Some(1 - winner);
         }
     }
 
@@ -1312,8 +1585,25 @@ impl AuthoritativeMatch {
                 })
             })
             .collect();
+        let saws = self
+            .saw_entities
+            .iter()
+            .filter_map(|(id, entity)| {
+                let state = self.world.entity(*entity).get::<SawState>()?;
+                let (position, angle, angular_velocity) = self.physics.saw_pose(*id)?;
+                Some(SawSnapshot {
+                    id: state.id,
+                    x_milli: quantize(position.x),
+                    y_milli: quantize(position.y),
+                    angle_milliradians: quantize(angle),
+                    angular_velocity_milliradians_per_second: quantize(angular_velocity),
+                    radius_milli: quantize(state.radius),
+                    teeth: state.teeth,
+                })
+            })
+            .collect();
         MatchSnapshot {
-            protocol: 3,
+            protocol: 4,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
@@ -1328,14 +1618,17 @@ impl AuthoritativeMatch {
             } else {
                 arena_for_profile(self.profile).to_vec()
             },
+            saws,
             dynamic_bodies,
             constraints,
             explosions: self.explosions.clone(),
+            impacts: self.impacts.clone(),
             players,
             projectiles,
             metrics: self.metrics.clone(),
             winner: self.winner,
             flow: self.flow.as_ref().map(FlowAuthority::snapshot),
+            round: self.round.clone(),
         }
     }
 
@@ -1410,10 +1703,25 @@ pub fn prior_match_arena() -> &'static [ArenaSurfaceSnapshot] {
     &ARENA
 }
 
+pub fn radial_saw_arena() -> &'static [ArenaSurfaceSnapshot] {
+    const WHITE: [u8; 3] = [244, 248, 239];
+    const CYAN: [u8; 3] = [68, 221, 238];
+    const ARENA: [ArenaSurfaceSnapshot; 6] = [
+        rotated_surface(0, -220, 72, 286, 52, 785, WHITE),
+        rotated_surface(1, 220, 72, 286, 52, -785, WHITE),
+        rotated_surface(2, -190, -154, 214, 52, -785, CYAN),
+        rotated_surface(3, 190, -154, 214, 52, 785, CYAN),
+        rotated_surface(4, 0, 176, 72, 72, 785, WHITE),
+        rotated_surface(5, 0, -178, 58, 58, 785, CYAN),
+    ];
+    &ARENA
+}
+
 pub fn arena_for_profile(profile: ReplayProfile) -> &'static [ArenaSurfaceSnapshot] {
     match profile {
         ReplayProfile::TealDuelReplay => teal_arena(),
         ReplayProfile::RematchDraftReplay => draft_arena(),
+        ReplayProfile::RadialSawHalfBlueReplay => radial_saw_arena(),
         ReplayProfile::TimberCollapseReplay => timber_arena(),
     }
 }
@@ -1432,6 +1740,27 @@ const fn surface(
         center_y_milli: y * 1_000,
         width_milli: width * 1_000,
         height_milli: height * 1_000,
+        rotation_milliradians: 0,
+        face_rgb: color,
+    }
+}
+
+const fn rotated_surface(
+    id: u8,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    rotation_milliradians: i32,
+    color: [u8; 3],
+) -> ArenaSurfaceSnapshot {
+    ArenaSurfaceSnapshot {
+        id,
+        center_x_milli: x * 1_000,
+        center_y_milli: y * 1_000,
+        width_milli: width * 1_000,
+        height_milli: height * 1_000,
+        rotation_milliradians,
         face_rgb: color,
     }
 }
@@ -1510,6 +1839,48 @@ pub fn scripted_inputs_for(
             blue.move_axis = 0;
             orange.fire = matches!(tick, 2_220 | 2_330);
             blue.fire = matches!(tick, 2_260 | 2_350);
+            scripts[0].push(orange);
+            scripts[1].push(blue);
+            continue;
+        }
+        if profile == ReplayProfile::RadialSawHalfBlueReplay {
+            let mut orange = PlayerInput {
+                aim_x: 820,
+                aim_y: 570,
+                ..PlayerInput::default()
+            };
+            let mut blue = PlayerInput {
+                aim_x: -820,
+                aim_y: 570,
+                ..PlayerInput::default()
+            };
+            orange.move_axis = if (80..190).contains(&tick) {
+                1
+            } else if (300..430).contains(&tick) || (650..760).contains(&tick) {
+                -1
+            } else {
+                0
+            };
+            blue.move_axis = if (120..250).contains(&tick)
+                || (520..650).contains(&tick)
+                || (720..905).contains(&tick)
+            {
+                -1
+            } else if (360..480).contains(&tick) {
+                1
+            } else {
+                0
+            };
+            orange.jump = matches!(tick, 82 | 305 | 655 | 842);
+            blue.jump = matches!(tick, 122 | 365 | 525 | 720);
+            orange.fire = matches!(tick, 130 | 372 | 610 | 812);
+            blue.fire = matches!(tick, 240 | 470 | 710 | 907);
+            if tick == 907 {
+                blue.aim_x = -1_000;
+                blue.aim_y = 0;
+            }
+            orange.block = (450..470).contains(&tick);
+            blue.block = (600..620).contains(&tick);
             scripts[0].push(orange);
             scripts[1].push(blue);
             continue;
@@ -1627,6 +1998,33 @@ pub fn run_profile_snapshots(profile: ReplayProfile, seed: u64, ticks: u32) -> V
 pub fn dynamic_body_digest(snapshot: &MatchSnapshot) -> String {
     let bytes = serde_json::to_vec(&snapshot.dynamic_bodies)
         .expect("dynamic body serialization cannot fail");
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+pub fn arena_digest(snapshot: &MatchSnapshot) -> String {
+    digest_json(&snapshot.arena)
+}
+
+pub fn saw_digest(snapshot: &MatchSnapshot) -> String {
+    digest_json(&snapshot.saws)
+}
+
+pub fn combat_digest(snapshot: &MatchSnapshot) -> String {
+    digest_json(&(
+        &snapshot.players,
+        &snapshot.projectiles,
+        &snapshot.impacts,
+        &snapshot.metrics,
+        snapshot.winner,
+    ))
+}
+
+pub fn round_digest(snapshot: &MatchSnapshot) -> Option<String> {
+    snapshot.round.as_ref().map(digest_json)
+}
+
+fn digest_json(value: &impl Serialize) -> String {
+    let bytes = serde_json::to_vec(value).expect("snapshot projection serialization cannot fail");
     format!("{:x}", Sha256::digest(bytes))
 }
 
@@ -1752,6 +2150,83 @@ mod tests {
         let (snapshot, _) = run_scripted_match(38, REPLAY_TICKS);
         let json = serde_json::to_vec(&snapshot).unwrap();
         assert!(json.len() < 32_000, "{} bytes", json.len());
+    }
+
+    #[test]
+    fn radial_replay_preserves_saw_motion_and_adjacent_result_boundary() {
+        let replay = run_profile_snapshots(
+            ReplayProfile::RadialSawHalfBlueReplay,
+            42,
+            RADIAL_REPLAY_TICKS,
+        );
+        assert_eq!(replay.len(), RADIAL_REPLAY_TICKS as usize);
+        let reveal = &replay[0];
+        let moving = &replay[179];
+        let last_combat = &replay[(RADIAL_LAST_COMBAT_TICK - 1) as usize];
+        let result = &replay[(RADIAL_RESULT_ONSET_TICK - 1) as usize];
+        let half_blue = replay.last().unwrap();
+
+        assert_eq!(
+            reveal.saws.iter().map(|saw| saw.id).collect::<Vec<_>>(),
+            [200, 201]
+        );
+        assert!(reveal.saws.iter().all(|saw| {
+            saw.teeth == 8 && saw.angular_velocity_milliradians_per_second == 7_430
+        }));
+        assert_ne!(saw_digest(reveal), saw_digest(moving));
+        assert_eq!(
+            last_combat.round.as_ref().unwrap().phase,
+            RoundPhase::Combat
+        );
+        assert_eq!(last_combat.winner, None);
+        assert_eq!(last_combat.metrics.hits, 0);
+        assert_eq!(
+            result.round.as_ref().unwrap().phase,
+            RoundPhase::ResultTransition
+        );
+        assert_eq!(result.winner, Some(1));
+        assert_eq!(result.round.as_ref().unwrap().scores, [1, 1]);
+        assert_eq!(result.metrics.hits, 1);
+        assert_eq!(
+            half_blue.round.as_ref().unwrap().phase,
+            RoundPhase::HalfBlue
+        );
+        assert_eq!(half_blue.round.as_ref().unwrap().winner, Some(1));
+        assert_eq!(half_blue.metrics.explosive_projectile_impacts, 0);
+        assert!(half_blue.explosions.is_empty());
+
+        let repeat = run_profile_match(
+            ReplayProfile::RadialSawHalfBlueReplay,
+            42,
+            RADIAL_REPLAY_TICKS,
+        );
+        assert_eq!(hash_snapshot(half_blue), repeat.1);
+    }
+
+    #[test]
+    fn radial_saw_reset_uses_ecs_initial_state_and_speed_changes_motion_digest() {
+        let mut nominal =
+            AuthoritativeMatch::new_with_profile(42, ReplayProfile::RadialSawHalfBlueReplay);
+        let initial = nominal.snapshot();
+        for _ in 0..90 {
+            nominal.step([PlayerInput::default(); 2]);
+        }
+        assert_ne!(saw_digest(&initial), saw_digest(&nominal.snapshot()));
+        nominal.reset_radial_arena().unwrap();
+        assert_eq!(initial.saws, nominal.snapshot().saws);
+        assert_eq!(nominal.snapshot().round.unwrap().phase, RoundPhase::Combat);
+
+        let mut perturbed =
+            AuthoritativeMatch::new_with_profile(42, ReplayProfile::RadialSawHalfBlueReplay);
+        let upper = perturbed.physics.saws.get(&200).unwrap().body;
+        perturbed.physics.rapier.bodies[upper].set_angvel(6.9, true);
+        for _ in 0..90 {
+            perturbed.step([PlayerInput::default(); 2]);
+        }
+        assert_ne!(
+            saw_digest(&nominal.snapshot()),
+            saw_digest(&perturbed.snapshot())
+        );
     }
 
     #[test]

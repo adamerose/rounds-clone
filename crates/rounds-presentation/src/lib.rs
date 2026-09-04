@@ -32,7 +32,8 @@ use std::{
 
 pub const FRAME_WIDTH: u32 = 1_280;
 pub const FRAME_HEIGHT: u32 = 720;
-pub const RENDERER_IDENTITY: &str = "bevy-0.19.1-2d-hdr-bloom-chromatic-aberration-lens-distortion";
+pub const RENDERER_IDENTITY: &str =
+    "bevy-0.19.1-2d-hdr-authoritative-radial-saw-paper-brush-result-overlay";
 const CAPTURE_TIMEOUT: Duration = Duration::from_secs(15);
 const DEVICE_POLL_TIMEOUT: Duration = Duration::from_secs(2);
 const PROJECT_DISPLAY_POSITION: IVec2 = IVec2::new(364, -1_080);
@@ -97,6 +98,7 @@ enum CaptureElement {
     Hand,
     Card,
     CardArt,
+    Saw,
 }
 
 #[derive(Resource, Clone, Debug, Default, PartialEq, Eq)]
@@ -110,6 +112,7 @@ struct CaptureReadiness {
     hand_count: usize,
     card_count: usize,
     card_art_count: usize,
+    saw_count: usize,
 }
 
 impl CaptureReadiness {
@@ -477,7 +480,7 @@ fn update_capture_scene_readiness(
     elements: Query<&CaptureElement>,
     mut readiness: ResMut<CaptureReadiness>,
 ) {
-    let mut counts = [0_usize; 5];
+    let mut counts = [0_usize; 6];
     for element in &elements {
         let index = match element {
             CaptureElement::Background => 0,
@@ -485,6 +488,7 @@ fn update_capture_scene_readiness(
             CaptureElement::Hand => 2,
             CaptureElement::Card => 3,
             CaptureElement::CardArt => 4,
+            CaptureElement::Saw => 5,
         };
         counts[index] += 1;
     }
@@ -494,11 +498,13 @@ fn update_capture_scene_readiness(
     readiness.hand_count = counts[2];
     readiness.card_count = counts[3];
     readiness.card_art_count = counts[4];
+    readiness.saw_count = counts[5];
     let draft_face = snapshot
         .0
         .flow
         .as_ref()
         .is_some_and(|flow| matches!(flow.phase, FlowPhase::Draft | FlowPhase::Reveal));
+    let radial_face = snapshot.0.profile == rounds_sim::RADIAL_REPLAY_PROFILE;
     readiness.scene_complete = cameras.iter().count() == 1
         && readiness.visual_count > 0
         && readiness.background_count == 1
@@ -506,7 +512,8 @@ fn update_capture_scene_readiness(
             || (readiness.character_count == 1
                 && readiness.hand_count == 4
                 && readiness.card_count == 5
-                && readiness.card_art_count == 5));
+                && readiness.card_art_count == 5))
+        && (!radial_face || readiness.saw_count == 2);
 }
 
 fn update_pipeline_readiness(mut main_world: ResMut<MainWorld>, pipelines: Res<PipelineCache>) {
@@ -801,6 +808,7 @@ fn spawn_snapshot_scene(
         .unwrap_or(ReplayProfile::TealDuelReplay);
     let timber_scene = profile == ReplayProfile::TimberCollapseReplay;
     let draft_replay = profile == ReplayProfile::RematchDraftReplay;
+    let radial_replay = profile == ReplayProfile::RadialSawHalfBlueReplay;
     let circle = meshes.add(Circle::new(22.0));
     let block_ring = meshes.add(Annulus::new(29.0, 33.0));
     let bullet = meshes.add(Circle::new(5.0));
@@ -809,7 +817,9 @@ fn spawn_snapshot_scene(
         SceneVisual,
         CaptureElement::Background,
         Sprite::from_color(
-            if timber_scene {
+            if radial_replay {
+                Color::srgb_u8(188, 238, 229)
+            } else if timber_scene {
                 Color::srgb_u8(2, 32, 49)
             } else if draft_replay {
                 Color::srgb_u8(3, 39, 49)
@@ -829,7 +839,11 @@ fn spawn_snapshot_scene(
         commands.spawn((
             SceneVisual,
             Sprite::from_color(
-                if timber_scene && index % 2 == 0 {
+                if radial_replay && index % 2 == 0 {
+                    Color::srgba_u8(238, 255, 248, 72)
+                } else if radial_replay {
+                    Color::srgba_u8(55, 195, 205, 45)
+                } else if timber_scene && index % 2 == 0 {
                     Color::srgba_u8(5, 59, 78, 65)
                 } else if timber_scene {
                     Color::srgba_u8(0, 20, 42, 74)
@@ -843,6 +857,10 @@ fn spawn_snapshot_scene(
             Transform::from_xyz(x + offset, 20.0, -90.0)
                 .with_rotation(Quat::from_rotation_z(0.08 * (index as f32 - 2.0))),
         ));
+    }
+
+    if radial_replay {
+        spawn_radial_backdrop(commands, meshes, materials, snapshot.tick);
     }
 
     if let Some(flow) = &snapshot.flow
@@ -865,6 +883,7 @@ fn spawn_snapshot_scene(
         let y = surface.center_y_milli as f32 / 1_000.0;
         let width = surface.width_milli as f32 / 1_000.0;
         let height = surface.height_milli as f32 / 1_000.0;
+        let rotation = surface.rotation_milliradians as f32 / 1_000.0;
         if timber_scene {
             spawn_timber_floor(
                 commands,
@@ -876,7 +895,7 @@ fn spawn_snapshot_scene(
             );
             continue;
         }
-        if surface.id < 10 {
+        if surface.id < 10 && !radial_replay {
             let direction = if x < 0.0 { -1.0 } else { 1.0 };
             let shadow_length = 560.0;
             commands.spawn((
@@ -911,8 +930,19 @@ fn spawn_snapshot_scene(
                 ),
                 Vec2::new(width, height),
             ),
-            Transform::from_xyz(x, y, 0.0),
+            Transform::from_xyz(x, y, 0.0).with_rotation(Quat::from_rotation_z(rotation)),
         ));
+        if radial_replay {
+            spawn_radial_surface_finish(
+                commands,
+                meshes,
+                materials,
+                Vec2::new(x, y),
+                Vec2::new(width, height),
+                rotation,
+                surface.id,
+            );
+        }
         if draft_replay {
             spawn_triangle(
                 commands,
@@ -926,6 +956,12 @@ fn spawn_snapshot_scene(
                 Color::srgba_u8(255, 242, 37, 120),
                 1.0,
             );
+        }
+    }
+
+    if radial_replay {
+        for saw in &snapshot.saws {
+            spawn_radial_saw(commands, meshes, materials, saw);
         }
     }
 
@@ -1281,8 +1317,309 @@ fn spawn_snapshot_scene(
         }
     }
 
+    if radial_replay {
+        spawn_radial_impacts(commands, meshes, materials, snapshot);
+        spawn_radial_result(commands, meshes, materials, snapshot);
+    }
+
     if draft_replay {
         spawn_flow_hud(commands, meshes, materials, snapshot);
+    }
+}
+
+fn spawn_radial_backdrop(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    tick: u32,
+) {
+    let phase = tick as f32 / 60.0;
+    for stroke in 0..24 {
+        let lane = stroke % 8;
+        let row = stroke / 8;
+        let drift = (phase * (0.17 + row as f32 * 0.04) + stroke as f32 * 0.71).sin();
+        let x = -610.0 + lane as f32 * 174.0 + drift * 34.0;
+        let y = -330.0 + row as f32 * 310.0 + (phase + stroke as f32).cos() * 22.0;
+        commands.spawn((
+            SceneVisual,
+            Sprite::from_color(
+                if stroke % 3 == 0 {
+                    Color::srgba_u8(249, 255, 244, 54)
+                } else {
+                    Color::srgba_u8(25, 155, 173, 32)
+                },
+                Vec2::new(235.0 + (stroke % 5) as f32 * 31.0, 54.0),
+            ),
+            Transform::from_xyz(x, y, -82.0)
+                .with_rotation(Quat::from_rotation_z(-0.17 + (stroke % 7) as f32 * 0.045)),
+        ));
+    }
+
+    let dark = Color::srgb_u8(3, 23, 51);
+    let left_top = Vec2::new(-112.0, 350.0);
+    let left_notch = Vec2::new(-18.0, 304.0);
+    let left = Vec2::new(-448.0, 0.0);
+    let left_bottom = Vec2::new(-104.0, -350.0);
+    let right_top = Vec2::new(112.0, 350.0);
+    let right_notch = Vec2::new(18.0, 304.0);
+    let right = Vec2::new(448.0, 0.0);
+    let right_bottom = Vec2::new(104.0, -350.0);
+    for triangle in [
+        [Vec2::ZERO, left_top, left_notch],
+        [Vec2::ZERO, left, left_top],
+        [Vec2::ZERO, left_bottom, left],
+        [Vec2::ZERO, right_notch, right_top],
+        [Vec2::ZERO, right_top, right],
+        [Vec2::ZERO, right, right_bottom],
+        [Vec2::ZERO, right_bottom, left_bottom],
+    ] {
+        spawn_triangle(commands, meshes, materials, triangle, dark, -55.0);
+    }
+}
+
+fn spawn_radial_surface_finish(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    center: Vec2,
+    size: Vec2,
+    rotation: f32,
+    id: u8,
+) {
+    let tangent = Vec2::new(rotation.cos(), rotation.sin());
+    let normal = Vec2::new(-tangent.y, tangent.x);
+    let left = center - tangent * size.x * 0.5 - normal * size.y * 0.5;
+    let right = center + tangent * size.x * 0.5 - normal * size.y * 0.5;
+    let shadow_offset = Vec2::new(88.0, -430.0);
+    for triangle in [
+        [left, right, right + shadow_offset],
+        [left, right + shadow_offset, left + shadow_offset],
+    ] {
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            triangle,
+            Color::srgba_u8(0, 11, 39, 205),
+            -18.0,
+        );
+    }
+    let tint = if id.is_multiple_of(2) {
+        Color::srgba_u8(255, 255, 255, 92)
+    } else {
+        Color::srgba_u8(48, 203, 226, 105)
+    };
+    spawn_triangle(
+        commands,
+        meshes,
+        materials,
+        [
+            left + normal * size.y * 0.44,
+            right + normal * size.y * 0.44,
+            center,
+        ],
+        tint,
+        1.0,
+    );
+}
+
+fn spawn_radial_saw(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    saw: &rounds_sim::SawSnapshot,
+) {
+    let center = Vec2::new(saw.x_milli as f32 / 1_000.0, saw.y_milli as f32 / 1_000.0);
+    let angle = saw.angle_milliradians as f32 / 1_000.0;
+    let radius = saw.radius_milli as f32 / 1_000.0;
+    let teeth = usize::from(saw.teeth);
+    for tooth in 0..teeth {
+        let mid = angle + tooth as f32 * std::f32::consts::TAU / teeth as f32;
+        let half = std::f32::consts::PI / teeth as f32;
+        let root_a = center + Vec2::from_angle(mid - half) * radius * 0.72;
+        let shoulder_a = center + Vec2::from_angle(mid - half * 0.38) * radius * 0.86;
+        let tip = center + Vec2::from_angle(mid) * radius;
+        let shoulder_b = center + Vec2::from_angle(mid + half * 0.38) * radius * 0.86;
+        let root_b = center + Vec2::from_angle(mid + half) * radius * 0.72;
+        for vertices in [
+            [center, root_a, shoulder_a],
+            [center, shoulder_a, tip],
+            [center, tip, shoulder_b],
+            [center, shoulder_b, root_b],
+        ] {
+            spawn_triangle(
+                commands,
+                meshes,
+                materials,
+                vertices,
+                Color::srgb_u8(251, 47, 82),
+                3.0,
+            );
+        }
+    }
+    commands.spawn((
+        SceneVisual,
+        CaptureElement::Saw,
+        Mesh2d(meshes.add(Circle::new(radius * 0.36))),
+        MeshMaterial2d(materials.add(Color::srgb_u8(2, 18, 43))),
+        Transform::from_xyz(center.x, center.y, 4.0),
+    ));
+    commands.spawn((
+        SceneVisual,
+        Mesh2d(meshes.add(Circle::new(radius * 0.15))),
+        MeshMaterial2d(materials.add(Color::srgb_u8(249, 46, 81))),
+        Transform::from_xyz(center.x, center.y, 5.0),
+    ));
+}
+
+fn spawn_radial_impacts(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    snapshot: &MatchSnapshot,
+) {
+    for impact in &snapshot.impacts {
+        let age = snapshot.tick.saturating_sub(impact.tick);
+        if age > 34 {
+            continue;
+        }
+        let center = Vec2::new(
+            impact.x_milli as f32 / 1_000.0,
+            impact.y_milli as f32 / 1_000.0,
+        );
+        let fade = 1.0 - age as f32 / 35.0;
+        for cloud in 0..9 {
+            let theta = cloud as f32 * 2.399;
+            let distance = 5.0 + age as f32 * (0.35 + (cloud % 4) as f32 * 0.12);
+            commands.spawn((
+                SceneVisual,
+                Mesh2d(meshes.add(Circle::new((8.0 + (cloud % 4) as f32 * 3.0) * fade))),
+                MeshMaterial2d(materials.add(Color::srgba(0.92, 1.0, 1.0, 0.72 * fade))),
+                Transform::from_xyz(
+                    center.x + theta.cos() * distance,
+                    center.y + theta.sin() * distance,
+                    18.0,
+                ),
+            ));
+        }
+        for spark in 0..22 {
+            let theta = spark as f32 * 2.399 + impact.owner as f32 * 0.4;
+            let distance = 12.0 + age as f32 * (0.9 + (spark % 6) as f32 * 0.24);
+            let color = Color::linear_rgba(3.8 * fade, 0.55 * fade, 0.08, 0.9 * fade);
+            commands.spawn((
+                SceneVisual,
+                Sprite::from_color(color, Vec2::new(11.0 * fade.max(0.2), 2.0)),
+                Transform::from_xyz(
+                    center.x + theta.cos() * distance,
+                    center.y + theta.sin() * distance - age as f32 * age as f32 * 0.01,
+                    19.0,
+                )
+                .with_rotation(Quat::from_rotation_z(theta)),
+            ));
+        }
+    }
+}
+
+fn spawn_radial_result(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    snapshot: &MatchSnapshot,
+) {
+    let Some(round) = &snapshot.round else {
+        return;
+    };
+    if round.phase == rounds_sim::RoundPhase::Combat {
+        return;
+    }
+    let dim = if round.phase == rounds_sim::RoundPhase::HalfBlue {
+        0.82
+    } else {
+        (round.phase_tick as f32 / 16.0).clamp(0.08, 0.76)
+    };
+    commands.spawn((
+        SceneVisual,
+        Sprite::from_color(
+            Color::srgba(0.0, 0.025, 0.08, dim),
+            Vec2::new(1_280.0, 720.0),
+        ),
+        Transform::from_xyz(0.0, 0.0, 40.0),
+    ));
+    let scale = if round.phase == rounds_sim::RoundPhase::HalfBlue {
+        1.0
+    } else {
+        0.44 + (round.phase_tick as f32 / 29.0).clamp(0.0, 1.0) * 0.56
+    };
+    let radius = 67.0 * scale;
+    for player in 0..2 {
+        let color = if player == 0 {
+            Color::srgb_u8(255, 169, 18)
+        } else {
+            Color::srgb_u8(35, 184, 255)
+        };
+        let center = Vec2::new(-96.0 + player as f32 * 192.0, -22.0);
+        commands.spawn((
+            SceneVisual,
+            Mesh2d(meshes.add(Circle::new(radius - 2.0))),
+            MeshMaterial2d(materials.add(Color::srgba_u8(0, 12, 35, 230))),
+            Transform::from_xyz(center.x, center.y, 42.0),
+        ));
+        commands.spawn((
+            SceneVisual,
+            Mesh2d(meshes.add(Annulus::new(radius - 2.0, radius))),
+            MeshMaterial2d(materials.add(color)),
+            Transform::from_xyz(center.x, center.y, 43.0),
+        ));
+        if round.scores[player] > 0 {
+            spawn_left_half_disc(
+                commands,
+                meshes,
+                materials,
+                center,
+                radius - 3.0,
+                color,
+                43.0,
+            );
+        }
+    }
+    if round.phase == rounds_sim::RoundPhase::HalfBlue {
+        commands.spawn((
+            SceneVisual,
+            Text2d::new("HALF BLUE"),
+            TextFont {
+                font_size: FontSize::Px(70.0),
+                ..default()
+            },
+            TextColor(Color::srgb_u8(101, 220, 255)),
+            Transform::from_xyz(0.0, 88.0, 44.0),
+        ));
+    }
+}
+
+fn spawn_left_half_disc(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    center: Vec2,
+    radius: f32,
+    color: Color,
+    z: f32,
+) {
+    for segment in 0..12 {
+        let start = std::f32::consts::FRAC_PI_2 + segment as f32 * std::f32::consts::PI / 12.0;
+        let end = std::f32::consts::FRAC_PI_2 + (segment + 1) as f32 * std::f32::consts::PI / 12.0;
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            [
+                center,
+                center + Vec2::from_angle(start) * radius,
+                center + Vec2::from_angle(end) * radius,
+            ],
+            color,
+            z,
+        );
     }
 }
 

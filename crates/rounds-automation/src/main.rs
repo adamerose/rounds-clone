@@ -1,6 +1,7 @@
 use rounds_network::{ClientSessionReport, NETWORK_PROTOCOL, ServerReport};
 use rounds_sim::{
-    FlowPhase, ItemId, REPLAY_TICKS, ReplayProfile, dynamic_body_digest, run_profile_match,
+    FlowPhase, ItemId, REPLAY_TICKS, ReplayProfile, arena_digest, combat_digest,
+    dynamic_body_digest, round_digest, run_profile_match, saw_digest,
 };
 use serde::Serialize;
 use std::env;
@@ -28,6 +29,10 @@ struct SmokeEvidence {
     live_rendered_state_agrees: bool,
     progressive_explosion_transition_observed: bool,
     dynamic_body_digest: String,
+    arena_digest: String,
+    saw_digest: String,
+    combat_digest: String,
+    round_digest: Option<String>,
     flow_digest: Option<String>,
     loadout_digest: Option<String>,
     both_clients_observed_same_flow: bool,
@@ -36,6 +41,10 @@ struct SmokeEvidence {
     both_clients_observed_blue_fan_by_tick_960: bool,
     observed_flow_phases: Vec<FlowPhase>,
     flow_completed_with_source_loadouts: bool,
+    radial_saw_motion_observed: bool,
+    radial_damage_observed: bool,
+    radial_result_onset_observed: bool,
+    radial_half_blue_observed: bool,
     live_frame_path: String,
     live_metadata_path: String,
     state_hash: String,
@@ -250,6 +259,16 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 && flow.scores == [0, 0]
                 && flow.loadouts == [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
         });
+    let radial_saw_motion_observed = reports
+        .iter()
+        .all(|report| report.observed_radial_saw_motion);
+    let radial_damage_observed = reports.iter().all(|report| report.observed_radial_damage);
+    let radial_result_onset_observed = reports
+        .iter()
+        .all(|report| report.observed_radial_result_onset);
+    let radial_half_blue_observed = reports
+        .iter()
+        .all(|report| report.observed_radial_half_blue);
     if !handshakes_complete
         || (profile == ReplayProfile::TimberCollapseReplay
             && !progressive_explosion_transition_observed)
@@ -259,6 +278,11 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 || !both_clients_observed_rematch_reset
                 || !both_clients_observed_blue_fan_by_tick_960
                 || !flow_completed_with_source_loadouts))
+        || (profile == ReplayProfile::RadialSawHalfBlueReplay
+            && (!radial_saw_motion_observed
+                || !radial_damage_observed
+                || !radial_result_onset_observed
+                || !radial_half_blue_observed))
         || reports
             .iter()
             .any(|report| report.snapshots_received != ticks)
@@ -284,6 +308,10 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             live_rendered_state_agrees,
             progressive_explosion_transition_observed,
             dynamic_body_digest: server_report.dynamic_body_digest,
+            arena_digest: server_report.arena_digest,
+            saw_digest: server_report.saw_digest,
+            combat_digest: server_report.combat_digest,
+            round_digest: server_report.round_digest,
             flow_digest: server_report.flow_digest,
             loadout_digest: server_report.loadout_digest,
             both_clients_observed_same_flow,
@@ -292,6 +320,10 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             both_clients_observed_blue_fan_by_tick_960,
             observed_flow_phases: reports[0].observed_flow_phases.clone(),
             flow_completed_with_source_loadouts,
+            radial_saw_motion_observed,
+            radial_damage_observed,
+            radial_result_onset_observed,
+            radial_half_blue_observed,
             live_frame_path: slash_path(&live_frame),
             live_metadata_path: slash_path(&live_metadata),
             state_hash: server_report.state_hash,
@@ -348,6 +380,10 @@ fn inspect(arguments: &[String]) -> Result<(), String> {
         last_snapshot_tick: ticks,
         state_hash,
         dynamic_body_digest: dynamic_body_digest(&state),
+        arena_digest: arena_digest(&state),
+        saw_digest: saw_digest(&state),
+        combat_digest: combat_digest(&state),
+        round_digest: round_digest(&state),
         flow_digest: state.flow.as_ref().map(rounds_sim::flow_digest),
         loadout_digest: state.flow.as_ref().map(rounds_sim::loadout_digest),
         state,
@@ -459,6 +495,60 @@ mod tests {
         let address = server_address.expect("test-owned server published its address");
         UdpSocket::bind(address.trim()).expect("partial startup releases the owned server");
         fs::remove_file(address_file).expect("remove test-owned server address file");
+    }
+
+    #[test]
+    fn mid_transition_failure_releases_all_owned_children() {
+        let address_files = (0..3)
+            .map(|index| {
+                std::env::temp_dir().join(format!(
+                    "rounds-transition-child-{}-{index}.txt",
+                    std::process::id()
+                ))
+            })
+            .collect::<Vec<_>>();
+        for path in &address_files {
+            let _ = fs::remove_file(path);
+        }
+        let mut addresses = Vec::new();
+        let result = (|| -> io::Result<()> {
+            let mut children = Vec::new();
+            for path in &address_files {
+                children.push(ChildGuard::new(
+                    Command::new(std::env::current_exe()?)
+                        .args(["--exact", "tests::udp_server_helper"])
+                        .env(ADDRESS_FILE_ENV, path)
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()?,
+                ));
+            }
+            for path in &address_files {
+                for _ in 0..200 {
+                    if let Ok(address) = fs::read_to_string(path) {
+                        addresses.push(address);
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(10));
+                }
+            }
+            if addresses.len() != children.len() {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "not every transition child published its address",
+                ));
+            }
+            Err(io::Error::other("induced result-transition failure"))
+        })();
+
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::Other);
+        assert_eq!(addresses.len(), 3);
+        for address in addresses {
+            UdpSocket::bind(address.trim()).expect("transition cleanup releases every child");
+        }
+        for path in address_files {
+            fs::remove_file(path).expect("remove transition child address file");
+        }
     }
 
     #[test]

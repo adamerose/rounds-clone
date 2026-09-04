@@ -116,17 +116,17 @@ Source: `reference/MedalTVRounds20260903170709695.mp4`, duration `600.17` second
 | 02:30–02:40 | orange platform arena combat | S2, S4, S5, S7, S8 |
 | 02:40–02:50 | orange arena round conclusion | S2, S4, S6, S7, S8 |
 | 02:50–03:00 | pink fortress duel and waiting transition | S1, S2, S6, S7, S8 |
-| 03:00–03:10 | `HOMING` draft choice | S1, S5, S7 |
-| 03:10–03:20 | teal moving-platform arena | S2, S3, S5, S7, S8 |
-| 03:20–03:30 | radial saw arena and ice burst | S2, S3, S4, S5, S7, S8 |
-| 03:30–03:40 | radial arena continued duel | S2, S3, S4, S5, S7, S8 |
-| 03:40–03:50 | articulated joint-platform arena | S2, S3, S5, S7, S8 |
-| 03:50–04:00 | `ROUND BLUE` transition | S6, S7 |
-| 04:00–04:10 | `FROST SLAM` draft choice | S1, S5, S7 |
-| 04:10–04:20 | `FAST FORWARD` draft choice | S1, S5, S7 |
-| 04:20–04:30 | pink suspended-structure duel | S2, S3, S4, S5, S7, S8 |
-| 04:30–04:40 | pink structure combat and impact | S2, S3, S4, S5, S7, S8 |
-| 04:40–04:50 | `HALF ORANGE` result overlay | S6, S7 |
+| 03:00–03:10 | pink fortress duel; first frame at or after 03:00 is PTS 1800159466, RGBA `86b275fbc6b498d6dccb73ab7fe6df2def431b6a97cea1f35d5aac949e171831` | S2, S5, S7, S8 |
+| 03:10–03:20 | pink fortress continued combat; PTS 1900159066, RGBA `3cecc328dc3d0c4a3392f4aa7e12efc30fb016610f288334c87083dac9529df6` | S2, S5, S7, S8 |
+| 03:20–03:30 | `WAITING`; PTS 2000158666, RGBA `c4c9547151263157cf54afe9495c7f1b1103cc3c2da8d3b29314bb0c57a09a6d` | S1, S6, S7 |
+| 03:30–03:40 | blue `PARASITE` draft; PTS 2100158266, RGBA `27997930942ef3ab9539add4a20a41d7ec5c3f99cae7707152499e98a1230a1f` | S1, S5, S7 |
+| 03:40–03:50 | lime modular/piston arena duel; PTS 2200157866, RGBA `ae61a7f854309c7b126f3fcc4950ac437ac17d9e013b1813786e1ecc9f949193` | S2, S3, S5, S7, S8 |
+| 03:50–04:00 | `HALF ORANGE`, then radial-saw reveal and duel from PTS 2320490718; first row frame PTS 2300157466, RGBA `392caceaa1e670bc9498fc68f99528de0f39c53f1e623f55e3d5e28530e2db38` | S2/S3/S6/S7 radial-saw sub-slice implemented; S5/S8 incomplete |
+| 04:00–04:10 | radial-saw duel, ordinary impact, adjacent-frame result onset, and established `HALF BLUE`; PTS 2400157066, RGBA `2bb31569dee81a9eef00bab1cb903a34057392f1255df0eadf9bccae6d5176de` | S2/S3/S6/S7 radial-saw sub-slice implemented; S5/S8 incomplete |
+| 04:10–04:20 | hanging articulated arena; PTS 2500156666, RGBA `cd45852969daa0f3ff61d560bb4454e47743ceb1ad88b9fcfaee8d1c80302067` | S2, S3, S5, S7, S8 |
+| 04:20–04:30 | hanging articulated arena continued; PTS 2600156266, RGBA `52a6d71c22030492cf2f3869ddc65a6b8f58b4296f8ca0cf39005f9be03aa828` | S2, S3, S5, S7, S8 |
+| 04:30–04:40 | hanging articulated arena continued; PTS 2700155866, RGBA `3234d4b0e6c0f62a9d4bf545715fb2d622f0e32b7715f11b5e503a4a21894b21` | S2, S3, S5, S7, S8 |
+| 04:40–04:50 | `FAST FORWARD` draft, followed by `SPRAY`; PTS 2800155466, RGBA `2eaed7698b0f7f536e8aeaa7b8ae7d0c474bc6e6379c066d1570043def9e05d1` | S1, S5, S7 |
 | 04:50–05:00 | red timber arena duel | S2, S3, S4, S5, S7, S8 |
 | 05:00–05:10 | timber arena continued combat | S2, S3, S4, S5, S7, S8 |
 | 05:10–05:20 | `TASTE OF BLOOD` draft choice | S1, S5, S7 |
