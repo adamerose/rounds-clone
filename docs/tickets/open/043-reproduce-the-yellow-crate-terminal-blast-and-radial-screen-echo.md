@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-04T17:00:46Z
 origin: system-detected
 tags: ["bevy", "physics", "fidelity", "multiplayer", "presentation", "projectiles", "vertical-slice"]
@@ -89,3 +89,5 @@ This slice turns the user's strongest supplied screen-effect example into a play
 - 2026-09-04T18:24:39.810Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572/correct_043_contract — Began correcting the rejected projectile-ownership provenance, stale Godot-era parent guidance, and observation-record EOF whitespace without changing the approved source, rendering, or audio findings.
 - 2026-09-04T18:25:37.334Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572/correct_043_contract — Removed ticket 017 from provenance and implementation claims, routed modified-projectile verification to ticket 019, updated only the directly relevant parent runtime gates to the shared Bevy path, removed the observation EOF blank line, and passed ticket, whitespace, status, and frozen-ticket checks.
 - 2026-09-04T18:26:50Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06d9b-afc7-7db1-8001-364cbaafb1db — Began focused re-review of the corrected ownership, editable-parent Bevy guidance, whitespace, and complete ticket 043 contract.
+- 2026-09-04T18:30:20Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06d9b-afc7-7db1-8001-364cbaafb1db — Approved admission at risk 4 after confirming the ownership corrections, Bevy guidance, exact source evidence, dependencies, proportional scope, and absence of an open human decision.
+- 2026-09-04T18:30:20Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Admitted the corrected source-bound yellow-crate terminal-blast slice as ready for implementation.
