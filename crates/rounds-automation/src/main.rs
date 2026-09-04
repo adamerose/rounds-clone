@@ -1,5 +1,7 @@
 use rounds_network::{ClientSessionReport, NETWORK_PROTOCOL, ServerReport};
-use rounds_sim::{REPLAY_TICKS, ReplayProfile, dynamic_body_digest, run_profile_match};
+use rounds_sim::{
+    FlowPhase, ItemId, REPLAY_TICKS, ReplayProfile, dynamic_body_digest, run_profile_match,
+};
 use serde::Serialize;
 use std::env;
 use std::fs;
@@ -26,6 +28,11 @@ struct SmokeEvidence {
     live_rendered_state_agrees: bool,
     progressive_explosion_transition_observed: bool,
     dynamic_body_digest: String,
+    flow_digest: Option<String>,
+    loadout_digest: Option<String>,
+    both_clients_observed_same_flow: bool,
+    observed_flow_phases: Vec<FlowPhase>,
+    flow_completed_with_source_loadouts: bool,
     live_frame_path: String,
     live_metadata_path: String,
     state_hash: String,
@@ -224,9 +231,19 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     let progressive_explosion_transition_observed = reports.iter().all(|report| {
         report.observed_pre_explosion_constraints && report.observed_post_explosion_release
     });
+    let both_clients_observed_same_flow =
+        reports[0].observed_flow_phases == reports[1].observed_flow_phases;
+    let flow_completed_with_source_loadouts =
+        server_report.state.flow.as_ref().is_some_and(|flow| {
+            flow.phase == FlowPhase::ResumedCombat
+                && flow.scores == [0, 0]
+                && flow.loadouts == [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+        });
     if !handshakes_complete
         || (profile == ReplayProfile::TimberCollapseReplay
             && !progressive_explosion_transition_observed)
+        || (profile == ReplayProfile::RematchDraftReplay
+            && (!both_clients_observed_same_flow || !flow_completed_with_source_loadouts))
         || reports
             .iter()
             .any(|report| report.snapshots_received != ticks)
@@ -252,6 +269,11 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             live_rendered_state_agrees,
             progressive_explosion_transition_observed,
             dynamic_body_digest: server_report.dynamic_body_digest,
+            flow_digest: server_report.flow_digest,
+            loadout_digest: server_report.loadout_digest,
+            both_clients_observed_same_flow,
+            observed_flow_phases: reports[0].observed_flow_phases.clone(),
+            flow_completed_with_source_loadouts,
             live_frame_path: slash_path(&live_frame),
             live_metadata_path: slash_path(&live_metadata),
             state_hash: server_report.state_hash,
@@ -308,6 +330,8 @@ fn inspect(arguments: &[String]) -> Result<(), String> {
         last_snapshot_tick: ticks,
         state_hash,
         dynamic_body_digest: dynamic_body_digest(&state),
+        flow_digest: state.flow.as_ref().map(rounds_sim::flow_digest),
+        loadout_digest: state.flow.as_ref().map(rounds_sim::loadout_digest),
         state,
     };
     println!(

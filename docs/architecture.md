@@ -22,6 +22,12 @@ The timber-collapse profile begins with 17 dynamic timber bodies held by fixed R
 Its authoritative explosion releases the fixed joints, wakes and impulses nearby bodies, and leaves the rope joints active; contacts and Rapier integration determine the resulting pile.
 Snapshots report ordered transforms, velocities, sleep state, constraint activity, and the stable explosion event.
 
+The rematch/draft profile adds an authoritative match-flow resource above combat.
+It owns the 5–4 terminal score, one rematch vote per player, the both-yes 0–0 reset, seeded ordered offers, active drafter, hover, confirmation, reveal, phase revision, and persistent loadouts.
+The stable item registry holds the nine distinct definitions behind the ten visible offers; Dazzle appears in both fans.
+Only Dazzle and Explosive Bullet are implemented and available to general offer generation, while the authority returns `UnimplementedItem` for the seven distinct catalog-only definitions no matter what a client renders.
+Typed fighter capabilities enter ECS-backed projectile creation: Dazzle bullets schedule three stun pulses and Explosive Bullet impacts emit an authoritative radial event and impulse.
+
 Presentation reads an immutable authoritative snapshot through `rounds-presentation`.
 Pixels, camera motion, and other presentation-only state never enter the replicated snapshot or its hash.
 The shipped Bevy 2D scene draws the static platforms and long shadows, a snapshot-responsive faceted timber floor and directional shadow, dynamic timber and weights, suspended lines, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, hit flash, and snapshot-derived explosion particles.
@@ -30,6 +36,8 @@ The timber impact uses separate short flash and delayed shock envelopes so the c
 These effects and the render-only particle arrangement do not enter the authoritative snapshot or state hash.
 The offscreen 1280×720 GPU path waits for Bevy's screenshot-completion event, bounds both device polling and the total capture, encodes the returned image, and writes the PNG only after capture succeeds.
 The visible path starts hidden, requires exactly one physical display at `(364,-1080)` with extent 1920×1080, verifies the window against that observed identity, and only then reveals it; missing or ambiguous displays fail closed.
+For the draft profile the same renderer projects received phase state into the live-arena result and rematch overlays, dark handoffs, large expressive orange/blue fighters, curved readable five-card fans, rarity color, focus lift/dimming, selected-card reveal, loadout badges, and the return to the yellow timber arena.
+Keyboard arrows plus Enter/Space and controller D-pad plus south button map to the same revisioned `FlowCommand` values used by automation and the UDP clients; these mappings never apply an item in presentation.
 
 `rounds-network` owns the wire records and the transport-facing API.
 Its current adapter uses bounded IPv4 UDP datagrams on the local development machine.
@@ -39,8 +47,8 @@ It is not a production reliability protocol and does not claim prediction, inter
 A future Steam adapter belongs behind this boundary and must preserve the same simulation inputs and snapshots.
 
 `rounds-server` runs one headless authoritative session.
-`rounds-client` runs the same simulation as a local client-host, submits one input sequence to a remote development server, renders a received live snapshot, runs visibly, or emits named replay anchors with source, input, state, dynamic-body, executable, renderer, and frame identity.
-`rounds-automation` starts the headless server and two real client processes, proves each received constrained pre-impact state and released post-impact state, binds one client's render to its received final snapshot, checks full dynamic-body and local-host agreement, and emits bounded JSON evidence.
+`rounds-client` runs the same simulation as a local client-host, submits one input sequence to a remote development server, renders a received live snapshot, runs visibly, or emits named replay anchors with source, input, state, dynamic-body, flow, loadout, executable, renderer, and frame identity.
+`rounds-automation` starts the headless server and two real client processes, proves each received the same progressive phase sequence, binds one client's render to its received final snapshot, checks complete flow/loadout and local-host agreement, and emits bounded JSON evidence.
 
 ## Workspace boundaries
 
@@ -70,15 +78,21 @@ target/debug/rounds-automation smoke --profile timber-collapse-replay --seed 40 
 target/debug/rounds-automation inspect --profile timber-collapse-replay --seed 40 --ticks 1440
 target/debug/rounds-client capture-replay --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/clone-anchors --metadata out/ticket-040/clone-anchors.json
 target/debug/rounds-client visible --profile timber-collapse-replay --seed 40 --ticks 1440 --frames 180
+target/debug/rounds-automation smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/smoke
+target/debug/rounds-automation inspect --profile rematch-draft-replay --seed 41 --ticks 2400
+target/debug/rounds-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/anchors --metadata out/ticket-041/anchors.json
+target/debug/rounds-client visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
 ```
 
 The smoke command must report every handshake, input sequence and progressive snapshot, agreement among the headless server, both UDP clients and local client-host, and a live client render bound to the agreed state hash.
 Replay capture emits twelve named Bevy-rendered timber anchors spanning the intact structure, pre-impact combat, bright impact, 100 ms impact progression, first release, deformation, debris, settlement, and continued combat.
 The earlier teal-duel profile remains available by passing `--profile teal-duel-replay --ticks 786`.
+The rematch/draft replay emits thirteen anchors from `VICTORY!` through both five-card fans and the upgraded projectile exchange.
 
 ## Testing rule
 
 Keep tests at the public and deep boundaries: stable contact and jump behavior, the complete duel and collapse, joint release and explosion response, outcome-changing physics perturbation, one-tick bullet CCD, bounded inspection, progressive UDP agreement, and the real Bevy offscreen renderer.
+For match flow, one compact set covers the complete phase order, vote outcomes, invalid actions, exact source offers, catalog-only rejection, one-time typed picks, seed/loadout perturbations, concrete keyboard/controller mapping, and real Dazzle/Explosive projectile behavior.
 A deep process-lifecycle test starts a minimal test-owned UDP child, forces the next child launch to fail, and proves cleanup releases the server.
 The capture boundary resolves metadata and every PNG destination before rendering or writing, compares every pair, and rejects aliases; process tests cover single capture, replay capture, and remote rendering before any network request or file write.
 Do not retain tests for private layout or retired implementation details.

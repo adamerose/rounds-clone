@@ -1,7 +1,8 @@
 # ROUNDS clean-room rewrite
 
 This repository starts from the two supplied ten-minute ROUNDS recordings and builds the clone in Rust with Bevy.
-The first footage-derived slice recreates the teal static duel at 00:22.50–00:35.60: two clients drive one 60 Hz Rapier authority through sequenced local UDP input, the same rules run as a client-host, and the shared Bevy 2D scene renders visibly or to offscreen evidence frames.
+Three footage-derived slices now cover a teal duel, an explosive timber collapse, and the 5–4 victory through rematch and two-player card draft into upgraded combat.
+Two clients drive one 60 Hz Rapier authority through sequenced local UDP input, the same rules run as a client-host, and the shared Bevy 2D scene renders visibly or to offscreen evidence frames.
 
 ## Build and verify
 
@@ -14,6 +15,9 @@ cargo test --workspace --locked
 .\target\debug\rounds-automation.exe inspect --seed 38 --ticks 786
 .\target\debug\rounds-client.exe capture-replay --seed 38 --ticks 786 --output-dir out\ticket-039\anchors --metadata out\ticket-039\anchors.json
 .\target\debug\rounds-client.exe visible --seed 38 --ticks 786 --frames 180
+.\target\debug\rounds-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\smoke
+.\target\debug\rounds-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\anchors --metadata out\ticket-041\anchors.json
+.\target\debug\rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
 ```
 
 The smoke result proves that both client processes handshake, send monotonic input sequences, receive every progressive snapshot, agree with the authority and local host, and bind one real Bevy render to the received final state.
@@ -21,10 +25,12 @@ Replay capture emits five named 1280×720 anchors whose metadata identifies the 
 
 ## What is and is not implemented
 
+The rematch slice adds authoritative phase revisions, per-player votes, seeded five-card offers, active-player validation, typed persistent loadouts, Dazzle stun pulses, Explosive Bullet impacts, expressive readable card presentation, and a source-timed return to combat.
+Seven distinct unselected definitions are intentionally catalog-only and cannot be confirmed; they remain visible fidelity targets rather than inert fake upgrades.
 The teal slice has stable Bevy ECS identities, Rapier bodies and contacts behind a private boundary, static stepped geometry, movement and air control, jumping, aiming, recoil, CCD bullets, reflection, damage-scaled knockback, a terminal upper-right impact, one winner, a real Bevy renderer, and live authoritative snapshots.
 Ring-out remains a separately tested simulation capability; the named replay ends before the result transition and records no ring-out.
 Its named replay profile matches this card-modified interval without claiming base-game constants.
-Production netcode and Steam transport, the full match loop, cards, other arenas, stronger effects, audio, and menus remain explicit gaps in `docs/fidelity/footage-coverage.md`.
+Production reliability and Steam transport, the remaining card mechanics, other arenas, complete match lifecycle, audio, and menus remain explicit gaps in `docs/fidelity/footage-coverage.md`.
 
 ## Recover the retired prototype
 

@@ -464,3 +464,10 @@ Ticket 041 binds recording `453954a7…a18c` from 02:40.00–03:20.00 to the fir
 All ten visible faces keep stable IDs and transcribed display metadata, but only the two source-selected effects are implemented in this bounded ticket. The other eight are explicitly catalog-only: the fidelity replay may render and hover them, but the authority rejects confirmation with `UnimplementedItem` and general offer generation excludes them until their own combat tickets unlock real behavior.
 The draft authority owns votes, phase, offers, active player, confirmation, scores, and loadouts; clients send semantic actions and animate received state without predicting confirmed choices. Persistent `Da`/`Ex` badges, not momentary raised cards, determine the selected source items.
 Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/01a06b87-1778-7283-b7e1-8090fc186167` admitted the corrected risk-4 contract after rejecting the initial `BURST` misread, undefined inert-card selection, unspecified rematch ownership/reset, and impossible work-log timestamps.
+
+## 2026-09-04 — Keep draft choices semantic and card effects typed
+
+The rematch profile carries phase revisions and semantic vote, hover, and confirm commands over the existing per-tick authority stream; it does not replicate card transforms or allow presentation to apply an upgrade.
+One stable nine-definition registry projects the ten visible offers because `DAZZLE` appears in both fans, and the seven distinct unselected definitions remain catalog-only even though navigation may focus them.
+The selected definitions fold into one `FighterCapabilities` value rather than one component per card: Dazzle marks bullets with an explicit three-pulse stun and Explosive Bullet marks them with an explicit radial impact, impulse, and reload tradeoff.
+This is enough compositional ECS state for the observed return to combat without introducing a string effect interpreter or a framework for unimplemented cards.

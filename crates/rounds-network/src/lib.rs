@@ -1,14 +1,14 @@
 use rounds_sim::{
-    AuthoritativeMatch, MatchSnapshot, PlayerInput, ReplayProfile, TIMBER_IMPACT_TICK,
-    dynamic_body_digest, hash_snapshot,
+    AuthoritativeMatch, FlowPhase, MatchSnapshot, PlayerInput, ReplayProfile, TIMBER_IMPACT_TICK,
+    dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest,
 };
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 2;
-pub const MAX_NETWORK_TICKS: u32 = 1_800;
+pub const NETWORK_PROTOCOL: u16 = 3;
+pub const MAX_NETWORK_TICKS: u32 = 3_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -54,6 +54,8 @@ pub struct ServerReport {
     pub last_snapshot_tick: u32,
     pub state_hash: String,
     pub dynamic_body_digest: String,
+    pub flow_digest: Option<String>,
+    pub loadout_digest: Option<String>,
     pub state: MatchSnapshot,
 }
 
@@ -71,6 +73,7 @@ pub struct ClientSessionReport {
     pub last_snapshot_tick: u32,
     pub observed_pre_explosion_constraints: bool,
     pub observed_post_explosion_release: bool,
+    pub observed_flow_phases: Vec<FlowPhase>,
     pub final_report: ServerReport,
 }
 
@@ -192,6 +195,8 @@ impl BoundServer {
             last_snapshot_tick: state.tick,
             state_hash,
             dynamic_body_digest: dynamic_body_digest(&state),
+            flow_digest: state.flow.as_ref().map(flow_digest),
+            loadout_digest: state.flow.as_ref().map(loadout_digest),
             state,
         })
     }
@@ -239,6 +244,7 @@ pub fn send_inputs(
     let mut last = None;
     let mut observed_pre_explosion_constraints = false;
     let mut observed_post_explosion_release = false;
+    let mut observed_flow_phases = Vec::new();
     for (sequence, input) in inputs.iter().copied().enumerate() {
         let sequence = sequence as u32;
         send_client(
@@ -285,6 +291,11 @@ pub fn send_inputs(
                         observed_post_explosion_release = true;
                     }
                 }
+                if let Some(flow) = &state.flow
+                    && observed_flow_phases.last() != Some(&flow.phase)
+                {
+                    observed_flow_phases.push(flow.phase);
+                }
                 last = Some((*state, state_hash));
             }
             AuthorityPacket::Welcome { .. } => {
@@ -306,6 +317,7 @@ pub fn send_inputs(
         last_snapshot_tick: ticks,
         observed_pre_explosion_constraints,
         observed_post_explosion_release,
+        observed_flow_phases,
         final_report: ServerReport {
             protocol: NETWORK_PROTOCOL,
             clients_handshaken: 2,
@@ -315,6 +327,8 @@ pub fn send_inputs(
             last_snapshot_tick: ticks,
             state_hash,
             dynamic_body_digest: dynamic_body_digest(&state),
+            flow_digest: state.flow.as_ref().map(flow_digest),
+            loadout_digest: state.flow.as_ref().map(loadout_digest),
             state,
         },
     })
@@ -395,7 +409,7 @@ fn receive_bytes(socket: &UdpSocket, label: &str) -> Result<(Vec<u8>, SocketAddr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rounds_sim::{REPLAY_TICKS, run_scripted_match, scripted_inputs};
+    use rounds_sim::{REPLAY_TICKS, run_scripted_match, scripted_inputs, scripted_inputs_for};
     use std::thread;
 
     #[test]
@@ -441,5 +455,63 @@ mod tests {
             server_report.dynamic_body_digest,
             dynamic_body_digest(&server_report.state)
         );
+    }
+
+    #[test]
+    fn two_udp_clients_receive_the_same_complete_rematch_and_draft_flow() {
+        let seed = rounds_sim::SOURCE_DRAFT_SEED;
+        let ticks = rounds_sim::REMATCH_DRAFT_TICKS;
+        let scripts = scripted_inputs_for(ReplayProfile::RematchDraftReplay, seed, ticks);
+        let server = BoundServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_thread = thread::spawn(move || {
+            server
+                .run(seed, ticks, ReplayProfile::RematchDraftReplay)
+                .unwrap()
+        });
+        let clients = scripts
+            .into_iter()
+            .enumerate()
+            .map(|(client_id, inputs)| {
+                thread::spawn(move || {
+                    send_inputs(
+                        address,
+                        client_id as u8,
+                        seed,
+                        ReplayProfile::RematchDraftReplay,
+                        &inputs,
+                    )
+                    .unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let reports = clients
+            .into_iter()
+            .map(|client| client.join().unwrap())
+            .collect::<Vec<_>>();
+        let server_report = server_thread.join().unwrap();
+        assert_eq!(reports[0].final_report, reports[1].final_report);
+        assert_eq!(reports[0].final_report, server_report);
+        assert_eq!(
+            reports[0].observed_flow_phases,
+            reports[1].observed_flow_phases
+        );
+        assert_eq!(
+            reports[0].observed_flow_phases,
+            vec![
+                FlowPhase::CombatConclusion,
+                FlowPhase::RematchPrompt,
+                FlowPhase::ArenaFade,
+                FlowPhase::Draft,
+                FlowPhase::Reveal,
+                FlowPhase::Handoff,
+                FlowPhase::Draft,
+                FlowPhase::Reveal,
+                FlowPhase::ArenaTransition,
+                FlowPhase::ResumedCombat,
+            ]
+        );
+        assert!(server_report.flow_digest.is_some());
+        assert!(server_report.loadout_digest.is_some());
     }
 }

@@ -62,3 +62,32 @@ Printed plus signs are transcribed as displayed even when the named property mak
 - The 5–4 pips and both old loadout stacks remain visible through `VICTORY!` and `REMATCH?`; the arena continues behind both overlays.
 - At 03:16 both five-pip rows are empty and the old multi-card stacks are gone. The new match therefore resets the visible score to 0–0 and clears prior-match cards before adding orange `Da` and blue `Ex`.
 - Pixels do not establish whether one host, one local player, or both players must accept rematch. Requiring one vote from each client is the clone's explicit authority rule, not a claim about hidden ROUNDS networking.
+
+## Source-to-clone inspection
+
+The original-resolution comparison uses the thirteen named anchors emitted under `out/ticket-041/`; generated source decodes and clone PNGs remain ignored.
+The clone preserves the source sequence: live-arena result, large cyan rematch prompt, dark fade, orange character and curved five-card fan, raised focus changes, Dazzle reveal, blank player handoff, blue recolor and fan, Explosive Bullet reveal, new 0–0 arena, persistent `Da`/`Ex` badges, and modifier-marked projectile exchange.
+Card titles and wrapped rules remain readable at 1280×720, highlighted faces rise and brighten while neighbors dim, rarity changes the accent color and art polygon, and the same received snapshot drives offscreen and visible presentation.
+
+The remaining visible differences are concrete rather than hidden behind an equivalence claim.
+The source uses thinner outlined prompt lettering, denser low-poly character faces, hats, moustache and hand poses, richer bespoke card illustrations, more overlap and perspective in the fan, and smoother eased selection motion.
+The clone uses geometric stand-in art, a simpler face and straight arms, bolder prompt type, shallower card depth, and deterministic linear phase envelopes.
+The resumed source arena has taller timber columns and a much denser faceted yellow impact/canopy field; the clone approximates it with stable yellow platforms, paired timber caps, long shadows, typed Dazzle spark trails, and a large presentation-only faceted burst sourced from the authoritative Explosive Bullet impact.
+Audio, exact animation curves, and frame-identical typography remain outside this slice.
+
+## Delivery evidence
+
+The final rebuild identifies `rounds-client.exe` as SHA-256 `7019c1e10918a9b83ee8df6929467fe926af0b4228946bd6a02a2b9f3ba9bc83`.
+The thirteen-anchor metadata is SHA-256 `53c0b32362b05f9fe5b4dcdf76dbdc250afdd5c4400f9a9675110d93fe5c748c`; representative final frame hashes are `23083a9d8293ac70eedbc3c7c5f437e2f47034f4de5e006ca8c4ddf2d54106cf` for the prompt, `54e6609c2b71463d191655c7b1e4eaa9e6bc02caf3c160dc092d97a921f17367` for orange's initial fan, `baafaedcab76a1f76d0078f2412b3cd209761786c02c4320e7a212a42b278f3a` for blue's initial fan, and `30b76790c4018b0115324969920c1be7504fc59729b826463b41391e4c79193f` for the upgraded-projectile exchange.
+The live UDP run completed 2,400 snapshots on each of two separately launched clients and reported matching state hash `026308b7f82c25b1256c2bb7f71ea541dd500724ddc19d799dd82ecc445e295a`, flow digest `75a0ce8a912bb6f7ceddccc6b3819f7cf312534d9d49b2fe407c4068e8989550`, and loadout digest `2489e426cddc787ffa978da316025d7d72a1f5adefa5a7ed016185e85c24cfeb` across both clients, the server, and the local host.
+The bounded visible run used the same final state, selected and re-verified the project display at `(364,-1080)`, 1920×1080 before showing, exited normally, and left no `rounds-*` process.
+
+The line inventory counts inserted Rust lines only; documentation is excluded.
+
+| Responsibility | Added lines | Breakdown |
+|---|---:|---|
+| Product behavior | 1,491 | flow model 539; simulation 221; networking 18; presentation 682; client 31 |
+| Tests | 330 | flow 168; simulation 88; networking 59; presentation 15 |
+| Automation support | 25 | existing smoke/inspection entry point only |
+
+Tests plus automation support total 355 lines, well below the product behavior they protect.

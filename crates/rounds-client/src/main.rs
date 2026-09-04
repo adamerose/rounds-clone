@@ -1,10 +1,11 @@
 use rounds_network::{NETWORK_PROTOCOL, ServerReport, send_inputs};
 use rounds_presentation::{
-    FRAME_HEIGHT, FRAME_WIDTH, RENDERER_IDENTITY, frame_sha256, render_png, run_visible,
+    FRAME_HEIGHT, FRAME_WIDTH, RENDERER_IDENTITY, frame_sha256, render_png,
+    run_interactive_visible, run_visible,
 };
 use rounds_sim::{
-    MatchSnapshot, REPLAY_TICKS, ReplayProfile, dynamic_body_digest, run_profile_match,
-    run_profile_snapshots, scripted_inputs_for,
+    MatchSnapshot, REPLAY_TICKS, ReplayProfile, dynamic_body_digest, flow_digest, loadout_digest,
+    run_profile_match, run_profile_snapshots, scripted_inputs_for,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -28,6 +29,8 @@ struct CaptureEvidence {
     input_trace_sha256: String,
     state_sha256: String,
     dynamic_body_sha256: String,
+    flow_sha256: Option<String>,
+    loadout_sha256: Option<String>,
     renderer: &'static str,
     frame_sha256: String,
     frame_path: String,
@@ -73,9 +76,14 @@ fn run() -> Result<(), String> {
             run_visible(sampled)?;
             print_json(&report)
         }
+        "visible-flow" => {
+            let automated = arguments.iter().any(|argument| argument == "--automated");
+            run_interactive_visible(profile, seed, ticks, automated)?;
+            print_json(&local_report(profile, seed, ticks))
+        }
         "remote" => remote(&arguments, profile, seed, ticks),
         _ => Err(
-            "usage: rounds-client [local|remote|capture|capture-replay|visible] [options]"
+            "usage: rounds-client [local|remote|capture|capture-replay|visible|visible-flow] [options]"
                 .to_owned(),
         ),
     }
@@ -179,6 +187,21 @@ fn capture_replay(
             ("block-reflection", 700),
             ("terminal-impact", profile.replay_ticks()),
         ],
+        ReplayProfile::RematchDraftReplay => vec![
+            ("victory", 180),
+            ("rematch-prompt", 300),
+            ("arena-fade", 420),
+            ("orange-initial-offer", 540),
+            ("orange-burst-hover", 600),
+            ("orange-dazzle-reveal", 840),
+            ("player-handoff", 960),
+            ("blue-initial-offer", 1_560),
+            ("blue-echo-hover", 2_040),
+            ("blue-explosive-reveal", 2_120),
+            ("resumed-combat", 2_220),
+            ("upgraded-projectiles", 2_280),
+            ("continued-combat", 2_400),
+        ],
     };
     let outputs = anchors
         .iter()
@@ -241,6 +264,8 @@ fn capture_state(
         input_trace_sha256: sha256(&script_bytes),
         state_sha256: state_hash.to_owned(),
         dynamic_body_sha256: dynamic_body_digest(state),
+        flow_sha256: state.flow.as_ref().map(flow_digest),
+        loadout_sha256: state.flow.as_ref().map(loadout_digest),
         renderer: RENDERER_IDENTITY,
         frame_sha256: frame_sha256(&frame),
         frame_path: resolved_output.to_string_lossy().replace('\\', "/"),
@@ -271,6 +296,8 @@ fn local_report(profile: ReplayProfile, seed: u64, ticks: u32) -> ServerReport {
         last_snapshot_tick: ticks,
         state_hash,
         dynamic_body_digest: dynamic_body_digest(&state),
+        flow_digest: state.flow.as_ref().map(flow_digest),
+        loadout_digest: state.flow.as_ref().map(loadout_digest),
         state,
     }
 }

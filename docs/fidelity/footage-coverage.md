@@ -10,12 +10,12 @@ No interval is unclassified.
 | Slice | Outcome | Status |
 |---|---|---|
 | `S0-foundation` | Bevy ECS fixed ticks, two-player scripted input, movement, jump, fire, block, hits, UDP client-host and headless authority, bounded state, deterministic PNG capture | implemented scaffold; not fidelity evidence |
-| `S1-flow-draft` | reproduce card offers, readable card faces, player reveal, pick input, inter-round handoff, waiting and rematch screens | unresolved fidelity gap |
+| `S1-flow-draft` | reproduce card offers, readable card faces, player reveal, pick input, inter-round handoff, waiting and rematch screens | first rematch/two-draft sub-slice implemented at recording `453954a7…a18c` 02:40.00–03:20.00; remaining flows unresolved |
 | `S2-static-duel` | reproduce base locomotion, aim, gun, block, health, death and a footage-matched static arena end to end | first sub-slice implemented at recording `1460e670…15f9` 00:22.50–00:35.60; remaining static duels unresolved |
 | `S3-arena-motion` | reproduce suspended, rotating, sliding and articulated arena pieces with authoritative networked physics | first suspended-weight and released-joint sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; remaining arena motion unresolved |
 | `S4-reactive-world` | reproduce destructible platforms, debris, explosions, ice and other reactive arena materials | first explosive timber-collapse sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; ice and remaining reactive worlds unresolved |
-| `S5-card-combat` | reproduce every visible named card and its stacked combat interaction across rounds | unresolved fidelity gap |
-| `S6-match` | reproduce round, half, score, color handoff, match completion and rematch cadence | unresolved fidelity gap |
+| `S5-card-combat` | reproduce every visible named card and its stacked combat interaction across rounds | Dazzle and Explosive Bullet first implemented in the 02:40.00–03:20.00 sub-slice; remaining card behavior unresolved |
+| `S6-match` | reproduce round, half, score, color handoff, match completion and rematch cadence | first 5–4 victory/rematch/0–0 reset sub-slice implemented at recording `453954a7…a18c` 02:40.00–03:20.00; remaining lifecycle unresolved |
 | `S7-presentation` | reproduce characters, lighting, camera, shake, trails, hit-stop, chromatic/radial effects, particles, text and audio | first static-duel and explosive-collapse visual sub-slices implemented; audio, hit-stop, and remaining presentation unresolved |
 | `S8-online` | replace the localhost scripted UDP scaffold with production online prediction, interpolation, reconciliation and eventual Steam transport | unresolved fidelity gap; Steam is not implemented |
 
@@ -44,10 +44,10 @@ Source: `reference/MedalTVRounds20260903165304088.mp4`, duration `600.13` second
 | 02:10–02:20 | neon stepped arena duel | S2, S4, S5, S7, S8 |
 | 02:20–02:30 | neon combat, shots and trails | S2, S4, S5, S7, S8 |
 | 02:30–02:40 | high-energy hit and explosion effects | S2, S4, S5, S7, S8 |
-| 02:40–02:50 | `REMATCH?` flow | S1, S6, S7 |
-| 02:50–03:00 | `EXPLOSIVE BULLET` draft choice | S1, S5, S7 |
-| 03:00–03:10 | `LIFESTEALER` draft choice | S1, S5, S7 |
-| 03:10–03:20 | card reveal and selection | S1, S5, S7 |
+| 02:40–02:50 | 5–4 victory, `REMATCH?`, fade, and orange card fan | S1/S6/S7 implemented sub-slice; remaining match variants unresolved |
+| 02:50–03:00 | orange navigation and `DAZZLE` confirmation inferred from its persistent badge | S1/S5/S7 implemented sub-slice; non-selected offer behavior remains catalog-only |
+| 03:00–03:10 | handoff and blue card fan with `LIFESTEALER` hover | S1/S5/S7 implemented sub-slice; non-selected offer behavior remains catalog-only |
+| 03:10–03:20 | blue navigation, `EXPLOSIVE BULLET` confirmation, 0–0 reset, and upgraded projectiles | S1/S5/S6/S7 implemented sub-slice; production S8 and remaining card behavior unresolved |
 | 03:20–03:26 | approach to the timber arena interval | S2, S3, S4, S5, S7, S8 |
 | 03:26–03:30 | intact stacked timber, suspended weights, reactive floor and combat | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
 | 03:30–03:40 | intact timber combat and upper-left projectile approach | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |

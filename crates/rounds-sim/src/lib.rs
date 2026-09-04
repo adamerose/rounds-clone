@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
+mod flow;
+pub use flow::*;
+
 pub const TICKS_PER_SECOND: u32 = 60;
 pub const REPLAY_TICKS: u32 = 1_440;
 pub const MAX_INSPECTED_PROJECTILES: usize = 64;
@@ -44,6 +47,7 @@ const TIMBER_EXPLOSION_IMPULSE: f32 = 4_800.0;
 #[serde(rename_all = "kebab-case")]
 pub enum ReplayProfile {
     TealDuelReplay,
+    RematchDraftReplay,
     #[default]
     TimberCollapseReplay,
 }
@@ -52,6 +56,7 @@ impl ReplayProfile {
     pub fn name(self) -> &'static str {
         match self {
             Self::TealDuelReplay => TEAL_REPLAY_PROFILE,
+            Self::RematchDraftReplay => REMATCH_DRAFT_PROFILE,
             Self::TimberCollapseReplay => REPLAY_PROFILE,
         }
     }
@@ -59,6 +64,7 @@ impl ReplayProfile {
     pub fn replay_ticks(self) -> u32 {
         match self {
             Self::TealDuelReplay => TEAL_REPLAY_TICKS,
+            Self::RematchDraftReplay => REMATCH_DRAFT_TICKS,
             Self::TimberCollapseReplay => REPLAY_TICKS,
         }
     }
@@ -66,6 +72,7 @@ impl ReplayProfile {
     pub fn source_interval(self) -> &'static str {
         match self {
             Self::TealDuelReplay => TEAL_SOURCE_INTERVAL,
+            Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_INTERVAL,
             Self::TimberCollapseReplay => SOURCE_INTERVAL,
         }
     }
@@ -73,6 +80,7 @@ impl ReplayProfile {
     pub fn source_sha256(self) -> &'static str {
         match self {
             Self::TealDuelReplay => TEAL_SOURCE_SHA256,
+            Self::RematchDraftReplay => SOURCE_SHA256,
             Self::TimberCollapseReplay => SOURCE_SHA256,
         }
     }
@@ -80,6 +88,7 @@ impl ReplayProfile {
     pub fn source_start_hundredths(self) -> u64 {
         match self {
             Self::TealDuelReplay => 2_250,
+            Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_START_HUNDREDTHS,
             Self::TimberCollapseReplay => 20_600,
         }
     }
@@ -91,9 +100,10 @@ impl std::str::FromStr for ReplayProfile {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             TEAL_REPLAY_PROFILE => Ok(Self::TealDuelReplay),
+            REMATCH_DRAFT_PROFILE => Ok(Self::RematchDraftReplay),
             REPLAY_PROFILE => Ok(Self::TimberCollapseReplay),
             _ => Err(format!(
-                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE} or {REPLAY_PROFILE}"
+                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, or {REPLAY_PROFILE}"
             )),
         }
     }
@@ -107,6 +117,7 @@ pub struct PlayerInput {
     pub jump: bool,
     pub fire: bool,
     pub block: bool,
+    pub flow: Option<FlowCommand>,
 }
 
 impl PlayerInput {
@@ -202,6 +213,7 @@ pub struct PlayerSnapshot {
     pub hit_flash_ticks: u8,
     pub grounded: bool,
     pub alive: bool,
+    pub stun_ticks: u16,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -216,6 +228,8 @@ pub struct ProjectileSnapshot {
     pub velocity_x_milli_per_second: i32,
     pub velocity_y_milli_per_second: i32,
     pub lifetime_ticks: u16,
+    pub dazzle_pulses: u8,
+    pub explosive_radius_milli: i32,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
@@ -235,6 +249,8 @@ pub struct CombatMetrics {
     pub fighter_body_contact_ticks: u32,
     pub released_constraints: u32,
     pub explosion_impulsed_bodies: u32,
+    pub dazzle_stun_pulses: u32,
+    pub explosive_projectile_impacts: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -252,6 +268,7 @@ pub struct MatchSnapshot {
     pub projectiles: Vec<ProjectileSnapshot>,
     pub metrics: CombatMetrics,
     pub winner: Option<u8>,
+    pub flow: Option<FlowSnapshot>,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -264,12 +281,19 @@ struct PlayerState {
     hit_flash_ticks: u8,
     grounded: bool,
     alive: bool,
+    stun_ticks: u16,
+    stun_pulses_remaining: u8,
+    stun_pulse_cooldown: u8,
 }
 
 #[derive(Component, Clone, Copy)]
 struct ProjectileState {
     id: u32,
     owner: u8,
+    dazzle_pulses: u8,
+    dazzle_stun_ticks: u16,
+    explosive_radius_milli: i32,
+    explosive_impulse_milli: i32,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -432,6 +456,7 @@ impl PhysicsBoundary {
 
         let player_spawns = match profile {
             ReplayProfile::TealDuelReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
+            ReplayProfile::RematchDraftReplay => [(-500.0, -150.0, 0_u8), (500.0, -150.0, 1_u8)],
             ReplayProfile::TimberCollapseReplay => [(-500.0, -210.0, 0_u8), (500.0, -210.0, 1_u8)],
         };
         let players = player_spawns.map(|(x, y, id)| {
@@ -455,7 +480,7 @@ impl PhysicsBoundary {
                     .ccd_enabled(true)
                     .can_sleep(false),
                 ColliderBuilder::ball(PLAYER_RADIUS)
-                    .density(if profile == ReplayProfile::TimberCollapseReplay {
+                    .density(if profile != ReplayProfile::TealDuelReplay {
                         0.02
                     } else {
                         0.004
@@ -792,6 +817,7 @@ pub struct AuthoritativeMatch {
     metrics: CombatMetrics,
     winner: Option<u8>,
     explosion_strength: f32,
+    flow: Option<FlowAuthority>,
 }
 
 impl AuthoritativeMatch {
@@ -812,6 +838,9 @@ impl AuthoritativeMatch {
                     hit_flash_ticks: 0,
                     grounded: true,
                     alive: true,
+                    stun_ticks: 0,
+                    stun_pulses_remaining: 0,
+                    stun_pulse_cooldown: 0,
                 })
                 .id()
         });
@@ -885,12 +914,19 @@ impl AuthoritativeMatch {
             metrics: CombatMetrics::default(),
             winner: None,
             explosion_strength: TIMBER_EXPLOSION_IMPULSE,
+            flow: (profile == ReplayProfile::RematchDraftReplay).then(|| FlowAuthority::new(seed)),
         }
     }
 
     pub fn step(&mut self, inputs: [PlayerInput; 2]) {
         self.tick += 1;
-        if self.winner.is_some() {
+        if let Some(flow) = &mut self.flow {
+            flow.advance(inputs.map(|input| input.flow));
+            if !flow.accepts_combat() {
+                return;
+            }
+        }
+        if self.winner.is_some() && self.flow.is_none() {
             return;
         }
         let inputs = inputs.map(PlayerInput::validated);
@@ -905,6 +941,17 @@ impl AuthoritativeMatch {
                 state.fire_cooldown = state.fire_cooldown.saturating_sub(1);
                 state.block_ticks = state.block_ticks.saturating_sub(1);
                 state.hit_flash_ticks = state.hit_flash_ticks.saturating_sub(1);
+                state.stun_ticks = state.stun_ticks.saturating_sub(1);
+                if state.stun_pulses_remaining > 0 {
+                    state.stun_pulse_cooldown = state.stun_pulse_cooldown.saturating_sub(1);
+                    if state.stun_pulse_cooldown == 0 {
+                        state.stun_ticks = state.stun_ticks.max(6);
+                        state.hit_flash_ticks = 4;
+                        state.stun_pulses_remaining -= 1;
+                        state.stun_pulse_cooldown = 8;
+                        self.metrics.dazzle_stun_pulses += 1;
+                    }
+                }
                 if input.aim_x != 0 || input.aim_y != 0 {
                     state.aim = Vector::new(f32::from(input.aim_x), f32::from(input.aim_y))
                         .normalize_or_zero();
@@ -914,6 +961,7 @@ impl AuthoritativeMatch {
                     self.metrics.block_activations += 1;
                 }
                 if state.health > 0
+                    && state.stun_ticks == 0
                     && self
                         .physics
                         .set_player_control(state.id, input, state.grounded)
@@ -921,12 +969,26 @@ impl AuthoritativeMatch {
                     self.metrics.jumps += 1;
                     state.grounded = false;
                 }
-                if state.health > 0 && input.fire && state.fire_cooldown == 0 {
-                    state.fire_cooldown = FIRE_COOLDOWN;
+                if state.health > 0
+                    && state.stun_ticks == 0
+                    && input.fire
+                    && state.fire_cooldown == 0
+                {
+                    let extra = self
+                        .flow
+                        .as_ref()
+                        .map(|flow| flow.capabilities(state.id).fire_cooldown_extra_ticks)
+                        .unwrap_or(0);
+                    state.fire_cooldown = FIRE_COOLDOWN + extra;
                     fire = Some((state.id, state.aim));
                 }
             }
             if let Some((player_id, aim)) = fire {
+                let capabilities = self
+                    .flow
+                    .as_ref()
+                    .map(|flow| flow.capabilities(player_id))
+                    .unwrap_or_default();
                 let projectile_id = self.next_projectile_id;
                 self.next_projectile_id += 1;
                 self.physics.spawn_bullet(projectile_id, player_id, aim);
@@ -936,6 +998,10 @@ impl AuthoritativeMatch {
                     .spawn(ProjectileState {
                         id: projectile_id,
                         owner: player_id,
+                        dazzle_pulses: capabilities.dazzle_stun_pulses,
+                        dazzle_stun_ticks: capabilities.dazzle_stun_ticks,
+                        explosive_radius_milli: capabilities.explosion_radius_milli,
+                        explosive_impulse_milli: capabilities.explosion_impulse_milli,
                     })
                     .id();
                 self.projectile_entities
@@ -1026,13 +1092,41 @@ impl AuthoritativeMatch {
                 let mut target_state = target_entity_mut
                     .get_mut::<PlayerState>()
                     .expect("player state");
-                target_state.health = target_state.health.saturating_sub(DAMAGE_PER_HIT);
+                let damage = if self.profile == ReplayProfile::RematchDraftReplay {
+                    25
+                } else {
+                    DAMAGE_PER_HIT
+                };
+                target_state.health = target_state.health.saturating_sub(damage);
                 target_state.hit_flash_ticks = 6;
+                if projectile.dazzle_pulses > 0 {
+                    target_state.stun_pulses_remaining = projectile.dazzle_pulses;
+                    target_state.stun_pulse_cooldown = 1;
+                    target_state.stun_ticks = projectile.dazzle_stun_ticks;
+                }
                 let damage_scale = 1.0 + (100 - target_state.health) as f32 / 70.0;
                 self.physics
                     .apply_impulse(target, velocity * HIT_IMPULSE * damage_scale);
                 self.metrics.hits += 1;
                 self.metrics.health_scaled_knockbacks += 1;
+                if projectile.explosive_radius_milli > 0 {
+                    let center = self
+                        .physics
+                        .bullet_pose(projectile_id)
+                        .map(|pose| pose.0)
+                        .unwrap_or_else(|| self.physics.player_pose(target).0);
+                    let impulse = projectile.explosive_impulse_milli as f32 / 1_000.0;
+                    self.physics.apply_impulse(target, velocity * impulse);
+                    self.explosions.push(ExplosionSnapshot {
+                        id: 10_000 + projectile_id as u16,
+                        tick: self.tick,
+                        x_milli: quantize(center.x),
+                        y_milli: quantize(center.y),
+                        radius_milli: projectile.explosive_radius_milli,
+                        impulse_milli: projectile.explosive_impulse_milli,
+                    });
+                    self.metrics.explosive_projectile_impacts += 1;
+                }
                 removals.push(projectile_id);
                 if target_state.health == 0 {
                     target_state.alive = false;
@@ -1042,6 +1136,19 @@ impl AuthoritativeMatch {
                 || self.physics.bullet_platform_contact(projectile_id)
             {
                 self.metrics.bullet_ccd_contacts += 1;
+                if projectile.explosive_radius_milli > 0
+                    && let Some((center, _, _, _)) = self.physics.bullet_pose(projectile_id)
+                {
+                    self.explosions.push(ExplosionSnapshot {
+                        id: 10_000 + projectile_id as u16,
+                        tick: self.tick,
+                        x_milli: quantize(center.x),
+                        y_milli: quantize(center.y),
+                        radius_milli: projectile.explosive_radius_milli,
+                        impulse_milli: projectile.explosive_impulse_milli,
+                    });
+                    self.metrics.explosive_projectile_impacts += 1;
+                }
                 removals.push(projectile_id);
             } else if self.physics.bullet_pose(projectile_id).is_none_or(
                 |(position, _, _, lifetime)| {
@@ -1104,6 +1211,7 @@ impl AuthoritativeMatch {
                 hit_flash_ticks: state.hit_flash_ticks,
                 grounded: state.grounded,
                 alive: state.alive,
+                stun_ticks: state.stun_ticks,
             });
         }
         let mut projectiles = self
@@ -1122,6 +1230,8 @@ impl AuthoritativeMatch {
                     velocity_x_milli_per_second: quantize(velocity.x),
                     velocity_y_milli_per_second: quantize(velocity.y),
                     lifetime_ticks: lifetime,
+                    dazzle_pulses: state.dazzle_pulses,
+                    explosive_radius_milli: state.explosive_radius_milli,
                 })
             })
             .collect::<Vec<_>>();
@@ -1168,11 +1278,21 @@ impl AuthoritativeMatch {
             })
             .collect();
         MatchSnapshot {
-            protocol: 2,
+            protocol: 3,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
-            arena: arena_for_profile(self.profile).to_vec(),
+            arena: if self.profile == ReplayProfile::RematchDraftReplay
+                && self.flow.as_ref().is_some_and(|flow| {
+                    matches!(
+                        flow.snapshot().phase,
+                        FlowPhase::CombatConclusion | FlowPhase::RematchPrompt
+                    )
+                }) {
+                prior_match_arena().to_vec()
+            } else {
+                arena_for_profile(self.profile).to_vec()
+            },
             dynamic_bodies,
             constraints,
             explosions: self.explosions.clone(),
@@ -1180,6 +1300,7 @@ impl AuthoritativeMatch {
             projectiles,
             metrics: self.metrics.clone(),
             winner: self.winner,
+            flow: self.flow.as_ref().map(FlowAuthority::snapshot),
         }
     }
 
@@ -1222,9 +1343,42 @@ pub fn timber_arena() -> &'static [ArenaSurfaceSnapshot] {
     &ARENA
 }
 
+pub fn draft_arena() -> &'static [ArenaSurfaceSnapshot] {
+    const YELLOW: [u8; 3] = [252, 224, 0];
+    const ARENA: [ArenaSurfaceSnapshot; 9] = [
+        surface(0, -520, -210, 170, 44, YELLOW),
+        surface(1, -260, -40, 140, 44, YELLOW),
+        surface(2, 0, -210, 145, 44, YELLOW),
+        surface(3, 260, -40, 140, 44, YELLOW),
+        surface(4, 520, -210, 170, 44, YELLOW),
+        surface(5, -390, 140, 130, 44, YELLOW),
+        surface(6, 0, 190, 150, 44, YELLOW),
+        surface(7, 390, 140, 130, 44, YELLOW),
+        surface(8, 0, -20, 100, 40, YELLOW),
+    ];
+    &ARENA
+}
+
+pub fn prior_match_arena() -> &'static [ArenaSurfaceSnapshot] {
+    const PINK: [u8; 3] = [248, 0, 78];
+    const ARENA: [ArenaSurfaceSnapshot; 9] = [
+        surface(0, -520, -260, 210, 48, PINK),
+        surface(1, -310, -100, 130, 38, PINK),
+        surface(2, -90, 55, 120, 38, PINK),
+        surface(3, 170, -80, 120, 38, PINK),
+        surface(4, 440, 90, 150, 42, PINK),
+        surface(5, -420, 180, 120, 38, PINK),
+        surface(6, -160, 255, 145, 40, PINK),
+        surface(7, 110, 190, 130, 40, PINK),
+        surface(8, 520, -230, 180, 45, PINK),
+    ];
+    &ARENA
+}
+
 pub fn arena_for_profile(profile: ReplayProfile) -> &'static [ArenaSurfaceSnapshot] {
     match profile {
         ReplayProfile::TealDuelReplay => teal_arena(),
+        ReplayProfile::RematchDraftReplay => draft_arena(),
         ReplayProfile::TimberCollapseReplay => timber_arena(),
     }
 }
@@ -1266,6 +1420,65 @@ pub fn scripted_inputs_for(
         Vec::with_capacity(ticks as usize),
     ];
     for tick in 0..ticks {
+        if profile == ReplayProfile::RematchDraftReplay {
+            let mut orange = PlayerInput {
+                aim_x: 1_000,
+                ..PlayerInput::default()
+            };
+            let mut blue = PlayerInput {
+                aim_x: -1_000,
+                ..PlayerInput::default()
+            };
+            orange.flow = match tick {
+                270 => Some(FlowCommand {
+                    phase_revision: 1,
+                    action: FlowAction::VoteYes,
+                }),
+                590 => Some(FlowCommand {
+                    phase_revision: 3,
+                    action: FlowAction::Hover(ItemId::Burst),
+                }),
+                660 => Some(FlowCommand {
+                    phase_revision: 3,
+                    action: FlowAction::Hover(ItemId::Dazzle),
+                }),
+                750 => Some(FlowCommand {
+                    phase_revision: 3,
+                    action: FlowAction::Confirm(ItemId::Dazzle),
+                }),
+                _ => None,
+            };
+            blue.flow = match tick {
+                330 => Some(FlowCommand {
+                    phase_revision: 1,
+                    action: FlowAction::VoteYes,
+                }),
+                1_560 => Some(FlowCommand {
+                    phase_revision: 6,
+                    action: FlowAction::Hover(ItemId::Lifestealer),
+                }),
+                2_000 => Some(FlowCommand {
+                    phase_revision: 6,
+                    action: FlowAction::Hover(ItemId::Echo),
+                }),
+                2_060 => Some(FlowCommand {
+                    phase_revision: 6,
+                    action: FlowAction::Hover(ItemId::ExplosiveBullet),
+                }),
+                2_100 => Some(FlowCommand {
+                    phase_revision: 6,
+                    action: FlowAction::Confirm(ItemId::ExplosiveBullet),
+                }),
+                _ => None,
+            };
+            orange.move_axis = 0;
+            blue.move_axis = 0;
+            orange.fire = matches!(tick, 2_220 | 2_330);
+            blue.fire = matches!(tick, 2_260 | 2_350);
+            scripts[0].push(orange);
+            scripts[1].push(blue);
+            continue;
+        }
         if profile == ReplayProfile::TimberCollapseReplay {
             let mut orange = PlayerInput {
                 aim_x: 700,
@@ -1637,6 +1850,94 @@ mod tests {
                         || left.y_milli != right.y_milli
                         || left.rotation_milliradians != right.rotation_milliradians
                 })
+        );
+    }
+
+    #[test]
+    fn selected_cards_mark_real_projectiles_and_apply_typed_impact_behaviors() {
+        let mut dazzle = AuthoritativeMatch::new_with_profile(
+            SOURCE_DRAFT_SEED,
+            ReplayProfile::RematchDraftReplay,
+        );
+        let scripts =
+            scripted_inputs_for(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, 2_221);
+        for (&orange, &blue) in scripts[0].iter().zip(&scripts[1]).take(2_220) {
+            dazzle.step([orange, blue]);
+        }
+        dazzle.physics.rapier.bodies[dazzle.physics.players[0].body]
+            .set_translation(Vector::new(-120.0, 80.0), true);
+        dazzle.physics.rapier.bodies[dazzle.physics.players[1].body]
+            .set_translation(Vector::new(120.0, 80.0), true);
+        for entity in dazzle.player_entities {
+            let mut state = dazzle.world.entity_mut(entity);
+            let mut player = state.get_mut::<PlayerState>().unwrap();
+            player.alive = true;
+            player.health = 100;
+            player.fire_cooldown = 0;
+            player.stun_ticks = 0;
+            player.stun_pulses_remaining = 0;
+        }
+        dazzle.step([scripts[0][2_220], PlayerInput::default()]);
+        let fired = dazzle.snapshot();
+        assert!(
+            fired
+                .projectiles
+                .iter()
+                .any(|bullet| bullet.owner == 0 && bullet.dazzle_pulses == 3)
+        );
+        for _ in 0..12 {
+            dazzle.step([PlayerInput::default(); 2]);
+        }
+        assert!(dazzle.snapshot().metrics.dazzle_stun_pulses >= 1);
+
+        let mut explosive = AuthoritativeMatch::new_with_profile(
+            SOURCE_DRAFT_SEED,
+            ReplayProfile::RematchDraftReplay,
+        );
+        for (&orange, &blue) in scripts[0].iter().zip(&scripts[1]) {
+            explosive.step([orange, blue]);
+        }
+        for _ in scripts[0].len()..2_240 {
+            explosive.step([PlayerInput::default(); 2]);
+        }
+        explosive.physics.rapier.bodies[explosive.physics.players[0].body]
+            .set_translation(Vector::new(-120.0, 80.0), true);
+        explosive.physics.rapier.bodies[explosive.physics.players[1].body]
+            .set_translation(Vector::new(120.0, 80.0), true);
+        for entity in explosive.player_entities {
+            let mut state = explosive.world.entity_mut(entity);
+            let mut player = state.get_mut::<PlayerState>().unwrap();
+            player.alive = true;
+            player.health = 100;
+            player.fire_cooldown = 0;
+            player.stun_ticks = 0;
+            player.stun_pulses_remaining = 0;
+        }
+        explosive.step([
+            PlayerInput::default(),
+            PlayerInput {
+                fire: true,
+                aim_x: -1_000,
+                ..PlayerInput::default()
+            },
+        ]);
+        let fired = explosive.snapshot();
+        assert!(
+            fired
+                .projectiles
+                .iter()
+                .any(|bullet| bullet.owner == 1 && bullet.explosive_radius_milli == 150_000)
+        );
+        for _ in 0..5 {
+            explosive.step([PlayerInput::default(); 2]);
+        }
+        let impact = explosive.snapshot();
+        assert_eq!(impact.metrics.explosive_projectile_impacts, 1);
+        assert!(
+            impact
+                .explosions
+                .iter()
+                .any(|explosion| explosion.id >= 10_000)
         );
     }
 }
