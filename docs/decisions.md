@@ -507,3 +507,7 @@ The corrected ticket 043 presentation now matches the bounded blast signature, b
 ## 2026-09-04 — Reopen the yellow result boundary from native consecutive frames
 
 Final review independently decoded the source frame before the ticket's supposed last-combat anchor and proved that PTS 4238483046 already contains the first dimmed result circles; PTS 4238649712 is the following, larger transition frame. Ticket 043 returns to blocked amendment rather than teaching code and evidence the wrong adjacent-frame boundary. The native preceding frame, contract labels, replay tick, captures, and README slice inventory must be corrected and freshly admitted before implementation resumes.
+
+## 2026-09-04 — Re-admit the corrected yellow result boundary
+
+Ticket 043 now binds PTS 4238316380 to tick 109 as final undimmed combat, adjacent PTS 4238483046 to tick 110 as first dimmed result onset, and PTS 4238649712 to tick 111 as the larger following transition. The eleven-anchor contract preserves all three frames and the source's single two-tick-duration frame explains why decoded ordinals 108/109/110 map to replay ticks 109/110/111. Fresh independent review reproduced every native hash and re-admitted the amended risk-4 contract; implementation may resume without changing the accepted Bevy, physics, authority, or multiplayer architecture.

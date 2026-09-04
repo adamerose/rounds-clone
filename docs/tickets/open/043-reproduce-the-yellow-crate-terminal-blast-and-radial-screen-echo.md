@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 created: 2026-09-04T17:00:46Z
 origin: system-detected
 tags: ["bevy", "physics", "fidelity", "multiplayer", "presentation", "projectiles", "vertical-slice"]
@@ -18,10 +18,6 @@ split-from: [18, 20]
 
 Reconstruct the continuous yellow-crate arena interval from PTS 4220149786, or 07:02.014979, through the established `ROUND ORANGE` result at PTS 4245983016, or 07:04.598302, in `reference/MedalTVRounds20260903165304088.mp4`.
 This slice turns the user's strongest supplied screen-effect example into a playable authority-owned event: a terminal close-range impact dislodges real arena pieces, eliminates blue, and drives the source's bright local burst, screen-wide radial echo, chromatic separation, trails, and result handoff on both local and received-state render paths.
-
-## Blocked
-
-Implementation is frozen while the exact last-combat/result-onset source boundary is corrected and the amended contract receives fresh admission review. This is an internal evidence correction and requires no human product decision.
 
 ## Outcome
 
@@ -122,3 +118,5 @@ Implementation is frozen while the exact last-combat/result-onset source boundar
 - 2026-09-04T21:54:17.668Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572/amend_043_boundary — Began applying the independently reproduced boundary, tick 109/110/111 mapping, eleven-anchor obligation, and accurate five-slice delivery/candidate distinction to editable source records.
 - 2026-09-04T21:55:42.132Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572/amend_043_boundary — Amended the ticket, source observations, footage ledger, and README without changing implementation or ticket status; ticket format, diff, EOF, source/video hash, all eleven native-frame hashes, stale-label search, original-resolution inspection, and process ownership checks passed.
 - 2026-09-04T21:59:06Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06e6d-cb0b-75e1-8bcf-570c3b525619 — Began fresh admission review of the amended native result boundary, tick mapping, eleven-anchor obligation, blocked implementation state, and README/coverage corrections.
+- 2026-09-04T22:10:02Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06e6d-cb0b-75e1-8bcf-570c3b525619 — Approved re-admission at risk 4 after independently reproducing all eleven native hashes, the ordinal/tick mapping, the three-frame result boundary, docs-only amendment, dependency ownership, and absence of an open human decision.
+- 2026-09-04T22:10:02Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Restored ticket 043 to ready with the corrected tick-109 combat, tick-110 onset, tick-111 larger-transition contract and eleven-anchor obligation.
