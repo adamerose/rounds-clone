@@ -1,40 +1,51 @@
-# Radial-saw half observations
+# Radial-saw duel and half-transition observations
 
 This record bounds the next footage-derived slice in `reference/MedalTVRounds20260903170709695.mp4`, SHA-256 `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9`.
-The selected source interval begins with the radial-saw arena at PTS 03:53.717 and ends with the last combat beat at approximately 04:07.700, immediately before the half-result presentation.
-Source media stays ignored and unchanged, and decoded PNGs are disposable evidence under `out/ticket-042-source-exact/`.
+The selected continuous interval begins with the fully revealed radial-saw arena at source PTS 2320490718, or 03:52.049072, and ends with established `HALF BLUE` presentation at source PTS 2476823426, or 04:07.682343.
+The last undimmed combat frame is PTS 2471823446, or 04:07.182345, and the result transition begins on the immediately following frame at PTS 2471990112, or 04:07.199011.
+Source media stays ignored and unchanged, and decoded working files remain disposable evidence under `out/ticket-042-correction/`.
+
+## Canonical frame method
+
+Canonical source frames use FFmpeg `7.1-essentials_build-www.gyan.dev`, libavcodec `61.19.100`, and its `libaom-av1` decoder.
+Decode stream `0:v:0` at native 1280×720 and time base `1/10000000`, preserve source timestamps with `-copyts`, select on integer source PTS, convert the first selected frame to packed RGBA with `format=rgba`, and emit one raw-video frame with passthrough timing.
+The resulting byte plane is exactly 3,686,400 bytes, and its SHA-256 is the frame identity recorded below.
+For a requested wall-clock instant that is not a source-frame PTS, choose the first frame whose source PTS is greater than or equal to the request, then record its actual integer PTS and `pts_time`.
+A full decode and an accurate seek to a known earlier keyframe are acceptable only when both preserve source PTS, apply that first-frame rule, and produce the same RGBA pixel hash.
+PNG container hashes, output sequence numbers, input-side `-ss` without source-PTS selection, hybrid double seeks, and inferred constant offsets are not frame identities.
+
+```text
+ffmpeg -ss <earlier-keyframe-seconds> -copyts -i <source> -map 0:v:0 -an -vf "select='gte(pts,<integer-source-pts>)',showinfo,format=rgba" -frames:v 1 -fps_mode passthrough -f rawvideo <frame>.rgba
+```
 
 ## Timestamp defect
 
-The existing second-recording rows in `docs/fidelity/footage-coverage.md` are not reliable as exact timestamp evidence from approximately 03:00 through at least 04:40.
-The ledger currently places the radial-saw arena around 03:20–03:40 and labels another row `HOMING`, while exact source-PTS decoding places the radial-saw arena at 03:53.717 and the later suspended duel around 05:03.
-Two independent exact decodes at source PTS 03:20.000 produce the same `WAITING` frame with PNG SHA-256 `1a36876bdc52204cf8a1a83094e3c26a014e9de1c6f78e8862ee4ac7c04c24fb`, not the documented radial-saw arena.
-One cross-check decoded from the beginning and selected on output presentation time.
-The other sought to an earlier keyframe, retained source timestamps with `-copyts`, and selected the global presentation timestamp.
-Input-side `-ss` alone, hybrid double seeks, filename sequence numbers, and sparse-keyframe landings are not accepted as timestamp evidence.
-
+The second-recording rows in `docs/fidelity/footage-coverage.md` are unreliable as exact timestamp evidence from approximately 03:00 through at least 04:40.
+The ledger places the radial-saw arena around 03:20–03:40 and labels another row `HOMING`, while native exact-PTS inspection places this arena at 03:52.049072–04:07.682343 and a later suspended duel around 05:03.
+For a request at 03:20.000, the canonical first source frame is PTS 2000158666, or 03:20.015867, and it shows `WAITING`, not the radial-saw arena.
 Ticket 042 must audit and correct the affected contiguous ledger window before using it as coverage evidence.
-The audit must bind every corrected row to exact source PTS and reproducible frame hashes rather than shifting the current shorthand by an assumed constant offset.
-This observation does not claim that rows outside the audited window are correctly indexed.
+Each corrected row must use native source PTS and canonical pixel hashes rather than an assumed constant offset.
 
-## Direct visual anchors
+## Canonical anchors
 
-| Source PTS | Decoded PNG SHA-256 | Direct observation |
+| Source PTS | RGBA pixel SHA-256 | Direct observation |
 |---|---|---|
-| 03:53.717 | `f14b1d4b2a463cebe66e85b6cb54f8668c9eac972bb07cd595171d197e7498d7` | The radial-saw arena is established with fighters on opposing upper slopes, a dark diamond enclosure, bright white/cyan diagonal and diamond surfaces, and rotating saw geometry. |
-| 03:56.000 | `b67aefd3506b3b0f51e072e599e640586925793e7102681c06d01adaaf976b34` | Both fighters traverse the upper slopes while a bright owner-colored projectile and trail cross the chamber, and the central saw has advanced its angle. |
-| 04:00.000 | `65801cc09107073b95630e2950255b6c1fa0dcc4e2eaafdbdbc6f281a073b659` | Orange is struck or blocking near the upper-left boundary with a compact white/pink flash and particles while blue remains on the right slope. |
-| 04:01.750 | `531eb1aceee554b586345ad5bbd6726a6922e927f01d37f3d36942720fd4d9af` | A strong icy blue-white burst fills part of the chamber and drives the most demanding impact-effects beat in the slice. |
-| 04:04.000 | `e6394dfb6151fec667a6c47b301a10353910df71a82ee5ad297a66f03defb254` | Combat continues across the symmetric chamber with projectile trails, long player shadows, and a visibly different saw-tooth orientation. |
-| 04:07.750 | `62db692dd79662cf85249b8e229a469a9a1aa572fa304d7f31f3f5015396134a` | The first checked frame just beyond the selected end still shows both fighters and the saw chamber immediately before the result overlay, which bounds the final transition more tightly during implementation. |
+| 2000158666 / 03:20.015867 | `c4c9547151263157cf54afe9495c7f1b1103cc3c2da8d3b29314bb0c57a09a6d` | `WAITING` is visible, disproving the ledger's radial-saw placement around 03:20. |
+| 2320490718 / 03:52.049072 | `6266d4e7fe24f1d0c7069279479c341dca5229d7b596e077368e4e73eb9c236f` | The arena is fully revealed with both fighters on opposing upper slopes, a dark diamond enclosure, bright white/cyan platforms, a central saw, and a second saw partly below frame. |
+| 2471823446 / 04:07.182345 | `687acf71fb2fce461692bd7443b7703274dcb895a6b17b6a86e1bbfd136e92ce` | This is the last undimmed combat frame; an ordinary compact white impact cloud and small orange particles remain near the upper-left slope while blue stands at lower right. |
+| 2471990112 / 04:07.199011 | `d9161d231c3e90438ea7c638abe2dfe1feba2f1bf28edc3a94a841d4b69b7cca` | The next frame dims the arena and introduces central result circles, establishing the exact combat-to-result boundary. |
+| 2476823426 / 04:07.682343 | `0b9d2136b7e010a359d95e3d2310a3e55c1e851429537cefcbd7cece12d185ca` | `HALF BLUE` is fully readable above the result circles. |
 
-The bright surfaces and burst are direct visual facts.
-Calling the treatment “ice” describes its appearance only; this interval does not establish a friction constant, freeze rule, or destructibility mechanic.
-The saws visibly rotate, but the checked anchors do not show a fighter touching one, so saw-contact damage or lethality is not a fidelity claim for this ticket.
+The reviewed native sequence around the previously claimed 04:01.750 event shows ordinary traversal, projectiles, small particles, and saw motion.
+It does not show a distinct ice burst, fullscreen distortion, or another special semantic event.
+Those rejected claims create no implementation or audio obligation.
+The white/cyan surfaces and large bright brush-stroke background are direct visual facts.
+Calling the surfaces ice-faced describes appearance only and does not establish special friction, freezing, fracture, or destructibility.
+The saws visibly rotate, but the interval does not show a fighter touching one, so saw-contact damage or lethality is not a fidelity claim.
 
 ## Measurements required during implementation
 
-- Decode short consecutive source sequences around the arena reveal, ordinary shots, the 04:01.750 burst, and the final combat beat to measure duration, motion, layering, and camera response rather than matching isolated stills.
-- Record saw angles across consecutive frames and reproduce direction, period, phase relationship, collider silhouette, and authoritative reset.
-- Separate fixed collision geometry from shader, texture, particles, light, trails, camera impulse, chromatic offset, and fullscreen distortion so presentation-only state cannot alter simulation results.
-- Extract semantic source-audio event times and envelopes for shots, impacts, the strong burst, saw ambience, and arena cadence, then recreate the cues independently without copying source samples.
+- Decode consecutive native frames around arena reveal, representative movement and shots, ordinary impacts, saw motion, and the combat-to-result boundary.
+- Measure saw direction, period, phase relationship, silhouette, and authoritative reset across sequences rather than one still.
+- Separate fixed collision geometry and authority-owned saw pose from background animation, trails, small impact particles, long shadows, result dimming, and UI interpolation.
+- Do not infer sound behavior from this visual audit; ticket 042 carries no audio-specific outcome.
