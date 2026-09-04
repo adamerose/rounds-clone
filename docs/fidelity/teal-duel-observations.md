@@ -21,7 +21,7 @@ Those measurements guided the clone's dark teal base, alternating cyan/lime face
 | 00:22.83 | The arena is established with orange and blue separated near the outer platforms. | `spawn`, tick 20 |
 | 00:24.50 | Orange remains on the outer-left platform while blue has moved to the upper-right tier. | `asymmetric-traversal`, tick 120 |
 | 00:29.75 | Gunfire crosses the middle tiers as orange begins its delayed inward and upward route. | `shot`, tick 435 |
-| 00:34.16 | Both fighters have reached the right half; a circular block response and reflected projectile are visible in the exchange. | `block-reflection`, tick 700 |
+| 00:34.16 | The fighters remain separated on the right half as their routes converge. The clone anchor exposes its modeled block and reflection, neither of which is visible in this exact source frame. | `block-reflection`, tick 700 |
 | 00:35.60 | Both fighters converge at the upper right in the terminal white impact burst. | `terminal-impact`, tick 786 |
 
 These observations come from frames decoded directly from the source video with FFmpeg, including an additional 00:35.70 frame that confirms the result transition starts outside the selected interval.
@@ -43,7 +43,8 @@ The checked command records the executable and full metadata bundle under ignore
 ## Visual review
 
 The source-and-clone sheet at ignored `out/ticket-039/source-clone-contact-corrected.png` was inspected at original resolution.
-Both sides share the ten-face stepped silhouette, nine lower faces, cyan/lime and brown-gray palette, separated outer spawn, orange's 00:24.50 outer-left position, delayed inward traversal, right-side convergence, projectile and block feedback, and white terminal hit flash.
+Both sides share the ten-face stepped silhouette, nine lower faces, cyan/lime and brown-gray palette, separated outer spawn, orange's 00:24.50 outer-left position, delayed inward traversal, right-side convergence, projectile exchange, and white terminal hit flash.
+The clone's 00:34.16 anchor shows its modeled block ring and reflected projectile, while the exact source frame shows only the two separated fighters converging on the right; the contact sheet does not present that modeled event as a frame-exact source match.
 The clone ends at the 00:35.60 impact with both fighters in the upper-right composition, records zero ring-outs, and leaves the result transition to `S6-match`.
 
 Remaining differences are visible and bounded.
@@ -53,7 +54,7 @@ The source backdrop has fine smoke/noise and slow organic motion, while the clon
 Source fighters have more articulated bodies, denser name/health detail, particles, camera movement, and source HUD elements.
 The clone retains the observed circular silhouette, limbs, directional gun, health/name treatment, block, flash, trail, and restrained snapshot-driven camera nudge, but does not claim the unresolved advanced `S7-presentation` work.
 At 00:29.75 clone orange is farther inward and higher than source orange, which still occupies the outer-left area.
-At 00:34.16 the clone fighters overlap more than the source fighters, although both sequences have reached the right-side convergence.
+At 00:34.16 the clone fighters overlap and show block/reflection feedback, while the source fighters remain separated; only their right-side convergence corresponds at that timestamp.
 The source terminal burst has richer particles, and its character art and camera response remain more expressive.
 The broad action route and event order correspond, while intermediate timing and exact poses remain tuned approximations because the recording follows card picks whose numeric effects are not recoverable from this interval alone.
 
