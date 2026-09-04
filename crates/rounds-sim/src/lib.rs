@@ -658,7 +658,7 @@ impl PhysicsBoundary {
             ReplayProfile::RematchDraftReplay => [(-500.0, -150.0, 0_u8), (500.0, -150.0, 1_u8)],
             ReplayProfile::RadialSawHalfBlueReplay => [(-285.0, 118.0, 0_u8), (285.0, 118.0, 1_u8)],
             ReplayProfile::YellowCrateTerminalBlastReplay => {
-                [(358.0, 292.0, 0_u8), (475.0, 292.0, 1_u8)]
+                [(220.0, 292.0, 0_u8), (570.0, 292.0, 1_u8)]
             }
             ReplayProfile::TimberCollapseReplay => [(-500.0, -210.0, 0_u8), (500.0, -210.0, 1_u8)],
         };
@@ -1559,9 +1559,11 @@ impl AuthoritativeMatch {
                     .get::<PlayerState>()
                     .expect("player state")
                     .health;
+                let remaining_health = target_health.saturating_sub(damage);
+                let damage_scale = 1.0 + (100 - remaining_health) as f32 / 70.0;
                 let event_impulse = if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay
                 {
-                    velocity * (HIT_IMPULSE + self.explosion_strength)
+                    velocity * (HIT_IMPULSE * damage_scale + self.explosion_strength)
                 } else {
                     velocity * HIT_IMPULSE
                 };
@@ -1597,14 +1599,15 @@ impl AuthoritativeMatch {
                     target_state.stun_pulse_cooldown = 1;
                     target_state.stun_ticks = projectile.dazzle_stun_ticks;
                 }
-                let damage_scale = 1.0 + (100 - target_state.health) as f32 / 70.0;
-                self.physics
-                    .apply_impulse(target, velocity * HIT_IMPULSE * damage_scale);
+                if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+                    self.physics.apply_impulse(target, event_impulse);
+                } else {
+                    self.physics
+                        .apply_impulse(target, velocity * HIT_IMPULSE * damage_scale);
+                }
                 self.metrics.hits += 1;
                 self.metrics.health_scaled_knockbacks += 1;
                 if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay {
-                    self.physics
-                        .apply_impulse(target, velocity * self.explosion_strength);
                     self.metrics.explosion_impulsed_bodies += self.physics.apply_radial_explosion(
                         impact_position,
                         YELLOW_EXPLOSION_RADIUS,
@@ -2182,9 +2185,23 @@ pub fn scripted_inputs_for(
                 aim_x: 1_000,
                 ..PlayerInput::default()
             };
-            let blue = PlayerInput {
+            let mut blue = PlayerInput {
                 aim_x: -1_000,
                 ..PlayerInput::default()
+            };
+            orange.move_axis = if tick < 40 {
+                1
+            } else if tick < 44 {
+                -1
+            } else {
+                0
+            };
+            blue.move_axis = if (15..40).contains(&tick) {
+                -1
+            } else if (40..44).contains(&tick) {
+                1
+            } else {
+                0
             };
             orange.fire = tick + 1 == YELLOW_IMPACT_TICK;
             scripts[0].push(orange);
@@ -2377,16 +2394,34 @@ mod tests {
             YELLOW_REPLAY_TICKS,
         );
         assert_eq!(replay.len(), 155);
+        let calm_start = &replay[0];
+        let calm_midpoint = &replay[39];
         let calm = &replay[(YELLOW_LAST_CALM_TICK - 1) as usize];
         let impact = &replay[(YELLOW_IMPACT_TICK - 1) as usize];
         let last_combat = &replay[(YELLOW_LAST_COMBAT_TICK - 1) as usize];
         let result = &replay[(YELLOW_RESULT_ONSET_TICK - 1) as usize];
         let orange = &replay[(YELLOW_ROUND_ORANGE_TICK - 1) as usize];
+        let fighter_separation = |snapshot: &MatchSnapshot| {
+            (snapshot.players[1].x_milli - snapshot.players[0].x_milli).abs()
+        };
+        assert!(
+            fighter_separation(calm_start) > fighter_separation(calm_midpoint)
+                && fighter_separation(calm_midpoint) > fighter_separation(calm),
+            "fighters did not converge through calm snapshots: start={:?}, midpoint={:?}, end={:?}",
+            calm_start.players,
+            calm_midpoint.players,
+            calm.players
+        );
         assert!(calm.impacts.is_empty() && calm.explosions.is_empty());
         assert_eq!(calm.round.as_ref().unwrap().phase, RoundPhase::Combat);
         let event = impact.impacts.last().expect("terminal projectile contact");
         assert_eq!((event.tick, event.owner, event.target), (81, 0, Some(1)));
-        assert!(event.damage > 0 && event.eliminated && event.impulse_x_milli > 0);
+        assert!(event.damage > 0 && event.eliminated);
+        assert_eq!(
+            (event.impulse_x_milli, event.impulse_y_milli),
+            (3_870_000, 0),
+            "published impulse must equal the complete health-scaled hit plus explosion impulse applied by authority"
+        );
         assert_eq!(impact.explosions.last().unwrap().tick, 81);
         assert_eq!(impact.winner, Some(0));
         assert!(!impact.players[1].alive);

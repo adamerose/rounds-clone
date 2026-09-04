@@ -424,7 +424,8 @@ pub fn send_inputs(
                                 && impact.target == Some(1)
                                 && impact.damage > 0
                                 && impact.eliminated
-                                && impact.impulse_x_milli != 0
+                                && impact.impulse_x_milli == 3_870_000
+                                && impact.impulse_y_milli == 0
                         })
                         && state.explosions.last().is_some_and(|blast| {
                             blast.tick == YELLOW_IMPACT_TICK && blast.impulse_milli > 0
