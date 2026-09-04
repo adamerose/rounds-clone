@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-04T02:51:05Z
 origin: human-request
 tags: ["bevy", "physics", "fidelity", "multiplayer", "vertical-slice"]
@@ -67,3 +67,6 @@ Reconstruct the complete duel visible from approximately 00:22.50 through 00:35.
 - 2026-09-04T02:58:08.768Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a55-572e-7bd2-be97-605bb16bb6bb — Rejected admission because the mandated determinism feature is known not to compile, the selected duel is card-modified, batch scripts could still masquerade as multiplayer, and required architecture records would become stale.
 - 2026-09-04T02:59:02.000Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Correcting every admission finding before implementation.
 - 2026-09-04T03:00:49.782Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572 — Removed the known-broken determinism feature, bounded repeatability to the locked authority build, made the card-modified interval an explicit replay profile rather than a base-constant oracle, required live sequenced input and progressive snapshots consumed by the renderer, and added the owning architecture and decision records.
+- 2026-09-04T03:01:17.504Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a55-572e-7bd2-be97-605bb16bb6bb — Began independent admission review of corrected exact range `fd99729e13bebf08980547a30f1420c8214e8642..d7bc2629e21dd5171d5a10731784f148c06bb021`.
+- 2026-09-04T03:02:04.832Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a55-572e-7bd2-be97-605bb16bb6bb — Approved the corrected risk-4 contract with no findings after verifying every earlier blocker was resolved, no human decision remained, and ticket, whitespace, ancestry, scope, and clean-state checks passed.
+- 2026-09-04T03:03:00.000Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Admitted ticket 039 at risk 4 after independent review approved the corrected complete vertical-slice contract.

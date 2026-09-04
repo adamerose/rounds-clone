@@ -412,3 +412,9 @@ One bounded scripted-input datagram per client is enough to exercise a real head
 The deterministic renderer writes a PNG in software from the authoritative snapshot, so capture needs no editor, window, GPU, or second simulation.
 The slice deliberately does not select a third-party physics library or claim prediction, interpolation, rollback, lag compensation, matchmaking, authentication, or Steam transport.
 Those choices keep the executable product path larger than its test and support machinery while preserving the boundaries later footage slices need.
+
+## 2026-09-04 — Admit the first footage-derived teal duel
+
+Ticket 039 reconstructs the card-modified teal-arena duel at 00:22.50–00:35.50 of recording `1460e670…15f9` as one end-to-end Bevy slice: Rapier contacts and impulses behind owned identifiers, a shipped 2D renderer, live sequenced client inputs and progressive authority snapshots, headless capture, and source-versus-clone visual review.
+The named `teal-duel-replay` profile reproduces the observed interval without pretending its parameters are card-neutral base constants, and the current server-authority model deliberately excludes Rapier's known-broken Bevy `enhanced-determinism` feature and makes no cross-platform lockstep claim.
+Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/01a06a55-572e-7bd2-be97-605bb16bb6bb` admitted the corrected contract at risk 4 after the first review exposed the dependency contradiction, card-confounded oracle, batch-network loophole, and stale-record omission.
