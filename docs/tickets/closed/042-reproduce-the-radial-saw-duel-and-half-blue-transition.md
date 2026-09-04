@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-04T12:13:08Z
 origin: system-detected
 tags: ["bevy", "physics", "fidelity", "multiplayer", "presentation", "match-flow", "vertical-slice"]
@@ -106,3 +106,5 @@ This adds one evidence-backed moving-hazard arena and its exact combat-to-result
 - 2026-09-04T15:26:08.570Z stage verify start session codex:01a06920-7449-74d0-9b09-57855a012572/implement_042 — Began final correction verification with locked gates, fresh source and clone evidence, live two-client agreement, guarded monitor-4 playback, and bounded residue cleanup.
 - 2026-09-04T15:28:08.796Z stage verify end session codex:01a06920-7449-74d0-9b09-57855a012572/implement_042 — Passed focused and full locked gates, reproduced all five exact-PTS RGBA hashes, inspected all source/clone pairs, proved two-client received-state agreement and hidden-first monitor-4 playback, and reduced evidence to one bounded final set.
 - 2026-09-04T15:31:39Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06cb6-b503-7d30-8c1f-833acc660a9b — Began exact-tip re-review of the corrected collider topology, source-aligned traversal and events, result dimming, paper-brush field, and refreshed evidence.
+- 2026-09-04T16:09:50Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06cb6-b503-7d30-8c1f-833acc660a9b — approved candidate 9406c6b60daf245d461dac5ab776df3be11bb7e0..0bfd56d3b186953043866ff2a645243611c7c42c
+- 2026-09-04T16:09:50Z stage integration end session codex:01a06920-7449-74d0-9b09-57855a012572 — integrated 0bfd56d3b186953043866ff2a645243611c7c42c as 0bfd56d3b186953043866ff2a645243611c7c42c
