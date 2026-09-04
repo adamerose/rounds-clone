@@ -67,7 +67,7 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     let ticks = argument(arguments, "--ticks", 180_u32)?;
     let seed = argument(arguments, "--seed", 38_u64)?;
     let server_binary = sibling_binary("rounds-server")?;
-    let default_client_binary = sibling_binary("rounds-client")?;
+    let client_binary = sibling_binary("rounds-client")?;
     let mut server = ChildGuard::new(
         Command::new(&server_binary)
             .args([
@@ -83,7 +83,6 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             .spawn()
             .map_err(|error| format!("start {}: {error}", server_binary.display()))?,
     );
-    let server_pid = server.child.id();
     let server_stdout = server
         .child
         .stdout
@@ -104,9 +103,6 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
 
     let clients = (0..2)
         .map(|client_id| {
-            let client_binary = env::var_os(format!("ROUNDS_SMOKE_CLIENT_{client_id}_BINARY"))
-                .map(PathBuf::from)
-                .unwrap_or_else(|| default_client_binary.clone());
             Command::new(&client_binary)
                 .args([
                     "remote",
@@ -123,11 +119,7 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 .stderr(Stdio::piped())
                 .spawn()
                 .map(ChildGuard::new)
-                .map_err(|error| {
-                    format!(
-                        "start client {client_id} for server {address} pid {server_pid}: {error}"
-                    )
-                })
+                .map_err(|error| format!("start client {client_id}: {error}"))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -186,7 +178,7 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     }
     let server_report: ServerReport = serde_json::from_str(server_tail.trim())
         .map_err(|error| format!("decode server report: {error}"))?;
-    let local_output = Command::new(&default_client_binary)
+    let local_output = Command::new(&client_binary)
         .args([
             "local",
             "--ticks",
@@ -271,4 +263,78 @@ where
         .ok_or_else(|| format!("missing value for {name}"))?
         .parse()
         .map_err(|error| format!("invalid {name}: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChildGuard;
+    use std::fs;
+    use std::io;
+    use std::net::UdpSocket;
+    use std::process::{Command, Stdio};
+    use std::thread;
+    use std::time::Duration;
+
+    const ADDRESS_FILE_ENV: &str = "ROUNDS_TEST_SERVER_ADDRESS_FILE";
+
+    #[test]
+    fn partial_child_start_failure_releases_owned_server() {
+        let address_file = std::env::temp_dir().join(format!(
+            "rounds-test-server-address-{}.txt",
+            std::process::id()
+        ));
+        let missing_client = std::env::temp_dir().join(format!(
+            "rounds-missing-client-{}{}",
+            std::process::id(),
+            std::env::consts::EXE_SUFFIX
+        ));
+        let _ = fs::remove_file(&address_file);
+        let _ = fs::remove_file(&missing_client);
+
+        let mut server_address = None;
+        let result = (|| -> io::Result<()> {
+            let child = Command::new(std::env::current_exe()?)
+                .args(["--exact", "tests::udp_server_helper"])
+                .env(ADDRESS_FILE_ENV, &address_file)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()?;
+            let _server = ChildGuard::new(child);
+
+            for _ in 0..200 {
+                if let Ok(address) = fs::read_to_string(&address_file) {
+                    server_address = Some(address);
+                    break;
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+            if server_address.is_none() {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "test-owned server did not publish its address",
+                ));
+            }
+
+            Command::new(&missing_client).spawn()?;
+            Ok(())
+        })();
+
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::NotFound);
+        let address = server_address.expect("test-owned server published its address");
+        UdpSocket::bind(address.trim()).expect("partial startup releases the owned server");
+        fs::remove_file(address_file).expect("remove test-owned server address file");
+    }
+
+    #[test]
+    fn udp_server_helper() {
+        let Some(address_file) = std::env::var_os(ADDRESS_FILE_ENV) else {
+            return;
+        };
+        let socket = UdpSocket::bind("127.0.0.1:0").expect("bind test-owned UDP server");
+        fs::write(address_file, socket.local_addr().unwrap().to_string())
+            .expect("publish test-owned server address");
+        loop {
+            thread::park();
+        }
+    }
 }
