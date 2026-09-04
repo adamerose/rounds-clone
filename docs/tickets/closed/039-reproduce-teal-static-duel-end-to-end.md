@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-04T02:51:05Z
 origin: human-request
 tags: ["bevy", "physics", "fidelity", "multiplayer", "vertical-slice"]
@@ -90,3 +90,5 @@ Reconstruct the complete duel visible from approximately 00:22.50 through the la
 - 2026-09-04T05:26:11.705Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Correcting the unpublished record commit so both provenance fields form one Git trailer block and retaining the rejected audit in the work log.
 - 2026-09-04T05:26:18.195Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572 — Prepared the contiguous provider and reviewer trailer block and complete audit history for amendment; runtime files remain unchanged.
 - 2026-09-04T05:29:04Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06ae3-dcb8-7151-8cd0-020340307536 — Began final fresh delivery review after recording the reviewer identity before that context inspected any repository byte.
+- 2026-09-04T05:40:13Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06ae3-dcb8-7151-8cd0-020340307536 — approved candidate e941a737de1b9e4772545dbe7dc913e6ff1384c8..3f2225bf03d0e1dd1e08125080738c6c40fcc0f3
+- 2026-09-04T05:40:13Z stage integration end session codex:01a06920-7449-74d0-9b09-57855a012572 — integrated 3f2225bf03d0e1dd1e08125080738c6c40fcc0f3 as 3f2225bf03d0e1dd1e08125080738c6c40fcc0f3
