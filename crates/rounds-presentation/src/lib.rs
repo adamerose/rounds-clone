@@ -830,37 +830,35 @@ fn spawn_snapshot_scene(
         ),
         Transform::from_xyz(0.0, 0.0, -100.0),
     ));
-    let drift = snapshot.tick as f32 * 0.035;
-    for (index, x) in [-520.0_f32, -260.0, 0.0, 260.0, 520.0]
-        .into_iter()
-        .enumerate()
-    {
-        let offset = (drift + index as f32 * 1.7).sin() * 28.0;
-        commands.spawn((
-            SceneVisual,
-            Sprite::from_color(
-                if radial_replay && index % 2 == 0 {
-                    Color::srgba_u8(238, 255, 248, 72)
-                } else if radial_replay {
-                    Color::srgba_u8(55, 195, 205, 45)
-                } else if timber_scene && index % 2 == 0 {
-                    Color::srgba_u8(5, 59, 78, 65)
-                } else if timber_scene {
-                    Color::srgba_u8(0, 20, 42, 74)
-                } else if index % 2 == 0 {
-                    Color::srgba_u8(9, 77, 76, 78)
-                } else {
-                    Color::srgba_u8(0, 30, 57, 68)
-                },
-                Vec2::new(270.0, 840.0),
-            ),
-            Transform::from_xyz(x + offset, 20.0, -90.0)
-                .with_rotation(Quat::from_rotation_z(0.08 * (index as f32 - 2.0))),
-        ));
+    if !radial_replay {
+        let drift = snapshot.tick as f32 * 0.035;
+        for (index, x) in [-520.0_f32, -260.0, 0.0, 260.0, 520.0]
+            .into_iter()
+            .enumerate()
+        {
+            let offset = (drift + index as f32 * 1.7).sin() * 28.0;
+            commands.spawn((
+                SceneVisual,
+                Sprite::from_color(
+                    if timber_scene && index % 2 == 0 {
+                        Color::srgba_u8(5, 59, 78, 65)
+                    } else if timber_scene {
+                        Color::srgba_u8(0, 20, 42, 74)
+                    } else if index % 2 == 0 {
+                        Color::srgba_u8(9, 77, 76, 78)
+                    } else {
+                        Color::srgba_u8(0, 30, 57, 68)
+                    },
+                    Vec2::new(270.0, 840.0),
+                ),
+                Transform::from_xyz(x + offset, 20.0, -90.0)
+                    .with_rotation(Quat::from_rotation_z(0.08 * (index as f32 - 2.0))),
+            ));
+        }
     }
 
     if radial_replay {
-        spawn_radial_backdrop(commands, meshes, materials, snapshot.tick);
+        spawn_radial_backdrop(commands, meshes, materials, snapshot.tick, &snapshot.arena);
     }
 
     if let Some(flow) = &snapshot.flow
@@ -879,6 +877,9 @@ fn spawn_snapshot_scene(
     }
 
     for surface in &snapshot.arena {
+        if radial_replay && surface.id >= 6 {
+            continue;
+        }
         let x = surface.center_x_milli as f32 / 1_000.0;
         let y = surface.center_y_milli as f32 / 1_000.0;
         let width = surface.width_milli as f32 / 1_000.0;
@@ -1332,27 +1333,82 @@ fn spawn_radial_backdrop(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<ColorMaterial>,
     tick: u32,
+    arena: &[rounds_sim::ArenaSurfaceSnapshot],
 ) {
     let phase = tick as f32 / 60.0;
-    for stroke in 0..24 {
-        let lane = stroke % 8;
-        let row = stroke / 8;
-        let drift = (phase * (0.17 + row as f32 * 0.04) + stroke as f32 * 0.71).sin();
-        let x = -610.0 + lane as f32 * 174.0 + drift * 34.0;
-        let y = -330.0 + row as f32 * 310.0 + (phase + stroke as f32).cos() * 22.0;
-        commands.spawn((
-            SceneVisual,
-            Sprite::from_color(
-                if stroke % 3 == 0 {
-                    Color::srgba_u8(249, 255, 244, 54)
-                } else {
-                    Color::srgba_u8(25, 155, 173, 32)
-                },
-                Vec2::new(235.0 + (stroke % 5) as f32 * 31.0, 54.0),
-            ),
-            Transform::from_xyz(x, y, -82.0)
-                .with_rotation(Quat::from_rotation_z(-0.17 + (stroke % 7) as f32 * 0.045)),
-        ));
+    for stroke in 0..82_u32 {
+        let lane = stroke % 13;
+        let row = stroke / 13;
+        let motion = (phase * (0.11 + row as f32 * 0.017) + stroke as f32 * 1.731).sin();
+        let center = Vec2::new(
+            -700.0 + lane as f32 * 116.0 + motion * (18.0 + (stroke % 5) as f32 * 3.0),
+            -390.0 + row as f32 * 137.0 + (phase * 0.09 + stroke as f32 * 0.913).cos() * 24.0,
+        );
+        let rotation =
+            -0.72 + (stroke % 11) as f32 * 0.137 + (phase * 0.07 + stroke as f32).sin() * 0.035;
+        let tangent = Vec2::new(rotation.cos(), rotation.sin());
+        let normal = Vec2::new(-tangent.y, tangent.x);
+        let length = 210.0 + (stroke.wrapping_mul(83) % 390) as f32;
+        let thickness = 12.0 + (stroke.wrapping_mul(47) % 61) as f32;
+        let color = if stroke % 4 == 0 {
+            Color::srgba_u8(4, 172, 210, 155)
+        } else if stroke % 7 == 0 {
+            Color::srgba_u8(35, 208, 226, 185)
+        } else {
+            Color::srgba_u8(250, 255, 249, 205 + (stroke % 3) as u8 * 18)
+        };
+        for segment in 0..5_u32 {
+            let along_a = -0.5 + segment as f32 / 5.0;
+            let along_b = -0.5 + (segment + 1) as f32 / 5.0;
+            let taper_a = (1.0 - (along_a.abs() * 1.42).powi(3)).clamp(0.15, 1.0);
+            let taper_b = (1.0 - (along_b.abs() * 1.42).powi(3)).clamp(0.15, 1.0);
+            let jitter_a = radial_brush_noise(stroke, segment, 3) * thickness * 0.34;
+            let jitter_b = radial_brush_noise(stroke, segment + 1, 3) * thickness * 0.34;
+            let half_a =
+                thickness * taper_a * (0.32 + radial_brush_noise(stroke, segment, 7).abs() * 0.45);
+            let half_b = thickness
+                * taper_b
+                * (0.32 + radial_brush_noise(stroke, segment + 1, 7).abs() * 0.45);
+            let spine_a = center + tangent * length * along_a + normal * jitter_a;
+            let spine_b = center + tangent * length * along_b + normal * jitter_b;
+            let top_a = spine_a + normal * half_a;
+            let bottom_a = spine_a - normal * half_a * 0.78;
+            let top_b = spine_b + normal * half_b;
+            let bottom_b = spine_b - normal * half_b * 0.78;
+            spawn_triangle(
+                commands,
+                meshes,
+                materials,
+                [top_a, bottom_a, top_b],
+                color,
+                -82.0,
+            );
+            spawn_triangle(
+                commands,
+                meshes,
+                materials,
+                [bottom_a, bottom_b, top_b],
+                color,
+                -82.0,
+            );
+        }
+        if stroke % 3 == 0 {
+            for bristle in 0..3_u32 {
+                let offset = -0.42 + bristle as f32 * 0.14;
+                let start = center + tangent * length * offset + normal * thickness * 0.7;
+                let end = start
+                    + tangent * length * (0.24 + bristle as f32 * 0.035)
+                    + normal * radial_brush_noise(stroke, bristle, 19) * 9.0;
+                spawn_triangle(
+                    commands,
+                    meshes,
+                    materials,
+                    [start, end, end - normal * (2.0 + bristle as f32)],
+                    color,
+                    -81.0,
+                );
+            }
+        }
     }
 
     let dark = Color::srgb_u8(3, 23, 51);
@@ -1375,6 +1431,31 @@ fn spawn_radial_backdrop(
     ] {
         spawn_triangle(commands, meshes, materials, triangle, dark, -55.0);
     }
+    for surface in arena.iter().filter(|surface| surface.id >= 6) {
+        commands.spawn((
+            SceneVisual,
+            Sprite::from_color(
+                dark,
+                Vec2::new(
+                    surface.width_milli as f32 / 1_000.0,
+                    surface.height_milli as f32 / 1_000.0,
+                ),
+            ),
+            Transform::from_xyz(
+                surface.center_x_milli as f32 / 1_000.0,
+                surface.center_y_milli as f32 / 1_000.0,
+                -54.0,
+            )
+            .with_rotation(Quat::from_rotation_z(
+                surface.rotation_milliradians as f32 / 1_000.0,
+            )),
+        ));
+    }
+}
+
+fn radial_brush_noise(stroke: u32, point: u32, salt: u32) -> f32 {
+    ((stroke.wrapping_mul(73) + point.wrapping_mul(41) + salt.wrapping_mul(29)) as f32 * 0.137)
+        .sin()
 }
 
 fn spawn_radial_surface_finish(
@@ -1535,7 +1616,7 @@ fn spawn_radial_result(
     let dim = if round.phase == rounds_sim::RoundPhase::HalfBlue {
         0.82
     } else {
-        (round.phase_tick as f32 / 16.0).clamp(0.08, 0.76)
+        (0.68 + round.phase_tick as f32 / 120.0).clamp(0.68, 0.82)
     };
     commands.spawn((
         SceneVisual,

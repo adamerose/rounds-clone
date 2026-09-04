@@ -662,7 +662,7 @@ mod tests {
                 && report.observed_radial_half_blue
         }));
         assert_eq!(server_report.state.round.as_ref().unwrap().scores, [1, 1]);
-        assert_eq!(server_report.state.metrics.hits, 1);
+        assert_eq!(server_report.state.metrics.hits, 2);
         assert!(server_report.arena_digest.len() == 64);
         assert!(server_report.saw_digest.len() == 64);
         assert!(server_report.combat_digest.len() == 64);

@@ -43,6 +43,7 @@ const BLOCK_DURATION: u16 = 18;
 const DAMAGE_PER_HIT: u16 = 100;
 const RECOIL_IMPULSE: f32 = 72.0;
 const HIT_IMPULSE: f32 = 420.0;
+const RADIAL_HIT_IMPULSE: f32 = 140.0;
 const KILL_X: f32 = 760.0;
 const KILL_Y: f32 = -440.0;
 const DYNAMIC_GROUP: Group = Group::GROUP_6;
@@ -176,7 +177,7 @@ pub struct ImpactSnapshot {
     pub id: u32,
     pub tick: u32,
     pub owner: u8,
-    pub target: u8,
+    pub target: Option<u8>,
     pub x_milli: i32,
     pub y_milli: i32,
 }
@@ -354,6 +355,13 @@ struct ProjectileState {
     dazzle_stun_ticks: u16,
     explosive_radius_milli: i32,
     explosive_impulse_milli: i32,
+}
+
+#[derive(Clone, Copy)]
+struct PendingRadialHit {
+    owner: u8,
+    target: u8,
+    direction: Vector,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -564,7 +572,7 @@ impl PhysicsBoundary {
         let player_spawns = match profile {
             ReplayProfile::TealDuelReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
             ReplayProfile::RematchDraftReplay => [(-500.0, -150.0, 0_u8), (500.0, -150.0, 1_u8)],
-            ReplayProfile::RadialSawHalfBlueReplay => [(-285.0, 145.0, 0_u8), (285.0, 145.0, 1_u8)],
+            ReplayProfile::RadialSawHalfBlueReplay => [(-285.0, 118.0, 0_u8), (285.0, 118.0, 1_u8)],
             ReplayProfile::TimberCollapseReplay => [(-500.0, -210.0, 0_u8), (500.0, -210.0, 1_u8)],
         };
         let players = player_spawns.map(|(x, y, id)| {
@@ -613,7 +621,6 @@ impl PhysicsBoundary {
             boundary.insert_timber_structure();
         }
         if profile == ReplayProfile::RadialSawHalfBlueReplay {
-            boundary.insert_radial_bounds();
             boundary.insert_radial_saws();
         }
         boundary
@@ -634,26 +641,6 @@ impl PhysicsBoundary {
             );
             self.saws
                 .insert(definition.id, SawPhysics { body, collider });
-        }
-    }
-
-    fn insert_radial_bounds(&mut self) {
-        for (position, half_width, half_height) in [
-            (Vector::new(0.0, -330.0), 470.0, 28.0),
-            (Vector::new(-485.0, 0.0), 24.0, 360.0),
-            (Vector::new(485.0, 0.0), 24.0, 360.0),
-        ] {
-            let (_, collider) = self.rapier.insert(
-                RigidBodyBuilder::fixed().translation(position),
-                ColliderBuilder::cuboid(half_width, half_height)
-                    .friction(0.92)
-                    .restitution(0.02)
-                    .collision_groups(groups(
-                        Group::GROUP_3,
-                        Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4 | Group::GROUP_5,
-                    )),
-            );
-            self.platforms.push(collider);
         }
     }
 
@@ -861,10 +848,10 @@ impl PhysicsBoundary {
         jumped
     }
 
-    fn spawn_bullet(&mut self, id: u32, owner: u8, aim: Vector) {
+    fn spawn_bullet(&mut self, id: u32, owner: u8, aim: Vector, collide_with_arena: bool) {
         let shooter = &self.rapier.bodies[self.players[usize::from(owner)].body];
         let origin = shooter.translation() + aim * (PLAYER_RADIUS + BULLET_RADIUS + 4.0);
-        let (membership, filter) = bullet_groups(owner);
+        let (membership, filter) = bullet_groups(owner, collide_with_arena);
         let (body, collider) = self.rapier.insert(
             RigidBodyBuilder::dynamic()
                 .translation(origin)
@@ -956,7 +943,7 @@ impl PhysicsBoundary {
             body.set_linvel(velocity, true);
             let translation = body.translation() + velocity.normalize_or_zero() * 8.0;
             body.set_translation(translation, true);
-            let (membership, filter) = bullet_groups(new_owner);
+            let (membership, filter) = bullet_groups(new_owner, true);
             self.rapier.colliders[bullet.collider].set_collision_groups(groups(membership, filter));
         }
     }
@@ -999,6 +986,7 @@ pub struct AuthoritativeMatch {
     explosion_strength: f32,
     flow: Option<FlowAuthority>,
     round: Option<RoundStateSnapshot>,
+    pending_radial_hit: Option<PendingRadialHit>,
 }
 
 impl AuthoritativeMatch {
@@ -1128,6 +1116,7 @@ impl AuthoritativeMatch {
                     eliminated: None,
                 },
             ),
+            pending_radial_hit: None,
         };
         if profile == ReplayProfile::RematchDraftReplay {
             let mut orange = simulation.world.entity_mut(simulation.player_entities[0]);
@@ -1166,6 +1155,7 @@ impl AuthoritativeMatch {
             eliminated: None,
         });
         self.winner = None;
+        self.pending_radial_hit = None;
         Ok(())
     }
 
@@ -1179,6 +1169,36 @@ impl AuthoritativeMatch {
                 round.phase = RoundPhase::HalfBlue;
             }
             return;
+        }
+        if let Some(hit) = self.pending_radial_hit.take() {
+            let target_entity = self.player_entities[usize::from(hit.target)];
+            let (damage_scale, eliminated) = {
+                let mut target_entity_mut = self.world.entity_mut(target_entity);
+                let mut target_state = target_entity_mut
+                    .get_mut::<PlayerState>()
+                    .expect("player state");
+                target_state.health = target_state.health.saturating_sub(50);
+                target_state.hit_flash_ticks = 6;
+                let damage_scale = 1.0 + (100 - target_state.health) as f32 / 70.0;
+                let eliminated = target_state.health == 0;
+                if eliminated {
+                    target_state.alive = false;
+                }
+                (damage_scale, eliminated)
+            };
+            self.physics.apply_impulse(
+                hit.target,
+                hit.direction * RADIAL_HIT_IMPULSE * damage_scale,
+            );
+            self.metrics.hits += 1;
+            self.metrics.health_scaled_knockbacks += 1;
+            if eliminated {
+                self.winner = Some(hit.owner);
+            }
+            self.begin_radial_result();
+            if self.winner.is_some() {
+                return;
+            }
         }
         let mut rematch_reset = false;
         if let Some(flow) = &mut self.flow {
@@ -1260,7 +1280,12 @@ impl AuthoritativeMatch {
                     .unwrap_or_default();
                 let projectile_id = self.next_projectile_id;
                 self.next_projectile_id += 1;
-                self.physics.spawn_bullet(projectile_id, player_id, aim);
+                self.physics.spawn_bullet(
+                    projectile_id,
+                    player_id,
+                    aim,
+                    self.profile != ReplayProfile::RadialSawHalfBlueReplay,
+                );
                 self.physics.apply_impulse(player_id, -aim * RECOIL_IMPULSE);
                 let projectile_entity = self
                     .world
@@ -1357,6 +1382,28 @@ impl AuthoritativeMatch {
                     .bullet_pose(projectile_id)
                     .map(|(_, _, velocity, _)| velocity.normalize_or_zero())
                     .unwrap_or(Vector::new(if target == 0 { -1.0 } else { 1.0 }, 0.0));
+                let impact_position = self
+                    .physics
+                    .bullet_pose(projectile_id)
+                    .map(|pose| pose.0)
+                    .unwrap_or_else(|| self.physics.player_pose(target).0);
+                self.impacts.push(ImpactSnapshot {
+                    id: projectile_id,
+                    tick: self.tick,
+                    owner: projectile.owner,
+                    target: Some(target),
+                    x_milli: quantize(impact_position.x),
+                    y_milli: quantize(impact_position.y),
+                });
+                if self.profile == ReplayProfile::RadialSawHalfBlueReplay {
+                    self.pending_radial_hit = Some(PendingRadialHit {
+                        owner: projectile.owner,
+                        target,
+                        direction: velocity,
+                    });
+                    removals.push(projectile_id);
+                    continue;
+                }
                 let mut target_entity_mut = self.world.entity_mut(target_entity);
                 let mut target_state = target_entity_mut
                     .get_mut::<PlayerState>()
@@ -1378,19 +1425,6 @@ impl AuthoritativeMatch {
                     .apply_impulse(target, velocity * HIT_IMPULSE * damage_scale);
                 self.metrics.hits += 1;
                 self.metrics.health_scaled_knockbacks += 1;
-                let impact_position = self
-                    .physics
-                    .bullet_pose(projectile_id)
-                    .map(|pose| pose.0)
-                    .unwrap_or_else(|| self.physics.player_pose(target).0);
-                self.impacts.push(ImpactSnapshot {
-                    id: projectile_id,
-                    tick: self.tick,
-                    owner: projectile.owner,
-                    target,
-                    x_milli: quantize(impact_position.x),
-                    y_milli: quantize(impact_position.y),
-                });
                 if projectile.explosive_radius_milli > 0 {
                     let center = self
                         .physics
@@ -1418,6 +1452,18 @@ impl AuthoritativeMatch {
                 || self.physics.bullet_platform_contact(projectile_id)
             {
                 self.metrics.bullet_ccd_contacts += 1;
+                if self.profile == ReplayProfile::RadialSawHalfBlueReplay
+                    && let Some((center, _, _, _)) = self.physics.bullet_pose(projectile_id)
+                {
+                    self.impacts.push(ImpactSnapshot {
+                        id: projectile_id,
+                        tick: self.tick,
+                        owner: projectile.owner,
+                        target: None,
+                        x_milli: quantize(center.x),
+                        y_milli: quantize(center.y),
+                    });
+                }
                 if projectile.explosive_radius_milli > 0
                     && let Some((center, _, _, _)) = self.physics.bullet_pose(projectile_id)
                 {
@@ -1468,6 +1514,10 @@ impl AuthoritativeMatch {
         if dead.len() == 1 {
             self.winner = Some(1 - dead[0]);
         }
+        self.begin_radial_result();
+    }
+
+    fn begin_radial_result(&mut self) {
         if let Some(winner) = self.winner
             && let Some(round) = &mut self.round
             && round.phase == RoundPhase::Combat
@@ -1706,13 +1756,17 @@ pub fn prior_match_arena() -> &'static [ArenaSurfaceSnapshot] {
 pub fn radial_saw_arena() -> &'static [ArenaSurfaceSnapshot] {
     const WHITE: [u8; 3] = [244, 248, 239];
     const CYAN: [u8; 3] = [68, 221, 238];
-    const ARENA: [ArenaSurfaceSnapshot; 6] = [
+    const DARK: [u8; 3] = [3, 23, 51];
+    const ARENA: [ArenaSurfaceSnapshot; 9] = [
         rotated_surface(0, -220, 72, 286, 52, 785, WHITE),
-        rotated_surface(1, 220, 72, 286, 52, -785, WHITE),
+        rotated_surface(1, 220, 72, 220, 52, -785, WHITE),
         rotated_surface(2, -190, -154, 214, 52, -785, CYAN),
         rotated_surface(3, 190, -154, 214, 52, 785, CYAN),
         rotated_surface(4, 0, 176, 72, 72, 785, WHITE),
         rotated_surface(5, 0, -178, 58, 58, 785, CYAN),
+        rotated_surface(6, -273, 173, 494, 76, 776, DARK),
+        rotated_surface(7, -276, -176, 650, 76, -794, DARK),
+        rotated_surface(8, 276, -205, 650, 76, 794, DARK),
     ];
     &ARENA
 }
@@ -1845,42 +1899,52 @@ pub fn scripted_inputs_for(
         }
         if profile == ReplayProfile::RadialSawHalfBlueReplay {
             let mut orange = PlayerInput {
-                aim_x: 820,
-                aim_y: 570,
+                aim_x: 1_000,
+                aim_y: 0,
                 ..PlayerInput::default()
             };
             let mut blue = PlayerInput {
-                aim_x: -820,
-                aim_y: 570,
+                aim_x: -992,
+                aim_y: 126,
                 ..PlayerInput::default()
             };
-            orange.move_axis = if (80..190).contains(&tick) {
+            orange.move_axis = if (0..185).contains(&tick)
+                || (210..365).contains(&tick)
+                || (510..545).contains(&tick)
+                || (810..842).contains(&tick)
+                || (880..908).contains(&tick)
+            {
                 1
-            } else if (300..430).contains(&tick) || (650..760).contains(&tick) {
-                -1
             } else {
                 0
             };
-            blue.move_axis = if (120..250).contains(&tick)
-                || (520..650).contains(&tick)
-                || (720..905).contains(&tick)
+            blue.move_axis = if (0..185).contains(&tick)
+                || (210..365).contains(&tick)
+                || (510..545).contains(&tick)
+                || (760..900).contains(&tick)
             {
                 -1
-            } else if (360..480).contains(&tick) {
+            } else if (545..760).contains(&tick) {
                 1
             } else {
                 0
             };
-            orange.jump = matches!(tick, 82 | 305 | 655 | 842);
-            blue.jump = matches!(tick, 122 | 365 | 525 | 720);
-            orange.fire = matches!(tick, 130 | 372 | 610 | 812);
-            blue.fire = matches!(tick, 240 | 470 | 710 | 907);
-            if tick == 907 {
-                blue.aim_x = -1_000;
-                blue.aim_y = 0;
+            orange.jump = matches!(tick, 160 | 340 | 520 | 820 | 888);
+            blue.jump = tick == 650;
+            orange.fire = tick == 359;
+            if tick == 359 {
+                orange.aim_x = 0;
+                orange.aim_y = 1_000;
             }
-            orange.block = (450..470).contains(&tick);
-            blue.block = (600..620).contains(&tick);
+            blue.fire = matches!(tick, 520 | 897);
+            if tick == 520 {
+                blue.aim_x = -992;
+                blue.aim_y = 126;
+            }
+            if tick == 897 {
+                blue.aim_x = -992;
+                blue.aim_y = 126;
+            }
             scripts[0].push(orange);
             scripts[1].push(blue);
             continue;
@@ -2036,17 +2100,16 @@ fn groups(memberships: Group, filter: Group) -> InteractionGroups {
     InteractionGroups::new(memberships, filter, InteractionTestMode::And)
 }
 
-fn bullet_groups(owner: u8) -> (Group, Group) {
-    if owner == 0 {
-        (
-            Group::GROUP_4,
-            Group::GROUP_2 | Group::GROUP_3 | DYNAMIC_GROUP,
-        )
+fn bullet_groups(owner: u8, collide_with_arena: bool) -> (Group, Group) {
+    let arena = if collide_with_arena {
+        Group::GROUP_3
     } else {
-        (
-            Group::GROUP_5,
-            Group::GROUP_1 | Group::GROUP_3 | DYNAMIC_GROUP,
-        )
+        Group::NONE
+    };
+    if owner == 0 {
+        (Group::GROUP_4, Group::GROUP_2 | arena | DYNAMIC_GROUP)
+    } else {
+        (Group::GROUP_5, Group::GROUP_1 | arena | DYNAMIC_GROUP)
     }
 }
 
@@ -2162,6 +2225,9 @@ mod tests {
         assert_eq!(replay.len(), RADIAL_REPLAY_TICKS as usize);
         let reveal = &replay[0];
         let moving = &replay[179];
+        let shot = &replay[359];
+        let ordinary_impact = &replay[539];
+        let late_traversal = &replay[839];
         let last_combat = &replay[(RADIAL_LAST_COMBAT_TICK - 1) as usize];
         let result = &replay[(RADIAL_RESULT_ONSET_TICK - 1) as usize];
         let half_blue = replay.last().unwrap();
@@ -2174,19 +2240,47 @@ mod tests {
             saw.teeth == 8 && saw.angular_velocity_milliradians_per_second == 7_430
         }));
         assert_ne!(saw_digest(reveal), saw_digest(moving));
+        assert!(moving.players.iter().all(|player| {
+            player.x_milli.abs() < 420_000 && (-250_000..260_000).contains(&player.y_milli)
+        }));
+        assert_eq!(shot.projectiles.len(), 1);
+        assert!(shot.projectiles[0].y_milli > shot.players[0].y_milli + 40_000);
+        assert!(
+            ordinary_impact.impacts.iter().any(|impact| {
+                impact.tick == 531 && impact.owner == 1 && impact.target == Some(0)
+            })
+        );
+        let late_orange = late_traversal
+            .players
+            .iter()
+            .find(|player| player.id == 0)
+            .unwrap();
+        let late_blue = late_traversal
+            .players
+            .iter()
+            .find(|player| player.id == 1)
+            .unwrap();
+        assert!(late_orange.x_milli < -250_000 && late_orange.y_milli > -40_000);
+        assert!(late_blue.x_milli > 200_000 && late_blue.y_milli < -60_000);
+        assert!(last_combat.impacts.iter().any(|impact| {
+            impact.tick == RADIAL_LAST_COMBAT_TICK
+                && impact.owner == 1
+                && impact.target == Some(0)
+                && impact.x_milli < -300_000
+        }));
         assert_eq!(
             last_combat.round.as_ref().unwrap().phase,
             RoundPhase::Combat
         );
         assert_eq!(last_combat.winner, None);
-        assert_eq!(last_combat.metrics.hits, 0);
+        assert_eq!(last_combat.metrics.hits, 1);
         assert_eq!(
             result.round.as_ref().unwrap().phase,
             RoundPhase::ResultTransition
         );
         assert_eq!(result.winner, Some(1));
         assert_eq!(result.round.as_ref().unwrap().scores, [1, 1]);
-        assert_eq!(result.metrics.hits, 1);
+        assert_eq!(result.metrics.hits, 2);
         assert_eq!(
             half_blue.round.as_ref().unwrap().phase,
             RoundPhase::HalfBlue

@@ -557,8 +557,15 @@ mod tests {
             return;
         };
         let socket = UdpSocket::bind("127.0.0.1:0").expect("bind test-owned UDP server");
-        fs::write(address_file, socket.local_addr().unwrap().to_string())
-            .expect("publish test-owned server address");
+        let pending_address_file =
+            std::path::PathBuf::from(&address_file).with_extension("pending");
+        fs::write(
+            &pending_address_file,
+            socket.local_addr().unwrap().to_string(),
+        )
+        .expect("publish test-owned server address");
+        fs::rename(pending_address_file, address_file)
+            .expect("make test-owned server address visible atomically");
         loop {
             thread::park();
         }
