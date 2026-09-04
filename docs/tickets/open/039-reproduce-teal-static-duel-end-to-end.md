@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 created: 2026-09-04T02:51:05Z
 origin: human-request
 tags: ["bevy", "physics", "fidelity", "multiplayer", "vertical-slice"]
@@ -16,13 +16,17 @@ split-from: []
 
 # Reproduce the teal static duel end to end
 
-Reconstruct the complete duel visible from approximately 00:22.50 through 00:35.50 in `reference/MedalTVRounds20260903170709695.mp4` as the first footage-derived vertical slice. The slice must establish the real physics, rendered client, authoritative multiplayer, and comparison workflow that later arenas, cards, and effects can extend; an isolated mechanics demo or synthetic state proof is not the outcome.
+Reconstruct the complete duel visible from approximately 00:22.50 through the last in-arena frame at 00:35.60 in `reference/MedalTVRounds20260903170709695.mp4` as the first footage-derived vertical slice. The slice must establish the real physics, rendered client, authoritative multiplayer, and comparison workflow that later arenas, cards, and effects can extend; an isolated mechanics demo or synthetic state proof is not the outcome.
+
+## Blocked
+
+Fresh delivery review disproved the frozen contract's claimed 00:35.48 ring-out and found four implementation defects. The corrected source interval and behavior are now explicit; ticket 039 remains blocked only until those corrections pass an independent contract re-admission and exact delivery review, with no human decision outstanding.
 
 ## Outcome
 
 - The authoritative 60 Hz simulation uses pinned Rapier 2D physics behind a project-owned boundary for player bodies, static arena colliders, bullets, contacts, impulses, and queries. Bevy entities and stable game identifiers remain the gameplay authority; snapshots and network messages never expose Rapier handles or serialized engine internals.
 - The reconstructed teal arena matches the selected interval's stepped platform layout, spawn relationship, scale, dark teal background, colored platform faces, and long cast-shadow composition closely enough that source and clone anchor frames can be compared at the same 1280×720 viewport.
-- Two circular fighters can stand and slide on platforms, run with air control, jump through the observed vertical routes, aim independently of movement, fire physical bullets, block or reflect a shot, take health-scaled knockback and damage, fall or be knocked outside the arena, and produce a single authoritative winner.
+- Two circular fighters can stand and slide on platforms, run with air control, jump through the observed vertical routes, aim independently of movement, fire physical bullets, block or reflect a shot, take health-scaled knockback and damage, fall or be knocked outside the arena, and produce a single authoritative winner. The footage-derived replay ends with both fighters converging for the terminal upper-right impact visible before the result fade; it does not invent an on-screen ring-out.
 - Gun recoil affects the shooter, bullets use continuous collision handling so a one-tick platform or player crossing is not missed, and collisions distinguish players, arena surfaces, bullets, and block state through named game concepts rather than third-party component types in public interfaces.
 - A shared presentation model drives an actual Bevy 2D client scene and the command-line capture path. The client renders platforms and shadows, circular player bodies with directional gun and limbs, health/name treatment, bullets and trails, block feedback, hit flash, and restrained camera response visible in this interval; placeholder circles on a ground strip are removed.
 - The client can run visibly from a command without editor interaction and can run an equivalent hidden or offscreen scripted replay that emits timestamped PNG anchor frames and bounded JSON evidence. Visible-window verification, when performed, obeys the repository's monitor-4 placement rule.
@@ -32,7 +36,7 @@ Reconstruct the complete duel visible from approximately 00:22.50 through 00:35.
 
 ## Decisions
 
-- The binding source is recording SHA-256 `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9`, interval 00:22.50–00:35.50. Store generated reference extracts and clone captures under ignored `out/`; do not alter the supplied recording.
+- The binding source is recording SHA-256 `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9`, interval 00:22.50–00:35.60. Store generated reference extracts and clone captures under ignored `out/`; do not alter the supplied recording.
 - Use `bevy_rapier2d` 0.36 with default features disabled and only its 2D and headless features. Its documented `enhanced-determinism` feature currently conflicts with Bevy's reflection dependencies and is deliberately excluded; the authoritative server model does not depend on cross-platform lockstep. The project boundary limits future upgrade, patch, or engine-swap cost.
 - Repeatability is required for the same locked build and platform used by automation, not asserted across platforms. The current online model is server/client-host authority with progressive snapshots, future client prediction for local actions, and interpolation for remote and dynamic-world state.
 - Use ECS for durable gameplay identity, state, rules, and effect composition. Treat the physics world as a service synchronized at the fixed-step boundary and the renderer as a consumer of presentation snapshots; do not turn every short-lived visual particle or math helper into a networked ECS entity.
@@ -42,7 +46,7 @@ Reconstruct the complete duel visible from approximately 00:22.50 through 00:35.
 
 ## Non-goals
 
-- Card choice UI, general card stacking, reverse-engineering base constants from this card-modified duel, the partial draft fade before 00:22.50, and the `HALF ORANGE` result presentation after 00:35.50.
+- Card choice UI, general card stacking, reverse-engineering base constants from this card-modified duel, the partial draft fade before 00:22.50, and the `HALF ORANGE` result presentation after 00:35.60.
 - Moving, articulated, destructible, ice, explosive, or otherwise reactive arena geometry.
 - Production matchmaking, relay/NAT traversal, rollback, Steamworks transport, anti-cheat, or adversarial local-machine hardening.
 - Full audio fidelity or the extreme chromatic, radial, and explosive effects visible in later intervals.
@@ -51,11 +55,11 @@ Reconstruct the complete duel visible from approximately 00:22.50 through 00:35.
 
 - A checked source-observation record identifies the selected interval, at least five source anchor timestamps, the arena geometry and palette measurements used, and the observed action sequence. Every derived frame records the source hash and timestamp.
 - Locked formatting, strict lint, build, and all tests pass from an absent `target` directory without relying on command ordering, ignored tests, an editor, or a prebuilt sibling executable.
-- Focused simulation evidence shows stable platform contact, the intended jump route, bullet CCD, block reflection, damage and recoil impulses, health-scaled knockback, ring-out, and one winner during the footage-derived replay.
+- Focused simulation evidence shows stable platform contact, the observed asymmetric traversal route, bullet CCD, block reflection, damage and recoil impulses, health-scaled knockback, the terminal upper-right impact, and one winner during the footage-derived replay. Ring-out remains a separately protected simulation capability rather than a false claim about this source interval.
 - Packet-trace evidence shows two real client processes handshaking, sending monotonically sequenced inputs during the advancing match, and receiving multiple progressive snapshots from one server process. A capture from the rendered client binds one of those received snapshots. All three agree on the final bounded state and leave no child process behind on success or induced partial-start failure.
 - The actual Bevy presentation path emits 1280×720 PNGs at no fewer than five named replay ticks spanning spawn, traversal, shot or block, hit or knockback, and round end. Capture metadata binds source interval, source hash, seed, input-trace hash, tick, state hash, executable hash, renderer identity, and frame hash.
 - A reviewer inspects a source-and-clone contact sheet and records concrete similarities and remaining differences. Automated comparison may support layout and palette checks but cannot substitute for this visual review.
-- A visible command-line launch is programmatically exercised for movement, aim, fire, and block without editor interaction; window-center evidence proves monitor 4 placement before any screenshot or observation.
+- A visible command-line launch is programmatically exercised for movement, aim, fire, and block without editor interaction. Before showing the window, the guard must identify the project display by its exact configured physical position and 1920×1080 extent, fail closed if that identity is absent or ambiguous, and report the observed identity rather than a hard-coded monitor index.
 - A line and responsibility inventory maps every new test and support module to the behavior or public boundary it protects and confirms the proportionality decision.
 - Documentation review confirms that the architecture, append-only decision record, fidelity ledger, dependency flags, executable modes, and delivered behavior agree.
 
@@ -72,3 +76,6 @@ Reconstruct the complete duel visible from approximately 00:22.50 through 00:35.
 - 2026-09-04T03:03:00.000Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Admitted ticket 039 at risk 4 after independent review approved the corrected complete vertical-slice contract.
 - 2026-09-04T03:04:01.390Z stage implement start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a5e-9890-7393-a1d4-ab46f06bfd78 — Began implementing the admitted teal-duel slice in its isolated worktree after reading the full contract, governing records, manifest, and existing Rust boundaries.
 - 2026-09-04T04:15:48.189Z stage implement end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a5e-9890-7393-a1d4-ab46f06bfd78 — Delivered the Rapier authority, Bevy renderer, live sequenced UDP replay, footage-bound anchors, monitor-4 visible run, documentation, and proportional regressions; clean locked format, lint, build, tests, three-process smoke, captures, and residue checks passed.
+- 2026-09-04T04:17:32.845Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06aa2-a00b-7980-9be4-a5450273c014 — Began fresh delivery review of exact implementation range `e941a737de1b9e4772545dbe7dc913e6ff1384c8..4b4f21cb822c2ffccdf397d3120bde4b2f8bb2bd`.
+- 2026-09-04T04:32:15.973Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06aa2-a00b-7980-9be4-a5450273c014 — Rejected the candidate because a cold-first renderer test was timing-dependent, two source choreography claims were false, capture metadata could overwrite image output, monitor evidence printed an unproven constant, and visible/offscreen camera application diverged.
+- 2026-09-04T04:33:30.000Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Reopened the frozen contract after direct source decode disproved the terminal ring-out assumption, extending the owned footage through the last in-arena frame and binding the real terminal impact, asymmetric route, and exact fail-closed display identity before correcting every delivery finding.
