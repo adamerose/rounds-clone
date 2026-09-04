@@ -62,3 +62,13 @@ The footage does not require a renderer replacement.
 - No card badge in the corner is accepted as proof of the terminal event's hidden formula.
 - No proprietary frame, texture, shader, or audio byte is committed or shipped.
 - The other explosive intervals in both recordings remain future coverage under tickets `018`, `019`, and `020`; this contract does not silently claim them through one effect implementation.
+
+## Implemented replay evidence
+
+`yellow-crate-terminal-blast-replay`, seed 43, advances all 155 source-bound frames through authority-owned input, projectile contact, explosion, blue elimination, orange scoring, crate motion, result onset, and `ROUND ORANGE`. The final state SHA-256 is `a78af2b36e3bc17bfcf6ff561666af4fb0b3bc143b9740ff2fddbbf1b6e760cb`; the final ordered dynamic-body digest is `490ea828d15da52c18157672dc5bc0efa25b6441ef66fbe528e9ecf656f4de45`. Crate 315 is airborne and rotated after the blast, and halving the authority impulse changes the protected dynamic-body digest.
+
+One authority and two separately launched UDP clients each sent 155 inputs and received ticks 1 through 155. Their final snapshots agreed with each other, the server, and the client-host, while client 0 rendered the received final snapshot through the real GPU path. This is localhost development evidence, not a production networking claim.
+
+The final capture set contains the ten table anchors above at 1280x720. Its metadata binds exact source PTS/native RGBA hash, replay tick, state/dynamic/arena/combat/round digests, executable hash, clone-frame hash, renderer identity `bevy-0.19.1-2d-hdr-shared-scene-single-final-composite-radial-echo`, the single-pass identity, and the tick-81 audio hook. Original-resolution source-left/clone-right inspection found the same 4/5/4 arena silhouette, upper-right blast, whole-frame outward echo direction, green/yellow/red ordering, narrow multicolor trail direction, detached crate, adjacent result cut, score circles, and result cadence. The clone's paper texture and particle lobes remain simpler approximations, and its orange onset circle is fully rather than half filled.
+
+The implementation added about 775 lines of product behavior, 177 lines of focused tests, and 98 lines of capture/network-smoke support before documentation. Product behavior therefore remains substantially larger than the evidence support: simulation owns the replay and Rapier state, networking owns projection observations, presentation owns the shared scene and one private 35-line WGSL pass, and the client/automation crates only bind captures and process evidence.

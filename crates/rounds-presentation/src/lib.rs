@@ -1,7 +1,8 @@
 use bevy::{
     app::SubApps,
-    asset::RenderAssetUsages,
+    asset::{RenderAssetUsages, load_internal_asset, uuid_handle},
     camera::{Hdr, RenderTarget},
+    core_pipeline::{Core2dSystems, FullscreenShader, schedule::Core2d},
     image::Image,
     post_process::{
         bloom::Bloom,
@@ -9,13 +10,25 @@ use bevy::{
     },
     prelude::*,
     render::{
-        ExtractSchedule, MainWorld, RenderApp, RenderPlugin,
-        render_resource::{
-            Extent3d, PipelineCache, PollType, TextureDimension, TextureFormat, TextureUsages,
+        ExtractSchedule, MainWorld, RenderApp, RenderPlugin, RenderStartup,
+        extract_component::{
+            ComponentUniforms, DynamicUniformIndex, ExtractComponent, ExtractComponentPlugin,
+            UniformComponentPlugin,
         },
-        renderer::RenderDevice,
+        render_resource::{
+            BindGroup, BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries,
+            CachedRenderPipelineId, ColorTargetState, ColorWrites, Extent3d, FragmentState,
+            Operations, PipelineCache, PollType, RenderPassColorAttachment, RenderPassDescriptor,
+            RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
+            ShaderType, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
+            TextureViewId,
+            binding_types::{sampler, texture_2d, uniform_buffer},
+        },
+        renderer::{RenderContext, RenderDevice, ViewQuery},
+        view::ViewTarget,
         view::screenshot::{Screenshot, ScreenshotCaptured},
     },
+    shader::Shader,
     window::{ExitCondition, Monitor, OnMonitor, PrimaryWindow},
     winit::WinitPlugin,
 };
@@ -33,13 +46,156 @@ use std::{
 pub const FRAME_WIDTH: u32 = 1_280;
 pub const FRAME_HEIGHT: u32 = 720;
 pub const RENDERER_IDENTITY: &str =
-    "bevy-0.19.1-2d-hdr-authoritative-radial-saw-paper-brush-result-overlay";
+    "bevy-0.19.1-2d-hdr-shared-scene-single-final-composite-radial-echo";
 const CAPTURE_TIMEOUT: Duration = Duration::from_secs(15);
 const DEVICE_POLL_TIMEOUT: Duration = Duration::from_secs(2);
 const PROJECT_DISPLAY_POSITION: IVec2 = IVec2::new(364, -1_080);
 const PROJECT_DISPLAY_SIZE: UVec2 = UVec2::new(1_920, 1_080);
 const MONITOR_DISCOVERY_FRAME_LIMIT: u16 = 120;
 const REQUIRED_COMPLETE_RENDER_FRAMES: u8 = 2;
+const RADIAL_ECHO_SHADER_HANDLE: Handle<Shader> =
+    uuid_handle!("1b624fab-9a06-4a96-b054-d334760f910c");
+
+struct RadialEchoPlugin;
+
+impl Plugin for RadialEchoPlugin {
+    fn build(&self, app: &mut App) {
+        load_internal_asset!(
+            app,
+            RADIAL_ECHO_SHADER_HANDLE,
+            "radial_echo.wgsl",
+            Shader::from_wgsl
+        );
+        app.add_plugins((
+            ExtractComponentPlugin::<RadialEchoSettings>::default(),
+            UniformComponentPlugin::<RadialEchoSettings>::default(),
+        ));
+        let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
+            return;
+        };
+        render_app.add_systems(RenderStartup, init_radial_echo_pipeline);
+        render_app.add_systems(
+            Core2d,
+            radial_echo_pass
+                .after(Core2dSystems::EarlyPostProcess)
+                .before(Core2dSystems::PostProcess),
+        );
+    }
+}
+
+#[derive(Component, Clone, Copy, Default, ExtractComponent, ShaderType)]
+struct RadialEchoSettings {
+    strength: f32,
+    spacing: f32,
+    red_offset: f32,
+    _padding: f32,
+}
+
+#[derive(Resource)]
+struct RadialEchoPipeline {
+    layout: BindGroupLayoutDescriptor,
+    sampler: Sampler,
+    pipeline: CachedRenderPipelineId,
+}
+
+#[derive(Default)]
+struct RadialEchoBindGroupCache(Option<(TextureViewId, BindGroup)>);
+
+fn init_radial_echo_pipeline(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    fullscreen_shader: Res<FullscreenShader>,
+    pipeline_cache: Res<PipelineCache>,
+) {
+    let layout = BindGroupLayoutDescriptor::new(
+        "rounds_radial_echo_bind_group_layout",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::FRAGMENT,
+            (
+                texture_2d(TextureSampleType::Float { filterable: true }),
+                sampler(SamplerBindingType::Filtering),
+                uniform_buffer::<RadialEchoSettings>(true),
+            ),
+        ),
+    );
+    let sampler = render_device.create_sampler(&SamplerDescriptor::default());
+    let pipeline = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
+        label: Some("rounds_radial_echo_pipeline".into()),
+        layout: vec![layout.clone()],
+        vertex: fullscreen_shader.to_vertex_state(),
+        fragment: Some(FragmentState {
+            shader: RADIAL_ECHO_SHADER_HANDLE,
+            targets: vec![Some(ColorTargetState {
+                format: TextureFormat::Rgba16Float,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            })],
+            ..default()
+        }),
+        ..default()
+    });
+    commands.insert_resource(RadialEchoPipeline {
+        layout,
+        sampler,
+        pipeline,
+    });
+}
+
+fn radial_echo_pass(
+    view: ViewQuery<(
+        &ViewTarget,
+        &RadialEchoSettings,
+        &DynamicUniformIndex<RadialEchoSettings>,
+    )>,
+    pipeline: Option<Res<RadialEchoPipeline>>,
+    pipeline_cache: Res<PipelineCache>,
+    uniforms: Res<ComponentUniforms<RadialEchoSettings>>,
+    mut cache: Local<RadialEchoBindGroupCache>,
+    mut context: RenderContext,
+) {
+    let Some(pipeline) = pipeline else { return };
+    let (target, _, settings_index) = view.into_inner();
+    let Some(render_pipeline) = pipeline_cache.get_render_pipeline(pipeline.pipeline) else {
+        return;
+    };
+    let Some(settings_binding) = uniforms.uniforms().binding() else {
+        return;
+    };
+    let post_process = target.post_process_write();
+    let bind_group = match &mut cache.0 {
+        Some((source, bind_group)) if *source == post_process.source.id() => bind_group,
+        cached => {
+            let bind_group = context.render_device().create_bind_group(
+                "rounds_radial_echo_bind_group",
+                &pipeline_cache.get_bind_group_layout(&pipeline.layout),
+                &BindGroupEntries::sequential((
+                    post_process.source,
+                    &pipeline.sampler,
+                    settings_binding.clone(),
+                )),
+            );
+            &cached.insert((post_process.source.id(), bind_group)).1
+        }
+    };
+    let mut pass = context
+        .command_encoder()
+        .begin_render_pass(&RenderPassDescriptor {
+            label: Some("rounds_radial_echo_final_composite_pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: post_process.destination,
+                depth_slice: None,
+                resolve_target: None,
+                ops: Operations::default(),
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+    pass.set_pipeline(render_pipeline);
+    pass.set_bind_group(0, bind_group, &[settings_index.index()]);
+    pass.draw(0..3, 0..1);
+}
 
 #[derive(Resource)]
 struct SceneSnapshot(MatchSnapshot);
@@ -234,6 +390,7 @@ fn render_png_with_readiness(
             .disable::<bevy::log::LogPlugin>()
             .disable::<WinitPlugin>(),
     )
+    .add_plugins(RadialEchoPlugin)
     .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
     .insert_resource(SceneSnapshot(snapshot.clone()))
     .init_resource::<CaptureReadiness>()
@@ -294,11 +451,14 @@ pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
         return Err("visible replay needs at least one snapshot".to_owned());
     }
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: None,
-            exit_condition: ExitCondition::DontExit,
-            ..default()
-        }))
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: None,
+                exit_condition: ExitCondition::DontExit,
+                ..default()
+            }),
+            RadialEchoPlugin,
+        ))
         .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
         .insert_resource(SceneSnapshot(snapshots[0].clone()))
         .insert_resource(VisibleReplay { snapshots, next: 0 })
@@ -334,11 +494,14 @@ pub fn run_interactive_visible(
     let mut simulation = AuthoritativeMatch::new_with_profile(seed, profile);
     let initial = simulation.snapshot();
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: None,
-            exit_condition: ExitCondition::DontExit,
-            ..default()
-        }))
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: None,
+                exit_condition: ExitCondition::DontExit,
+                ..default()
+            }),
+            RadialEchoPlugin,
+        ))
         .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
         .insert_resource(SceneSnapshot(initial))
         .insert_resource(InteractiveAuthority {
@@ -575,13 +738,22 @@ fn setup_offscreen_scene(
         bloom,
         chromatic,
         lens,
+        radial_echo_settings(&snapshot.0),
     ));
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot.0);
 }
 
 fn setup_visible_scene(mut commands: Commands, snapshot: Res<SceneSnapshot>) {
     let (transform, bloom, chromatic, lens) = camera_state(&snapshot.0);
-    commands.spawn((Camera2d, Hdr, transform, bloom, chromatic, lens));
+    commands.spawn((
+        Camera2d,
+        Hdr,
+        transform,
+        bloom,
+        chromatic,
+        lens,
+        radial_echo_settings(&snapshot.0),
+    ));
 }
 
 fn advance_visible_scene(
@@ -595,6 +767,7 @@ fn advance_visible_scene(
             &mut Bloom,
             &mut ChromaticAberration,
             &mut LensDistortion,
+            &mut RadialEchoSettings,
         ),
         With<Camera2d>,
     >,
@@ -613,6 +786,7 @@ fn advance_visible_scene(
     *camera.1 = bloom;
     *camera.2 = chromatic;
     *camera.3 = lens;
+    *camera.4 = radial_echo_settings(snapshot);
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
     replay.next += 1;
     if replay.next == replay.snapshots.len() {
@@ -640,6 +814,7 @@ fn advance_interactive_scene(
             &mut Bloom,
             &mut ChromaticAberration,
             &mut LensDistortion,
+            &mut RadialEchoSettings,
         ),
         With<Camera2d>,
     >,
@@ -700,6 +875,7 @@ fn advance_interactive_scene(
     *camera.1 = bloom;
     *camera.2 = chromatic;
     *camera.3 = lens;
+    *camera.4 = radial_echo_settings(&scene.0);
     for entity in &visuals {
         commands.entity(entity).despawn();
     }
@@ -760,8 +936,13 @@ fn camera_state(
         .explosions
         .last()
         .map(|explosion| snapshot.tick.saturating_sub(explosion.tick));
+    let yellow = snapshot.profile == rounds_sim::YELLOW_REPLAY_PROFILE;
     let flash = explosion_age.map(flash_envelope).unwrap_or(0.0);
-    let shock = explosion_age.map(shock_envelope).unwrap_or(0.0);
+    let shock = if yellow {
+        radial_echo_settings(snapshot).strength
+    } else {
+        explosion_age.map(shock_envelope).unwrap_or(0.0)
+    };
     let shake_x = (snapshot.tick as f32 * 2.31).sin() * (7.0 * flash + 24.0 * shock);
     let shake_y = (snapshot.tick as f32 * 1.73).cos() * (5.0 * flash + 16.0 * shock);
     let transform = Transform::from_xyz(player_nudge.clamp(-5.0, 5.0) + shake_x, shake_y, 0.0);
@@ -782,6 +963,106 @@ fn camera_state(
     (transform, bloom, chromatic, lens)
 }
 
+fn spawn_yellow_hud(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    snapshot: &MatchSnapshot,
+) {
+    let scores = snapshot
+        .round
+        .as_ref()
+        .map(|round| round.scores)
+        .unwrap_or([2, 1]);
+    for player in 0..2_u8 {
+        let y = 330.0 - player as f32 * 30.0;
+        let color = if player == 0 {
+            Color::srgb_u8(255, 185, 37)
+        } else {
+            Color::srgb_u8(83, 196, 255)
+        };
+        for index in 0..5_u8 {
+            let filled = index < scores[usize::from(player)];
+            commands.spawn((
+                SceneVisual,
+                HudScorePip {
+                    player,
+                    index,
+                    filled,
+                },
+                Mesh2d(meshes.add(Circle::new(if filled { 5.0 } else { 2.1 }))),
+                MeshMaterial2d(materials.add(if filled {
+                    color
+                } else {
+                    Color::srgba_u8(210, 229, 220, 105)
+                })),
+                Transform::from_xyz(-608.0 + index as f32 * 21.0, y, 32.0),
+            ));
+        }
+    }
+}
+
+fn spawn_yellow_result(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    snapshot: &MatchSnapshot,
+) {
+    let Some(round) = &snapshot.round else { return };
+    if round.phase == rounds_sim::RoundPhase::Combat {
+        return;
+    }
+    let established = round.phase == rounds_sim::RoundPhase::RoundOrange;
+    commands.spawn((
+        SceneVisual,
+        Sprite::from_color(
+            Color::srgba(0.0, 0.02, 0.065, 0.78),
+            Vec2::new(1_280.0, 720.0),
+        ),
+        Transform::from_xyz(0.0, 0.0, 40.0),
+    ));
+    let scale = 1.0;
+    for player in 0..2 {
+        let center = Vec2::new(-210.0 + player as f32 * 162.0, -22.0);
+        let color = if player == 0 {
+            Color::srgb_u8(255, 167, 24)
+        } else {
+            Color::srgb_u8(38, 184, 255)
+        };
+        commands.spawn((
+            SceneVisual,
+            Mesh2d(meshes.add(Annulus::new(54.0 * scale, 58.0 * scale))),
+            MeshMaterial2d(materials.add(color)),
+            Transform::from_xyz(center.x, center.y, 43.0),
+        ));
+        if round.scores[player] >= 2 {
+            commands.spawn((
+                SceneVisual,
+                Mesh2d(meshes.add(Circle::new(51.0 * scale))),
+                MeshMaterial2d(materials.add(Color::srgba(
+                    color.to_linear().red,
+                    color.to_linear().green,
+                    color.to_linear().blue,
+                    if player == 0 { 0.9 } else { 0.38 },
+                ))),
+                Transform::from_xyz(center.x, center.y, 42.5),
+            ));
+        }
+    }
+    if established {
+        commands.spawn((
+            SceneVisual,
+            Text2d::new("ROUND ORANGE"),
+            TextFont {
+                font_size: FontSize::Px(68.0),
+                ..default()
+            },
+            TextColor(Color::srgb_u8(255, 183, 44)),
+            Transform::from_xyz(-160.0, 92.0, 44.0),
+        ));
+    }
+}
+
 fn flash_envelope(age: u32) -> f32 {
     (1.0 - age as f32 / 36.0).clamp(0.0, 1.0)
 }
@@ -793,6 +1074,30 @@ fn shock_envelope(age: u32) -> f32 {
         (age - 12) as f32 / 36.0
     } else {
         (1.0 - (age - 48) as f32 / 36.0).max(0.0)
+    }
+}
+
+fn radial_echo_settings(snapshot: &MatchSnapshot) -> RadialEchoSettings {
+    if snapshot.profile != rounds_sim::YELLOW_REPLAY_PROFILE {
+        return RadialEchoSettings::default();
+    }
+    let strength = snapshot
+        .explosions
+        .last()
+        .map(|explosion| snapshot.tick.saturating_sub(explosion.tick))
+        .map(|age| match age {
+            0..=8 => (age + 1) as f32 / 9.0,
+            9..=21 => 1.0 - (age - 8) as f32 / 24.0,
+            22..=29 => 0.46 - (age - 21) as f32 * 0.045,
+            _ => 0.0,
+        })
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
+    RadialEchoSettings {
+        strength,
+        spacing: 0.035 + strength * 0.018,
+        red_offset: 0.008 * strength,
+        _padding: 0.0,
     }
 }
 
@@ -809,6 +1114,7 @@ fn spawn_snapshot_scene(
     let timber_scene = profile == ReplayProfile::TimberCollapseReplay;
     let draft_replay = profile == ReplayProfile::RematchDraftReplay;
     let radial_replay = profile == ReplayProfile::RadialSawHalfBlueReplay;
+    let yellow_replay = profile == ReplayProfile::YellowCrateTerminalBlastReplay;
     let circle = meshes.add(Circle::new(22.0));
     let block_ring = meshes.add(Annulus::new(29.0, 33.0));
     let bullet = meshes.add(Circle::new(5.0));
@@ -819,6 +1125,8 @@ fn spawn_snapshot_scene(
         Sprite::from_color(
             if radial_replay {
                 Color::srgb_u8(188, 238, 229)
+            } else if yellow_replay {
+                Color::srgb_u8(2, 43, 54)
             } else if timber_scene {
                 Color::srgb_u8(2, 32, 49)
             } else if draft_replay {
@@ -840,7 +1148,11 @@ fn spawn_snapshot_scene(
             commands.spawn((
                 SceneVisual,
                 Sprite::from_color(
-                    if timber_scene && index % 2 == 0 {
+                    if yellow_replay && index % 2 == 0 {
+                        Color::srgba_u8(10, 74, 78, 62)
+                    } else if yellow_replay {
+                        Color::srgba_u8(0, 22, 46, 78)
+                    } else if timber_scene && index % 2 == 0 {
                         Color::srgba_u8(5, 59, 78, 65)
                     } else if timber_scene {
                         Color::srgba_u8(0, 20, 42, 74)
@@ -896,7 +1208,7 @@ fn spawn_snapshot_scene(
             );
             continue;
         }
-        if surface.id < 10 && !radial_replay {
+        if (surface.id < 10 || yellow_replay) && !radial_replay {
             let direction = if x < 0.0 { -1.0 } else { 1.0 };
             let shadow_length = 560.0;
             commands.spawn((
@@ -921,18 +1233,38 @@ fn spawn_snapshot_scene(
                 Transform::from_xyz(x + width * 0.13, y + height * 0.5 + 21.0, -1.0),
             ));
         }
-        commands.spawn((
-            SceneVisual,
-            Sprite::from_color(
-                Color::srgb_u8(
-                    surface.face_rgb[0],
-                    surface.face_rgb[1],
-                    surface.face_rgb[2],
+        if yellow_replay {
+            let top_left = Vec2::new(x - width * 0.5, y + height * 0.5);
+            let top_right = Vec2::new(x + width * 0.5, y + height * 0.5);
+            let bottom_right = Vec2::new(x + width * 0.36, y - height * 0.5);
+            let bottom_left = Vec2::new(x - width * 0.36, y - height * 0.5);
+            for triangle in [
+                [top_left, top_right, bottom_right],
+                [top_left, bottom_right, bottom_left],
+            ] {
+                spawn_triangle(
+                    commands,
+                    meshes,
+                    materials,
+                    triangle,
+                    Color::linear_rgba(1.8, 1.45, 0.02, 1.0),
+                    0.0,
+                );
+            }
+        } else {
+            commands.spawn((
+                SceneVisual,
+                Sprite::from_color(
+                    Color::srgb_u8(
+                        surface.face_rgb[0],
+                        surface.face_rgb[1],
+                        surface.face_rgb[2],
+                    ),
+                    Vec2::new(width, height),
                 ),
-                Vec2::new(width, height),
-            ),
-            Transform::from_xyz(x, y, 0.0).with_rotation(Quat::from_rotation_z(rotation)),
-        ));
+                Transform::from_xyz(x, y, 0.0).with_rotation(Quat::from_rotation_z(rotation)),
+            ));
+        }
         if radial_replay {
             spawn_radial_surface_finish(
                 commands,
@@ -999,7 +1331,7 @@ fn spawn_snapshot_scene(
         let rotation = body.rotation_milliradians as f32 / 1_000.0;
         let color = Color::srgb_u8(body.face_rgb[0], body.face_rgb[1], body.face_rgb[2]);
         let (width, height) = match body.shape {
-            DynamicBodyShape::Timber => (
+            DynamicBodyShape::Timber | DynamicBodyShape::Crate => (
                 body.width_milli as f32 / 1_000.0,
                 body.height_milli as f32 / 1_000.0,
             ),
@@ -1033,7 +1365,13 @@ fn spawn_snapshot_scene(
         }
     }
 
-    if let Some(explosion) = snapshot.explosions.last() {
+    if let Some(explosion) = snapshot.explosions.last().filter(|_| {
+        snapshot
+            .round
+            .as_ref()
+            .map(|round| round.phase == rounds_sim::RoundPhase::Combat)
+            .unwrap_or(true)
+    }) {
         let age = snapshot.tick.saturating_sub(explosion.tick);
         if age <= 48 {
             let center = Vec2::new(
@@ -1041,7 +1379,7 @@ fn spawn_snapshot_scene(
                 explosion.y_milli as f32 / 1_000.0,
             );
             let flash = flash_envelope(age);
-            if explosion.id >= 10_000 && flash > 0.0 {
+            if explosion.id >= 10_000 && flash > 0.0 && (!yellow_replay || age <= 12) {
                 for wedge in 0..18 {
                     let angle = wedge as f32 * std::f32::consts::TAU / 18.0;
                     let radius = (90.0 + age as f32 * 13.0) * flash.sqrt();
@@ -1148,6 +1486,49 @@ fn spawn_snapshot_scene(
                     Transform::from_xyz(end.x, end.y, 23.0)
                         .with_rotation(Quat::from_rotation_z(angle)),
                 ));
+            }
+            if yellow_replay && (5..=29).contains(&age) {
+                let trail_fade = ((30 - age) as f32 / 25.0).clamp(0.0, 1.0);
+                for trail in 0..36 {
+                    let forward = trail < 27;
+                    let fan_index = if forward { trail } else { trail - 27 };
+                    let base_angle = 0.14 + (fan_index % 9) as f32 * 0.064;
+                    let angle = if forward {
+                        base_angle
+                    } else {
+                        base_angle + std::f32::consts::PI
+                    };
+                    let speed = 3.1 + (trail * 13 % 17) as f32 * 0.23;
+                    let distance = 18.0 + age as f32 * speed + (trail % 5) as f32 * 4.0;
+                    let length = (24.0 + age as f32 * (1.7 + (trail % 4) as f32 * 0.45)).min(105.0);
+                    let position = center + Vec2::new(angle.cos(), angle.sin()) * distance;
+                    let color = match trail % 5 {
+                        0 => Color::linear_rgba(
+                            4.8 * trail_fade,
+                            4.8 * trail_fade,
+                            4.2 * trail_fade,
+                            0.96,
+                        ),
+                        1 => Color::linear_rgba(
+                            0.5 * trail_fade,
+                            3.2 * trail_fade,
+                            4.5 * trail_fade,
+                            0.88,
+                        ),
+                        2 => Color::linear_rgba(4.6 * trail_fade, 2.8 * trail_fade, 0.12, 0.92),
+                        3 => Color::linear_rgba(3.8 * trail_fade, 0.22, 0.06, 0.86),
+                        _ => Color::linear_rgba(0.18, 2.7 * trail_fade, 0.14, 0.82),
+                    };
+                    commands.spawn((
+                        SceneVisual,
+                        Sprite::from_color(
+                            color,
+                            Vec2::new(length, 0.8 + (trail % 3) as f32 * 0.42),
+                        ),
+                        Transform::from_xyz(position.x, position.y, 24.0)
+                            .with_rotation(Quat::from_rotation_z(angle)),
+                    ));
+                }
             }
             for fragment in 0..18 {
                 let angle = fragment as f32 * 1.71 + 0.23;
@@ -1321,6 +1702,11 @@ fn spawn_snapshot_scene(
     if radial_replay {
         spawn_radial_impacts(commands, meshes, materials, snapshot);
         spawn_radial_result(commands, meshes, materials, snapshot);
+    }
+
+    if yellow_replay {
+        spawn_yellow_hud(commands, meshes, materials, snapshot);
+        spawn_yellow_result(commands, meshes, materials, snapshot);
     }
 
     if draft_replay {
@@ -2866,6 +3252,35 @@ mod tests {
         assert!(chromatic.intensity >= 0.11);
         assert!(lens.intensity <= -0.29);
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn yellow_peak_uses_the_shared_gpu_scene_and_single_echo_pass() {
+        let calm = rounds_sim::run_profile_match(
+            ReplayProfile::YellowCrateTerminalBlastReplay,
+            43,
+            rounds_sim::YELLOW_LAST_CALM_TICK,
+        )
+        .0;
+        let peak = rounds_sim::run_profile_match(
+            ReplayProfile::YellowCrateTerminalBlastReplay,
+            43,
+            rounds_sim::YELLOW_PEAK_ECHO_TICK,
+        )
+        .0;
+        assert_eq!(radial_echo_settings(&calm).strength, 0.0);
+        assert_eq!(radial_echo_settings(&peak).strength, 1.0);
+        let directory = std::env::temp_dir();
+        let calm_path = directory.join(format!("rounds-yellow-calm-{}.png", std::process::id()));
+        let peak_path = directory.join(format!("rounds-yellow-peak-{}.png", std::process::id()));
+        let _ = std::fs::remove_file(&calm_path);
+        let _ = std::fs::remove_file(&peak_path);
+        let calm_frame = render_png(&calm, &calm_path).unwrap();
+        let peak_frame = render_png(&peak, &peak_path).unwrap();
+        assert_ne!(frame_sha256(&calm_frame), frame_sha256(&peak_frame));
+        assert!(peak.explosions.iter().any(|explosion| explosion.tick == 81));
+        std::fs::remove_file(calm_path).unwrap();
+        std::fs::remove_file(peak_path).unwrap();
     }
 
     #[test]

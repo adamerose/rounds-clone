@@ -30,6 +30,18 @@ pub const RADIAL_SOURCE_START_PTS: i64 = 2_320_490_718;
 pub const RADIAL_LAST_COMBAT_TICK: u32 = 908;
 pub const RADIAL_RESULT_ONSET_TICK: u32 = 909;
 pub const RADIAL_HALF_BLUE_TICK: u32 = 938;
+pub const YELLOW_REPLAY_TICKS: u32 = 155;
+pub const YELLOW_REPLAY_PROFILE: &str = "yellow-crate-terminal-blast-replay";
+pub const YELLOW_SOURCE_INTERVAL: &str = "07:02.014979-07:04.598302";
+pub const YELLOW_SOURCE_START_PTS: i64 = 4_220_149_786;
+pub const YELLOW_LAST_CALM_TICK: u32 = 80;
+pub const YELLOW_IMPACT_TICK: u32 = 81;
+pub const YELLOW_LOCAL_BURST_TICK: u32 = 84;
+pub const YELLOW_PEAK_ECHO_TICK: u32 = 89;
+pub const YELLOW_TRAILS_TICK: u32 = 102;
+pub const YELLOW_LAST_COMBAT_TICK: u32 = 110;
+pub const YELLOW_RESULT_ONSET_TICK: u32 = 111;
+pub const YELLOW_ROUND_ORANGE_TICK: u32 = 125;
 
 const PLAYER_RADIUS: f32 = 22.0;
 const RUN_SPEED: f32 = 220.0;
@@ -51,6 +63,8 @@ const SAW_GROUP: Group = Group::GROUP_7;
 const TIMBER_EXPLOSION_CENTER: Vector = Vector::new(-245.0, 135.0);
 const TIMBER_EXPLOSION_RADIUS: f32 = 520.0;
 const TIMBER_EXPLOSION_IMPULSE: f32 = 4_800.0;
+const YELLOW_EXPLOSION_RADIUS: f32 = 330.0;
+const YELLOW_EXPLOSION_IMPULSE: f32 = 2_850.0;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -58,6 +72,7 @@ pub enum ReplayProfile {
     TealDuelReplay,
     RematchDraftReplay,
     RadialSawHalfBlueReplay,
+    YellowCrateTerminalBlastReplay,
     #[default]
     TimberCollapseReplay,
 }
@@ -68,6 +83,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => TEAL_REPLAY_PROFILE,
             Self::RematchDraftReplay => REMATCH_DRAFT_PROFILE,
             Self::RadialSawHalfBlueReplay => RADIAL_REPLAY_PROFILE,
+            Self::YellowCrateTerminalBlastReplay => YELLOW_REPLAY_PROFILE,
             Self::TimberCollapseReplay => REPLAY_PROFILE,
         }
     }
@@ -77,6 +93,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => TEAL_REPLAY_TICKS,
             Self::RematchDraftReplay => REMATCH_DRAFT_TICKS,
             Self::RadialSawHalfBlueReplay => RADIAL_REPLAY_TICKS,
+            Self::YellowCrateTerminalBlastReplay => YELLOW_REPLAY_TICKS,
             Self::TimberCollapseReplay => REPLAY_TICKS,
         }
     }
@@ -86,6 +103,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => TEAL_SOURCE_INTERVAL,
             Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_INTERVAL,
             Self::RadialSawHalfBlueReplay => RADIAL_SOURCE_INTERVAL,
+            Self::YellowCrateTerminalBlastReplay => YELLOW_SOURCE_INTERVAL,
             Self::TimberCollapseReplay => SOURCE_INTERVAL,
         }
     }
@@ -95,6 +113,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => TEAL_SOURCE_SHA256,
             Self::RematchDraftReplay => SOURCE_SHA256,
             Self::RadialSawHalfBlueReplay => TEAL_SOURCE_SHA256,
+            Self::YellowCrateTerminalBlastReplay => SOURCE_SHA256,
             Self::TimberCollapseReplay => SOURCE_SHA256,
         }
     }
@@ -104,6 +123,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => 2_250,
             Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_START_HUNDREDTHS,
             Self::RadialSawHalfBlueReplay => 23_204,
+            Self::YellowCrateTerminalBlastReplay => 42_201,
             Self::TimberCollapseReplay => 20_600,
         }
     }
@@ -117,9 +137,10 @@ impl std::str::FromStr for ReplayProfile {
             TEAL_REPLAY_PROFILE => Ok(Self::TealDuelReplay),
             REMATCH_DRAFT_PROFILE => Ok(Self::RematchDraftReplay),
             RADIAL_REPLAY_PROFILE => Ok(Self::RadialSawHalfBlueReplay),
+            YELLOW_REPLAY_PROFILE => Ok(Self::YellowCrateTerminalBlastReplay),
             REPLAY_PROFILE => Ok(Self::TimberCollapseReplay),
             _ => Err(format!(
-                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, {RADIAL_REPLAY_PROFILE}, or {REPLAY_PROFILE}"
+                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, {RADIAL_REPLAY_PROFILE}, {YELLOW_REPLAY_PROFILE}, or {REPLAY_PROFILE}"
             )),
         }
     }
@@ -180,6 +201,10 @@ pub struct ImpactSnapshot {
     pub target: Option<u8>,
     pub x_milli: i32,
     pub y_milli: i32,
+    pub damage: u16,
+    pub eliminated: bool,
+    pub impulse_x_milli: i32,
+    pub impulse_y_milli: i32,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -188,6 +213,7 @@ pub enum RoundPhase {
     Combat,
     ResultTransition,
     HalfBlue,
+    RoundOrange,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -205,6 +231,7 @@ pub struct RoundStateSnapshot {
 pub enum DynamicBodyShape {
     Timber,
     Weight,
+    Crate,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -223,6 +250,9 @@ pub struct DynamicBodySnapshot {
     pub radius_milli: i32,
     pub face_rgb: [u8; 3],
     pub sleeping: bool,
+    pub mass_milli: i32,
+    pub friction_milli: i32,
+    pub restitution_milli: i32,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -372,6 +402,9 @@ struct DynamicBodyState {
     height: f32,
     radius: f32,
     face_rgb: [u8; 3],
+    mass: f32,
+    friction: f32,
+    restitution: f32,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -466,6 +499,9 @@ struct DynamicBodyDefinition {
     height: f32,
     radius: f32,
     face_rgb: [u8; 3],
+    mass: f32,
+    friction: f32,
+    restitution: f32,
 }
 
 fn timber_body_definitions() -> Vec<DynamicBodyDefinition> {
@@ -481,6 +517,9 @@ fn timber_body_definitions() -> Vec<DynamicBodyDefinition> {
         height,
         radius: 0.0,
         face_rgb: color,
+        mass: 1.0,
+        friction: 0.82,
+        restitution: 0.08,
     };
     vec![
         timber(0, -210.0, -236.0, 0.0, 260.0, 30.0, DARK_TIMBER),
@@ -509,6 +548,9 @@ fn timber_body_definitions() -> Vec<DynamicBodyDefinition> {
             height: 0.0,
             radius: 42.0,
             face_rgb: WEIGHT,
+            mass: 1.2,
+            friction: 0.82,
+            restitution: 0.08,
         },
         DynamicBodyDefinition {
             id: 101,
@@ -519,7 +561,49 @@ fn timber_body_definitions() -> Vec<DynamicBodyDefinition> {
             height: 0.0,
             radius: 42.0,
             face_rgb: WEIGHT,
+            mass: 1.2,
+            friction: 0.82,
+            restitution: 0.08,
         },
+    ]
+}
+
+fn yellow_crate_definitions() -> Vec<DynamicBodyDefinition> {
+    const BROWN: [u8; 3] = [151, 101, 23];
+    let crate_body = |id, x, y, rotation, width, height| DynamicBodyDefinition {
+        id,
+        shape: DynamicBodyShape::Crate,
+        position: Vector::new(x, y),
+        rotation,
+        width,
+        height,
+        radius: 0.0,
+        face_rgb: BROWN,
+        mass: 0.78,
+        friction: 0.76,
+        restitution: 0.12,
+    };
+    vec![
+        crate_body(300, -485.0, 207.0, 0.0, 34.0, 48.0),
+        crate_body(301, -450.0, 207.0, 0.0, 34.0, 48.0),
+        crate_body(302, -468.0, 249.0, 0.0, 34.0, 36.0),
+        crate_body(303, -165.0, 207.0, 0.0, 34.0, 48.0),
+        crate_body(304, 140.0, 207.0, 0.0, 34.0, 48.0),
+        crate_body(305, 178.0, 207.0, 0.0, 34.0, 48.0),
+        crate_body(306, -610.0, 67.0, 0.0, 34.0, 48.0),
+        crate_body(307, -324.0, 67.0, 0.0, 34.0, 48.0),
+        crate_body(308, -286.0, 67.0, 0.0, 34.0, 48.0),
+        crate_body(309, 0.0, 67.0, 0.0, 34.0, 48.0),
+        crate_body(310, 38.0, 67.0, 0.0, 34.0, 48.0),
+        crate_body(311, 322.0, 67.0, 0.0, 34.0, 48.0),
+        crate_body(312, 360.0, 67.0, 0.0, 34.0, 48.0),
+        crate_body(313, 405.0, 207.0, 0.0, 34.0, 48.0),
+        crate_body(314, 442.0, 207.0, 0.0, 34.0, 48.0),
+        crate_body(315, 424.0, 249.0, 0.0, 36.0, 36.0),
+        crate_body(316, -485.0, -93.0, 0.0, 34.0, 48.0),
+        crate_body(317, -165.0, -93.0, 0.0, 34.0, 48.0),
+        crate_body(318, 155.0, -93.0, 0.0, 34.0, 48.0),
+        crate_body(319, 475.0, -93.0, 0.0, 34.0, 48.0),
     ]
 }
 
@@ -573,6 +657,9 @@ impl PhysicsBoundary {
             ReplayProfile::TealDuelReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
             ReplayProfile::RematchDraftReplay => [(-500.0, -150.0, 0_u8), (500.0, -150.0, 1_u8)],
             ReplayProfile::RadialSawHalfBlueReplay => [(-285.0, 118.0, 0_u8), (285.0, 118.0, 1_u8)],
+            ReplayProfile::YellowCrateTerminalBlastReplay => {
+                [(358.0, 292.0, 0_u8), (475.0, 292.0, 1_u8)]
+            }
             ReplayProfile::TimberCollapseReplay => [(-500.0, -210.0, 0_u8), (500.0, -210.0, 1_u8)],
         };
         let players = player_spawns.map(|(x, y, id)| {
@@ -590,6 +677,13 @@ impl PhysicsBoundary {
             let (body, collider) = rapier.insert(
                 RigidBodyBuilder::dynamic()
                     .translation(Vector::new(x, y))
+                    .gravity_scale(
+                        if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+                            0.0
+                        } else {
+                            1.0
+                        },
+                    )
                     .linear_damping(0.7)
                     .angular_damping(8.0)
                     .lock_rotations()
@@ -619,6 +713,9 @@ impl PhysicsBoundary {
         };
         if profile == ReplayProfile::TimberCollapseReplay {
             boundary.insert_timber_structure();
+        }
+        if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+            boundary.insert_yellow_crates();
         }
         if profile == ReplayProfile::RadialSawHalfBlueReplay {
             boundary.insert_radial_saws();
@@ -681,7 +778,7 @@ impl PhysicsBoundary {
                 .angular_damping(1.6)
                 .ccd_enabled(true);
             let collider_builder = match definition.shape {
-                DynamicBodyShape::Timber => {
+                DynamicBodyShape::Timber | DynamicBodyShape::Crate => {
                     ColliderBuilder::cuboid(definition.width * 0.5, definition.height * 0.5)
                 }
                 DynamicBodyShape::Weight => ColliderBuilder::ball(definition.radius),
@@ -691,8 +788,8 @@ impl PhysicsBoundary {
             } else {
                 0.0045
             })
-            .friction(0.82)
-            .restitution(0.08)
+            .friction(definition.friction)
+            .restitution(definition.restitution)
             .collision_groups(groups(
                 DYNAMIC_GROUP,
                 Group::GROUP_1
@@ -708,7 +805,7 @@ impl PhysicsBoundary {
 
             let (constraint_id, joint, release_on_explosion): (u16, GenericJoint, bool) =
                 match definition.shape {
-                    DynamicBodyShape::Timber => (
+                    DynamicBodyShape::Timber | DynamicBodyShape::Crate => (
                         definition.id,
                         FixedJointBuilder::new()
                             .local_anchor1(definition.position)
@@ -739,6 +836,35 @@ impl PhysicsBoundary {
                     active: true,
                 },
             );
+        }
+    }
+
+    fn insert_yellow_crates(&mut self) {
+        for definition in yellow_crate_definitions() {
+            let (body, collider) = self.rapier.insert(
+                RigidBodyBuilder::dynamic()
+                    .translation(definition.position)
+                    .rotation(definition.rotation)
+                    .linear_damping(0.36)
+                    .angular_damping(0.28)
+                    .additional_mass(definition.mass)
+                    .ccd_enabled(true),
+                ColliderBuilder::cuboid(definition.width * 0.5, definition.height * 0.5)
+                    .density(0.002)
+                    .friction(definition.friction)
+                    .restitution(definition.restitution)
+                    .collision_groups(groups(
+                        DYNAMIC_GROUP,
+                        Group::GROUP_1
+                            | Group::GROUP_2
+                            | Group::GROUP_3
+                            | Group::GROUP_4
+                            | Group::GROUP_5
+                            | DYNAMIC_GROUP,
+                    )),
+            );
+            self.dynamic_bodies
+                .insert(definition.id, DynamicBodyPhysics { body, collider });
         }
     }
 
@@ -1013,8 +1139,15 @@ impl AuthoritativeMatch {
                 })
                 .id()
         });
-        let dynamic_body_entities = if profile == ReplayProfile::TimberCollapseReplay {
-            timber_body_definitions()
+        let dynamic_definitions = match profile {
+            ReplayProfile::TimberCollapseReplay => timber_body_definitions(),
+            ReplayProfile::YellowCrateTerminalBlastReplay => yellow_crate_definitions(),
+            _ => Vec::new(),
+        };
+        let dynamic_body_entities = if dynamic_definitions.is_empty() {
+            BTreeMap::new()
+        } else {
+            dynamic_definitions
                 .into_iter()
                 .map(|definition| {
                     let id = definition.id;
@@ -1026,20 +1159,21 @@ impl AuthoritativeMatch {
                             height: definition.height,
                             radius: definition.radius,
                             face_rgb: definition.face_rgb,
+                            mass: definition.mass,
+                            friction: definition.friction,
+                            restitution: definition.restitution,
                         })
                         .id();
                     (id, entity)
                 })
                 .collect()
-        } else {
-            BTreeMap::new()
         };
         let constraint_entities = if profile == ReplayProfile::TimberCollapseReplay {
             timber_body_definitions()
                 .into_iter()
                 .map(|definition| {
                     let (id, kind, anchor, active) = match definition.shape {
-                        DynamicBodyShape::Timber => (
+                        DynamicBodyShape::Timber | DynamicBodyShape::Crate => (
                             definition.id,
                             ConstraintKind::Fixed,
                             definition.position,
@@ -1105,17 +1239,31 @@ impl AuthoritativeMatch {
             next_projectile_id: 1,
             metrics: CombatMetrics::default(),
             winner: None,
-            explosion_strength: TIMBER_EXPLOSION_IMPULSE,
+            explosion_strength: if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+                YELLOW_EXPLOSION_IMPULSE
+            } else {
+                TIMBER_EXPLOSION_IMPULSE
+            },
             flow: (profile == ReplayProfile::RematchDraftReplay).then(|| FlowAuthority::new(seed)),
-            round: (profile == ReplayProfile::RadialSawHalfBlueReplay).then_some(
-                RoundStateSnapshot {
+            round: (profile == ReplayProfile::RadialSawHalfBlueReplay)
+                .then_some(RoundStateSnapshot {
                     phase: RoundPhase::Combat,
                     phase_tick: 0,
                     scores: [1, 0],
                     winner: None,
                     eliminated: None,
-                },
-            ),
+                })
+                .or_else(|| {
+                    (profile == ReplayProfile::YellowCrateTerminalBlastReplay).then_some(
+                        RoundStateSnapshot {
+                            phase: RoundPhase::Combat,
+                            phase_tick: 0,
+                            scores: [2, 1],
+                            winner: None,
+                            eliminated: None,
+                        },
+                    )
+                }),
             pending_radial_hit: None,
         };
         if profile == ReplayProfile::RematchDraftReplay {
@@ -1165,8 +1313,16 @@ impl AuthoritativeMatch {
             && round.phase != RoundPhase::Combat
         {
             round.phase_tick += 1;
-            if round.phase == RoundPhase::ResultTransition && self.tick >= RADIAL_HALF_BLUE_TICK {
-                round.phase = RoundPhase::HalfBlue;
+            if round.phase == RoundPhase::ResultTransition {
+                if self.profile == ReplayProfile::RadialSawHalfBlueReplay
+                    && self.tick >= RADIAL_HALF_BLUE_TICK
+                {
+                    round.phase = RoundPhase::HalfBlue;
+                } else if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay
+                    && self.tick >= YELLOW_ROUND_ORANGE_TICK
+                {
+                    round.phase = RoundPhase::RoundOrange;
+                }
             }
             return;
         }
@@ -1195,7 +1351,7 @@ impl AuthoritativeMatch {
             if eliminated {
                 self.winner = Some(hit.owner);
             }
-            self.begin_radial_result();
+            self.begin_result_if_due();
             if self.winner.is_some() {
                 return;
             }
@@ -1215,7 +1371,10 @@ impl AuthoritativeMatch {
         if rematch_reset {
             self.reset_fighters_for_rematch();
         }
-        if self.winner.is_some() && self.flow.is_none() {
+        if self.winner.is_some()
+            && self.flow.is_none()
+            && self.profile != ReplayProfile::YellowCrateTerminalBlastReplay
+        {
             return;
         }
         let inputs = inputs.map(PlayerInput::validated);
@@ -1387,6 +1546,25 @@ impl AuthoritativeMatch {
                     .bullet_pose(projectile_id)
                     .map(|pose| pose.0)
                     .unwrap_or_else(|| self.physics.player_pose(target).0);
+                let damage = if self.profile == ReplayProfile::RadialSawHalfBlueReplay {
+                    50
+                } else if self.profile == ReplayProfile::RematchDraftReplay {
+                    25
+                } else {
+                    DAMAGE_PER_HIT
+                };
+                let target_health = self
+                    .world
+                    .entity(target_entity)
+                    .get::<PlayerState>()
+                    .expect("player state")
+                    .health;
+                let event_impulse = if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay
+                {
+                    velocity * (HIT_IMPULSE + self.explosion_strength)
+                } else {
+                    velocity * HIT_IMPULSE
+                };
                 self.impacts.push(ImpactSnapshot {
                     id: projectile_id,
                     tick: self.tick,
@@ -1394,6 +1572,10 @@ impl AuthoritativeMatch {
                     target: Some(target),
                     x_milli: quantize(impact_position.x),
                     y_milli: quantize(impact_position.y),
+                    damage,
+                    eliminated: target_health <= damage,
+                    impulse_x_milli: quantize(event_impulse.x),
+                    impulse_y_milli: quantize(event_impulse.y),
                 });
                 if self.profile == ReplayProfile::RadialSawHalfBlueReplay {
                     self.pending_radial_hit = Some(PendingRadialHit {
@@ -1408,11 +1590,6 @@ impl AuthoritativeMatch {
                 let mut target_state = target_entity_mut
                     .get_mut::<PlayerState>()
                     .expect("player state");
-                let damage = if self.profile == ReplayProfile::RematchDraftReplay {
-                    25
-                } else {
-                    DAMAGE_PER_HIT
-                };
                 target_state.health = target_state.health.saturating_sub(damage);
                 target_state.hit_flash_ticks = 6;
                 if projectile.dazzle_pulses > 0 {
@@ -1425,6 +1602,24 @@ impl AuthoritativeMatch {
                     .apply_impulse(target, velocity * HIT_IMPULSE * damage_scale);
                 self.metrics.hits += 1;
                 self.metrics.health_scaled_knockbacks += 1;
+                if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+                    self.physics
+                        .apply_impulse(target, velocity * self.explosion_strength);
+                    self.metrics.explosion_impulsed_bodies += self.physics.apply_radial_explosion(
+                        impact_position,
+                        YELLOW_EXPLOSION_RADIUS,
+                        self.explosion_strength,
+                    );
+                    self.explosions.push(ExplosionSnapshot {
+                        id: 20_000 + projectile_id as u16,
+                        tick: self.tick,
+                        x_milli: quantize(impact_position.x),
+                        y_milli: quantize(impact_position.y),
+                        radius_milli: quantize(YELLOW_EXPLOSION_RADIUS),
+                        impulse_milli: quantize(self.explosion_strength),
+                    });
+                    self.metrics.explosive_projectile_impacts += 1;
+                }
                 if projectile.explosive_radius_milli > 0 {
                     let center = self
                         .physics
@@ -1462,6 +1657,10 @@ impl AuthoritativeMatch {
                         target: None,
                         x_milli: quantize(center.x),
                         y_milli: quantize(center.y),
+                        damage: 0,
+                        eliminated: false,
+                        impulse_x_milli: 0,
+                        impulse_y_milli: 0,
                     });
                 }
                 if projectile.explosive_radius_milli > 0
@@ -1514,10 +1713,15 @@ impl AuthoritativeMatch {
         if dead.len() == 1 {
             self.winner = Some(1 - dead[0]);
         }
-        self.begin_radial_result();
+        self.begin_result_if_due();
     }
 
-    fn begin_radial_result(&mut self) {
+    fn begin_result_if_due(&mut self) {
+        if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay
+            && self.tick < YELLOW_RESULT_ONSET_TICK
+        {
+            return;
+        }
         if let Some(winner) = self.winner
             && let Some(round) = &mut self.round
             && round.phase == RoundPhase::Combat
@@ -1616,6 +1820,9 @@ impl AuthoritativeMatch {
                     radius_milli: quantize(state.radius),
                     face_rgb: state.face_rgb,
                     sleeping,
+                    mass_milli: quantize(state.mass),
+                    friction_milli: quantize(state.friction),
+                    restitution_milli: quantize(state.restitution),
                 })
             })
             .collect();
@@ -1653,7 +1860,7 @@ impl AuthoritativeMatch {
             })
             .collect();
         MatchSnapshot {
-            protocol: 4,
+            protocol: 5,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
@@ -1771,11 +1978,32 @@ pub fn radial_saw_arena() -> &'static [ArenaSurfaceSnapshot] {
     &ARENA
 }
 
+pub fn yellow_crate_arena() -> &'static [ArenaSurfaceSnapshot] {
+    const YELLOW: [u8; 3] = [255, 231, 0];
+    const ARENA: [ArenaSurfaceSnapshot; 13] = [
+        surface(0, -480, 160, 118, 44, YELLOW),
+        surface(1, -160, 160, 118, 44, YELLOW),
+        surface(2, 160, 160, 118, 44, YELLOW),
+        surface(3, 440, 160, 118, 44, YELLOW),
+        surface(4, -610, 20, 112, 44, YELLOW),
+        surface(5, -320, 20, 112, 44, YELLOW),
+        surface(6, 0, 20, 112, 44, YELLOW),
+        surface(7, 320, 20, 112, 44, YELLOW),
+        surface(8, 610, 20, 112, 44, YELLOW),
+        surface(9, -480, -140, 118, 44, YELLOW),
+        surface(10, -160, -140, 118, 44, YELLOW),
+        surface(11, 160, -140, 118, 44, YELLOW),
+        surface(12, 480, -140, 118, 44, YELLOW),
+    ];
+    &ARENA
+}
+
 pub fn arena_for_profile(profile: ReplayProfile) -> &'static [ArenaSurfaceSnapshot] {
     match profile {
         ReplayProfile::TealDuelReplay => teal_arena(),
         ReplayProfile::RematchDraftReplay => draft_arena(),
         ReplayProfile::RadialSawHalfBlueReplay => radial_saw_arena(),
+        ReplayProfile::YellowCrateTerminalBlastReplay => yellow_crate_arena(),
         ReplayProfile::TimberCollapseReplay => timber_arena(),
     }
 }
@@ -1945,6 +2173,20 @@ pub fn scripted_inputs_for(
                 blue.aim_x = -992;
                 blue.aim_y = 126;
             }
+            scripts[0].push(orange);
+            scripts[1].push(blue);
+            continue;
+        }
+        if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+            let mut orange = PlayerInput {
+                aim_x: 1_000,
+                ..PlayerInput::default()
+            };
+            let blue = PlayerInput {
+                aim_x: -1_000,
+                ..PlayerInput::default()
+            };
+            orange.fire = tick + 1 == YELLOW_IMPACT_TICK;
             scripts[0].push(orange);
             scripts[1].push(blue);
             continue;
@@ -2126,6 +2368,102 @@ fn segment_distance_squared(start: Vector, end: Vector, point: Vector) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn yellow_terminal_blast_is_one_continuous_authoritative_physics_replay() {
+        let replay = run_profile_snapshots(
+            ReplayProfile::YellowCrateTerminalBlastReplay,
+            43,
+            YELLOW_REPLAY_TICKS,
+        );
+        assert_eq!(replay.len(), 155);
+        let calm = &replay[(YELLOW_LAST_CALM_TICK - 1) as usize];
+        let impact = &replay[(YELLOW_IMPACT_TICK - 1) as usize];
+        let last_combat = &replay[(YELLOW_LAST_COMBAT_TICK - 1) as usize];
+        let result = &replay[(YELLOW_RESULT_ONSET_TICK - 1) as usize];
+        let orange = &replay[(YELLOW_ROUND_ORANGE_TICK - 1) as usize];
+        assert!(calm.impacts.is_empty() && calm.explosions.is_empty());
+        assert_eq!(calm.round.as_ref().unwrap().phase, RoundPhase::Combat);
+        let event = impact.impacts.last().expect("terminal projectile contact");
+        assert_eq!((event.tick, event.owner, event.target), (81, 0, Some(1)));
+        assert!(event.damage > 0 && event.eliminated && event.impulse_x_milli > 0);
+        assert_eq!(impact.explosions.last().unwrap().tick, 81);
+        assert_eq!(impact.winner, Some(0));
+        assert!(!impact.players[1].alive);
+        assert_eq!(impact.dynamic_bodies.len(), 20);
+        assert!(
+            impact
+                .dynamic_bodies
+                .windows(2)
+                .all(|pair| pair[0].id < pair[1].id)
+        );
+        assert!(impact.dynamic_bodies.iter().all(|body| {
+            body.shape == DynamicBodyShape::Crate
+                && body.mass_milli > 0
+                && body.friction_milli > 0
+                && body.restitution_milli > 0
+        }));
+        let calm_crate = calm
+            .dynamic_bodies
+            .iter()
+            .find(|body| body.id == 315)
+            .unwrap();
+        let moved_crate = last_combat
+            .dynamic_bodies
+            .iter()
+            .find(|body| body.id == 315)
+            .unwrap();
+        assert!(
+            (moved_crate.x_milli - calm_crate.x_milli).abs() > 15_000
+                || (moved_crate.y_milli - calm_crate.y_milli).abs() > 15_000
+                || (moved_crate.rotation_milliradians - calm_crate.rotation_milliradians).abs()
+                    > 120
+        );
+        assert_eq!(
+            last_combat.round.as_ref().unwrap().phase,
+            RoundPhase::Combat
+        );
+        assert_eq!(
+            result.round.as_ref().unwrap().phase,
+            RoundPhase::ResultTransition
+        );
+        assert_eq!(result.round.as_ref().unwrap().scores, [3, 1]);
+        assert_eq!(
+            orange.round.as_ref().unwrap().phase,
+            RoundPhase::RoundOrange
+        );
+        assert_eq!(
+            hash_snapshot(replay.last().unwrap()),
+            run_profile_match(
+                ReplayProfile::YellowCrateTerminalBlastReplay,
+                43,
+                YELLOW_REPLAY_TICKS,
+            )
+            .1
+        );
+    }
+
+    #[test]
+    fn yellow_crate_trajectory_changes_when_authority_impulse_changes() {
+        let mut nominal =
+            AuthoritativeMatch::new_with_profile(43, ReplayProfile::YellowCrateTerminalBlastReplay);
+        let mut perturbed =
+            AuthoritativeMatch::new_with_profile(43, ReplayProfile::YellowCrateTerminalBlastReplay);
+        perturbed.explosion_strength *= 0.5;
+        let scripts = scripted_inputs_for(
+            ReplayProfile::YellowCrateTerminalBlastReplay,
+            43,
+            YELLOW_LAST_COMBAT_TICK,
+        );
+        for (&orange, &blue) in scripts[0].iter().zip(&scripts[1]) {
+            nominal.step([orange, blue]);
+            perturbed.step([orange, blue]);
+        }
+        assert_ne!(
+            dynamic_body_digest(&nominal.snapshot()),
+            dynamic_body_digest(&perturbed.snapshot())
+        );
+    }
 
     #[test]
     fn platform_contact_and_asymmetric_route_match_the_source_order() {

@@ -1,6 +1,7 @@
 use rounds_sim::{
     AuthoritativeMatch, FlowPhase, ItemId, MatchSnapshot, PlayerInput, PriorBadge,
     RADIAL_HALF_BLUE_TICK, RADIAL_RESULT_ONSET_TICK, ReplayProfile, RoundPhase, TIMBER_IMPACT_TICK,
+    YELLOW_IMPACT_TICK, YELLOW_LAST_CALM_TICK, YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK,
     arena_digest, combat_digest, dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest,
     round_digest, saw_digest,
 };
@@ -9,7 +10,7 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 4;
+pub const NETWORK_PROTOCOL: u16 = 5;
 pub const MAX_NETWORK_TICKS: u32 = 3_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
@@ -87,6 +88,11 @@ pub struct ClientSessionReport {
     pub observed_radial_damage: bool,
     pub observed_radial_result_onset: bool,
     pub observed_radial_half_blue: bool,
+    pub observed_yellow_calm: bool,
+    pub observed_yellow_terminal_blast: bool,
+    pub observed_yellow_crate_motion: bool,
+    pub observed_yellow_result_onset: bool,
+    pub observed_yellow_round_orange: bool,
     pub final_report: ServerReport,
 }
 
@@ -270,6 +276,12 @@ pub fn send_inputs(
     let mut observed_radial_damage = false;
     let mut observed_radial_result_onset = false;
     let mut observed_radial_half_blue = false;
+    let mut observed_yellow_calm = false;
+    let mut observed_yellow_terminal_blast = false;
+    let mut observed_yellow_crate_motion = false;
+    let mut observed_yellow_result_onset = false;
+    let mut observed_yellow_round_orange = false;
+    let mut yellow_crate_origin = None;
     for (sequence, input) in inputs.iter().copied().enumerate() {
         let sequence = sequence as u32;
         send_client(
@@ -394,6 +406,51 @@ pub fn send_inputs(
                                 && round.winner == Some(1)
                         });
                 }
+                if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+                    let protected_crate = state.dynamic_bodies.iter().find(|body| body.id == 315);
+                    if yellow_crate_origin.is_none() {
+                        yellow_crate_origin = protected_crate
+                            .map(|body| (body.x_milli, body.y_milli, body.rotation_milliradians));
+                    }
+                    observed_yellow_calm |= state.tick == YELLOW_LAST_CALM_TICK
+                        && state.impacts.is_empty()
+                        && state.explosions.is_empty()
+                        && state.round.as_ref().is_some_and(|round| {
+                            round.phase == RoundPhase::Combat && round.winner.is_none()
+                        });
+                    observed_yellow_terminal_blast |= state.tick == YELLOW_IMPACT_TICK
+                        && state.impacts.last().is_some_and(|impact| {
+                            impact.owner == 0
+                                && impact.target == Some(1)
+                                && impact.damage > 0
+                                && impact.eliminated
+                                && impact.impulse_x_milli != 0
+                        })
+                        && state.explosions.last().is_some_and(|blast| {
+                            blast.tick == YELLOW_IMPACT_TICK && blast.impulse_milli > 0
+                        });
+                    observed_yellow_crate_motion |= protected_crate.is_some_and(|body| {
+                        yellow_crate_origin.is_some_and(|origin| {
+                            (body.x_milli - origin.0).abs() > 15_000
+                                || (body.y_milli - origin.1).abs() > 15_000
+                                || (body.rotation_milliradians - origin.2).abs() > 120
+                        })
+                    });
+                    observed_yellow_result_onset |= state.tick == YELLOW_RESULT_ONSET_TICK
+                        && state.round.as_ref().is_some_and(|round| {
+                            round.phase == RoundPhase::ResultTransition
+                                && round.phase_tick == 0
+                                && round.scores == [3, 1]
+                                && round.winner == Some(0)
+                                && round.eliminated == Some(1)
+                        });
+                    observed_yellow_round_orange |= state.tick == YELLOW_ROUND_ORANGE_TICK
+                        && state.round.as_ref().is_some_and(|round| {
+                            round.phase == RoundPhase::RoundOrange
+                                && round.scores == [3, 1]
+                                && round.winner == Some(0)
+                        });
+                }
                 last = Some((*state, state_hash));
             }
             AuthorityPacket::Welcome { .. } => {
@@ -423,6 +480,11 @@ pub fn send_inputs(
         observed_radial_damage,
         observed_radial_result_onset,
         observed_radial_half_blue,
+        observed_yellow_calm,
+        observed_yellow_terminal_blast,
+        observed_yellow_crate_motion,
+        observed_yellow_result_onset,
+        observed_yellow_round_orange,
         final_report: ServerReport {
             protocol: NETWORK_PROTOCOL,
             clients_handshaken: 2,
@@ -520,6 +582,46 @@ mod tests {
     use super::*;
     use rounds_sim::{REPLAY_TICKS, run_scripted_match, scripted_inputs, scripted_inputs_for};
     use std::thread;
+
+    #[test]
+    fn two_udp_clients_observe_the_same_yellow_terminal_blast_and_result() {
+        let seed = 43;
+        let profile = ReplayProfile::YellowCrateTerminalBlastReplay;
+        let ticks = rounds_sim::YELLOW_REPLAY_TICKS;
+        let scripts = scripted_inputs_for(profile, seed, ticks);
+        let server = BoundServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_thread = thread::spawn(move || server.run(seed, ticks, profile).unwrap());
+        let clients = scripts
+            .into_iter()
+            .enumerate()
+            .map(|(client_id, inputs)| {
+                thread::spawn(move || {
+                    send_inputs(address, client_id as u8, seed, profile, &inputs).unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let reports = clients
+            .into_iter()
+            .map(|client| client.join().unwrap())
+            .collect::<Vec<_>>();
+        let server_report = server_thread.join().unwrap();
+        assert_eq!(reports[0].final_report, reports[1].final_report);
+        assert_eq!(reports[0].final_report, server_report);
+        assert!(reports.iter().all(|report| {
+            report.observed_yellow_calm
+                && report.observed_yellow_terminal_blast
+                && report.observed_yellow_crate_motion
+                && report.observed_yellow_result_onset
+                && report.observed_yellow_round_orange
+        }));
+        assert_eq!(server_report.state.round.as_ref().unwrap().scores, [3, 1]);
+        assert_eq!(server_report.state.winner, Some(0));
+        assert_eq!(server_report.state.dynamic_bodies.len(), 20);
+        assert!(server_report.dynamic_body_digest.len() == 64);
+        assert!(server_report.combat_digest.len() == 64);
+        assert_eq!(server_report.round_digest.as_ref().unwrap().len(), 64);
+    }
 
     #[test]
     fn two_udp_clients_stream_monotonic_inputs_and_progressive_snapshots() {

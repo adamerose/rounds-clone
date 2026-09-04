@@ -45,6 +45,11 @@ struct SmokeEvidence {
     radial_damage_observed: bool,
     radial_result_onset_observed: bool,
     radial_half_blue_observed: bool,
+    yellow_calm_observed: bool,
+    yellow_terminal_blast_observed: bool,
+    yellow_crate_motion_observed: bool,
+    yellow_result_onset_observed: bool,
+    yellow_round_orange_observed: bool,
     live_frame_path: String,
     live_metadata_path: String,
     state_hash: String,
@@ -269,6 +274,19 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     let radial_half_blue_observed = reports
         .iter()
         .all(|report| report.observed_radial_half_blue);
+    let yellow_calm_observed = reports.iter().all(|report| report.observed_yellow_calm);
+    let yellow_terminal_blast_observed = reports
+        .iter()
+        .all(|report| report.observed_yellow_terminal_blast);
+    let yellow_crate_motion_observed = reports
+        .iter()
+        .all(|report| report.observed_yellow_crate_motion);
+    let yellow_result_onset_observed = reports
+        .iter()
+        .all(|report| report.observed_yellow_result_onset);
+    let yellow_round_orange_observed = reports
+        .iter()
+        .all(|report| report.observed_yellow_round_orange);
     if !handshakes_complete
         || (profile == ReplayProfile::TimberCollapseReplay
             && !progressive_explosion_transition_observed)
@@ -283,6 +301,12 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 || !radial_damage_observed
                 || !radial_result_onset_observed
                 || !radial_half_blue_observed))
+        || (profile == ReplayProfile::YellowCrateTerminalBlastReplay
+            && (!yellow_calm_observed
+                || !yellow_terminal_blast_observed
+                || !yellow_crate_motion_observed
+                || !yellow_result_onset_observed
+                || !yellow_round_orange_observed))
         || reports
             .iter()
             .any(|report| report.snapshots_received != ticks)
@@ -324,6 +348,11 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             radial_damage_observed,
             radial_result_onset_observed,
             radial_half_blue_observed,
+            yellow_calm_observed,
+            yellow_terminal_blast_observed,
+            yellow_crate_motion_observed,
+            yellow_result_onset_observed,
+            yellow_round_orange_observed,
             live_frame_path: slash_path(&live_frame),
             live_metadata_path: slash_path(&live_metadata),
             state_hash: server_report.state_hash,

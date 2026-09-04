@@ -5,9 +5,11 @@ use rounds_presentation::{
 };
 use rounds_sim::{
     MatchSnapshot, RADIAL_HALF_BLUE_TICK, RADIAL_LAST_COMBAT_TICK, RADIAL_RESULT_ONSET_TICK,
-    REPLAY_TICKS, ReplayProfile, arena_digest, combat_digest, dynamic_body_digest, flow_digest,
-    loadout_digest, round_digest, run_profile_match, run_profile_snapshots, saw_digest,
-    scripted_inputs_for,
+    REPLAY_TICKS, ReplayProfile, YELLOW_IMPACT_TICK, YELLOW_LAST_CALM_TICK,
+    YELLOW_LAST_COMBAT_TICK, YELLOW_LOCAL_BURST_TICK, YELLOW_PEAK_ECHO_TICK, YELLOW_REPLAY_TICKS,
+    YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, YELLOW_TRAILS_TICK, arena_digest,
+    combat_digest, dynamic_body_digest, flow_digest, loadout_digest, round_digest,
+    run_profile_match, run_profile_snapshots, saw_digest, scripted_inputs_for,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -45,6 +47,8 @@ struct CaptureEvidence {
     width: u32,
     height: u32,
     live_client_id: Option<u8>,
+    composited_echo_pass: Option<&'static str>,
+    impact_audio_hook_tick: Option<u32>,
 }
 
 fn main() {
@@ -205,6 +209,18 @@ fn capture_replay(
             ("result-onset", RADIAL_RESULT_ONSET_TICK),
             ("half-blue", RADIAL_HALF_BLUE_TICK),
         ],
+        ReplayProfile::YellowCrateTerminalBlastReplay => vec![
+            ("calm-start", 0),
+            ("last-calm", YELLOW_LAST_CALM_TICK),
+            ("first-response", YELLOW_IMPACT_TICK),
+            ("local-burst", YELLOW_LOCAL_BURST_TICK),
+            ("peak-radial-echo", YELLOW_PEAK_ECHO_TICK),
+            ("directional-trails", YELLOW_TRAILS_TICK),
+            ("last-combat", YELLOW_LAST_COMBAT_TICK),
+            ("result-onset", YELLOW_RESULT_ONSET_TICK),
+            ("round-orange", YELLOW_ROUND_ORANGE_TICK),
+            ("result-tail", YELLOW_REPLAY_TICKS),
+        ],
         ReplayProfile::RematchDraftReplay => vec![
             ("victory", 180),
             ("rematch-prompt", 300),
@@ -296,12 +312,16 @@ fn capture_state(
         width: FRAME_WIDTH,
         height: FRAME_HEIGHT,
         live_client_id,
+        composited_echo_pass: (profile == ReplayProfile::YellowCrateTerminalBlastReplay)
+            .then_some("rounds-radial-echo-final-composite-single-pass"),
+        impact_audio_hook_tick: (profile == ReplayProfile::YellowCrateTerminalBlastReplay)
+            .then_some(YELLOW_IMPACT_TICK),
     })
 }
 
 fn source_timestamp(profile: ReplayProfile, tick: u32) -> String {
     if let Some((pts, _)) = source_binding(profile, tick) {
-        let micros = pts / 10;
+        let micros = (pts + 5) / 10;
         return format!(
             "{:02}:{:02}.{:06}",
             micros / 60_000_000,
@@ -319,6 +339,51 @@ fn source_timestamp(profile: ReplayProfile, tick: u32) -> String {
 }
 
 fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static str)> {
+    if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+        return match tick {
+            0 => Some((
+                4_220_149_786,
+                "0b43d0363e68046c92773d5cedd730c70c58d3d3b4604e1f8fa13bc4a7fc4d2f",
+            )),
+            YELLOW_LAST_CALM_TICK => Some((
+                4_233_483_066,
+                "d57dbd7ea73ba1d2e9c6c6fd37281629c0ee897aa52a29f6e81fb6cf532112bd",
+            )),
+            YELLOW_IMPACT_TICK => Some((
+                4_233_649_732,
+                "8fa8546c2b8a61b61b1d0ee58e217e4cf4b2ee99aedd437aa84606d50af84d14",
+            )),
+            YELLOW_LOCAL_BURST_TICK => Some((
+                4_234_149_730,
+                "d849c420675a75055a48f6fdf8a028a73192c1857d85fc84895c4732e32d1321",
+            )),
+            YELLOW_PEAK_ECHO_TICK => Some((
+                4_234_983_060,
+                "0ca4ecadfc3d4ff6e2e7c12ad3ff5167b0f5d36429096f6f82af9a521b58b3b1",
+            )),
+            YELLOW_TRAILS_TICK => Some((
+                4_237_149_718,
+                "82feb79de9feb66b2fc6d600257b3107d9d833a3c86c71ff4fecacf5601cf8ca",
+            )),
+            YELLOW_LAST_COMBAT_TICK => Some((
+                4_238_483_046,
+                "74636191cb28cb44ac48d8f6106f5f9637b202b0097a35a966d2ac394a618c60",
+            )),
+            YELLOW_RESULT_ONSET_TICK => Some((
+                4_238_649_712,
+                "e315638c3fff8b0904470c38938dd9690349e26ff3c36be9c112a93d39e7f518",
+            )),
+            YELLOW_ROUND_ORANGE_TICK => Some((
+                4_240_983_036,
+                "aa4ad165071ac401b54fa2f6687a2ea08aef04ceb0c33dc32965fd5049e8ddce",
+            )),
+            YELLOW_REPLAY_TICKS => Some((
+                4_245_983_016,
+                "bd923e601703bc0fbd5fb9c1f45983abf5d5449db3ea0bb5c9be300be48bc032",
+            )),
+            _ => None,
+        };
+    }
     if profile != ReplayProfile::RadialSawHalfBlueReplay {
         return None;
     }
