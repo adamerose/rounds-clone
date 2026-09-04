@@ -404,3 +404,11 @@ The committed Godot and C# prototype remains recoverable at `archive/godot-cshar
 The supplied media bytes stay ignored and unchanged, but a tracked manifest binds their paths, sizes, and SHA-256 values and the rewrite must account for every distinct gameplay and presentation interval in both recordings.
 Tests protect observed behavior, stable public boundaries, reproduced defects, and actual release threats; their existence alone does not make them permanent, and support or test machinery larger than the product slice it protects triggers architectural reconsideration rather than automatic hardening.
 Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/01a069e1-2a76-7c51-b7f4-5750932d7c06` admitted ticket 038 at risk 4 with no findings after the contract retained maintenance tickets 036 and 037, durably identified all eleven supplied media files, and required complete timestamp-indexed coverage of both recordings.
+
+## 2026-09-04 — Keep the first Bevy slice small and executable
+
+The first Rust slice uses Bevy ECS as the authoritative fixed-tick state container while keeping presentation, UDP transport, process entry points, and automation in separate crates.
+One bounded scripted-input datagram per client is enough to exercise a real headless server and two real client processes without inventing a production reliability protocol.
+The deterministic renderer writes a PNG in software from the authoritative snapshot, so capture needs no editor, window, GPU, or second simulation.
+The slice deliberately does not select a third-party physics library or claim prediction, interpolation, rollback, lag compensation, matchmaking, authentication, or Steam transport.
+Those choices keep the executable product path larger than its test and support machinery while preserving the boundaries later footage slices need.

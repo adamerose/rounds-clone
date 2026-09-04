@@ -1,24 +1,11 @@
-# Raw research media stays out of git history permanently.
-# Screenshots and video frames of the original game are reference input, not project assets.
-# Anything committed here can never be removed without rewriting history, which would
-# foreclose ever making this repo public. Only derived measurements belong in spec/.
-research/raw/
-
-# User-supplied target captures stay local; their small hash manifest is tracked.
+# User-supplied fidelity media stays local; only reference/manifest.json is tracked.
 reference/*.mp4
 reference/screenshots/*.png
 
-# Rendered output
+# Rust output and generated evidence.
+target/
 out/
-reels/
+
+# Raw research inputs and local tools remain outside Git.
+research/raw/
 .tools/
-
-# Godot
-.godot/
-.import/
-export_presets.cfg
-
-# .NET
-bin/
-obj/
-*.user

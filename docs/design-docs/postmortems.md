@@ -1095,3 +1095,30 @@ The correction was still checked with the retained Roslyn compiler and installed
 Full solution build and runner-driven tests remain required before ticket closure.
 Installed Visual Studio Build Tools supplied the complete MSBuild host, and the exact 6.45 MiB `Microsoft.NETCore.App.Ref` 8.0.29 package restored only the missing targeting pack after its NuGet-published SHA-512 matched.
 That local route passed the zero-warning solution build, 134 checker tests, and 251 applicable simulation tests; the temporary copied launcher still lacked the SDK's managed `dotnet.dll`, so it was removed rather than left as a misleading partial installation.
+
+## 2026-09-04 — The advertised temporary root rejected footage-analysis output
+
+Ticket 038's first headless contact-sheet extraction decoded the first AV1 recording before failing because the sandbox denied creation of `C:\tmp\rounds-038-coverage`, even though the runtime permission profile advertised `C:\tmp` as writable.
+The timed command left no FFmpeg process and changed no tracked file or integration-root byte.
+Further generated evidence uses the worktree's ignored `out/` directory, whose exact containment is directly verifiable.
+
+## 2026-09-04 — Ticket 038's first removal and Rust checks exposed bounded setup errors
+
+The first exact recursive removal of nine validated legacy implementation directories was rejected by shell policy before execution.
+The same absolute paths had already been proven to be descendants of the ticket-038 worktree, so the repository's established `System.IO.Directory.Delete` fallback removed only those paths and left the integration root and every registered legacy worktree untouched.
+
+The first locked Cargo check correctly refused to create a missing lock file, and the first offline check then exposed `serde_json` as a development-only dependency even though production snapshot hashing uses it.
+Moving the already pinned dependency into the simulation's runtime dependencies made the workspace compile without changing its dependency versions.
+The first UDP test created and joined its first lazy client before creating the second, so the server correctly timed out waiting for both scripts.
+Collecting both client thread handles before joining either one fixed the orchestration error; the focused server-and-two-client test then passed in 0.01 seconds.
+The first strict lint found one index-only loop and one unnecessary explicit drop; iterator pairing and a lexical borrow scope expressed the same behavior without exceptions, after which strict lint passed.
+A later clean-target lint correctly refused stale lock metadata after duplicate capture ownership was removed from `rounds-automation`; one offline metadata refresh reconciled the unchanged pinned dependency set before the clean build.
+The first whitespace gate then found one extra terminal blank line in `.gitignore` and `GOAL.md`; removing those two blank lines made `git diff --check` pass.
+
+## 2026-09-04 — An earlier Ivy dispatcher started two ticket-038 implementers
+
+An earlier Ivy CLI dispatcher silently started a second implementation session against the same ticket-038 worktree after the intended implementer was already running.
+The overlap became visible when the CI workflow and footage ledger changed without appearing in the intended implementer's patches.
+The orchestrator identified and terminated only duplicate root PID 9968 by its exact command line targeting ticket 038 and this worktree, then verified that dispatcher tree was gone before writes resumed.
+The intended implementer paused as soon as the duplicate was confirmed, retained the compatible Rust CI, client-owned capture command, and 120-interval ledger, and removed the duplicate capture path left in the automation binary so the reconciled tree has one capture owner.
+No branch, commit, integration-root file, registered legacy worktree, or reference-media byte changed during the recovery.
