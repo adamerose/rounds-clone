@@ -503,3 +503,7 @@ Ticket 043's first delivery candidate proved the desired Bevy architecture, real
 ## 2026-09-04 — Keep yellow convergence and impact impulse authoritative
 
 The corrected ticket 043 presentation now matches the bounded blast signature, but review found two simulation facts that its successful rendering concealed: both fighters remain stationary throughout the source's calm convergence, and the published impact event omits the health-scaled portion of the impulse authority applies. The replay must therefore drive the observed approach through ordinary authority inputs and publish the exact applied gameplay impulse in its stable event. Presentation motion and a merely nonzero event field are not substitutes for those authority-owned facts.
+
+## 2026-09-04 — Reopen the yellow result boundary from native consecutive frames
+
+Final review independently decoded the source frame before the ticket's supposed last-combat anchor and proved that PTS 4238483046 already contains the first dimmed result circles; PTS 4238649712 is the following, larger transition frame. Ticket 043 returns to blocked amendment rather than teaching code and evidence the wrong adjacent-frame boundary. The native preceding frame, contract labels, replay tick, captures, and README slice inventory must be corrected and freshly admitted before implementation resumes.

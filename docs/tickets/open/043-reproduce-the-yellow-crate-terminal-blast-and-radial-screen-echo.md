@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 created: 2026-09-04T17:00:46Z
 origin: system-detected
 tags: ["bevy", "physics", "fidelity", "multiplayer", "presentation", "projectiles", "vertical-slice"]
@@ -18,6 +18,10 @@ split-from: [18, 20]
 
 Reconstruct the continuous yellow-crate arena interval from PTS 4220149786, or 07:02.014979, through the established `ROUND ORANGE` result at PTS 4245983016, or 07:04.598302, in `reference/MedalTVRounds20260903165304088.mp4`.
 This slice turns the user's strongest supplied screen-effect example into a playable authority-owned event: a terminal close-range impact dislodges real arena pieces, eliminates blue, and drives the source's bright local burst, screen-wide radial echo, chromatic separation, trails, and result handoff on both local and received-state render paths.
+
+## Blocked
+
+Implementation is frozen while the exact last-combat/result-onset source boundary is corrected and the amended contract receives fresh admission review. This is an internal evidence correction and requires no human product decision.
 
 ## Outcome
 
@@ -112,3 +116,4 @@ This slice turns the user's strongest supplied screen-effect example into a play
 - 2026-09-04T21:14:57.069Z stage verify start session codex:01a06920-7449-74d0-9b09-57855a012572/correct_043_semantics — Began the final semantic-correction audit across focused and full tests, strict Rust gates, source hashes, fresh real-GPU anchors and original-resolution pairs, two-client received-state smoke, guarded playback, and residue.
 - 2026-09-04T21:15:54.695Z stage verify end session codex:01a06920-7449-74d0-9b09-57855a012572/correct_043_semantics — Passed the focused regression and all 37 locked workspace tests, format, strict lint, locked build, ten exact source hashes, ten fresh real-GPU captures and original-resolution pairs, protocol-5 two-client received-state smoke, exact monitor-4 playback, ticket and whitespace gates, and exact target/process/window cleanup.
 - 2026-09-04T21:19:24Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06e49-9fcc-7ea0-9422-de0858236aa9 — Began fresh exact-range review after the authority correction, emphasizing progressive calm convergence, published/applied impulse identity, preservation of the approved GPU signature, complete contract behavior, regression quality, proportionality, and residue.
+- 2026-09-04T21:44:05Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06e49-9fcc-7ea0-9422-de0858236aa9 — Confirmed authority convergence, exact published/applied impulse identity, and the visual correction, then rejected delivery because source PTS 4238483046 already contains result onset rather than last combat and the README miscounted and misattributed delivered slices; returned the frozen contract to amendment.
