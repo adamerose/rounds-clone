@@ -1103,3 +1103,9 @@ The pre-show guard rejected that display before changing `Window.visible`, so no
 Windows reported four displays and one unique 1920×1080 monitor at `(364,-1080)`.
 The corrected launch starts with no window, discovers Bevy's monitor entity with that exact physical size, creates a hidden window centered on that entity, verifies its `OnMonitor` component again, and only then reveals it.
 The repeated visible replay completed and reported both selection and placement at `(364,-1080)`, 1920×1080, with no residual process.
+
+## 2026-09-04 — Ticket 043's first admission-review handle disappeared
+
+The fresh isolated reviewer reported its binding identity and received the exact ticket 043 range, source-audit requirements, and admission criteria.
+The first bounded wait was interrupted by the session continuation boundary, and the next authoritative agent inventory contained no reviewer handle or result.
+No verdict was inferred and no review end was invented from silence; the ticket records the observed interrupted end, and admission restarts with a new isolated reviewer after a fresh root/candidate/artifact baseline.
