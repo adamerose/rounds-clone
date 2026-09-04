@@ -418,3 +418,10 @@ Those choices keep the executable product path larger than its test and support 
 Ticket 039 reconstructs the card-modified teal-arena duel at 00:22.50–00:35.50 of recording `1460e670…15f9` as one end-to-end Bevy slice: Rapier contacts and impulses behind owned identifiers, a shipped 2D renderer, live sequenced client inputs and progressive authority snapshots, headless capture, and source-versus-clone visual review.
 The named `teal-duel-replay` profile reproduces the observed interval without pretending its parameters are card-neutral base constants, and the current server-authority model deliberately excludes Rapier's known-broken Bevy `enhanced-determinism` feature and makes no cross-platform lockstep claim.
 Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/01a06a55-572e-7bd2-be97-605bb16bb6bb` admitted the corrected contract at risk 4 after the first review exposed the dependency contradiction, card-confounded oracle, batch-network loophole, and stale-record omission.
+
+## 2026-09-04 — Replace the Bevy foundation placeholders at their existing boundaries
+
+The teal duel keeps the six-crate process shape but replaces the foundation's integer movement, software pixels, and whole-script UDP request with the production-facing choices the next footage slices need.
+`rounds-sim` now owns stable Bevy ECS identities around a private Rapier 2D service; `rounds-presentation` renders the same snapshot scene through Bevy in visible and offscreen modes; and `rounds-network` advances one authority from per-tick sequenced inputs while returning each progressive snapshot.
+Only project snapshots and inputs cross those boundaries, so Rapier handles and Bevy entity IDs remain local implementation details.
+Rapier's `enhanced-determinism` feature stays disabled because it conflicts with the pinned Bevy dependency graph, and this server-authority design requires repeatability only for the same locked build and platform.

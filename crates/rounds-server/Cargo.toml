@@ -7,4 +7,5 @@ license.workspace = true
 
 [dependencies]
 rounds-network = { path = "../rounds-network" }
+rounds-sim = { path = "../rounds-sim" }
 serde_json.workspace = true

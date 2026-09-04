@@ -1095,3 +1095,11 @@ The correction was still checked with the retained Roslyn compiler and installed
 Full solution build and runner-driven tests remain required before ticket closure.
 Installed Visual Studio Build Tools supplied the complete MSBuild host, and the exact 6.45 MiB `Microsoft.NETCore.App.Ref` 8.0.29 package restored only the missing targeting pack after its NuGet-published SHA-512 matched.
 That local route passed the zero-warning solution build, 134 checker tests, and 251 applicable simulation tests; the temporary copied launcher still lacked the SDK's managed `dotnet.dll`, so it was removed rather than left as a misleading partial installation.
+
+## 2026-09-04 — Winit did not preserve the requested monitor index
+
+The first visible teal-duel launch created its window hidden and requested `MonitorSelection::Index(3)`, but winit reported that the index was unavailable and associated the hidden window with a 2560×1440 display.
+The pre-show guard rejected that display before changing `Window.visible`, so no project window appeared on the wrong monitor; the stalled hidden process was then interrupted.
+Windows reported four displays and one unique 1920×1080 monitor at `(364,-1080)`.
+The corrected launch starts with no window, discovers Bevy's monitor entity with that exact physical size, creates a hidden window centered on that entity, verifies its `OnMonitor` component again, and only then reveals it.
+The repeated visible replay completed and reported both selection and placement at `(364,-1080)`, 1920×1080, with no residual process.

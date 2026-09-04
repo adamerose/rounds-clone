@@ -11,7 +11,7 @@ No interval is unclassified.
 |---|---|---|
 | `S0-foundation` | Bevy ECS fixed ticks, two-player scripted input, movement, jump, fire, block, hits, UDP client-host and headless authority, bounded state, deterministic PNG capture | implemented scaffold; not fidelity evidence |
 | `S1-flow-draft` | reproduce card offers, readable card faces, player reveal, pick input, inter-round handoff, waiting and rematch screens | unresolved fidelity gap |
-| `S2-static-duel` | reproduce base locomotion, aim, gun, block, health, death and a footage-matched static arena end to end | unresolved fidelity gap |
+| `S2-static-duel` | reproduce base locomotion, aim, gun, block, health, death and a footage-matched static arena end to end | first sub-slice implemented at recording `1460e670…15f9` 00:22.50–00:35.50; remaining static duels unresolved |
 | `S3-arena-motion` | reproduce suspended, rotating, sliding and articulated arena pieces with authoritative networked physics | unresolved fidelity gap |
 | `S4-reactive-world` | reproduce destructible platforms, debris, explosions, ice and other reactive arena materials | unresolved fidelity gap |
 | `S5-card-combat` | reproduce every visible named card and its stacked combat interaction across rounds | unresolved fidelity gap |
@@ -19,8 +19,8 @@ No interval is unclassified.
 | `S7-presentation` | reproduce characters, lighting, camera, shake, trails, hit-stop, chromatic/radial effects, particles, text and audio | unresolved fidelity gap |
 | `S8-online` | replace the localhost scripted UDP scaffold with production online prediction, interpolation, reconciliation and eventual Steam transport | unresolved fidelity gap; Steam is not implemented |
 
-The next implementation should close `S2-static-duel` for one contiguous duel from the footage while retaining the `S0-foundation` server, inspection, and capture boundaries.
-Later slices add only the flow, cards, arena behavior, and presentation visible in their owned intervals.
+The first `S2-static-duel` interval retains the `S0-foundation` process boundaries but replaces their placeholder physics, renderer, and batch transport.
+Later slices add the remaining flow, cards, arena behavior, production online work, and presentation visible in their owned intervals.
 
 ## Recording `453954a7…a18c`
 
@@ -97,8 +97,10 @@ Source: `reference/MedalTVRounds20260903170709695.mp4`, duration `600.17` second
 |---|---|---|
 | 00:00–00:10 | hanging-column duel and vertical movement | S2, S3, S5, S7, S8 |
 | 00:10–00:20 | `TANK` draft choice | S1, S5, S7 |
-| 00:20–00:30 | teal stepped arena duel | S2, S4, S5, S7, S8 |
-| 00:30–00:40 | teal arena combat and jumps | S2, S4, S5, S7, S8 |
+| 00:20–00:22.50 | tail of `TANK` draft and fade into the arena | S1, S5, S7 |
+| 00:22.50–00:30 | teal stepped arena spawn, traversal, gunfire and block | S2 (implemented first sub-slice), S5, S7, S8 |
+| 00:30–00:35.50 | teal arena jumps, hits, knockback and ring-out | S2 (implemented first sub-slice), S5, S7, S8 |
+| 00:35.50–00:40 | `HALF ORANGE` result transition | S6, S7 |
 | 00:40–00:50 | tall-column arena traversal | S2, S3, S5, S7, S8 |
 | 00:50–01:00 | card selection and reveal | S1, S5, S7 |
 | 01:00–01:10 | pastel fortress duel | S2, S4, S5, S7, S8 |

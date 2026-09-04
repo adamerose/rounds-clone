@@ -16,7 +16,9 @@ rust-version = "1.98.1"
 license = "MIT"
 
 [workspace.dependencies]
+bevy = { version = "=0.19.1", default-features = false, features = ["2d"] }
 bevy_ecs = { version = "=0.19.1", default-features = false }
+bevy_rapier2d = { version = "=0.36.0", default-features = false, features = ["dim2", "headless"] }
 png = "=0.18.1"
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.149"

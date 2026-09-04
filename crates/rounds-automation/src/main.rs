@@ -1,20 +1,31 @@
-use rounds_network::{NETWORK_PROTOCOL, ServerReport};
-use rounds_sim::run_scripted_match;
+use rounds_network::{ClientSessionReport, NETWORK_PROTOCOL, ServerReport};
+use rounds_sim::{REPLAY_TICKS, run_scripted_match};
 use serde::Serialize;
 use std::env;
+use std::fs;
 use std::io::{BufRead, BufReader, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct SmokeEvidence {
     protocol: u16,
     transport: &'static str,
     seed: u64,
     ticks: u32,
     clients: u8,
+    handshakes_complete: bool,
+    first_input_sequence: u32,
+    last_input_sequence: u32,
+    snapshots_per_client: u32,
+    first_snapshot_tick: u32,
+    last_snapshot_tick: u32,
     clients_agree: bool,
     local_host_agrees: bool,
+    live_rendered_state_agrees: bool,
+    live_frame_path: String,
+    live_metadata_path: String,
     state_hash: String,
 }
 
@@ -64,8 +75,14 @@ fn run() -> Result<(), String> {
 }
 
 fn smoke(arguments: &[String]) -> Result<(), String> {
-    let ticks = argument(arguments, "--ticks", 180_u32)?;
+    let ticks = argument(arguments, "--ticks", REPLAY_TICKS)?;
     let seed = argument(arguments, "--seed", 38_u64)?;
+    let output_dir = optional_path_argument(arguments, "--output-dir")
+        .unwrap_or_else(|| PathBuf::from("out/ticket-039/smoke"));
+    fs::create_dir_all(&output_dir)
+        .map_err(|error| format!("create {}: {error}", output_dir.display()))?;
+    let live_frame = output_dir.join("live-client-0.png");
+    let live_metadata = output_dir.join("live-client-0.json");
     let server_binary = sibling_binary("rounds-server")?;
     let client_binary = sibling_binary("rounds-client")?;
     let mut server = ChildGuard::new(
@@ -101,20 +118,28 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
         .ok_or("server ready record omitted address")?
         .to_owned();
 
-    let clients = (0..2)
+    let mut clients = (0..2)
         .map(|client_id| {
-            Command::new(&client_binary)
-                .args([
-                    "remote",
-                    "--address",
-                    &address,
-                    "--client",
-                    &client_id.to_string(),
-                    "--ticks",
-                    &ticks.to_string(),
-                    "--seed",
-                    &seed.to_string(),
-                ])
+            let mut command = Command::new(&client_binary);
+            command.args([
+                "remote",
+                "--address",
+                &address,
+                "--client",
+                &client_id.to_string(),
+                "--ticks",
+                &ticks.to_string(),
+                "--seed",
+                &seed.to_string(),
+            ]);
+            if client_id == 0 {
+                command
+                    .arg("--render-output")
+                    .arg(&live_frame)
+                    .arg("--render-metadata")
+                    .arg(&live_metadata);
+            }
+            command
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
@@ -123,39 +148,10 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let mut clients = clients;
     let reports = clients
         .iter_mut()
         .enumerate()
-        .map(|(client_id, client)| {
-            let status = client
-                .wait()
-                .map_err(|error| format!("wait for client {client_id}: {error}"))?;
-            let mut stdout = Vec::new();
-            client
-                .child
-                .stdout
-                .take()
-                .ok_or_else(|| format!("client {client_id} stdout was not captured"))?
-                .read_to_end(&mut stdout)
-                .map_err(|error| format!("read client {client_id} stdout: {error}"))?;
-            let mut stderr = Vec::new();
-            client
-                .child
-                .stderr
-                .take()
-                .ok_or_else(|| format!("client {client_id} stderr was not captured"))?
-                .read_to_end(&mut stderr)
-                .map_err(|error| format!("read client {client_id} stderr: {error}"))?;
-            if !status.success() {
-                return Err(format!(
-                    "client {client_id} failed: {}",
-                    String::from_utf8_lossy(&stderr).trim()
-                ));
-            }
-            serde_json::from_slice::<ServerReport>(&stdout)
-                .map_err(|error| format!("decode client {client_id} report: {error}"))
-        })
+        .map(|(client_id, client)| read_client_report(client_id, client))
         .collect::<Result<Vec<_>, _>>()?;
 
     let mut server_tail = String::new();
@@ -196,11 +192,32 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     }
     let local_report: ServerReport = serde_json::from_slice(&local_output.stdout)
         .map_err(|error| format!("decode local client-host report: {error}"))?;
-    let clients_agree =
-        reports.len() == 2 && reports[0] == reports[1] && reports[0] == server_report;
+    let clients_agree = reports.len() == 2
+        && reports[0].final_report == reports[1].final_report
+        && reports[0].final_report == server_report;
     let local_host_agrees = server_report == local_report;
-    if !clients_agree || !local_host_agrees {
-        return Err("authoritative server, clients, and local host did not agree".to_owned());
+    let render_metadata: serde_json::Value = serde_json::from_slice(
+        &fs::read(&live_metadata)
+            .map_err(|error| format!("read {}: {error}", live_metadata.display()))?,
+    )
+    .map_err(|error| format!("decode live render metadata: {error}"))?;
+    let live_rendered_state_agrees = live_frame.is_file()
+        && render_metadata.get("stateSha256").and_then(|v| v.as_str())
+            == Some(server_report.state_hash.as_str())
+        && render_metadata.get("liveClientId").and_then(|v| v.as_u64()) == Some(0);
+    if !clients_agree || !local_host_agrees || !live_rendered_state_agrees {
+        return Err(
+            "authority, both streamed clients, local host, and live rendered snapshot did not agree"
+                .to_owned(),
+        );
+    }
+    let handshakes_complete = reports.iter().all(|report| report.handshake_complete);
+    if !handshakes_complete
+        || reports
+            .iter()
+            .any(|report| report.snapshots_received != ticks)
+    {
+        return Err("stream did not complete every handshake and progressive snapshot".to_owned());
     }
     println!(
         "{}",
@@ -210,8 +227,17 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             seed,
             ticks,
             clients: 2,
+            handshakes_complete,
+            first_input_sequence: reports[0].first_input_sequence,
+            last_input_sequence: reports[0].last_input_sequence,
+            snapshots_per_client: reports[0].snapshots_received,
+            first_snapshot_tick: reports[0].first_snapshot_tick,
+            last_snapshot_tick: reports[0].last_snapshot_tick,
             clients_agree,
             local_host_agrees,
+            live_rendered_state_agrees,
+            live_frame_path: slash_path(&live_frame),
+            live_metadata_path: slash_path(&live_metadata),
             state_hash: server_report.state_hash,
         })
         .map_err(|error| error.to_string())?
@@ -219,12 +245,50 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+fn read_client_report(
+    client_id: usize,
+    client: &mut ChildGuard,
+) -> Result<ClientSessionReport, String> {
+    let status = client
+        .wait()
+        .map_err(|error| format!("wait for client {client_id}: {error}"))?;
+    let mut stdout = Vec::new();
+    client
+        .child
+        .stdout
+        .take()
+        .ok_or_else(|| format!("client {client_id} stdout was not captured"))?
+        .read_to_end(&mut stdout)
+        .map_err(|error| format!("read client {client_id} stdout: {error}"))?;
+    let mut stderr = Vec::new();
+    client
+        .child
+        .stderr
+        .take()
+        .ok_or_else(|| format!("client {client_id} stderr was not captured"))?
+        .read_to_end(&mut stderr)
+        .map_err(|error| format!("read client {client_id} stderr: {error}"))?;
+    if !status.success() {
+        return Err(format!(
+            "client {client_id} failed: {}",
+            String::from_utf8_lossy(&stderr).trim()
+        ));
+    }
+    serde_json::from_slice(&stdout)
+        .map_err(|error| format!("decode client {client_id} report: {error}"))
+}
+
 fn inspect(arguments: &[String]) -> Result<(), String> {
-    let ticks = argument(arguments, "--ticks", 180_u32)?;
+    let ticks = argument(arguments, "--ticks", REPLAY_TICKS)?;
     let seed = argument(arguments, "--seed", 38_u64)?;
     let (state, state_hash) = run_scripted_match(seed, ticks);
     let report = ServerReport {
         protocol: NETWORK_PROTOCOL,
+        clients_handshaken: 2,
+        inputs_received: ticks * 2,
+        progressive_snapshots: ticks,
+        first_snapshot_tick: 1,
+        last_snapshot_tick: ticks,
         state_hash,
         state,
     };
@@ -248,6 +312,18 @@ fn sibling_binary(name: &str) -> Result<PathBuf, String> {
         ));
     }
     Ok(path)
+}
+
+fn slash_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn optional_path_argument(arguments: &[String], name: &str) -> Option<PathBuf> {
+    arguments
+        .iter()
+        .position(|argument| argument == name)
+        .and_then(|index| arguments.get(index + 1))
+        .map(PathBuf::from)
 }
 
 fn argument<T>(arguments: &[String], name: &str, default: T) -> Result<T, String>

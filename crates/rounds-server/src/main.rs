@@ -1,4 +1,5 @@
 use rounds_network::BoundServer;
+use rounds_sim::REPLAY_TICKS;
 use std::env;
 
 fn main() {
@@ -10,7 +11,7 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let port = argument("--port", 0_u16)?;
-    let ticks = argument("--ticks", 180_u32)?;
+    let ticks = argument("--ticks", REPLAY_TICKS)?;
     let seed = argument("--seed", 38_u64)?;
     let server = BoundServer::bind(("127.0.0.1", port)).map_err(|error| error.to_string())?;
     let address = server.local_addr().map_err(|error| error.to_string())?;
