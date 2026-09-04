@@ -4,6 +4,10 @@
 # foreclose ever making this repo public. Only derived measurements belong in spec/.
 research/raw/
 
+# User-supplied target captures stay local; their small hash manifest is tracked.
+reference/*.mp4
+reference/screenshots/*.png
+
 # Rendered output
 out/
 reels/

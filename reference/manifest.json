@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "purpose": "Clean-room visual and behavioral fidelity references supplied by Adam on 2026-09-03. The media bytes remain ignored; this manifest identifies the exact local targets.",
+  "videos": [
+    {
+      "path": "reference/MedalTVRounds20260903165304088.mp4",
+      "bytes": 782876414,
+      "sha256": "453954a7230401ed805be4e53dec41779a1913dfd69903671fc131fca2c8a18c",
+      "durationSeconds": 600.13,
+      "width": 1280,
+      "height": 720,
+      "approximateFramesPerSecond": 59.66,
+      "videoCodec": "AV1"
+    },
+    {
+      "path": "reference/MedalTVRounds20260903170709695.mp4",
+      "bytes": 791095141,
+      "sha256": "1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9",
+      "durationSeconds": 600.17,
+      "width": 1280,
+      "height": 720,
+      "approximateFramesPerSecond": 59.61,
+      "videoCodec": "AV1"
+    }
+  ],
+  "screenshots": [
+    { "path": "reference/screenshots/rounds-effect-01-reactive-debris-explosion.png", "bytes": 477590, "sha256": "af8c744bfd75103990e5da2c18863bfaa4623cd92074e557db55cfdfeb770c38" },
+    { "path": "reference/screenshots/rounds-effect-02-reactive-debris-impact.png", "bytes": 460958, "sha256": "b41904b61ec6bd250a4cc90b8c66137f7753e03c59b59af902c60f9d3a6e2d26" },
+    { "path": "reference/screenshots/rounds-effect-03-explosion-platform-fragments.png", "bytes": 520963, "sha256": "6dc9121d73a1d13a49f39739e7ddf04bf8a6fbfd8701a1a2b0881b63a94fe00c" },
+    { "path": "reference/screenshots/rounds-effect-04-explosion-motion-echo.png", "bytes": 381852, "sha256": "917ae534cd92cf1e4c7090b4b1763f4aba9f9c542cf13e32bda0cb9c4e3e6405" },
+    { "path": "reference/screenshots/rounds-effect-05-calm-red-arena.png", "bytes": 332549, "sha256": "9ddf705883cb37135ca730fc4472d664e7e55da7ad6b1e5ebc79878b1745cfef" },
+    { "path": "reference/screenshots/rounds-effect-06-calm-yellow-crates.png", "bytes": 383057, "sha256": "2d0b01c02e39eff56a46c4bea4603561ec638f1a054626d5ff45c390a031a124" },
+    { "path": "reference/screenshots/rounds-effect-07-impact-chromatic-offset.png", "bytes": 415257, "sha256": "46c5516ed62d0601e1824fc4528d133440c164da61cbfe99a8bfbd4295e0f76c" },
+    { "path": "reference/screenshots/rounds-effect-08-heavy-radial-distortion.png", "bytes": 739948, "sha256": "5e77a0ecd43eadd073837543424795b4d7fb0e1b67f92121af8224208bc02de3" },
+    { "path": "reference/screenshots/rounds-effect-09-high-damage-trails.png", "bytes": 482238, "sha256": "d4d404edbe22a82f6475a95302af95d3d5cc39540d06136492b677c429b1e771" }
+  ]
+}

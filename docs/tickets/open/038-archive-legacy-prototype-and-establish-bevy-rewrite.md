@@ -1,0 +1,61 @@
+---
+format: 3
+status: idea
+created: 2026-09-04T00:43:56Z
+origin: human-request
+tags: ["architecture", "bevy", "multiplayer", "fidelity", "project-reset"]
+value: 10
+risk: 4
+sessions:
+  - codex:01a06920-7449-74d0-9b09-57855a012572
+execution: unattended
+depends-on: []
+supersedes: [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 31, 32, 34, 35]
+split-from: []
+---
+
+# Archive the legacy prototype and establish the Bevy rewrite
+
+The current Godot and C# implementation was optimized around internally verifiable mechanics before direct high-quality gameplay evidence and online multiplayer were treated as product requirements.
+Preserve that work as recoverable history, then establish a Bevy codebase whose product target is the complete mechanics, physics, presentation, effects, match flow, and multiplayer experience visible across the two supplied ten-minute ROUNDS recordings.
+
+## Outcome
+
+- The exact final legacy `main` commit remains recoverable through an annotated archive tag, and a documented lookup proves that its source, tests, tickets, specifications, and history can be inspected without keeping them in the active product tree.
+- The active product tree no longer builds or ships the legacy Godot shell, C# simulation, Windows evidence launcher, or implementation-coupled regression corpus.
+- The project goal and architecture make the two supplied gameplay recordings the primary end-to-end fidelity target and require online multiplayer, eventual Steam transport, programmatic play, and programmatic frame or video capture.
+- A committed reference manifest identifies every supplied video and screenshot by repository-relative local path, byte length, and SHA-256 while repository-visible ignore rules keep the media bytes out of Git.
+- A complete timestamp-indexed coverage ledger for each identified video maps every distinct visible arena, mechanic, card interaction, match-flow state, and presentation effect to implemented follow-up work or an explicit unresolved fidelity gap.
+- A pinned Rust workspace establishes separate simulation, client presentation, networking, headless server, and automation-tool boundaries without requiring GUI-authored project state.
+- The first executable slice runs the same fixed-tick authoritative simulation as a local client-host and as a headless server, accepts scripted inputs from two clients, and exposes bounded state inspection suitable for future automated playtesting.
+- Follow-up work is organized by visible gameplay slices from the recordings rather than by completing the superseded implementation's subsystem backlog.
+
+## Decisions
+
+- Adam selected a Bevy restart on 2026-09-03 after reviewing direct 60 FPS footage, physics and renderer requirements, multiplayer topology, and the current repository's implementation-to-verification imbalance.
+- Preserve legacy commit `382ae14788646c199b42243652d5c0294c6994f4` in Git history and the annotated `archive/godot-csharp-prototype-2026-09-03` tag; do not copy obsolete product code into an `archive/` directory in the active tree.
+- Keep the supplied videos and screenshots under ignored `reference/` storage unchanged; `reference/manifest.json` is the only tracked file in that tree.
+- Tickets 036 and 037 remain open because the engine reset does not replace the postmortem-gap audit or the preservation-first inventory of unique ticket-035 worktree state.
+- Use Bevy ECS for fixed-tick game state and systems, but keep rendering, audio, particles, camera effects, and other presentation state outside the authoritative replicated state.
+- Begin with an authoritative client-host over ordinary development transport, predict only latency-sensitive local actions, interpolate remote and dynamic-world state, and keep the same simulation runnable by a headless dedicated server.
+- Isolate third-party networking and physics behind narrow project-owned boundaries, pin every dependency and the lock file, and require behavioral upgrade evidence instead of treating compiler success as migration proof.
+- Tests protect observed behavior and public boundaries; they are not permanent merely because they exist, and local automation is not hardened against an adversarial machine unless a real release threat model requires it.
+- Do not impose a mechanical test-to-production line ratio, but require explicit justification whenever support or test code for a slice is larger or more complex than the product behavior it protects.
+
+## Evidence required
+
+- `git rev-parse archive/godot-csharp-prototype-2026-09-03^{}` equals the recorded legacy `main` commit, and representative legacy files are readable from that tag after their removal from the active tree.
+- Repository inventory proves that no active build, package, or runtime path references the legacy Godot, .NET, or evidence-launcher implementation while ignored reference media remains byte-identical.
+- Manifest verification recomputes every available reference byte length and SHA-256, and a clean-checkout test proves the repository-visible ignore rules exclude the media while retaining the manifest.
+- The coverage ledger accounts for the full duration of both identified recordings with no unclassified interval that contains distinct gameplay or presentation behavior.
+- Locked Rust formatting, lint, build, and test commands pass from a clean checkout with no editor interaction.
+- A command-line smoke test starts an authoritative headless server plus two scripted clients, advances a bounded match interval, and verifies agreed authoritative state and clean shutdown.
+- A client capture command renders a deterministic frame from the executable slice without opening an editor and records the exact inputs, seed, tick, and build identity used.
+- Architecture review maps every retained test to a user-visible behavior, stable public boundary, reproduced defect, or explicit release threat; unsupported verification machinery is absent.
+
+## Work log
+
+- 2026-09-04T00:43:56Z stage design start session codex:01a06920-7449-74d0-9b09-57855a012572 — Began the recoverable Bevy reset after Adam made complete replication of both supplied gameplay videos, including multiplayer, the final product goal and asked to archive the old implementation.
+- 2026-09-04T00:45:24Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Bound the recoverable legacy tag, footage-first product target, multiplayer-first Bevy boundaries, proportional testing rule, and command-line server, client, inspection, and capture evidence; the repository-local `playbook` checker path named by newly injected guidance was absent, so the identical installed Ivy checker was resolved from the active plugin cache and passed across all registered worktrees.
+- 2026-09-04T00:51:05Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Correcting fresh-review findings by retaining tickets 036 and 037, binding every supplied media file through a tracked hash manifest, and requiring timestamp-complete coverage of both recordings.
+- 2026-09-04T00:52:55Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572 — Retained the two maintenance tickets, added repository-visible raw-media ignore rules and a verified eleven-file hash manifest, and required a timestamp-indexed ledger to account for every distinct behavior across both recordings; the installed ticket checker and whitespace validation passed.
