@@ -1,11 +1,14 @@
-use rounds_sim::{AuthoritativeMatch, MatchSnapshot, PlayerInput, hash_snapshot};
+use rounds_sim::{
+    AuthoritativeMatch, MatchSnapshot, PlayerInput, ReplayProfile, TIMBER_IMPACT_TICK,
+    dynamic_body_digest, hash_snapshot,
+};
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
 pub const NETWORK_PROTOCOL: u16 = 2;
-pub const MAX_NETWORK_TICKS: u32 = 900;
+pub const MAX_NETWORK_TICKS: u32 = 1_800;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -15,6 +18,7 @@ enum ClientPacket {
         protocol: u16,
         client_id: u8,
         seed: u64,
+        profile: ReplayProfile,
     },
     Input {
         protocol: u16,
@@ -35,7 +39,7 @@ enum AuthorityPacket {
         protocol: u16,
         sequence: u32,
         state_hash: String,
-        state: MatchSnapshot,
+        state: Box<MatchSnapshot>,
     },
 }
 
@@ -49,6 +53,7 @@ pub struct ServerReport {
     pub first_snapshot_tick: u32,
     pub last_snapshot_tick: u32,
     pub state_hash: String,
+    pub dynamic_body_digest: String,
     pub state: MatchSnapshot,
 }
 
@@ -64,6 +69,8 @@ pub struct ClientSessionReport {
     pub snapshots_received: u32,
     pub first_snapshot_tick: u32,
     pub last_snapshot_tick: u32,
+    pub observed_pre_explosion_constraints: bool,
+    pub observed_post_explosion_release: bool,
     pub final_report: ServerReport,
 }
 
@@ -83,7 +90,12 @@ impl BoundServer {
         self.socket.local_addr()
     }
 
-    pub fn run(self, expected_seed: u64, expected_ticks: u32) -> Result<ServerReport, String> {
+    pub fn run(
+        self,
+        expected_seed: u64,
+        expected_ticks: u32,
+        expected_profile: ReplayProfile,
+    ) -> Result<ServerReport, String> {
         validate_tick_count(expected_ticks)?;
         let mut clients: [Option<SocketAddr>; 2] = [None, None];
         while clients.iter().any(Option::is_none) {
@@ -92,6 +104,7 @@ impl BoundServer {
                 protocol,
                 client_id,
                 seed,
+                profile,
             } = packet
             else {
                 return Err("input arrived before both client handshakes".to_owned());
@@ -102,6 +115,9 @@ impl BoundServer {
             }
             if seed != expected_seed {
                 return Err(format!("client {client_id} used the wrong seed"));
+            }
+            if profile != expected_profile {
+                return Err(format!("client {client_id} used the wrong replay profile"));
             }
             let slot = &mut clients[usize::from(client_id)];
             if slot.is_some() {
@@ -120,7 +136,7 @@ impl BoundServer {
                 },
             )?;
         }
-        let mut simulation = AuthoritativeMatch::new(expected_seed);
+        let mut simulation = AuthoritativeMatch::new_with_profile(expected_seed, expected_profile);
         let mut final_state = None;
         for sequence in 0..expected_ticks {
             let mut inputs = [None, None];
@@ -159,7 +175,7 @@ impl BoundServer {
                 protocol: NETWORK_PROTOCOL,
                 sequence,
                 state_hash: state_hash.clone(),
-                state: state.clone(),
+                state: Box::new(state.clone()),
             };
             for address in clients {
                 send_authority(&self.socket, address, &packet)?;
@@ -175,6 +191,7 @@ impl BoundServer {
             first_snapshot_tick: 1,
             last_snapshot_tick: state.tick,
             state_hash,
+            dynamic_body_digest: dynamic_body_digest(&state),
             state,
         })
     }
@@ -184,6 +201,7 @@ pub fn send_inputs(
     address: impl ToSocketAddrs,
     client_id: u8,
     seed: u64,
+    profile: ReplayProfile,
     inputs: &[PlayerInput],
 ) -> Result<ClientSessionReport, String> {
     if client_id > 1 {
@@ -207,6 +225,7 @@ pub fn send_inputs(
             protocol: NETWORK_PROTOCOL,
             client_id,
             seed,
+            profile,
         },
     )?;
     match receive_authority(&socket, server)? {
@@ -218,6 +237,8 @@ pub fn send_inputs(
     }
 
     let mut last = None;
+    let mut observed_pre_explosion_constraints = false;
+    let mut observed_post_explosion_release = false;
     for (sequence, input) in inputs.iter().copied().enumerate() {
         let sequence = sequence as u32;
         send_client(
@@ -247,7 +268,24 @@ pub fn send_inputs(
                 if state_hash != hash_snapshot(&state) {
                     return Err("authority snapshot hash did not match its payload".to_owned());
                 }
-                last = Some((state, state_hash));
+                if profile == ReplayProfile::TimberCollapseReplay {
+                    if state.tick < TIMBER_IMPACT_TICK
+                        && !state.constraints.is_empty()
+                        && state.constraints.iter().all(|constraint| constraint.active)
+                    {
+                        observed_pre_explosion_constraints = true;
+                    }
+                    if state.tick >= TIMBER_IMPACT_TICK
+                        && !state.explosions.is_empty()
+                        && state
+                            .constraints
+                            .iter()
+                            .any(|constraint| !constraint.active)
+                    {
+                        observed_post_explosion_release = true;
+                    }
+                }
+                last = Some((*state, state_hash));
             }
             AuthorityPacket::Welcome { .. } => {
                 return Err("authority repeated its handshake".to_owned());
@@ -266,6 +304,8 @@ pub fn send_inputs(
         snapshots_received: ticks,
         first_snapshot_tick: 1,
         last_snapshot_tick: ticks,
+        observed_pre_explosion_constraints,
+        observed_post_explosion_release,
         final_report: ServerReport {
             protocol: NETWORK_PROTOCOL,
             clients_handshaken: 2,
@@ -274,6 +314,7 @@ pub fn send_inputs(
             first_snapshot_tick: 1,
             last_snapshot_tick: ticks,
             state_hash,
+            dynamic_body_digest: dynamic_body_digest(&state),
             state,
         },
     })
@@ -364,12 +405,15 @@ mod tests {
         let scripts = scripted_inputs(seed, ticks);
         let server = BoundServer::bind("127.0.0.1:0").unwrap();
         let address = server.local_addr().unwrap();
-        let server_thread = thread::spawn(move || server.run(seed, ticks).unwrap());
+        let profile = ReplayProfile::TimberCollapseReplay;
+        let server_thread = thread::spawn(move || server.run(seed, ticks, profile).unwrap());
         let clients = scripts
             .into_iter()
             .enumerate()
             .map(|(client_id, inputs)| {
-                thread::spawn(move || send_inputs(address, client_id as u8, seed, &inputs).unwrap())
+                thread::spawn(move || {
+                    send_inputs(address, client_id as u8, seed, profile, &inputs).unwrap()
+                })
             })
             .collect::<Vec<_>>();
         let reports = clients
@@ -383,5 +427,19 @@ mod tests {
         assert_eq!(reports[0].final_report, reports[1].final_report);
         assert_eq!(reports[0].final_report, server_report);
         assert_eq!(server_report.state_hash, local_hash);
+        assert!(
+            reports
+                .iter()
+                .all(|report| report.observed_pre_explosion_constraints)
+        );
+        assert!(
+            reports
+                .iter()
+                .all(|report| report.observed_post_explosion_release)
+        );
+        assert_eq!(
+            server_report.dynamic_body_digest,
+            dynamic_body_digest(&server_report.state)
+        );
     }
 }

@@ -441,3 +441,13 @@ The existing private physics boundary remains: `bevy_rapier2d` 0.36.0 resolves `
 Presentation first uses Bevy 0.19's public bloom, chromatic-aberration, and lens-distortion components; custom fullscreen machinery is allowed only after a source comparison demonstrates a concrete missing effect.
 The slice extends the shipped replay, capture, and smoke paths rather than creating another evidence launcher, and support plus test growth must remain smaller than the product behavior it protects.
 Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/01a06af4-05f6-7233-a557-3f5709224503` admitted the corrected contract at risk 4 with no findings after independently decoding the source sequence and confirming feasibility, ordering after closed ticket 039, and absence of an open human decision.
+
+## 2026-09-04 — Model the timber collapse with released fixed joints and retained ropes
+
+The first reactive-world profile uses 17 dynamic timber bodies held in their intact silhouette by project-owned fixed joints and two dynamic circular weights attached by rope joints.
+At tick 864 one authoritative explosion releases the fixed joints, wakes and radially impulses the 16 bodies inside its 520-unit radius, and leaves both rope joints intact.
+This is the smallest real Rapier configuration that reproduces the observed intact-to-collapse transition while keeping every post-impact pose contact-derived; it does not claim the original game's hidden joint graph or card constants.
+
+Presentation uses Bevy 0.19's built-in HDR `Bloom`, `ChromaticAberration`, and `LensDistortion` components on both the offscreen and visible cameras.
+Direct comparison found remaining differences in scale, duration, irregularity, and debris density, but did not establish a missing effect that required a custom fullscreen pass.
+The project therefore keeps the render boundary at public Bevy components and snapshot-derived ordinary scene entities.

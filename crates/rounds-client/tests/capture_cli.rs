@@ -43,14 +43,14 @@ fn capture_rejects_resolved_equivalent_destinations_before_writing() {
 #[test]
 fn capture_replay_rejects_metadata_aliasing_an_anchor_before_writing() {
     let directory = test_directory("capture-replay-alias");
-    let metadata = directory.join("0020-spawn.png");
+    let metadata = directory.join("0000-intact.png");
     let output = Command::new(env!("CARGO_BIN_EXE_rounds-client"))
         .args([
             "capture-replay",
             "--seed",
             "38",
             "--ticks",
-            "786",
+            "1440",
             "--output-dir",
         ])
         .arg(&directory)

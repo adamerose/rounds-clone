@@ -1,5 +1,5 @@
 use rounds_network::{ClientSessionReport, NETWORK_PROTOCOL, ServerReport};
-use rounds_sim::{REPLAY_TICKS, run_scripted_match};
+use rounds_sim::{REPLAY_TICKS, ReplayProfile, dynamic_body_digest, run_profile_match};
 use serde::Serialize;
 use std::env;
 use std::fs;
@@ -24,6 +24,8 @@ struct SmokeEvidence {
     clients_agree: bool,
     local_host_agrees: bool,
     live_rendered_state_agrees: bool,
+    progressive_explosion_transition_observed: bool,
+    dynamic_body_digest: String,
     live_frame_path: String,
     live_metadata_path: String,
     state_hash: String,
@@ -77,8 +79,9 @@ fn run() -> Result<(), String> {
 fn smoke(arguments: &[String]) -> Result<(), String> {
     let ticks = argument(arguments, "--ticks", REPLAY_TICKS)?;
     let seed = argument(arguments, "--seed", 38_u64)?;
+    let profile = argument(arguments, "--profile", ReplayProfile::default())?;
     let output_dir = optional_path_argument(arguments, "--output-dir")
-        .unwrap_or_else(|| PathBuf::from("out/ticket-039/smoke"));
+        .unwrap_or_else(|| PathBuf::from("out/ticket-040/smoke"));
     fs::create_dir_all(&output_dir)
         .map_err(|error| format!("create {}: {error}", output_dir.display()))?;
     let live_frame = output_dir.join("live-client-0.png");
@@ -94,6 +97,8 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 &ticks.to_string(),
                 "--seed",
                 &seed.to_string(),
+                "--profile",
+                profile.name(),
             ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -131,6 +136,8 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 &ticks.to_string(),
                 "--seed",
                 &seed.to_string(),
+                "--profile",
+                profile.name(),
             ]);
             if client_id == 0 {
                 command
@@ -181,6 +188,8 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             &ticks.to_string(),
             "--seed",
             &seed.to_string(),
+            "--profile",
+            profile.name(),
         ])
         .output()
         .map_err(|error| format!("start local client-host: {error}"))?;
@@ -212,7 +221,12 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
         );
     }
     let handshakes_complete = reports.iter().all(|report| report.handshake_complete);
+    let progressive_explosion_transition_observed = reports.iter().all(|report| {
+        report.observed_pre_explosion_constraints && report.observed_post_explosion_release
+    });
     if !handshakes_complete
+        || (profile == ReplayProfile::TimberCollapseReplay
+            && !progressive_explosion_transition_observed)
         || reports
             .iter()
             .any(|report| report.snapshots_received != ticks)
@@ -236,6 +250,8 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             clients_agree,
             local_host_agrees,
             live_rendered_state_agrees,
+            progressive_explosion_transition_observed,
+            dynamic_body_digest: server_report.dynamic_body_digest,
             live_frame_path: slash_path(&live_frame),
             live_metadata_path: slash_path(&live_metadata),
             state_hash: server_report.state_hash,
@@ -281,7 +297,8 @@ fn read_client_report(
 fn inspect(arguments: &[String]) -> Result<(), String> {
     let ticks = argument(arguments, "--ticks", REPLAY_TICKS)?;
     let seed = argument(arguments, "--seed", 38_u64)?;
-    let (state, state_hash) = run_scripted_match(seed, ticks);
+    let profile = argument(arguments, "--profile", ReplayProfile::default())?;
+    let (state, state_hash) = run_profile_match(profile, seed, ticks);
     let report = ServerReport {
         protocol: NETWORK_PROTOCOL,
         clients_handshaken: 2,
@@ -290,6 +307,7 @@ fn inspect(arguments: &[String]) -> Result<(), String> {
         first_snapshot_tick: 1,
         last_snapshot_tick: ticks,
         state_hash,
+        dynamic_body_digest: dynamic_body_digest(&state),
         state,
     };
     println!(

@@ -12,11 +12,11 @@ No interval is unclassified.
 | `S0-foundation` | Bevy ECS fixed ticks, two-player scripted input, movement, jump, fire, block, hits, UDP client-host and headless authority, bounded state, deterministic PNG capture | implemented scaffold; not fidelity evidence |
 | `S1-flow-draft` | reproduce card offers, readable card faces, player reveal, pick input, inter-round handoff, waiting and rematch screens | unresolved fidelity gap |
 | `S2-static-duel` | reproduce base locomotion, aim, gun, block, health, death and a footage-matched static arena end to end | first sub-slice implemented at recording `1460e670…15f9` 00:22.50–00:35.60; remaining static duels unresolved |
-| `S3-arena-motion` | reproduce suspended, rotating, sliding and articulated arena pieces with authoritative networked physics | unresolved fidelity gap |
-| `S4-reactive-world` | reproduce destructible platforms, debris, explosions, ice and other reactive arena materials | unresolved fidelity gap |
+| `S3-arena-motion` | reproduce suspended, rotating, sliding and articulated arena pieces with authoritative networked physics | first suspended-weight and released-joint sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; remaining arena motion unresolved |
+| `S4-reactive-world` | reproduce destructible platforms, debris, explosions, ice and other reactive arena materials | first explosive timber-collapse sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; ice and remaining reactive worlds unresolved |
 | `S5-card-combat` | reproduce every visible named card and its stacked combat interaction across rounds | unresolved fidelity gap |
 | `S6-match` | reproduce round, half, score, color handoff, match completion and rematch cadence | unresolved fidelity gap |
-| `S7-presentation` | reproduce characters, lighting, camera, shake, trails, hit-stop, chromatic/radial effects, particles, text and audio | unresolved fidelity gap |
+| `S7-presentation` | reproduce characters, lighting, camera, shake, trails, hit-stop, chromatic/radial effects, particles, text and audio | first static-duel and explosive-collapse visual sub-slices implemented; audio, hit-stop, and remaining presentation unresolved |
 | `S8-online` | replace the localhost scripted UDP scaffold with production online prediction, interpolation, reconciliation and eventual Steam transport | unresolved fidelity gap; Steam is not implemented |
 
 The first `S2-static-duel` interval retains the `S0-foundation` process boundaries but replaces their placeholder physics, renderer, and batch transport.
@@ -48,9 +48,10 @@ Source: `reference/MedalTVRounds20260903165304088.mp4`, duration `600.13` second
 | 02:50–03:00 | `EXPLOSIVE BULLET` draft choice | S1, S5, S7 |
 | 03:00–03:10 | `LIFESTEALER` draft choice | S1, S5, S7 |
 | 03:10–03:20 | card reveal and selection | S1, S5, S7 |
-| 03:20–03:30 | swinging structure over reactive floor | S2, S3, S4, S5, S7, S8 |
-| 03:30–03:40 | structure damage and falling pieces | S2, S3, S4, S5, S7, S8 |
-| 03:40–03:50 | collapse, debris and combat | S2, S3, S4, S5, S7, S8 |
+| 03:20–03:26 | approach to the timber arena interval | S2, S3, S4, S5, S7, S8 |
+| 03:26–03:30 | intact stacked timber, suspended weights, reactive floor and combat | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
+| 03:30–03:40 | intact timber combat and upper-left projectile approach | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
+| 03:40–03:50 | explosion, released structure, collapse, debris settlement and continued combat | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
 | 03:50–04:00 | `HALF ORANGE` result overlay | S6, S7 |
 | 04:00–04:10 | ice arena duel | S2, S4, S5, S7, S8 |
 | 04:10–04:20 | `QUICK SHOT` draft choice | S1, S5, S7 |

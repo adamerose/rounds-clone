@@ -1,8 +1,12 @@
 use bevy::{
     app::SubApps,
     asset::RenderAssetUsages,
-    camera::RenderTarget,
+    camera::{Hdr, RenderTarget},
     image::Image,
+    post_process::{
+        bloom::Bloom,
+        effect_stack::{ChromaticAberration, LensDistortion},
+    },
     prelude::*,
     render::{
         RenderPlugin,
@@ -13,7 +17,7 @@ use bevy::{
     window::{ExitCondition, Monitor, OnMonitor, PrimaryWindow},
     winit::WinitPlugin,
 };
-use rounds_sim::MatchSnapshot;
+use rounds_sim::{DynamicBodyShape, MatchSnapshot, ReplayProfile};
 use sha2::{Digest, Sha256};
 use std::{
     path::Path,
@@ -23,7 +27,7 @@ use std::{
 
 pub const FRAME_WIDTH: u32 = 1_280;
 pub const FRAME_HEIGHT: u32 = 720;
-pub const RENDERER_IDENTITY: &str = "bevy-0.19.1-2d-offscreen";
+pub const RENDERER_IDENTITY: &str = "bevy-0.19.1-2d-hdr-bloom-chromatic-aberration-lens-distortion";
 const CAPTURE_TIMEOUT: Duration = Duration::from_secs(15);
 const DEVICE_POLL_TIMEOUT: Duration = Duration::from_secs(2);
 const PROJECT_DISPLAY_POSITION: IVec2 = IVec2::new(364, -1_080);
@@ -200,7 +204,7 @@ fn create_monitor_four_window(
     };
     commands.spawn((
         Window {
-            title: "ROUNDS clone — teal duel".to_owned(),
+            title: "ROUNDS clone — authoritative replay".to_owned(),
             resolution: (FRAME_WIDTH, FRAME_HEIGHT).into(),
             position: WindowPosition::Centered(MonitorSelection::Entity(monitor_entity)),
             visible: false,
@@ -290,16 +294,22 @@ fn setup_offscreen_scene(
     snapshot: Res<SceneSnapshot>,
     target: Res<CaptureTarget>,
 ) {
+    let (transform, bloom, chromatic, lens) = camera_state(&snapshot.0);
     commands.spawn((
         Camera2d,
+        Hdr,
         RenderTarget::Image(target.0.clone().into()),
-        camera_transform(&snapshot.0),
+        transform,
+        bloom,
+        chromatic,
+        lens,
     ));
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot.0);
 }
 
 fn setup_visible_scene(mut commands: Commands, snapshot: Res<SceneSnapshot>) {
-    commands.spawn((Camera2d, camera_transform(&snapshot.0)));
+    let (transform, bloom, chromatic, lens) = camera_state(&snapshot.0);
+    commands.spawn((Camera2d, Hdr, transform, bloom, chromatic, lens));
 }
 
 fn advance_visible_scene(
@@ -307,7 +317,15 @@ fn advance_visible_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     visuals: Query<Entity, With<SceneVisual>>,
-    mut camera: Single<&mut Transform, With<Camera2d>>,
+    mut camera: Single<
+        (
+            &mut Transform,
+            &mut Bloom,
+            &mut ChromaticAberration,
+            &mut LensDistortion,
+        ),
+        With<Camera2d>,
+    >,
     mut replay: ResMut<VisibleReplay>,
     mut lifetime: ResMut<VisibleLifetime>,
 ) {
@@ -318,7 +336,11 @@ fn advance_visible_scene(
         commands.entity(entity).despawn();
     }
     let snapshot = &replay.snapshots[replay.next];
-    **camera = camera_transform(snapshot);
+    let (transform, bloom, chromatic, lens) = camera_state(snapshot);
+    *camera.0 = transform;
+    *camera.1 = bloom;
+    *camera.2 = chromatic;
+    *camera.3 = lens;
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
     replay.next += 1;
     if replay.next == replay.snapshots.len() {
@@ -364,14 +386,40 @@ fn is_project_display(monitor: &Monitor) -> bool {
         && monitor.physical_size() == PROJECT_DISPLAY_SIZE
 }
 
-fn camera_transform(snapshot: &MatchSnapshot) -> Transform {
-    let camera_nudge = snapshot
+fn camera_state(
+    snapshot: &MatchSnapshot,
+) -> (Transform, Bloom, ChromaticAberration, LensDistortion) {
+    let player_nudge = snapshot
         .players
         .iter()
         .map(|player| player.velocity_x_milli_per_second)
         .sum::<i32>() as f32
         / 600_000.0;
-    Transform::from_xyz(camera_nudge.clamp(-5.0, 5.0), 0.0, 0.0)
+    let explosion_age = snapshot
+        .explosions
+        .last()
+        .map(|explosion| snapshot.tick.saturating_sub(explosion.tick));
+    let envelope = explosion_age
+        .map(|age| (1.0 - age as f32 / 54.0).clamp(0.0, 1.0))
+        .unwrap_or(0.0);
+    let shake_x = (snapshot.tick as f32 * 2.31).sin() * 15.0 * envelope;
+    let shake_y = (snapshot.tick as f32 * 1.73).cos() * 10.0 * envelope;
+    let transform = Transform::from_xyz(player_nudge.clamp(-5.0, 5.0) + shake_x, shake_y, 0.0);
+    let bloom = Bloom {
+        intensity: 0.22 + envelope * 0.55,
+        ..Bloom::NATURAL
+    };
+    let chromatic = ChromaticAberration {
+        intensity: envelope * 0.035,
+        max_samples: 12,
+        ..default()
+    };
+    let lens = LensDistortion {
+        intensity: envelope * -0.10,
+        scale: 1.0 + envelope * 0.035,
+        ..default()
+    };
+    (transform, bloom, chromatic, lens)
 }
 
 fn spawn_snapshot_scene(
@@ -380,13 +428,25 @@ fn spawn_snapshot_scene(
     materials: &mut Assets<ColorMaterial>,
     snapshot: &MatchSnapshot,
 ) {
+    let profile = snapshot
+        .profile
+        .parse::<ReplayProfile>()
+        .unwrap_or(ReplayProfile::TealDuelReplay);
+    let timber_scene = profile == ReplayProfile::TimberCollapseReplay;
     let circle = meshes.add(Circle::new(22.0));
     let block_ring = meshes.add(Annulus::new(29.0, 33.0));
     let bullet = meshes.add(Circle::new(5.0));
 
     commands.spawn((
         SceneVisual,
-        Sprite::from_color(Color::srgb_u8(2, 48, 54), Vec2::new(1_280.0, 720.0)),
+        Sprite::from_color(
+            if timber_scene {
+                Color::srgb_u8(2, 32, 49)
+            } else {
+                Color::srgb_u8(2, 48, 54)
+            },
+            Vec2::new(1_280.0, 720.0),
+        ),
         Transform::from_xyz(0.0, 0.0, -100.0),
     ));
     let drift = snapshot.tick as f32 * 0.035;
@@ -398,7 +458,11 @@ fn spawn_snapshot_scene(
         commands.spawn((
             SceneVisual,
             Sprite::from_color(
-                if index % 2 == 0 {
+                if timber_scene && index % 2 == 0 {
+                    Color::srgba_u8(5, 59, 78, 65)
+                } else if timber_scene {
+                    Color::srgba_u8(0, 20, 42, 74)
+                } else if index % 2 == 0 {
                     Color::srgba_u8(9, 77, 76, 78)
                 } else {
                     Color::srgba_u8(0, 30, 57, 68)
@@ -415,7 +479,7 @@ fn spawn_snapshot_scene(
         let y = surface.center_y_milli as f32 / 1_000.0;
         let width = surface.width_milli as f32 / 1_000.0;
         let height = surface.height_milli as f32 / 1_000.0;
-        if surface.id < 10 {
+        if surface.id < 10 && !timber_scene {
             let direction = if x < 0.0 { -1.0 } else { 1.0 };
             let shadow_length = 560.0;
             commands.spawn((
@@ -440,6 +504,131 @@ fn spawn_snapshot_scene(
             ),
             Transform::from_xyz(x, y, 0.0),
         ));
+    }
+
+    for constraint in snapshot.constraints.iter().filter(|constraint| {
+        constraint.active && constraint.kind == rounds_sim::ConstraintKind::Rope
+    }) {
+        let Some(body) = snapshot
+            .dynamic_bodies
+            .iter()
+            .find(|body| body.id == constraint.body_b)
+        else {
+            continue;
+        };
+        let anchor = Vec2::new(
+            constraint.anchor_x_milli as f32 / 1_000.0,
+            constraint.anchor_y_milli as f32 / 1_000.0,
+        );
+        let position = Vec2::new(body.x_milli as f32 / 1_000.0, body.y_milli as f32 / 1_000.0);
+        let segment = position - anchor;
+        commands.spawn((
+            SceneVisual,
+            Sprite::from_color(
+                Color::srgba_u8(130, 79, 54, 170),
+                Vec2::new(segment.length(), 2.0),
+            ),
+            Transform::from_xyz(anchor.x + segment.x * 0.5, anchor.y + segment.y * 0.5, -4.0)
+                .with_rotation(Quat::from_rotation_z(segment.y.atan2(segment.x))),
+        ));
+    }
+
+    for body in &snapshot.dynamic_bodies {
+        let x = body.x_milli as f32 / 1_000.0;
+        let y = body.y_milli as f32 / 1_000.0;
+        let rotation = body.rotation_milliradians as f32 / 1_000.0;
+        let color = Color::srgb_u8(body.face_rgb[0], body.face_rgb[1], body.face_rgb[2]);
+        let (width, height) = match body.shape {
+            DynamicBodyShape::Timber => (
+                body.width_milli as f32 / 1_000.0,
+                body.height_milli as f32 / 1_000.0,
+            ),
+            DynamicBodyShape::Weight => {
+                let diameter = body.radius_milli as f32 / 500.0;
+                (diameter, diameter)
+            }
+        };
+        commands.spawn((
+            SceneVisual,
+            Sprite::from_color(
+                Color::srgba_u8(0, 8, 25, 125),
+                Vec2::new(width * 1.04, height * 1.04),
+            ),
+            Transform::from_xyz(x + 13.0, y - 15.0, -3.0)
+                .with_rotation(Quat::from_rotation_z(rotation)),
+        ));
+        if body.shape == DynamicBodyShape::Weight {
+            commands.spawn((
+                SceneVisual,
+                Mesh2d(meshes.add(Circle::new(body.radius_milli as f32 / 1_000.0))),
+                MeshMaterial2d(materials.add(color)),
+                Transform::from_xyz(x, y, 1.0),
+            ));
+        } else {
+            commands.spawn((
+                SceneVisual,
+                Sprite::from_color(color, Vec2::new(width, height)),
+                Transform::from_xyz(x, y, 1.0).with_rotation(Quat::from_rotation_z(rotation)),
+            ));
+        }
+    }
+
+    if let Some(explosion) = snapshot.explosions.last() {
+        let age = snapshot.tick.saturating_sub(explosion.tick);
+        if age <= 90 {
+            let center = Vec2::new(
+                explosion.x_milli as f32 / 1_000.0,
+                explosion.y_milli as f32 / 1_000.0,
+            );
+            let envelope = (1.0 - age as f32 / 90.0).max(0.0);
+            let core_radius = 18.0 + age as f32 * 2.8;
+            commands.spawn((
+                SceneVisual,
+                Mesh2d(meshes.add(Circle::new(core_radius))),
+                MeshMaterial2d(materials.add(Color::linear_rgba(
+                    9.0 * envelope,
+                    2.8 * envelope,
+                    0.18,
+                    0.92,
+                ))),
+                Transform::from_xyz(center.x, center.y, 20.0),
+            ));
+            for lobe in 0..11 {
+                let angle = lobe as f32 * 2.399 + age as f32 * 0.012;
+                let distance = 22.0 + age as f32 * (1.1 + (lobe % 4) as f32 * 0.18);
+                let size = (38.0 - age as f32 * 0.28).max(4.0) * (0.75 + (lobe % 3) as f32 * 0.18);
+                commands.spawn((
+                    SceneVisual,
+                    Mesh2d(meshes.add(Circle::new(size))),
+                    MeshMaterial2d(materials.add(Color::linear_rgba(
+                        5.5 * envelope,
+                        (0.7 + (lobe % 2) as f32) * envelope,
+                        0.08,
+                        0.82,
+                    ))),
+                    Transform::from_xyz(
+                        center.x + angle.cos() * distance,
+                        center.y + angle.sin() * distance,
+                        19.0,
+                    ),
+                ));
+            }
+            for spark in 0..28 {
+                let angle = spark as f32 * 0.91 + 0.37;
+                let speed = 3.2 + (spark % 7) as f32 * 0.55;
+                let distance = age as f32 * speed;
+                let end = center + Vec2::new(angle.cos(), angle.sin()) * distance;
+                commands.spawn((
+                    SceneVisual,
+                    Sprite::from_color(
+                        Color::linear_rgba(7.0 * envelope, 2.0 * envelope, 0.1, 0.9),
+                        Vec2::new(4.0 + age as f32 * 0.13, 2.0),
+                    ),
+                    Transform::from_xyz(end.x, end.y - age as f32 * age as f32 * 0.018, 21.0)
+                        .with_rotation(Quat::from_rotation_z(angle)),
+                ));
+            }
+        }
     }
 
     for player in &snapshot.players {
@@ -543,11 +732,11 @@ fn spawn_snapshot_scene(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rounds_sim::run_scripted_match;
+    use rounds_sim::{TIMBER_IMPACT_TICK, hash_snapshot, run_scripted_match};
 
     #[test]
     fn bevy_offscreen_renderer_writes_a_full_size_png() {
-        let (snapshot, _) = run_scripted_match(38, 320);
+        let (snapshot, state_hash) = run_scripted_match(40, TIMBER_IMPACT_TICK);
         let path = std::env::temp_dir().join(format!(
             "rounds-bevy-render-{}-{}.png",
             std::process::id(),
@@ -560,6 +749,8 @@ mod tests {
         assert_eq!(reader.info().width, FRAME_WIDTH);
         assert_eq!(reader.info().height, FRAME_HEIGHT);
         assert_eq!(frame_sha256(&first).len(), 64);
+        assert_eq!(hash_snapshot(&snapshot), state_hash);
+        assert_eq!(snapshot.explosions.len(), 1);
         std::fs::remove_file(path).unwrap();
     }
 }

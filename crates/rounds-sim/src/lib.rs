@@ -1,18 +1,25 @@
 use bevy_ecs::prelude::*;
 use bevy_rapier2d::rapier::prelude::{
-    ColliderBuilder, ColliderHandle, Group, InteractionGroups, InteractionTestMode,
-    PhysicsWorld as RapierWorld, RigidBodyBuilder, RigidBodyHandle, Vector,
+    ColliderBuilder, ColliderHandle, FixedJointBuilder, GenericJoint, Group, ImpulseJointHandle,
+    InteractionGroups, InteractionTestMode, PhysicsWorld as RapierWorld, RigidBodyBuilder,
+    RigidBodyHandle, RopeJointBuilder, Vector,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 pub const TICKS_PER_SECOND: u32 = 60;
-pub const REPLAY_TICKS: u32 = 786;
+pub const REPLAY_TICKS: u32 = 1_440;
 pub const MAX_INSPECTED_PROJECTILES: usize = 64;
-pub const REPLAY_PROFILE: &str = "teal-duel-replay";
-pub const SOURCE_INTERVAL: &str = "00:22.50-00:35.60";
-pub const SOURCE_SHA256: &str = "1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9";
+pub const REPLAY_PROFILE: &str = "timber-collapse-replay";
+pub const SOURCE_INTERVAL: &str = "03:26.00-03:50.00";
+pub const SOURCE_SHA256: &str = "453954a7230401ed805be4e53dec41779a1913dfd69903671fc131fca2c8a18c";
+pub const TIMBER_IMPACT_TICK: u32 = 864;
+pub const TEAL_REPLAY_TICKS: u32 = 786;
+pub const TEAL_REPLAY_PROFILE: &str = "teal-duel-replay";
+pub const TEAL_SOURCE_INTERVAL: &str = "00:22.50-00:35.60";
+pub const TEAL_SOURCE_SHA256: &str =
+    "1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9";
 
 const PLAYER_RADIUS: f32 = 22.0;
 const RUN_SPEED: f32 = 220.0;
@@ -28,6 +35,69 @@ const RECOIL_IMPULSE: f32 = 72.0;
 const HIT_IMPULSE: f32 = 420.0;
 const KILL_X: f32 = 760.0;
 const KILL_Y: f32 = -440.0;
+const DYNAMIC_GROUP: Group = Group::GROUP_6;
+const TIMBER_EXPLOSION_CENTER: Vector = Vector::new(-245.0, 135.0);
+const TIMBER_EXPLOSION_RADIUS: f32 = 520.0;
+const TIMBER_EXPLOSION_IMPULSE: f32 = 4_800.0;
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ReplayProfile {
+    TealDuelReplay,
+    #[default]
+    TimberCollapseReplay,
+}
+
+impl ReplayProfile {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::TealDuelReplay => TEAL_REPLAY_PROFILE,
+            Self::TimberCollapseReplay => REPLAY_PROFILE,
+        }
+    }
+
+    pub fn replay_ticks(self) -> u32 {
+        match self {
+            Self::TealDuelReplay => TEAL_REPLAY_TICKS,
+            Self::TimberCollapseReplay => REPLAY_TICKS,
+        }
+    }
+
+    pub fn source_interval(self) -> &'static str {
+        match self {
+            Self::TealDuelReplay => TEAL_SOURCE_INTERVAL,
+            Self::TimberCollapseReplay => SOURCE_INTERVAL,
+        }
+    }
+
+    pub fn source_sha256(self) -> &'static str {
+        match self {
+            Self::TealDuelReplay => TEAL_SOURCE_SHA256,
+            Self::TimberCollapseReplay => SOURCE_SHA256,
+        }
+    }
+
+    pub fn source_start_hundredths(self) -> u64 {
+        match self {
+            Self::TealDuelReplay => 2_250,
+            Self::TimberCollapseReplay => 20_600,
+        }
+    }
+}
+
+impl std::str::FromStr for ReplayProfile {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            TEAL_REPLAY_PROFILE => Ok(Self::TealDuelReplay),
+            REPLAY_PROFILE => Ok(Self::TimberCollapseReplay),
+            _ => Err(format!(
+                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE} or {REPLAY_PROFILE}"
+            )),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 pub struct PlayerInput {
@@ -59,6 +129,61 @@ pub struct ArenaSurfaceSnapshot {
     pub width_milli: i32,
     pub height_milli: i32,
     pub face_rgb: [u8; 3],
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DynamicBodyShape {
+    Timber,
+    Weight,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DynamicBodySnapshot {
+    pub id: u16,
+    pub shape: DynamicBodyShape,
+    pub x_milli: i32,
+    pub y_milli: i32,
+    pub rotation_milliradians: i32,
+    pub velocity_x_milli_per_second: i32,
+    pub velocity_y_milli_per_second: i32,
+    pub angular_velocity_milliradians_per_second: i32,
+    pub width_milli: i32,
+    pub height_milli: i32,
+    pub radius_milli: i32,
+    pub face_rgb: [u8; 3],
+    pub sleeping: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConstraintKind {
+    Fixed,
+    Rope,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConstraintSnapshot {
+    pub id: u16,
+    pub body_a: Option<u16>,
+    pub body_b: u16,
+    pub kind: ConstraintKind,
+    pub anchor_x_milli: i32,
+    pub anchor_y_milli: i32,
+    pub active: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplosionSnapshot {
+    pub id: u16,
+    pub tick: u32,
+    pub x_milli: i32,
+    pub y_milli: i32,
+    pub radius_milli: i32,
+    pub impulse_milli: i32,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -106,6 +231,10 @@ pub struct CombatMetrics {
     pub health_scaled_knockbacks: u32,
     pub bullet_ccd_contacts: u32,
     pub ring_outs: u32,
+    pub dynamic_body_contacts: u32,
+    pub fighter_body_contact_ticks: u32,
+    pub released_constraints: u32,
+    pub explosion_impulsed_bodies: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -116,6 +245,9 @@ pub struct MatchSnapshot {
     pub profile: String,
     pub tick: u32,
     pub arena: Vec<ArenaSurfaceSnapshot>,
+    pub dynamic_bodies: Vec<DynamicBodySnapshot>,
+    pub constraints: Vec<ConstraintSnapshot>,
+    pub explosions: Vec<ExplosionSnapshot>,
     pub players: Vec<PlayerSnapshot>,
     pub projectiles: Vec<ProjectileSnapshot>,
     pub metrics: CombatMetrics,
@@ -140,6 +272,26 @@ struct ProjectileState {
     owner: u8,
 }
 
+#[derive(Component, Clone, Copy)]
+struct DynamicBodyState {
+    id: u16,
+    shape: DynamicBodyShape,
+    width: f32,
+    height: f32,
+    radius: f32,
+    face_rgb: [u8; 3],
+}
+
+#[derive(Component, Clone, Copy)]
+struct ConstraintState {
+    id: u16,
+    body_a: Option<u16>,
+    body_b: u16,
+    kind: ConstraintKind,
+    anchor: Vector,
+    active: bool,
+}
+
 #[derive(Clone, Copy)]
 struct PlayerPhysics {
     body: RigidBodyHandle,
@@ -154,22 +306,104 @@ struct BulletPhysics {
     lifetime: u16,
 }
 
+#[derive(Clone, Copy)]
+struct DynamicBodyPhysics {
+    body: RigidBodyHandle,
+    collider: ColliderHandle,
+}
+
+#[derive(Clone, Copy)]
+struct ConstraintPhysics {
+    handle: ImpulseJointHandle,
+    release_on_explosion: bool,
+    active: bool,
+}
+
+#[derive(Clone, Copy)]
+struct DynamicBodyDefinition {
+    id: u16,
+    shape: DynamicBodyShape,
+    position: Vector,
+    rotation: f32,
+    width: f32,
+    height: f32,
+    radius: f32,
+    face_rgb: [u8; 3],
+}
+
+fn timber_body_definitions() -> Vec<DynamicBodyDefinition> {
+    const TIMBER: [u8; 3] = [124, 39, 48];
+    const DARK_TIMBER: [u8; 3] = [83, 28, 39];
+    const WEIGHT: [u8; 3] = [98, 42, 59];
+    let timber = |id, x, y, rotation, width, height, color| DynamicBodyDefinition {
+        id,
+        shape: DynamicBodyShape::Timber,
+        position: Vector::new(x, y),
+        rotation,
+        width,
+        height,
+        radius: 0.0,
+        face_rgb: color,
+    };
+    vec![
+        timber(0, -210.0, -236.0, 0.0, 260.0, 30.0, DARK_TIMBER),
+        timber(1, 210.0, -236.0, 0.0, 260.0, 30.0, DARK_TIMBER),
+        timber(2, -322.0, -151.0, 0.0, 30.0, 170.0, TIMBER),
+        timber(3, -102.0, -151.0, 0.0, 30.0, 170.0, TIMBER),
+        timber(4, 102.0, -151.0, 0.0, 30.0, 170.0, TIMBER),
+        timber(5, 322.0, -151.0, 0.0, 30.0, 170.0, TIMBER),
+        timber(6, -212.0, -58.0, 0.0, 250.0, 30.0, DARK_TIMBER),
+        timber(7, 212.0, -58.0, 0.0, 250.0, 30.0, DARK_TIMBER),
+        timber(8, -102.0, 20.0, 0.0, 30.0, 140.0, TIMBER),
+        timber(9, 102.0, 20.0, 0.0, 30.0, 140.0, TIMBER),
+        timber(10, -205.0, 85.0, 0.42, 230.0, 28.0, TIMBER),
+        timber(11, 205.0, 85.0, -0.42, 230.0, 28.0, TIMBER),
+        timber(12, -72.0, 154.0, 0.0, 160.0, 27.0, DARK_TIMBER),
+        timber(13, 72.0, 154.0, 0.0, 160.0, 27.0, DARK_TIMBER),
+        timber(14, 0.0, 213.0, 0.0, 30.0, 106.0, TIMBER),
+        timber(15, -72.0, 262.0, 0.28, 150.0, 26.0, TIMBER),
+        timber(16, 72.0, 262.0, -0.28, 150.0, 26.0, TIMBER),
+        DynamicBodyDefinition {
+            id: 100,
+            shape: DynamicBodyShape::Weight,
+            position: Vector::new(-520.0, 70.0),
+            rotation: 0.0,
+            width: 0.0,
+            height: 0.0,
+            radius: 42.0,
+            face_rgb: WEIGHT,
+        },
+        DynamicBodyDefinition {
+            id: 101,
+            shape: DynamicBodyShape::Weight,
+            position: Vector::new(520.0, 70.0),
+            rotation: 0.0,
+            width: 0.0,
+            height: 0.0,
+            radius: 42.0,
+            face_rgb: WEIGHT,
+        },
+    ]
+}
+
 struct PhysicsBoundary {
     rapier: RapierWorld,
     players: [PlayerPhysics; 2],
     platforms: Vec<ColliderHandle>,
     bullets: BTreeMap<u32, BulletPhysics>,
+    dynamic_bodies: BTreeMap<u16, DynamicBodyPhysics>,
+    constraints: BTreeMap<u16, ConstraintPhysics>,
 }
 
 impl PhysicsBoundary {
-    fn new() -> Self {
+    fn new(profile: ReplayProfile) -> Self {
         let mut rapier = RapierWorld::new();
         rapier.gravity = Vector::new(0.0, -1_500.0);
         rapier.integration_parameters.dt = 1.0 / TICKS_PER_SECOND as f32;
         rapier.integration_parameters.max_ccd_substeps = 4;
         rapier.integration_parameters.normalized_max_linear_velocity = 5_000.0;
 
-        let platforms = teal_arena()
+        let platforms = arena_for_profile(profile)
             .iter()
             .map(|surface| {
                 let (_, collider) = rapier.insert(
@@ -185,23 +419,31 @@ impl PhysicsBoundary {
                     .restitution(0.02)
                     .collision_groups(groups(
                         Group::GROUP_3,
-                        Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_4 | Group::GROUP_5,
+                        Group::GROUP_1
+                            | Group::GROUP_2
+                            | Group::GROUP_4
+                            | Group::GROUP_5
+                            | DYNAMIC_GROUP,
                     )),
                 );
                 collider
             })
             .collect::<Vec<_>>();
 
-        let players = [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)].map(|(x, y, id)| {
+        let player_spawns = match profile {
+            ReplayProfile::TealDuelReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
+            ReplayProfile::TimberCollapseReplay => [(-500.0, -210.0, 0_u8), (500.0, -210.0, 1_u8)],
+        };
+        let players = player_spawns.map(|(x, y, id)| {
             let (membership, filter) = if id == 0 {
                 (
                     Group::GROUP_1,
-                    Group::GROUP_2 | Group::GROUP_3 | Group::GROUP_5,
+                    Group::GROUP_2 | Group::GROUP_3 | Group::GROUP_5 | DYNAMIC_GROUP,
                 )
             } else {
                 (
                     Group::GROUP_2,
-                    Group::GROUP_1 | Group::GROUP_3 | Group::GROUP_4,
+                    Group::GROUP_1 | Group::GROUP_3 | Group::GROUP_4 | DYNAMIC_GROUP,
                 )
             };
             let (body, collider) = rapier.insert(
@@ -213,7 +455,11 @@ impl PhysicsBoundary {
                     .ccd_enabled(true)
                     .can_sleep(false),
                 ColliderBuilder::ball(PLAYER_RADIUS)
-                    .density(0.004)
+                    .density(if profile == ReplayProfile::TimberCollapseReplay {
+                        0.02
+                    } else {
+                        0.004
+                    })
                     .friction(0.55)
                     .restitution(0.05)
                     .collision_groups(groups(membership, filter)),
@@ -221,12 +467,174 @@ impl PhysicsBoundary {
             PlayerPhysics { body, collider }
         });
 
-        Self {
+        let mut boundary = Self {
             rapier,
             players,
             platforms,
             bullets: BTreeMap::new(),
+            dynamic_bodies: BTreeMap::new(),
+            constraints: BTreeMap::new(),
+        };
+        if profile == ReplayProfile::TimberCollapseReplay {
+            boundary.insert_timber_structure();
         }
+        boundary
+    }
+
+    fn insert_timber_structure(&mut self) {
+        let anchor = self.rapier.insert_body(RigidBodyBuilder::fixed());
+        for definition in timber_body_definitions() {
+            let body_builder = RigidBodyBuilder::dynamic()
+                .translation(definition.position)
+                .rotation(definition.rotation)
+                .linear_damping(1.1)
+                .angular_damping(1.6)
+                .ccd_enabled(true);
+            let collider_builder = match definition.shape {
+                DynamicBodyShape::Timber => {
+                    ColliderBuilder::cuboid(definition.width * 0.5, definition.height * 0.5)
+                }
+                DynamicBodyShape::Weight => ColliderBuilder::ball(definition.radius),
+            }
+            .density(if definition.shape == DynamicBodyShape::Weight {
+                0.008
+            } else {
+                0.0045
+            })
+            .friction(0.82)
+            .restitution(0.08)
+            .collision_groups(groups(
+                DYNAMIC_GROUP,
+                Group::GROUP_1
+                    | Group::GROUP_2
+                    | Group::GROUP_3
+                    | Group::GROUP_4
+                    | Group::GROUP_5
+                    | DYNAMIC_GROUP,
+            ));
+            let (body, collider) = self.rapier.insert(body_builder, collider_builder);
+            self.dynamic_bodies
+                .insert(definition.id, DynamicBodyPhysics { body, collider });
+
+            let (constraint_id, joint, release_on_explosion): (u16, GenericJoint, bool) =
+                match definition.shape {
+                    DynamicBodyShape::Timber => (
+                        definition.id,
+                        FixedJointBuilder::new()
+                            .local_anchor1(definition.position)
+                            .local_anchor2(Vector::ZERO)
+                            .build()
+                            .into(),
+                        true,
+                    ),
+                    DynamicBodyShape::Weight => {
+                        let anchor_position = Vector::new(definition.position.x, 330.0);
+                        (
+                            1_000 + definition.id,
+                            RopeJointBuilder::new(anchor_position.distance(definition.position))
+                                .local_anchor1(anchor_position)
+                                .local_anchor2(Vector::ZERO)
+                                .build()
+                                .into(),
+                            false,
+                        )
+                    }
+                };
+            let handle = self.rapier.impulse_joints.insert(anchor, body, joint, true);
+            self.constraints.insert(
+                constraint_id,
+                ConstraintPhysics {
+                    handle,
+                    release_on_explosion,
+                    active: true,
+                },
+            );
+        }
+    }
+
+    fn release_explosion_constraints(&mut self) -> Vec<u16> {
+        let mut released = Vec::new();
+        for (id, constraint) in &mut self.constraints {
+            if constraint.release_on_explosion && constraint.active {
+                let _ = self.rapier.impulse_joints.remove(constraint.handle, true);
+                constraint.active = false;
+                released.push(*id);
+            }
+        }
+        released
+    }
+
+    fn apply_radial_explosion(&mut self, center: Vector, radius: f32, strength: f32) -> u32 {
+        let mut count = 0;
+        for body in self.dynamic_bodies.values() {
+            let rigid_body = &mut self.rapier.bodies[body.body];
+            let offset = rigid_body.translation() - center;
+            let distance = offset.length();
+            if distance >= radius {
+                continue;
+            }
+            let direction = (offset + Vector::new(0.0, 80.0)).normalize_or_zero();
+            let impulse = direction * strength * (1.0 - distance / radius).max(0.12);
+            rigid_body.apply_impulse(impulse, true);
+            rigid_body.apply_torque_impulse(
+                impulse.x.signum() * strength * 0.004 * (1.0 - distance / radius),
+                true,
+            );
+            rigid_body.wake_up(true);
+            count += 1;
+        }
+        count
+    }
+
+    fn dynamic_body_pose(&self, id: u16) -> Option<(Vector, f32, Vector, f32, bool)> {
+        self.dynamic_bodies.get(&id).map(|physics| {
+            let body = &self.rapier.bodies[physics.body];
+            (
+                body.translation(),
+                body.rotation().angle(),
+                body.linvel(),
+                body.angvel(),
+                body.is_sleeping(),
+            )
+        })
+    }
+
+    fn dynamic_contact_counts(&self) -> (u32, u32) {
+        let bodies = self.dynamic_bodies.values().collect::<Vec<_>>();
+        let mut body_contacts = 0;
+        for left in 0..bodies.len() {
+            for right in left + 1..bodies.len() {
+                if self
+                    .rapier
+                    .contact_pair(bodies[left].collider, bodies[right].collider)
+                    .is_some_and(|pair| pair.has_any_active_contact())
+                {
+                    body_contacts += 1;
+                }
+            }
+        }
+        let fighter_contacts = self
+            .players
+            .iter()
+            .flat_map(|player| {
+                bodies.iter().filter(move |body| {
+                    self.rapier
+                        .contact_pair(player.collider, body.collider)
+                        .is_some_and(|pair| pair.has_any_active_contact())
+                })
+            })
+            .count() as u32;
+        (body_contacts, fighter_contacts)
+    }
+
+    fn bullet_dynamic_contact(&self, id: u32) -> Option<u16> {
+        let bullet = self.bullets.get(&id)?;
+        self.dynamic_bodies.iter().find_map(|(body_id, body)| {
+            self.rapier
+                .contact_pair(bullet.collider, body.collider)
+                .is_some_and(|pair| pair.has_any_active_contact())
+                .then_some(*body_id)
+        })
     }
 
     fn set_player_control(&mut self, id: u8, input: PlayerInput, grounded: bool) -> bool {
@@ -301,6 +709,10 @@ impl PhysicsBoundary {
             self.rapier
                 .contact_pair(player, *platform)
                 .is_some_and(|pair| pair.has_any_active_contact())
+        }) || self.dynamic_bodies.values().any(|body| {
+            self.rapier
+                .contact_pair(player, body.collider)
+                .is_some_and(|pair| pair.has_any_active_contact())
         })
     }
 
@@ -370,15 +782,24 @@ pub struct AuthoritativeMatch {
     physics: PhysicsBoundary,
     player_entities: [Entity; 2],
     projectile_entities: BTreeMap<u32, Entity>,
+    dynamic_body_entities: BTreeMap<u16, Entity>,
+    constraint_entities: BTreeMap<u16, Entity>,
+    explosions: Vec<ExplosionSnapshot>,
+    profile: ReplayProfile,
     seed: u64,
     tick: u32,
     next_projectile_id: u32,
     metrics: CombatMetrics,
     winner: Option<u8>,
+    explosion_strength: f32,
 }
 
 impl AuthoritativeMatch {
     pub fn new(seed: u64) -> Self {
+        Self::new_with_profile(seed, ReplayProfile::default())
+    }
+
+    pub fn new_with_profile(seed: u64, profile: ReplayProfile) -> Self {
         let mut world = World::new();
         let player_entities = [0_u8, 1_u8].map(|id| {
             world
@@ -394,16 +815,76 @@ impl AuthoritativeMatch {
                 })
                 .id()
         });
+        let dynamic_body_entities = if profile == ReplayProfile::TimberCollapseReplay {
+            timber_body_definitions()
+                .into_iter()
+                .map(|definition| {
+                    let id = definition.id;
+                    let entity = world
+                        .spawn(DynamicBodyState {
+                            id,
+                            shape: definition.shape,
+                            width: definition.width,
+                            height: definition.height,
+                            radius: definition.radius,
+                            face_rgb: definition.face_rgb,
+                        })
+                        .id();
+                    (id, entity)
+                })
+                .collect()
+        } else {
+            BTreeMap::new()
+        };
+        let constraint_entities = if profile == ReplayProfile::TimberCollapseReplay {
+            timber_body_definitions()
+                .into_iter()
+                .map(|definition| {
+                    let (id, kind, anchor, active) = match definition.shape {
+                        DynamicBodyShape::Timber => (
+                            definition.id,
+                            ConstraintKind::Fixed,
+                            definition.position,
+                            true,
+                        ),
+                        DynamicBodyShape::Weight => (
+                            1_000 + definition.id,
+                            ConstraintKind::Rope,
+                            Vector::new(definition.position.x, 330.0),
+                            true,
+                        ),
+                    };
+                    let entity = world
+                        .spawn(ConstraintState {
+                            id,
+                            body_a: None,
+                            body_b: definition.id,
+                            kind,
+                            anchor,
+                            active,
+                        })
+                        .id();
+                    (id, entity)
+                })
+                .collect()
+        } else {
+            BTreeMap::new()
+        };
         Self {
             world,
-            physics: PhysicsBoundary::new(),
+            physics: PhysicsBoundary::new(profile),
             player_entities,
             projectile_entities: BTreeMap::new(),
+            dynamic_body_entities,
+            constraint_entities,
+            explosions: Vec::new(),
+            profile,
             seed,
             tick: 0,
             next_projectile_id: 1,
             metrics: CombatMetrics::default(),
             winner: None,
+            explosion_strength: TIMBER_EXPLOSION_IMPULSE,
         }
     }
 
@@ -464,7 +945,37 @@ impl AuthoritativeMatch {
             }
         }
 
+        if self.profile == ReplayProfile::TimberCollapseReplay && self.tick == TIMBER_IMPACT_TICK {
+            let released = self.physics.release_explosion_constraints();
+            for id in &released {
+                if let Some(entity) = self.constraint_entities.get(id) {
+                    self.world
+                        .entity_mut(*entity)
+                        .get_mut::<ConstraintState>()
+                        .expect("constraint state")
+                        .active = false;
+                }
+            }
+            self.metrics.released_constraints += released.len() as u32;
+            self.metrics.explosion_impulsed_bodies += self.physics.apply_radial_explosion(
+                TIMBER_EXPLOSION_CENTER,
+                TIMBER_EXPLOSION_RADIUS,
+                self.explosion_strength,
+            );
+            self.explosions.push(ExplosionSnapshot {
+                id: 1,
+                tick: self.tick,
+                x_milli: quantize(TIMBER_EXPLOSION_CENTER.x),
+                y_milli: quantize(TIMBER_EXPLOSION_CENTER.y),
+                radius_milli: quantize(TIMBER_EXPLOSION_RADIUS),
+                impulse_milli: quantize(self.explosion_strength),
+            });
+        }
+
         self.physics.step();
+        let (dynamic_body_contacts, fighter_body_contacts) = self.physics.dynamic_contact_counts();
+        self.metrics.dynamic_body_contacts += dynamic_body_contacts;
+        self.metrics.fighter_body_contact_ticks += fighter_body_contacts;
         for id in 0..2 {
             let grounded = self.physics.player_grounded(id);
             if grounded {
@@ -527,7 +1038,9 @@ impl AuthoritativeMatch {
                     target_state.alive = false;
                     self.winner = Some(projectile.owner);
                 }
-            } else if self.physics.bullet_platform_contact(projectile_id) {
+            } else if self.physics.bullet_dynamic_contact(projectile_id).is_some()
+                || self.physics.bullet_platform_contact(projectile_id)
+            {
                 self.metrics.bullet_ccd_contacts += 1;
                 removals.push(projectile_id);
             } else if self.physics.bullet_pose(projectile_id).is_none_or(
@@ -614,12 +1127,55 @@ impl AuthoritativeMatch {
             .collect::<Vec<_>>();
         projectiles.sort_by_key(|projectile| projectile.id);
         projectiles.truncate(MAX_INSPECTED_PROJECTILES);
+        let dynamic_bodies = self
+            .dynamic_body_entities
+            .iter()
+            .filter_map(|(id, entity)| {
+                let state = self.world.entity(*entity).get::<DynamicBodyState>()?;
+                let (position, rotation, velocity, angular_velocity, sleeping) =
+                    self.physics.dynamic_body_pose(*id)?;
+                Some(DynamicBodySnapshot {
+                    id: state.id,
+                    shape: state.shape,
+                    x_milli: quantize(position.x),
+                    y_milli: quantize(position.y),
+                    rotation_milliradians: quantize(rotation),
+                    velocity_x_milli_per_second: quantize(velocity.x),
+                    velocity_y_milli_per_second: quantize(velocity.y),
+                    angular_velocity_milliradians_per_second: quantize(angular_velocity),
+                    width_milli: quantize(state.width),
+                    height_milli: quantize(state.height),
+                    radius_milli: quantize(state.radius),
+                    face_rgb: state.face_rgb,
+                    sleeping,
+                })
+            })
+            .collect();
+        let constraints = self
+            .constraint_entities
+            .values()
+            .filter_map(|entity| {
+                let state = self.world.entity(*entity).get::<ConstraintState>()?;
+                Some(ConstraintSnapshot {
+                    id: state.id,
+                    body_a: state.body_a,
+                    body_b: state.body_b,
+                    kind: state.kind,
+                    anchor_x_milli: quantize(state.anchor.x),
+                    anchor_y_milli: quantize(state.anchor.y),
+                    active: state.active,
+                })
+            })
+            .collect();
         MatchSnapshot {
             protocol: 2,
             seed: self.seed,
-            profile: REPLAY_PROFILE.to_owned(),
+            profile: self.profile.name().to_owned(),
             tick: self.tick,
-            arena: teal_arena().to_vec(),
+            arena: arena_for_profile(self.profile).to_vec(),
+            dynamic_bodies,
+            constraints,
+            explosions: self.explosions.clone(),
             players,
             projectiles,
             metrics: self.metrics.clone(),
@@ -660,6 +1216,19 @@ pub fn teal_arena() -> &'static [ArenaSurfaceSnapshot] {
     &ARENA
 }
 
+pub fn timber_arena() -> &'static [ArenaSurfaceSnapshot] {
+    const FLOOR: [u8; 3] = [246, 0, 79];
+    const ARENA: [ArenaSurfaceSnapshot; 1] = [surface(0, 0, -300, 1_600, 60, FLOOR)];
+    &ARENA
+}
+
+pub fn arena_for_profile(profile: ReplayProfile) -> &'static [ArenaSurfaceSnapshot] {
+    match profile {
+        ReplayProfile::TealDuelReplay => teal_arena(),
+        ReplayProfile::TimberCollapseReplay => timber_arena(),
+    }
+}
+
 const fn surface(
     id: u8,
     x: i32,
@@ -683,12 +1252,51 @@ pub fn hash_snapshot(snapshot: &MatchSnapshot) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-pub fn scripted_inputs(_seed: u64, ticks: u32) -> [Vec<PlayerInput>; 2] {
+pub fn scripted_inputs(seed: u64, ticks: u32) -> [Vec<PlayerInput>; 2] {
+    scripted_inputs_for(ReplayProfile::default(), seed, ticks)
+}
+
+pub fn scripted_inputs_for(
+    profile: ReplayProfile,
+    _seed: u64,
+    ticks: u32,
+) -> [Vec<PlayerInput>; 2] {
     let mut scripts = [
         Vec::with_capacity(ticks as usize),
         Vec::with_capacity(ticks as usize),
     ];
     for tick in 0..ticks {
+        if profile == ReplayProfile::TimberCollapseReplay {
+            let mut orange = PlayerInput {
+                aim_x: 700,
+                aim_y: 700,
+                ..PlayerInput::default()
+            };
+            let mut blue = PlayerInput {
+                aim_x: -700,
+                aim_y: 700,
+                ..PlayerInput::default()
+            };
+            orange.move_axis = if (120..300).contains(&tick) || (960..1_100).contains(&tick) {
+                1
+            } else {
+                0
+            };
+            blue.move_axis = if (260..430).contains(&tick) {
+                -1
+            } else if (1_150..1_310).contains(&tick) {
+                1
+            } else {
+                0
+            };
+            orange.jump = matches!(tick, 120 | 960 | 1_280);
+            blue.jump = matches!(tick, 260 | 1_150);
+            orange.fire = matches!(tick, 820 | 1_100);
+            blue.fire = matches!(tick, 620 | 1_320);
+            scripts[0].push(orange);
+            scripts[1].push(blue);
+            continue;
+        }
         let mut orange = PlayerInput {
             aim_x: 1_000,
             ..PlayerInput::default()
@@ -739,16 +1347,24 @@ pub fn scripted_inputs(_seed: u64, ticks: u32) -> [Vec<PlayerInput>; 2] {
 }
 
 pub fn run_scripted_match(seed: u64, ticks: u32) -> (MatchSnapshot, String) {
-    let snapshot = run_scripted_snapshots(seed, ticks)
+    run_profile_match(ReplayProfile::default(), seed, ticks)
+}
+
+pub fn run_profile_match(profile: ReplayProfile, seed: u64, ticks: u32) -> (MatchSnapshot, String) {
+    let snapshot = run_profile_snapshots(profile, seed, ticks)
         .pop()
-        .unwrap_or_else(|| AuthoritativeMatch::new(seed).snapshot());
+        .unwrap_or_else(|| AuthoritativeMatch::new_with_profile(seed, profile).snapshot());
     let state_hash = hash_snapshot(&snapshot);
     (snapshot, state_hash)
 }
 
 pub fn run_scripted_snapshots(seed: u64, ticks: u32) -> Vec<MatchSnapshot> {
-    let scripts = scripted_inputs(seed, ticks);
-    let mut simulation = AuthoritativeMatch::new(seed);
+    run_profile_snapshots(ReplayProfile::default(), seed, ticks)
+}
+
+pub fn run_profile_snapshots(profile: ReplayProfile, seed: u64, ticks: u32) -> Vec<MatchSnapshot> {
+    let scripts = scripted_inputs_for(profile, seed, ticks);
+    let mut simulation = AuthoritativeMatch::new_with_profile(seed, profile);
     scripts[0]
         .iter()
         .copied()
@@ -758,6 +1374,12 @@ pub fn run_scripted_snapshots(seed: u64, ticks: u32) -> Vec<MatchSnapshot> {
             simulation.snapshot()
         })
         .collect()
+}
+
+pub fn dynamic_body_digest(snapshot: &MatchSnapshot) -> String {
+    let bytes = serde_json::to_vec(&snapshot.dynamic_bodies)
+        .expect("dynamic body serialization cannot fail");
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn quantize(value: f32) -> i32 {
@@ -770,9 +1392,15 @@ fn groups(memberships: Group, filter: Group) -> InteractionGroups {
 
 fn bullet_groups(owner: u8) -> (Group, Group) {
     if owner == 0 {
-        (Group::GROUP_4, Group::GROUP_2 | Group::GROUP_3)
+        (
+            Group::GROUP_4,
+            Group::GROUP_2 | Group::GROUP_3 | DYNAMIC_GROUP,
+        )
     } else {
-        (Group::GROUP_5, Group::GROUP_1 | Group::GROUP_3)
+        (
+            Group::GROUP_5,
+            Group::GROUP_1 | Group::GROUP_3 | DYNAMIC_GROUP,
+        )
     }
 }
 
@@ -792,7 +1420,7 @@ mod tests {
 
     #[test]
     fn platform_contact_and_asymmetric_route_match_the_source_order() {
-        let replay = run_scripted_snapshots(38, REPLAY_TICKS);
+        let replay = run_profile_snapshots(ReplayProfile::TealDuelReplay, 38, TEAL_REPLAY_TICKS);
         let source_24_50 = &replay[119];
         assert!(source_24_50.players[0].x_milli < -480_000);
         assert!(source_24_50.players[0].grounded);
@@ -810,10 +1438,11 @@ mod tests {
 
     #[test]
     fn complete_teal_duel_exercises_combat_and_selects_one_winner() {
-        let first = run_scripted_match(38, REPLAY_TICKS);
-        let second = run_scripted_match(38, REPLAY_TICKS);
+        let first = run_profile_match(ReplayProfile::TealDuelReplay, 38, TEAL_REPLAY_TICKS);
+        let second = run_profile_match(ReplayProfile::TealDuelReplay, 38, TEAL_REPLAY_TICKS);
         assert_eq!(first, second);
-        let before_impact = run_scripted_match(38, REPLAY_TICKS - 1).0;
+        let before_impact =
+            run_profile_match(ReplayProfile::TealDuelReplay, 38, TEAL_REPLAY_TICKS - 1).0;
         let metrics = &first.0.metrics;
         assert_eq!(metrics.shots_fired, 5);
         assert_eq!(metrics.recoil_impulses, 5);
@@ -837,7 +1466,8 @@ mod tests {
 
     #[test]
     fn ring_out_remains_a_separate_authoritative_capability() {
-        let mut simulation = AuthoritativeMatch::new(38);
+        let mut simulation =
+            AuthoritativeMatch::new_with_profile(38, ReplayProfile::TealDuelReplay);
         let body = simulation.physics.players[1].body;
         simulation.physics.rapier.bodies[body]
             .set_translation(Vector::new(KILL_X + 10.0, 0.0), true);
@@ -874,5 +1504,123 @@ mod tests {
         let (snapshot, _) = run_scripted_match(38, REPLAY_TICKS);
         let json = serde_json::to_vec(&snapshot).unwrap();
         assert!(json.len() < 32_000, "{} bytes", json.len());
+    }
+
+    #[test]
+    fn timber_replay_is_repeatable_and_collapses_from_real_constraints() {
+        let first = run_scripted_snapshots(40, REPLAY_TICKS);
+        let second = run_scripted_snapshots(40, REPLAY_TICKS);
+        assert_eq!(first, second);
+        let before = &first[(TIMBER_IMPACT_TICK - 2) as usize];
+        let impact = &first[(TIMBER_IMPACT_TICK - 1) as usize];
+        let settled = first.last().unwrap();
+        assert_eq!(
+            before.dynamic_bodies.len(),
+            19,
+            "ids={:?}",
+            before
+                .dynamic_bodies
+                .iter()
+                .map(|body| body.id)
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            before
+                .constraints
+                .iter()
+                .all(|constraint| constraint.active)
+        );
+        assert_eq!(impact.explosions.len(), 1);
+        assert_eq!(impact.metrics.released_constraints, 17);
+        assert!(impact.metrics.explosion_impulsed_bodies >= 15);
+        assert!(
+            impact
+                .constraints
+                .iter()
+                .filter(|constraint| constraint.kind == ConstraintKind::Fixed)
+                .all(|constraint| !constraint.active)
+        );
+        assert!(
+            impact
+                .constraints
+                .iter()
+                .filter(|constraint| constraint.kind == ConstraintKind::Rope)
+                .all(|constraint| constraint.active)
+        );
+        assert!(settled.metrics.dynamic_body_contacts > 100);
+        assert!(settled.metrics.fighter_body_contact_ticks > 0);
+        assert!(settled.metrics.bullet_ccd_contacts > 0);
+        assert_eq!(
+            settled.metrics.ring_outs, 0,
+            "players={:?}",
+            settled.players
+        );
+        assert_eq!(settled.winner, None);
+        let impact_motion: i64 = first[(TIMBER_IMPACT_TICK + 59) as usize]
+            .dynamic_bodies
+            .iter()
+            .map(|body| {
+                i64::from(body.velocity_x_milli_per_second.abs())
+                    + i64::from(body.velocity_y_milli_per_second.abs())
+            })
+            .sum();
+        let settled_motion: i64 = settled
+            .dynamic_bodies
+            .iter()
+            .map(|body| {
+                i64::from(body.velocity_x_milli_per_second.abs())
+                    + i64::from(body.velocity_y_milli_per_second.abs())
+            })
+            .sum();
+        assert!(
+            settled_motion < impact_motion,
+            "{settled_motion} >= {impact_motion}"
+        );
+        assert!(
+            settled
+                .dynamic_bodies
+                .iter()
+                .all(|body| { body.x_milli.abs() < 900_000 && body.y_milli > -360_000 }),
+            "bodies={:?}",
+            settled
+                .dynamic_bodies
+                .iter()
+                .map(|body| (body.id, body.x_milli, body.y_milli))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn explosion_boundary_releases_fixed_joints_and_changes_rapier_motion() {
+        let mut simulation =
+            AuthoritativeMatch::new_with_profile(40, ReplayProfile::TimberCollapseReplay);
+        assert_eq!(simulation.physics.dynamic_bodies.len(), 19);
+        assert_eq!(simulation.physics.constraints.len(), 19);
+        assert_eq!(simulation.physics.rapier.impulse_joints.len(), 19);
+        for _ in 0..TIMBER_IMPACT_TICK {
+            simulation.step([PlayerInput::default(); 2]);
+        }
+        assert_eq!(simulation.physics.rapier.impulse_joints.len(), 2);
+        let snapshot = simulation.snapshot();
+        assert!(snapshot.dynamic_bodies.iter().any(|body| {
+            body.velocity_x_milli_per_second != 0 || body.velocity_y_milli_per_second != 0
+        }));
+    }
+
+    #[test]
+    fn explosion_impulse_perturbation_changes_the_final_authoritative_hash() {
+        let mut nominal =
+            AuthoritativeMatch::new_with_profile(40, ReplayProfile::TimberCollapseReplay);
+        let mut perturbed =
+            AuthoritativeMatch::new_with_profile(40, ReplayProfile::TimberCollapseReplay);
+        perturbed.explosion_strength *= 0.92;
+        let scripts = scripted_inputs_for(ReplayProfile::TimberCollapseReplay, 40, REPLAY_TICKS);
+        for (nominal_input, perturbed_input) in
+            scripts[0].iter().copied().zip(scripts[1].iter().copied())
+        {
+            nominal.step([nominal_input, perturbed_input]);
+            perturbed.step([nominal_input, perturbed_input]);
+        }
+        assert_ne!(nominal.state_hash(), perturbed.state_hash());
     }
 }

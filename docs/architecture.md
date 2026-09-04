@@ -13,14 +13,20 @@ Older research under `research/` can help explain a behavior, but footage wins w
 
 The authoritative match advances at 60 fixed ticks per second in `rounds-sim`.
 Stable player and projectile identities and gameplay state live in Bevy ECS.
-A project-owned `PhysicsBoundary` keeps Rapier rigid-body and collider handles private while it advances static arena contacts, dynamic circular players, CCD bullets, recoil, blocks, damage, knockback, and ring-outs.
+A project-owned `PhysicsBoundary` keeps Rapier rigid-body, collider, and joint handles private while it advances static arena contacts, dynamic circular players, dynamic arena bodies, constraints, CCD bullets, recoil, blocks, damage, knockback, explosions, and ring-outs.
 Only quantized project snapshots cross the simulation boundary; neither Bevy entity IDs nor Rapier handles appear on the wire.
 Repeatability is required on the same locked build and platform, not across platforms.
 
+Dynamic arena bodies and constraints use stable project IDs held in ordered registries.
+The timber-collapse profile begins with 17 dynamic timber bodies held by fixed Rapier joints and two dynamic circular weights held by rope joints.
+Its authoritative explosion releases the fixed joints, wakes and impulses nearby bodies, and leaves the rope joints active; contacts and Rapier integration determine the resulting pile.
+Snapshots report ordered transforms, velocities, sleep state, constraint activity, and the stable explosion event.
+
 Presentation reads an immutable authoritative snapshot through `rounds-presentation`.
 Pixels, camera motion, and other presentation-only state never enter the replicated snapshot or its hash.
-The shipped Bevy 2D scene draws the static platforms and long shadows, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, and hit flash.
-Visible and offscreen modes apply the same snapshot-derived camera transform.
+The shipped Bevy 2D scene draws the static platforms and long shadows, dynamic timber and weights, suspended lines, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, hit flash, and snapshot-derived explosion particles.
+Visible and offscreen modes apply the same snapshot-derived camera transform, shake envelope, `Bloom`, `ChromaticAberration`, and `LensDistortion` settings.
+These effects and the render-only particle arrangement do not enter the authoritative snapshot or state hash.
 The offscreen 1280×720 GPU path waits for Bevy's screenshot-completion event, bounds both device polling and the total capture, encodes the returned image, and writes the PNG only after capture succeeds.
 The visible path starts hidden, requires exactly one physical display at `(364,-1080)` with extent 1920×1080, verifies the window against that observed identity, and only then reveals it; missing or ambiguous displays fail closed.
 
@@ -32,8 +38,8 @@ It is not a production reliability protocol and does not claim prediction, inter
 A future Steam adapter belongs behind this boundary and must preserve the same simulation inputs and snapshots.
 
 `rounds-server` runs one headless authoritative session.
-`rounds-client` runs the same simulation as a local client-host, submits one input sequence to a remote development server, renders a received live snapshot, runs visibly, or emits named replay anchors with source, input, state, executable, renderer, and frame identity.
-`rounds-automation` starts the headless server and two real client processes, binds one client's render to its received final snapshot, checks local-host agreement, and emits bounded JSON evidence.
+`rounds-client` runs the same simulation as a local client-host, submits one input sequence to a remote development server, renders a received live snapshot, runs visibly, or emits named replay anchors with source, input, state, dynamic-body, executable, renderer, and frame identity.
+`rounds-automation` starts the headless server and two real client processes, proves each received constrained pre-impact state and released post-impact state, binds one client's render to its received final snapshot, checks full dynamic-body and local-host agreement, and emits bounded JSON evidence.
 
 ## Workspace boundaries
 
@@ -59,18 +65,19 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo build --workspace --locked
 cargo test --workspace --locked
-target/debug/rounds-automation smoke --seed 38 --ticks 786 --output-dir out/ticket-039/smoke
-target/debug/rounds-automation inspect --seed 38 --ticks 786
-target/debug/rounds-client capture-replay --seed 38 --ticks 786 --output-dir out/ticket-039/anchors --metadata out/ticket-039/anchors.json
-target/debug/rounds-client visible --seed 38 --ticks 786 --frames 180
+target/debug/rounds-automation smoke --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/smoke
+target/debug/rounds-automation inspect --profile timber-collapse-replay --seed 40 --ticks 1440
+target/debug/rounds-client capture-replay --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/clone-anchors --metadata out/ticket-040/clone-anchors.json
+target/debug/rounds-client visible --profile timber-collapse-replay --seed 40 --ticks 1440 --frames 180
 ```
 
 The smoke command must report every handshake, input sequence and progressive snapshot, agreement among the headless server, both UDP clients and local client-host, and a live client render bound to the agreed state hash.
-Replay capture emits five named Bevy-rendered anchors spanning the separated spawn, asymmetric route, exchanged shots and block, and terminal upper-right impact.
+Replay capture emits twelve named Bevy-rendered timber anchors spanning the intact structure, pre-impact combat, bright impact, 100 ms impact progression, first release, deformation, debris, settlement, and continued combat.
+The earlier teal-duel profile remains available by passing `--profile teal-duel-replay --ticks 786`.
 
 ## Testing rule
 
-Keep tests at the public and deep boundaries: stable contact and jump behavior, the complete duel, one-tick bullet CCD, bounded inspection, progressive UDP agreement, and the real Bevy offscreen renderer.
+Keep tests at the public and deep boundaries: stable contact and jump behavior, the complete duel and collapse, joint release and explosion response, outcome-changing physics perturbation, one-tick bullet CCD, bounded inspection, progressive UDP agreement, and the real Bevy offscreen renderer.
 A deep process-lifecycle test starts a minimal test-owned UDP child, forces the next child launch to fail, and proves cleanup releases the server.
 The capture boundary resolves metadata and every PNG destination before rendering or writing, compares every pair, and rejects aliases; process tests cover single capture, replay capture, and remote rendering before any network request or file write.
 Do not retain tests for private layout or retired implementation details.

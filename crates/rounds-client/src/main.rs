@@ -3,8 +3,8 @@ use rounds_presentation::{
     FRAME_HEIGHT, FRAME_WIDTH, RENDERER_IDENTITY, frame_sha256, render_png, run_visible,
 };
 use rounds_sim::{
-    MatchSnapshot, REPLAY_PROFILE, REPLAY_TICKS, SOURCE_INTERVAL, SOURCE_SHA256,
-    run_scripted_match, run_scripted_snapshots, scripted_inputs,
+    MatchSnapshot, REPLAY_TICKS, ReplayProfile, dynamic_body_digest, run_profile_match,
+    run_profile_snapshots, scripted_inputs_for,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -27,6 +27,7 @@ struct CaptureEvidence {
     input_trace: &'static str,
     input_trace_sha256: String,
     state_sha256: String,
+    dynamic_body_sha256: String,
     renderer: &'static str,
     frame_sha256: String,
     frame_path: String,
@@ -47,16 +48,17 @@ fn run() -> Result<(), String> {
     let mode = arguments.get(1).map(String::as_str).unwrap_or("local");
     let ticks = argument(&arguments, "--ticks", REPLAY_TICKS)?;
     let seed = argument(&arguments, "--seed", 38_u64)?;
+    let profile = argument(&arguments, "--profile", ReplayProfile::default())?;
     match mode {
-        "capture" => capture(&arguments, seed, ticks),
-        "capture-replay" => capture_replay(&arguments, seed, ticks),
-        "local" => print_json(&local_report(seed, ticks)),
+        "capture" => capture(&arguments, profile, seed, ticks),
+        "capture-replay" => capture_replay(&arguments, profile, seed, ticks),
+        "local" => print_json(&local_report(profile, seed, ticks)),
         "visible" => {
             let frames = argument(&arguments, "--frames", 180_u32)?;
             if frames < 5 {
                 return Err("--frames must be at least 5".to_owned());
             }
-            let replay = run_scripted_snapshots(seed, ticks);
+            let replay = run_profile_snapshots(profile, seed, ticks);
             if replay.len() < 2 {
                 return Err("visible replay needs at least 2 ticks".to_owned());
             }
@@ -67,11 +69,11 @@ fn run() -> Result<(), String> {
                     replay[source].clone()
                 })
                 .collect();
-            let report = local_report(seed, ticks);
+            let report = local_report(profile, seed, ticks);
             run_visible(sampled)?;
             print_json(&report)
         }
-        "remote" => remote(&arguments, seed, ticks),
+        "remote" => remote(&arguments, profile, seed, ticks),
         _ => Err(
             "usage: rounds-client [local|remote|capture|capture-replay|visible] [options]"
                 .to_owned(),
@@ -79,7 +81,12 @@ fn run() -> Result<(), String> {
     }
 }
 
-fn remote(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
+fn remote(
+    arguments: &[String],
+    profile: ReplayProfile,
+    seed: u64,
+    ticks: u32,
+) -> Result<(), String> {
     let address = string_argument(arguments, "--address")?;
     let client_id = argument(arguments, "--client", 0_u8)?;
     let render_paths = match (
@@ -100,11 +107,11 @@ fn remote(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
             );
         }
     };
-    let scripts = scripted_inputs(seed, ticks);
+    let scripts = scripted_inputs_for(profile, seed, ticks);
     let inputs = scripts
         .get(usize::from(client_id))
         .ok_or_else(|| "client must be 0 or 1".to_owned())?;
-    let report = send_inputs(address, client_id, seed, inputs)?;
+    let report = send_inputs(address, client_id, seed, profile, inputs)?;
     if let Some((output, metadata)) = render_paths {
         let evidence = capture_state(
             &report.final_report.state,
@@ -120,31 +127,59 @@ fn remote(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
     print_json(&report)
 }
 
-fn capture(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
+fn capture(
+    arguments: &[String],
+    profile: ReplayProfile,
+    seed: u64,
+    ticks: u32,
+) -> Result<(), String> {
     let output = path_argument(arguments, "--output")?;
     let metadata = path_argument(arguments, "--metadata")?;
     reject_path_aliases(&[("--output", &output), ("--metadata", &metadata)])?;
-    let (state, state_hash) = run_scripted_match(seed, ticks);
+    let (state, state_hash) = run_profile_match(profile, seed, ticks);
     let evidence = capture_state(&state, &state_hash, &output, seed, ticks, "single", None)?;
     write_metadata(&metadata, &evidence)?;
     print_json(&evidence)
 }
 
-fn capture_replay(arguments: &[String], seed: u64, ticks: u32) -> Result<(), String> {
-    if ticks != REPLAY_TICKS {
+fn capture_replay(
+    arguments: &[String],
+    profile: ReplayProfile,
+    seed: u64,
+    ticks: u32,
+) -> Result<(), String> {
+    if ticks != profile.replay_ticks() {
         return Err(format!(
-            "capture-replay requires the admitted {REPLAY_TICKS}-tick profile"
+            "capture-replay requires the admitted {}-tick {} profile",
+            profile.replay_ticks(),
+            profile.name()
         ));
     }
     let output_dir = path_argument(arguments, "--output-dir")?;
     let metadata = path_argument(arguments, "--metadata")?;
-    let anchors = [
-        ("spawn", 20),
-        ("asymmetric-traversal", 120),
-        ("shot", 435),
-        ("block-reflection", 700),
-        ("terminal-impact", REPLAY_TICKS),
-    ];
+    let anchors: Vec<(&str, u32)> = match profile {
+        ReplayProfile::TimberCollapseReplay => vec![
+            ("intact", 0),
+            ("pre-impact", 828),
+            ("bright-impact", 864),
+            ("impact-plus-100ms", 870),
+            ("impact-plus-200ms", 876),
+            ("impact-plus-300ms", 882),
+            ("impact-plus-400ms", 888),
+            ("first-release", 894),
+            ("deformation", 912),
+            ("debris", 1_050),
+            ("settlement", 1_140),
+            ("continued-combat", 1_410),
+        ],
+        ReplayProfile::TealDuelReplay => vec![
+            ("spawn", 20),
+            ("asymmetric-traversal", 120),
+            ("shot", 435),
+            ("block-reflection", 700),
+            ("terminal-impact", profile.replay_ticks()),
+        ],
+    };
     let outputs = anchors
         .iter()
         .map(|(anchor, tick)| output_dir.join(format!("{tick:04}-{anchor}.png")))
@@ -159,7 +194,7 @@ fn capture_replay(arguments: &[String], seed: u64, ticks: u32) -> Result<(), Str
     reject_path_aliases(&destinations)?;
     let mut evidence = Vec::with_capacity(anchors.len());
     for ((anchor, tick), output) in anchors.into_iter().zip(outputs) {
-        let (state, state_hash) = run_scripted_match(seed, tick);
+        let (state, state_hash) = run_profile_match(profile, seed, tick);
         evidence.push(capture_state(
             &state,
             &state_hash,
@@ -183,7 +218,8 @@ fn capture_state(
     anchor: &str,
     live_client_id: Option<u8>,
 ) -> Result<CaptureEvidence, String> {
-    let scripts = scripted_inputs(seed, trace_ticks);
+    let profile = state.profile.parse::<ReplayProfile>()?;
+    let scripts = scripted_inputs_for(profile, seed, trace_ticks);
     let script_bytes = serde_json::to_vec(&scripts).map_err(|error| error.to_string())?;
     let resolved_output = resolved_path(output)?;
     let frame = render_png(state, output)?;
@@ -198,12 +234,13 @@ fn capture_state(
         seed,
         tick: state.tick,
         anchor: anchor.to_owned(),
-        source_interval: SOURCE_INTERVAL,
-        source_timestamp: source_timestamp(state.tick),
-        source_sha256: SOURCE_SHA256,
-        input_trace: REPLAY_PROFILE,
+        source_interval: profile.source_interval(),
+        source_timestamp: source_timestamp(profile, state.tick),
+        source_sha256: profile.source_sha256(),
+        input_trace: profile.name(),
         input_trace_sha256: sha256(&script_bytes),
         state_sha256: state_hash.to_owned(),
+        dynamic_body_sha256: dynamic_body_digest(state),
         renderer: RENDERER_IDENTITY,
         frame_sha256: frame_sha256(&frame),
         frame_path: resolved_output.to_string_lossy().replace('\\', "/"),
@@ -213,13 +250,18 @@ fn capture_state(
     })
 }
 
-fn source_timestamp(tick: u32) -> String {
-    let hundredths = 2_250 + (u64::from(tick) * 100 / 60);
-    format!("00:{:02}.{:02}", hundredths / 100, hundredths % 100)
+fn source_timestamp(profile: ReplayProfile, tick: u32) -> String {
+    let hundredths = profile.source_start_hundredths() + (u64::from(tick) * 100 / 60);
+    format!(
+        "{:02}:{:02}.{:02}",
+        hundredths / 6_000,
+        (hundredths / 100) % 60,
+        hundredths % 100
+    )
 }
 
-fn local_report(seed: u64, ticks: u32) -> ServerReport {
-    let (state, state_hash) = run_scripted_match(seed, ticks);
+fn local_report(profile: ReplayProfile, seed: u64, ticks: u32) -> ServerReport {
+    let (state, state_hash) = run_profile_match(profile, seed, ticks);
     ServerReport {
         protocol: NETWORK_PROTOCOL,
         clients_handshaken: 2,
@@ -228,6 +270,7 @@ fn local_report(seed: u64, ticks: u32) -> ServerReport {
         first_snapshot_tick: 1,
         last_snapshot_tick: ticks,
         state_hash,
+        dynamic_body_digest: dynamic_body_digest(&state),
         state,
     }
 }
