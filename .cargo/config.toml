@@ -1,0 +1,5 @@
+[build]
+# A clean Bevy workspace build previously launched about seven MSVC linkers at
+# once, exhausted memory, saturated disk, and froze the development host.
+jobs = 2
+target-dir = "out/cargo-target"

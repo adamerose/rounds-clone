@@ -511,3 +511,7 @@ Final review independently decoded the source frame before the ticket's supposed
 ## 2026-09-04 — Re-admit the corrected yellow result boundary
 
 Ticket 043 now binds PTS 4238316380 to tick 109 as final undimmed combat, adjacent PTS 4238483046 to tick 110 as first dimmed result onset, and PTS 4238649712 to tick 111 as the larger following transition. The eleven-anchor contract preserves all three frames and the source's single two-tick-duration frame explains why decoded ordinals 108/109/110 map to replay ticks 109/110/111. Fresh independent review reproduced every native hash and re-admitted the amended risk-4 contract; implementation may resume without changing the accepted Bevy, physics, authority, or multiplayer architecture.
+
+## 2026-09-04 — Bound clean Cargo builds to two jobs and reuse compatible artifacts
+
+A confirmed ticket-043 cold workspace test allowed about seven MSVC linkers to run together, produced roughly 16.9 GiB of artifacts, saturated memory and disk, and froze the host. Human direction admits ticket 044 at risk 2: repository Cargo configuration now enforces two jobs and a worktree-local ignored reusable target. Clean builds must announce their target, reason, cap, approximately 17 GiB precedent, and cleanup plan before launch; verification coverage remains complete and sequential compatible commands reuse the prepared artifacts.

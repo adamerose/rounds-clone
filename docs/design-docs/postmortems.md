@@ -1109,3 +1109,11 @@ The repeated visible replay completed and reported both selection and placement 
 The fresh isolated reviewer reported its binding identity and received the exact ticket 043 range, source-audit requirements, and admission criteria.
 The first bounded wait was interrupted by the session continuation boundary, and the next authoritative agent inventory contained no reviewer handle or result.
 No verdict was inferred and no review end was invented from silence; the ticket records the observed interrupted end, and admission restarts with a new isolated reviewer after a fresh root/candidate/artifact baseline.
+
+## 2026-09-04 — An unbounded clean Bevy build exhausted the development host
+
+At 18:32:02 UTC, ticket 043's first required clean `cargo test --workspace --locked -- --nocapture` launched from the verified-empty `C:\Users\Adam\AppData\Local\Temp\rounds-043-cargo-first-9c8b4e2d` target. Cargo PID 22541 ran for about 160 seconds, produced roughly 16.9 GiB of artifacts, and allowed about seven concurrent MSVC linkers. Each linker used roughly 0.8–1.2 GiB while disk traffic reached 19–53 MB/s; system memory reached 99%, disk reached 100%, and Codex became unresponsive.
+
+The verification command was valid, but starting a cold Bevy workspace target with machine-default parallelism was not safe on this host. Repeating clean isolated targets for every verification context also discarded expensive compatible artifacts without adding test coverage.
+
+The repository now caps Cargo at two concurrent jobs and routes compatible builds through the ignored reusable `out/cargo-target`. Agents must announce the exact target, reason, two-job cap, expected approximately 17 GiB cold-build footprint, and cleanup plan before a genuinely clean native build. Full tests, lint, build, capture, and review remain required; the correction limits concurrency and unnecessary rebuilding rather than skipping evidence.
