@@ -11,7 +11,7 @@ sessions:
 execution: unattended
 depends-on: [42]
 supersedes: []
-split-from: [17, 18, 20]
+split-from: [18, 20]
 ---
 
 # Reproduce the yellow-crate terminal blast and radial screen echo
@@ -31,7 +31,7 @@ This slice turns the user's strongest supplied screen-effect example into a play
 - Bevy's existing bloom, chromatic-aberration, lens-distortion, camera, sprites/meshes, and particles remain the base effect stack. Add exactly one bounded project-owned fullscreen multi-tap pass for the source-proved repeated scene echoes that those single-sample built-ins cannot reproduce; do not fork, replace, or expose a general custom renderer.
 - Programmatic capture emits source-bound frames for calm state, first response, local burst, peak radial echo, trailing streaks, last combat, adjacent result onset, and established result. Every anchor records source PTS/hash, replay tick, authoritative state/dynamic-body/round digests, executable and renderer identity, and clone-frame hash.
 - `docs/fidelity/yellow-crate-terminal-blast-observations.md` remains the source contract and `docs/fidelity/footage-coverage.md` identifies the corrected 07:00–07:10 content without marking this proposed child implemented.
-- This child advances projectile-presentation umbrella `017`, arena umbrella `018`, and overall-presentation umbrella `020`; it closes none of them and does not claim complete-match replay progress for ticket `022`.
+- This child advances arena umbrella `018` and overall-presentation umbrella `020`; it closes neither and does not claim complete-match replay progress for ticket `022`. It neither implements nor advances ticket `017`'s unmodified base-projectile presentation. Any source observation that may involve a card-modified projectile remains evidence for ticket `019` to verify, not an implementation claim for that card-mechanics ticket.
 
 ## Decisions
 
@@ -57,11 +57,12 @@ This slice turns the user's strongest supplied screen-effect example into a play
 ## Non-goals
 
 - General implementations or numeric claims for `EXPLOSIVE BULLET`, `COMBINE`, `CAREFUL PLANNING`, `DAZZLE`, or any other card badge visible in the recording.
+- Base-projectile presentation owned by ticket `017`, or verification and presentation of any card-modified projectile owned by ticket `019`.
 - Every yellow arena, every explosive hit, general destructible terrain, arbitrary fracture, or a full dynamic-arena catalog.
 - Extracting, shipping, or matching proprietary shader/audio/texture bytes; pixel-identical particles; inferred hidden camera, physics, damage, or card constants.
 - A renderer fork, replacement render pipeline, general post-processing framework, multiple effect passes for convenience, or shader parameters crossing the gameplay wire.
 - Final audio fidelity, music, full-match replay, self-play, prediction, rollback, reconnect, relay/NAT traversal, lobbies, matchmaking, Steamworks, anti-cheat, or cross-platform lockstep.
-- Closing umbrella tickets `017`, `018`, `020`, or `022`.
+- Closing tickets `018`, `019`, `020`, or `022`.
 
 ## Evidence required
 
@@ -85,3 +86,5 @@ This slice turns the user's strongest supplied screen-effect example into a play
 - 2026-09-04T18:07:53Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06d65-c551-78a3-8526-feecb1a4dd86 — Admission review ended without a verdict when the isolated reviewer handle disappeared across the continuation boundary; no approval or finding was inferred.
 - 2026-09-04T18:08:59Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06d9b-afc7-7db1-8001-364cbaafb1db — Restarted independent admission review from a fresh root, candidate, ignored-artifact, and unique temporary-directory baseline after the prior reviewer handle disappeared.
 - 2026-09-04T18:22:16Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06d9b-afc7-7db1-8001-364cbaafb1db — Rejected admission because ticket 017 did not own this modified terminal effect, the editable umbrella tickets retained contradictory Godot guidance, and the observation record failed the whitespace gate; source and Bevy-pass evidence otherwise held.
+- 2026-09-04T18:24:39.810Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572/correct_043_contract — Began correcting the rejected projectile-ownership provenance, stale Godot-era parent guidance, and observation-record EOF whitespace without changing the approved source, rendering, or audio findings.
+- 2026-09-04T18:25:37.334Z stage correction end session codex:01a06920-7449-74d0-9b09-57855a012572/correct_043_contract — Removed ticket 017 from provenance and implementation claims, routed modified-projectile verification to ticket 019, updated only the directly relevant parent runtime gates to the shared Bevy path, removed the observation EOF blank line, and passed ticket, whitespace, status, and frozen-ticket checks.

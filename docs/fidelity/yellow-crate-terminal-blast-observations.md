@@ -61,5 +61,4 @@ The footage does not require a renderer replacement.
 - The detached brown piece is treated as a real dynamic crate because its translation and rotation are visible. The footage does not prove that every brown piece uses identical physics parameters or that all yellow faces are static in other rounds.
 - No card badge in the corner is accepted as proof of the terminal event's hidden formula.
 - No proprietary frame, texture, shader, or audio byte is committed or shipped.
-- The other explosive intervals in both recordings remain future coverage under tickets `017`, `018`, and `020`; this contract does not silently claim them through one effect implementation.
-
+- The other explosive intervals in both recordings remain future coverage under tickets `018`, `019`, and `020`; this contract does not silently claim them through one effect implementation.

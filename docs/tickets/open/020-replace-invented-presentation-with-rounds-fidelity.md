@@ -35,9 +35,9 @@ The active visual direction was intentionally designed as an original screen-pri
 ## Evidence required
 
 - A versioned comparison manifest pairs external target-build coordinates/hashes with independently generated clone captures for every delivered screen/state at matched resolution, phase, players, cards, and arena; no raw ROUNDS frame is committed.
-- Human-style native runs verify the complete local path and adjacent states on monitor 4, with no window shown on monitors 1 through 3.
+- Human-style native runs verify the shared Bevy 0.19.1 presentation path and adjacent states on monitor 4, with no window shown on monitors 1 through 3; offscreen captures use that same presentation path.
 - Visual regression checks cover stable layout/color/silhouette facts while allowing bounded raster differences from independent asset recreation.
-- Godot editor/runtime, accessibility/control, repository, deterministic simulation/replay, ticket, and whitespace gates pass for every delivered slice.
+- Shared Bevy 0.19.1 visible/offscreen presentation, accessibility/control, authoritative simulation/replay, repository, ticket, whitespace, and guarded monitor-4 gates pass for every delivered slice.
 
 ## Work log
 

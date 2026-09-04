@@ -35,14 +35,14 @@ The current match rotates through 62 arenas whose geometry was abstracted from p
 - Record proposed ticket `043` as the first yellow-crate/reactive-piece child. Its provenance is informational; admission and implementation remain separately reviewable.
 - A preview image can establish a candidate layout but not scale, spawn, collision, or behavior. Those require direct runtime comparison.
 - Keep raw ROUNDS screenshots/video external and gitignored. Commit a manifest of target build, arena/state, timestamps/frame coordinates, hashes, derived geometry/behavior measurements, and independently rendered clone evidence.
-- Preserve deterministic map data in `Rounds.Sim`; Godot renders the same authoritative geometry and behavior state.
+- Preserve deterministic map data and dynamic arena state in the shared `rounds-sim` Bevy 0.19.1 authority boundary; the shared presentation path renders the same authoritative geometry and snapshots for visible and offscreen output.
 
 ## Evidence required
 
 - The pre-change playable pool audit identifies every current arena lacking direct evidence and prevents it from normal match selection until verified.
 - Per-arena comparison manifests bind player-relative geometry, spawn/camera/kill bounds, contacts, and behavior timing to exact external target-build frames or recordings without committing those proprietary frame bytes.
 - Automated simulation, catalog, presentation, and deterministic match tests cover every admitted arena and reject incomplete behavior classes.
-- Full repository/replay checks, ticket checker, `git diff --check`, and monitor-4 native verification pass for each delivered arena group.
+- Full repository/replay checks, the shared Bevy 0.19.1 visible/offscreen presentation checks, ticket checker, `git diff --check`, and guarded monitor-4 native verification pass for each delivered arena group.
 - A final catalog audit proves all 70 target rows have an evidence-backed delivered or source-excluded disposition before this umbrella closes.
 
 ## Work log
