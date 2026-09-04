@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 created: 2026-09-04T02:51:05Z
 origin: human-request
 tags: ["bevy", "physics", "fidelity", "multiplayer", "vertical-slice"]
@@ -17,10 +17,6 @@ split-from: []
 # Reproduce the teal static duel end to end
 
 Reconstruct the complete duel visible from approximately 00:22.50 through the last in-arena frame at 00:35.60 in `reference/MedalTVRounds20260903170709695.mp4` as the first footage-derived vertical slice. The slice must establish the real physics, rendered client, authoritative multiplayer, and comparison workflow that later arenas, cards, and effects can extend; an isolated mechanics demo or synthetic state proof is not the outcome.
-
-## Blocked
-
-Fresh delivery review disproved the frozen contract's claimed 00:35.48 ring-out and found four implementation defects. The corrected source interval and behavior are now explicit; ticket 039 remains blocked only until those corrections pass an independent contract re-admission and exact delivery review, with no human decision outstanding.
 
 ## Outcome
 
@@ -79,3 +75,6 @@ Fresh delivery review disproved the frozen contract's claimed 00:35.48 ring-out 
 - 2026-09-04T04:17:32.845Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06aa2-a00b-7980-9be4-a5450273c014 — Began fresh delivery review of exact implementation range `e941a737de1b9e4772545dbe7dc913e6ff1384c8..4b4f21cb822c2ffccdf397d3120bde4b2f8bb2bd`.
 - 2026-09-04T04:32:15.973Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06aa2-a00b-7980-9be4-a5450273c014 — Rejected the candidate because a cold-first renderer test was timing-dependent, two source choreography claims were false, capture metadata could overwrite image output, monitor evidence printed an unproven constant, and visible/offscreen camera application diverged.
 - 2026-09-04T04:33:30.000Z stage correction start session codex:01a06920-7449-74d0-9b09-57855a012572 — Reopened the frozen contract after direct source decode disproved the terminal ring-out assumption, extending the owned footage through the last in-arena frame and binding the real terminal impact, asymmetric route, and exact fail-closed display identity before correcting every delivery finding.
+- 2026-09-04T04:35:03.179Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a55-572e-7bd2-be97-605bb16bb6bb — Began independent re-admission review of the amended exact contract range `4b4f21cb822c2ffccdf397d3120bde4b2f8bb2bd..91f65999d708e435a293e82fdb478a6b6ce8ecb7`.
+- 2026-09-04T04:37:54.359Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a55-572e-7bd2-be97-605bb16bb6bb — Approved re-admission with no findings after direct source inspection confirmed the 00:35.60 fade boundary, asymmetric route, terminal impact, separate ring-out capability, exact display identity, risk, format, ancestry, and absence of a human decision.
+- 2026-09-04T04:38:20.000Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Restored ticket 039 to ready after independent review admitted the corrected frozen contract at risk 4.
