@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-04T00:43:56Z
 origin: human-request
 tags: ["architecture", "bevy", "multiplayer", "fidelity", "project-reset"]
@@ -85,3 +85,5 @@ Preserve that work as recoverable history, then establish a Bevy codebase whose 
 - 2026-09-04T02:17:33.866Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a35-0162-7762-a4c6-54f1f19f3648 — Began fresh review of bounded integration resolution range `007699e85c12bd268f6382a7eb8e69f516bae654..f5eeb0b1eccff28300c25d9c62a6d2c48742137c` against approved tip `a819f111f1bf215967454889863d724e9178bfc2` and Adam's dirty integration-root state.
 - 2026-09-04T02:21:13.150Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a35-0162-7762-a4c6-54f1f19f3648 — Approved the resolved range with no findings after proving every runtime byte unchanged, the candidate postmortem identical to the integration base, Adam's uncommitted records untouched, the duplicate-dispatch ticket record retained, and exact-range whitespace, ticket, provenance, Git integrity, ancestry, and clean-status checks passed.
 - 2026-09-04T02:27:14Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a3d-8f2a-7a62-ba9a-78fb963923c1 — Began final fresh delivery review of the exact candidate after recording its independent reviewer identity before that context inspected any repository byte.
+- 2026-09-04T02:38:57Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06a3d-8f2a-7a62-ba9a-78fb963923c1 — approved candidate 007699e85c12bd268f6382a7eb8e69f516bae654..018dbacf21bb58ea0a3addb5d5724243f823fbc3
+- 2026-09-04T02:38:57Z stage integration end session codex:01a06920-7449-74d0-9b09-57855a012572 — integrated 018dbacf21bb58ea0a3addb5d5724243f823fbc3 as 018dbacf21bb58ea0a3addb5d5724243f823fbc3
