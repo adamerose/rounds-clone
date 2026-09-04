@@ -24,8 +24,9 @@ Snapshots report ordered transforms, velocities, sleep state, constraint activit
 
 Presentation reads an immutable authoritative snapshot through `rounds-presentation`.
 Pixels, camera motion, and other presentation-only state never enter the replicated snapshot or its hash.
-The shipped Bevy 2D scene draws the static platforms and long shadows, dynamic timber and weights, suspended lines, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, hit flash, and snapshot-derived explosion particles.
+The shipped Bevy 2D scene draws the static platforms and long shadows, a snapshot-responsive faceted timber floor and directional shadow, dynamic timber and weights, suspended lines, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, hit flash, and snapshot-derived explosion particles.
 Visible and offscreen modes apply the same snapshot-derived camera transform, shake envelope, `Bloom`, `ChromaticAberration`, and `LensDistortion` settings.
+The timber impact uses separate short flash and delayed shock envelopes so the compact multi-lobed light ends while the source-timed whole-screen displacement peaks.
 These effects and the render-only particle arrangement do not enter the authoritative snapshot or state hash.
 The offscreen 1280×720 GPU path waits for Bevy's screenshot-completion event, bounds both device polling and the total capture, encodes the returned image, and writes the PNG only after capture succeeds.
 The visible path starts hidden, requires exactly one physical display at `(364,-1080)` with extent 1920×1080, verifies the window against that observed identity, and only then reveals it; missing or ambiguous displays fail closed.

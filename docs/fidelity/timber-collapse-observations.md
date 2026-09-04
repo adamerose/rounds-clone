@@ -12,9 +12,9 @@ The reviewer contact sheet at `out/ticket-040/source-clone-contact.png` labels a
 |---|---:|---|---|
 | 03:26.00 | 0 | A dense dark-red timber silhouette stands at center above a wide hot-pink floor. Circular weights hang on both sides. | The same main composition is present. The clone silhouette uses fewer, cleaner rectangular members and perfectly vertical ropes. |
 | 03:39.80 | 828 | The structure remains intact while a bright projectile approaches the upper-left timber. | The clone remains fully constrained and shows a projectile arriving at the upper-left. Fighter routes and exact projectile position differ. |
-| 03:40.40 | 864 | A compact orange-white explosion blooms against the upper-left structure. | The authoritative explosion appears at the same broad location and releases 17 fixed joints. The clone bloom is larger and more circular. |
-| 03:40.90 | 894 | Nearby members have separated and the left hanging weight is displaced; most of the structure is still recognizable. | Snapshot transforms show local breakup and the left half beginning to deform. The clone core remains brighter and larger than the source at this time. |
-| 03:41.20 | 912 | The left and upper members rotate and fall during a strong whole-screen radial/chromatic response with irregular light and particle lobes. | The clone has broad deformation, camera shake, built-in chromatic aberration and lens distortion, sparks, and HDR bloom. Its response is much weaker at the screen edges and reads mainly as one large flat yellow disk with a warm veil. |
+| 03:40.40 | 864 | A compact orange-white explosion blooms against the upper-left structure. | The authoritative explosion appears at the same broad location and releases 17 fixed joints. The clone uses a compact irregular core, overlapping orange/yellow lobes, fragments, and dense sparks rather than an expanding opaque disk. |
+| 03:40.90 | 894 | Nearby members have separated and the left hanging weight is displaced; most of the structure is still recognizable. | Snapshot transforms show local breakup and the left half beginning to deform. The clone flash has nearly ended, leaving moving sparks and fragments rather than a dominant light disk. |
+| 03:41.20 | 912 | The left and upper members rotate and fall during a strong whole-screen radial/chromatic response with irregular light and particle lobes. | The clone has broad deformation, camera shake, a deformed faceted floor, and strong whole-screen radial stretch and RGB edge separation from built-in lens distortion and chromatic aberration. The clone response is cleaner and more symmetric than the compressed source echo. |
 | 03:43.50 | 1050 | A broad debris pile occupies the left and center floor while some right-side members remain higher. | Real Rapier contacts produce a broad low pile with a few raised right-side members. Piece count and exact pile outline differ. |
 | 03:45.00 | 1140 | The pile persists and continues settling during combat. | The clone pile persists, with substantially lower aggregate motion than shortly after impact. |
 | 03:49.50 | 1410 | Combat continues above a persistent pile; the right suspended weight remains attached. | Both rope constraints remain active and the final rendered state retains the pile and suspended weights. Fighter choreography differs. |
@@ -33,10 +33,19 @@ The body count, member dimensions, density, friction, restitution, joint placeme
 They are not claims about inaccessible ROUNDS constants or the card stack visible earlier in the recording.
 The explosion particles, light lobes, trails, camera shake, bloom, chromatic aberration, and lens distortion are presentation derived from the snapshot event and do not affect the state hash.
 
+## Line and responsibility inventory
+
+Against admitted base `370434817f97b604bc5df04e8ca9e9a8ea20557e`, the implementation adds 1,193 product lines, 171 test lines, and 21 automation-support lines across the Rust crates.
+Product code owns the Rapier bodies, joints, contacts, impulse, ordered snapshot state, wire/profile propagation, client/server entry points, and the shared Bevy scene, reactive floor, particles, camera, and built-in post-processing.
+Test code owns simulation ordering, release/contact/settlement/perturbation regressions, network agreement, capture alias safety, and the GPU offscreen assertion.
+The small automation category owns the public inspect and two-client smoke orchestration; it does not implement separate physics, networking, replay, or rendering behavior.
+Tests plus support remain smaller than product code (192 versus 1,193 added lines).
+
 ## Remaining differences
 
-The source has a denser, more house-like initial silhouette, more varied member depth, granular background texture, a faceted and visibly reactive floor, and longer directional shadows.
-The clone uses a cleaner geometric structure, a flat floor strip, broad translucent background bands, and simpler shadows.
-Its explosion is too large and remains visibly dominant longer than the source's compact multi-lobed, spark-rich flash; the clone core reads as a flat yellow disk, its sparks are more regular, and its whole-screen radial/chromatic shock is much weaker.
+The source has a denser, more house-like initial silhouette, more varied member depth, granular background texture, and longer directional shadows.
+The clone now uses a faceted hot-pink floor whose top contour, colored echo, and offset shadow respond to the snapshot explosion, but its facets are larger and more regular than the source floor and do not represent physical fracture.
+The clone flash is compact, irregular, multi-lobed, short-lived, and spark-rich, but its exact lobe shape and green edge fringe differ from the source.
+Its peak radial/chromatic shock is comparably unmistakable across the whole frame but is cleaner, more symmetric, and more strongly stretched at the outer edges than the source compression and motion echo.
 The broad left-origin collapse and persistent pile match, but individual rotations, the left weight's swing, debris density, pile outline, fighter movement, camera response, and chromatic distortion do not match frame for frame.
 These are known fidelity differences, not evidence that the dynamic-world and presentation boundaries are absent.

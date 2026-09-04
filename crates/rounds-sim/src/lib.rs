@@ -1608,7 +1608,7 @@ mod tests {
     }
 
     #[test]
-    fn explosion_impulse_perturbation_changes_the_final_authoritative_hash() {
+    fn explosion_impulse_perturbation_changes_dynamic_body_poses() {
         let mut nominal =
             AuthoritativeMatch::new_with_profile(40, ReplayProfile::TimberCollapseReplay);
         let mut perturbed =
@@ -1621,6 +1621,22 @@ mod tests {
             nominal.step([nominal_input, perturbed_input]);
             perturbed.step([nominal_input, perturbed_input]);
         }
-        assert_ne!(nominal.state_hash(), perturbed.state_hash());
+        let nominal = nominal.snapshot();
+        let perturbed = perturbed.snapshot();
+        assert_ne!(
+            dynamic_body_digest(&nominal),
+            dynamic_body_digest(&perturbed)
+        );
+        assert!(
+            nominal
+                .dynamic_bodies
+                .iter()
+                .zip(&perturbed.dynamic_bodies)
+                .any(|(left, right)| {
+                    left.x_milli != right.x_milli
+                        || left.y_milli != right.y_milli
+                        || left.rotation_milliradians != right.rotation_milliradians
+                })
+        );
     }
 }

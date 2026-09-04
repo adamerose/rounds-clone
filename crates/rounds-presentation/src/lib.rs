@@ -399,27 +399,40 @@ fn camera_state(
         .explosions
         .last()
         .map(|explosion| snapshot.tick.saturating_sub(explosion.tick));
-    let envelope = explosion_age
-        .map(|age| (1.0 - age as f32 / 54.0).clamp(0.0, 1.0))
-        .unwrap_or(0.0);
-    let shake_x = (snapshot.tick as f32 * 2.31).sin() * 15.0 * envelope;
-    let shake_y = (snapshot.tick as f32 * 1.73).cos() * 10.0 * envelope;
+    let flash = explosion_age.map(flash_envelope).unwrap_or(0.0);
+    let shock = explosion_age.map(shock_envelope).unwrap_or(0.0);
+    let shake_x = (snapshot.tick as f32 * 2.31).sin() * (7.0 * flash + 24.0 * shock);
+    let shake_y = (snapshot.tick as f32 * 1.73).cos() * (5.0 * flash + 16.0 * shock);
     let transform = Transform::from_xyz(player_nudge.clamp(-5.0, 5.0) + shake_x, shake_y, 0.0);
     let bloom = Bloom {
-        intensity: 0.22 + envelope * 0.55,
+        intensity: 0.12 + flash * 0.25 + shock * 0.12,
         ..Bloom::NATURAL
     };
     let chromatic = ChromaticAberration {
-        intensity: envelope * 0.035,
-        max_samples: 12,
+        intensity: flash * 0.025 + shock * 0.115,
+        max_samples: 20,
         ..default()
     };
     let lens = LensDistortion {
-        intensity: envelope * -0.10,
-        scale: 1.0 + envelope * 0.035,
+        intensity: flash * -0.04 + shock * -0.30,
+        scale: 1.0 + flash * 0.015 + shock * 0.10,
         ..default()
     };
     (transform, bloom, chromatic, lens)
+}
+
+fn flash_envelope(age: u32) -> f32 {
+    (1.0 - age as f32 / 36.0).clamp(0.0, 1.0)
+}
+
+fn shock_envelope(age: u32) -> f32 {
+    if !(12..=84).contains(&age) {
+        0.0
+    } else if age <= 48 {
+        (age - 12) as f32 / 36.0
+    } else {
+        (1.0 - (age - 48) as f32 / 36.0).max(0.0)
+    }
 }
 
 fn spawn_snapshot_scene(
@@ -479,7 +492,18 @@ fn spawn_snapshot_scene(
         let y = surface.center_y_milli as f32 / 1_000.0;
         let width = surface.width_milli as f32 / 1_000.0;
         let height = surface.height_milli as f32 / 1_000.0;
-        if surface.id < 10 && !timber_scene {
+        if timber_scene {
+            spawn_timber_floor(
+                commands,
+                meshes,
+                materials,
+                snapshot,
+                Vec2::new(x, y),
+                Vec2::new(width, height),
+            );
+            continue;
+        }
+        if surface.id < 10 {
             let direction = if x < 0.0 { -1.0 } else { 1.0 };
             let shadow_length = 560.0;
             commands.spawn((
@@ -575,57 +599,113 @@ fn spawn_snapshot_scene(
 
     if let Some(explosion) = snapshot.explosions.last() {
         let age = snapshot.tick.saturating_sub(explosion.tick);
-        if age <= 90 {
+        if age <= 48 {
             let center = Vec2::new(
                 explosion.x_milli as f32 / 1_000.0,
                 explosion.y_milli as f32 / 1_000.0,
             );
-            let envelope = (1.0 - age as f32 / 90.0).max(0.0);
-            let core_radius = 18.0 + age as f32 * 2.8;
-            commands.spawn((
-                SceneVisual,
-                Mesh2d(meshes.add(Circle::new(core_radius))),
-                MeshMaterial2d(materials.add(Color::linear_rgba(
-                    9.0 * envelope,
-                    2.8 * envelope,
-                    0.18,
-                    0.92,
-                ))),
-                Transform::from_xyz(center.x, center.y, 20.0),
-            ));
-            for lobe in 0..11 {
-                let angle = lobe as f32 * 2.399 + age as f32 * 0.012;
-                let distance = 22.0 + age as f32 * (1.1 + (lobe % 4) as f32 * 0.18);
-                let size = (38.0 - age as f32 * 0.28).max(4.0) * (0.75 + (lobe % 3) as f32 * 0.18);
+            let flash = flash_envelope(age);
+            if flash > 0.0 {
                 commands.spawn((
                     SceneVisual,
-                    Mesh2d(meshes.add(Circle::new(size))),
-                    MeshMaterial2d(materials.add(Color::linear_rgba(
-                        5.5 * envelope,
-                        (0.7 + (lobe % 2) as f32) * envelope,
-                        0.08,
-                        0.82,
+                    Mesh2d(meshes.add(Circle::new(28.0 + age as f32 * 0.22))),
+                    MeshMaterial2d(materials.add(Color::srgba_u8(
+                        255,
+                        72,
+                        12,
+                        (38.0 * flash) as u8,
                     ))),
-                    Transform::from_xyz(
-                        center.x + angle.cos() * distance,
-                        center.y + angle.sin() * distance,
-                        19.0,
-                    ),
+                    Transform::from_xyz(center.x, center.y, 18.0),
                 ));
+                commands.spawn((
+                    SceneVisual,
+                    Mesh2d(meshes.add(Circle::new(7.0 + flash * 8.0))),
+                    MeshMaterial2d(materials.add(Color::linear_rgba(
+                        4.5 * flash,
+                        3.2 * flash,
+                        0.8 * flash,
+                        0.95,
+                    ))),
+                    Transform::from_xyz(center.x, center.y, 22.0),
+                ));
+                for lobe in 0..19 {
+                    let angle = lobe as f32 * 2.399 + age as f32 * 0.018;
+                    let distance = 7.0
+                        + (lobe % 5) as f32 * 4.4
+                        + age as f32 * (0.24 + (lobe % 3) as f32 * 0.07);
+                    let size = (8.0 + (lobe * 7 % 13) as f32) * flash.powf(0.65);
+                    let green = if lobe % 3 == 0 { 2.4 } else { 1.1 };
+                    commands.spawn((
+                        SceneVisual,
+                        Mesh2d(meshes.add(Circle::new(size.max(1.5)))),
+                        MeshMaterial2d(materials.add(Color::linear_rgba(
+                            3.2 * flash,
+                            green * flash,
+                            0.05,
+                            0.78,
+                        ))),
+                        Transform::from_xyz(
+                            center.x + angle.cos() * distance,
+                            center.y + angle.sin() * distance,
+                            20.0 + (lobe % 2) as f32,
+                        ),
+                    ));
+                }
             }
-            for spark in 0..28 {
-                let angle = spark as f32 * 0.91 + 0.37;
-                let speed = 3.2 + (spark % 7) as f32 * 0.55;
-                let distance = age as f32 * speed;
-                let end = center + Vec2::new(angle.cos(), angle.sin()) * distance;
+            for spark in 0..72 {
+                let angle = spark as f32 * 2.399 + (spark % 5) as f32 * 0.11;
+                let speed = 1.5 + (spark * 11 % 17) as f32 * 0.18;
+                let distance = 10.0 + age as f32 * speed;
+                let gravity = age as f32 * age as f32 * 0.010;
+                let end = center
+                    + Vec2::new(angle.cos(), angle.sin()) * distance
+                    + Vec2::new(0.0, -gravity);
+                let spark_envelope = (1.0 - age as f32 / 49.0).max(0.0);
+                let length = (3.0 + age as f32 * speed * 0.12).min(24.0);
                 commands.spawn((
                     SceneVisual,
                     Sprite::from_color(
-                        Color::linear_rgba(7.0 * envelope, 2.0 * envelope, 0.1, 0.9),
-                        Vec2::new(4.0 + age as f32 * 0.13, 2.0),
+                        if spark % 4 == 0 {
+                            Color::linear_rgba(
+                                3.8 * spark_envelope,
+                                2.4 * spark_envelope,
+                                0.3 * spark_envelope,
+                                0.95,
+                            )
+                        } else {
+                            Color::linear_rgba(
+                                3.0 * spark_envelope,
+                                1.1 * spark_envelope,
+                                0.08,
+                                0.85,
+                            )
+                        },
+                        Vec2::new(length, 1.4 + (spark % 3) as f32 * 0.45),
                     ),
-                    Transform::from_xyz(end.x, end.y - age as f32 * age as f32 * 0.018, 21.0)
+                    Transform::from_xyz(end.x, end.y, 23.0)
                         .with_rotation(Quat::from_rotation_z(angle)),
+                ));
+            }
+            for fragment in 0..18 {
+                let angle = fragment as f32 * 1.71 + 0.23;
+                let speed = 0.8 + (fragment % 6) as f32 * 0.28;
+                let distance = 12.0 + age as f32 * speed;
+                commands.spawn((
+                    SceneVisual,
+                    Sprite::from_color(
+                        if fragment % 3 == 0 {
+                            Color::srgb_u8(92, 29, 38)
+                        } else {
+                            Color::linear_rgba(2.8, 0.32, 0.04, 0.9)
+                        },
+                        Vec2::new(3.0 + (fragment % 4) as f32 * 1.5, 2.0),
+                    ),
+                    Transform::from_xyz(
+                        center.x + angle.cos() * distance,
+                        center.y + angle.sin() * distance - age as f32 * age as f32 * 0.013,
+                        19.0,
+                    )
+                    .with_rotation(Quat::from_rotation_z(angle + age as f32 * 0.08)),
                 ));
             }
         }
@@ -729,14 +809,144 @@ fn spawn_snapshot_scene(
     }
 }
 
+fn spawn_timber_floor(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    snapshot: &MatchSnapshot,
+    center: Vec2,
+    size: Vec2,
+) {
+    const SEGMENTS: usize = 14;
+    const FACETS: [[u8; 3]; 4] = [[246, 0, 79], [222, 0, 75], [255, 17, 101], [195, 0, 70]];
+    let age = snapshot
+        .explosions
+        .last()
+        .map(|explosion| snapshot.tick.saturating_sub(explosion.tick));
+    let flash = age.map(flash_envelope).unwrap_or(0.0);
+    let shock = age.map(shock_envelope).unwrap_or(0.0);
+    let explosion_x = snapshot
+        .explosions
+        .last()
+        .map(|explosion| explosion.x_milli as f32 / 1_000.0)
+        .unwrap_or(-245.0);
+    let left_edge = center.x - size.x * 0.5;
+    let bottom = center.y - size.y * 0.5;
+    let segment_width = size.x / SEGMENTS as f32;
+    let mut top = [0.0_f32; SEGMENTS + 1];
+    for (index, value) in top.iter_mut().enumerate() {
+        let x = left_edge + index as f32 * segment_width;
+        let static_facet =
+            ((index as f32 * 2.17).sin() * 5.5) + if index % 4 == 0 { 5.0 } else { 0.0 };
+        let distance = (x - explosion_x).abs();
+        let falloff = (1.0 - distance / 900.0).clamp(0.0, 1.0);
+        let phase = (distance * 0.026 - age.unwrap_or(0) as f32 * 0.31).sin();
+        *value =
+            center.y + size.y * 0.5 + static_facet + phase * falloff * (flash * 7.0 + shock * 18.0);
+    }
+
+    let shadow_offset = Vec2::new(24.0 + shock * 34.0, 12.0 + shock * 8.0);
+    for segment in 0..SEGMENTS {
+        let left = left_edge + segment as f32 * segment_width;
+        let right = left + segment_width + 0.5;
+        let top_left = top[segment];
+        let top_right = top[segment + 1];
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            [
+                Vec2::new(left, bottom) + shadow_offset,
+                Vec2::new(right, bottom) + shadow_offset,
+                Vec2::new(right, top_right) + shadow_offset,
+            ],
+            Color::srgba_u8(0, 8, 34, 205),
+            -2.0,
+        );
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            [
+                Vec2::new(left, bottom) + shadow_offset,
+                Vec2::new(right, top_right) + shadow_offset,
+                Vec2::new(left, top_left) + shadow_offset,
+            ],
+            Color::srgba_u8(0, 8, 34, 205),
+            -2.0,
+        );
+        let first_color = FACETS[segment % FACETS.len()];
+        let second_color = FACETS[(segment + 1) % FACETS.len()];
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            [
+                Vec2::new(left, bottom),
+                Vec2::new(right, bottom),
+                Vec2::new(right, top_right),
+            ],
+            Color::srgb_u8(first_color[0], first_color[1], first_color[2]),
+            0.0,
+        );
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            [
+                Vec2::new(left, bottom),
+                Vec2::new(right, top_right),
+                Vec2::new(left, top_left),
+            ],
+            Color::srgb_u8(second_color[0], second_color[1], second_color[2]),
+            0.0,
+        );
+        if shock > 0.0 {
+            let echo = Vec2::new((segment as f32 * 1.7).sin() * 8.0, 8.0 + shock * 10.0);
+            spawn_triangle(
+                commands,
+                meshes,
+                materials,
+                [
+                    Vec2::new(left, top_left - 7.0) + echo,
+                    Vec2::new(right, top_right - 7.0) + echo,
+                    Vec2::new(right, top_right) + echo,
+                ],
+                if segment % 2 == 0 {
+                    Color::srgba_u8(0, 226, 255, (85.0 * shock) as u8)
+                } else {
+                    Color::srgba_u8(255, 0, 117, (105.0 * shock) as u8)
+                },
+                0.5,
+            );
+        }
+    }
+}
+
+fn spawn_triangle(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    vertices: [Vec2; 3],
+    color: Color,
+    z: f32,
+) {
+    commands.spawn((
+        SceneVisual,
+        Mesh2d(meshes.add(Triangle2d::new(vertices[0], vertices[1], vertices[2]))),
+        MeshMaterial2d(materials.add(color)),
+        Transform::from_xyz(0.0, 0.0, z),
+    ));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rounds_sim::{TIMBER_IMPACT_TICK, hash_snapshot, run_scripted_match};
 
     #[test]
-    fn bevy_offscreen_renderer_writes_a_full_size_png() {
-        let (snapshot, state_hash) = run_scripted_match(40, TIMBER_IMPACT_TICK);
+    fn bevy_offscreen_renderer_captures_the_peak_builtin_shock() {
+        let (snapshot, state_hash) = run_scripted_match(40, TIMBER_IMPACT_TICK + 48);
         let path = std::env::temp_dir().join(format!(
             "rounds-bevy-render-{}-{}.png",
             std::process::id(),
@@ -751,6 +961,10 @@ mod tests {
         assert_eq!(frame_sha256(&first).len(), 64);
         assert_eq!(hash_snapshot(&snapshot), state_hash);
         assert_eq!(snapshot.explosions.len(), 1);
+        let (_, bloom, chromatic, lens) = camera_state(&snapshot);
+        assert!(bloom.intensity >= 0.23);
+        assert!(chromatic.intensity >= 0.11);
+        assert!(lens.intensity <= -0.29);
         std::fs::remove_file(path).unwrap();
     }
 }

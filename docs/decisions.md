@@ -451,3 +451,9 @@ This is the smallest real Rapier configuration that reproduces the observed inta
 Presentation uses Bevy 0.19's built-in HDR `Bloom`, `ChromaticAberration`, and `LensDistortion` components on both the offscreen and visible cameras.
 Direct comparison found remaining differences in scale, duration, irregularity, and debris density, but did not establish a missing effect that required a custom fullscreen pass.
 The project therefore keeps the render boundary at public Bevy components and snapshot-derived ordinary scene entities.
+
+## 2026-09-04 — Separate timber flash, floor response, and delayed screen shock
+
+Direct source-and-clone review rejected the first explosion treatment because one large HDR disk and a warm veil obscured the arena, the radial/chromatic response had already faded by the source's 03:41.20 shock frame, and the hot-pink floor stayed visually flat.
+The shared visible/offscreen scene now uses a 36-tick compact multi-lobed flash, a delayed shock envelope peaking 48 ticks after impact, a faceted floor mesh whose contour and colored edge echo respond to that event, and Bevy's public bloom, chromatic-aberration, and lens-distortion components.
+This produces the required visible response without a custom fullscreen pass; the collision floor remains one fixed authoritative Rapier body because the source interval proves surface deformation and structure collapse, not floor fracture.
