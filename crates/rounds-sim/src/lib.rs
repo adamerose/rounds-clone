@@ -1882,7 +1882,18 @@ impl AuthoritativeMatch {
         // Timber is one destructible assembly. Only an explosive projectile
         // contacting one of its bodies releases its supports; a distant floor
         // or fighter impact cannot collapse the tower.
-        if self.physics.bullet_dynamic_contact(projectile_id).is_some() {
+        let contacted_timber = self
+            .physics
+            .bullet_dynamic_contact(projectile_id)
+            .is_some_and(|(body_id, _)| {
+                self.world
+                    .entity(self.dynamic_body_entities[&body_id])
+                    .get::<DynamicBodyState>()
+                    .expect("dynamic body state")
+                    .shape
+                    == DynamicBodyShape::Timber
+            });
+        if contacted_timber {
             self.release_timber_constraints();
         }
         let radius = projectile.explosive_radius_milli as f32 / 1_000.0;
@@ -3205,6 +3216,39 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![true, false]
         );
+    }
+
+    #[test]
+    fn explosive_weight_contact_keeps_timber_supports_attached() {
+        let mut authority = AuthoritativeMatch::new_with_profile(
+            SOURCE_DRAFT_SEED,
+            ReplayProfile::RematchDraftReplay,
+        );
+        let trace = scripted_inputs_for(
+            ReplayProfile::RematchDraftReplay,
+            SOURCE_DRAFT_SEED,
+            CONNECTED_TIMBER_COMBAT_TICK,
+        );
+        for (&orange, &blue) in trace[0].iter().zip(&trace[1]) {
+            authority.step([orange, blue]);
+        }
+        let before = authority.snapshot();
+        for tick in 0..5 {
+            authority.step([
+                PlayerInput::default(),
+                PlayerInput {
+                    aim_x: 71,
+                    aim_y: 1_000,
+                    fire: tick == 0,
+                    ..PlayerInput::default()
+                },
+            ]);
+        }
+        let after = authority.snapshot();
+        assert_eq!(after.explosions.len(), before.explosions.len() + 1);
+        assert_eq!(after.explosions.last().unwrap().tick, 2_735);
+        assert_eq!(after.metrics.released_constraints, 0);
+        assert!(after.constraints.iter().all(|constraint| constraint.active));
     }
 
     #[test]
