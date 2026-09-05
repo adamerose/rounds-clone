@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-04T17:00:46Z
 origin: system-detected
 tags: ["bevy", "physics", "fidelity", "multiplayer", "presentation", "projectiles", "vertical-slice"]
@@ -127,3 +127,5 @@ This slice turns the user's strongest supplied screen-effect example into a play
 - 2026-09-04T23:33:17Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06ec4-f754-7b91-9494-0c49ecfefb23 — Began fresh delivery review of the exact two-ticket range, including the corrected three-frame source boundary, authority and multiplayer semantics, real-GPU evidence, proportionality, and Cargo resource contract.
 - 2026-09-04T23:45:34Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06ec4-f754-7b91-9494-0c49ecfefb23 — Confirmed every ticket-043 gameplay, physics, network, renderer, source, and evidence outcome, but rejected the indivisible range because ticket 044 omitted the cleanup plan from agent guidance and left stale `target/debug` commands in the architecture runbook.
 - 2026-09-04T23:57:51Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/01a06ed3-1e69-7861-b165-4449e9ed4af0 — Approved the exact indivisible ticket-043/ticket-044 candidate after fresh full-range review of the corrected source boundary, authority, physics, network, shared GPU presentation, evidence, proportionality, Cargo resource guard, public paths, and prior findings.
+- 2026-09-05T00:03:13Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/01a06ed3-1e69-7861-b165-4449e9ed4af0 — approved candidate 0934e4b9fd64723e55e49863ca3f22c6c5125c32..55dfec622038a6be7227fb37b0a458208e6658ac
+- 2026-09-05T00:03:13Z stage integration end session codex:01a06920-7449-74d0-9b09-57855a012572 — integrated 55dfec622038a6be7227fb37b0a458208e6658ac as 55dfec622038a6be7227fb37b0a458208e6658ac
