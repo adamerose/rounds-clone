@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-05T00:15:08Z
 origin: human-request
 tags: ["bevy", "match-flow", "physics", "multiplayer", "fidelity", "vertical-slice"]
@@ -103,3 +103,5 @@ Turn the already implemented rematch/draft and timber-collapse slices into one c
 - 2026-09-05T20:47:21Z stage correction start session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Repairing delivery metadata after inspecting the closing helper: review markers require whole-second UTC timestamps, and an explicit ticket selector must preserve filename padding.
 - 2026-09-05T20:47:21Z stage correction end session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Appended a whole-second review boundary and recorded the parser mismatch without changing approved game code, tests, source anchors or binary evidence.
 - 2026-09-05T20:47:21Z stage review start session codex:01a0708b-4602-7183-983b-8d08a61ff092/01a07352-30b4-78f1-b540-3421cc66ed17 — Starting independent review of the delivery-record correction and its continuity with the previously approved complete implementation.
+- 2026-09-05T20:51:37Z stage review end session codex:01a0708b-4602-7183-983b-8d08a61ff092/01a07352-30b4-78f1-b540-3421cc66ed17 — approved candidate 18bb22e7b16b3db5e6ac2df43c59e8f9f443dfe2..a6a8aa473079744c600c2771111482a645c0f742
+- 2026-09-05T20:51:37Z stage integration end session codex:01a0708b-4602-7183-983b-8d08a61ff092 — integrated a6a8aa473079744c600c2771111482a645c0f742 as a6a8aa473079744c600c2771111482a645c0f742
