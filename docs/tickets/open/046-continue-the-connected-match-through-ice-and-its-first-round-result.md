@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-05T23:37:39Z
 origin: system-detected
 tags: ["product-fidelity", "match-flow", "arenas", "bevy"]
@@ -54,3 +54,5 @@ The connected Bevy match currently stops after the timber duel with one half per
 - 2026-09-05T23:37:39Z stage design start session codex:01a073e9-17ec-7170-933a-0e18a071972d/01a073ea-e6fa-7bd2-9ff0-85f9201f2b93 — Shaping one connected first-round delivery with symmetric live scoring, existing input/render paths and bounded source evidence; older contracts and claims remain untouched.
 - 2026-09-05T23:40:54Z — Reflection triage: keep ideas 018 and 020 as the arena and presentation umbrellas, with this bounded footage child advancing both; keep 036's frozen historical failure audit because the Bevy restart explicitly retained it and recent postmortems do not dispose of that source universe. Wait on 019 and 025 until their obsolete 16-card/51-card baseline is reshaped around the active two-card Bevy implementation and direct mechanics evidence; wait on 021 until the complete menu/input flow has footage ownership; wait on 022 until complete-match behavior exists for its 10,000-match gate; wait on 023 until the local game/settings flow exists to package; wait on 024 until a complete legal match can produce a truthful reel; wait on 037 until ticket 035 closes and its evidence ownership is resolved. No idea was abandoned or older contract modified. Missing production transport and audio remain named footage gaps; adding infrastructure ahead of the next playable round was judged lower value.
 - 2026-09-05T23:40:54Z stage design end session codex:01a073e9-17ec-7170-933a-0e18a071972d/01a073ea-e6fa-7bd2-9ff0-85f9201f2b93 — Drafted the idea and twelve-anchor source record, verified the full source recording hash, and passed the release-matched ticket checker and diff whitespace check; ready for independent admission, with no product changes or Cargo/GUI execution.
+
+- 2026-09-05T23:46:04Z — Independent admission reviewer codex:01a073e9-17ec-7170-933a-0e18a071972d/01a073f3-6a0d-76d0-8ca1-8d01b63c2c81 approved exact shaping range 8caa16182f587522fd603bafe0d7e42441af7e80..ea9cd5f1c6774ee2ba95b537e5a4f52820a8e4ff after independently reproducing all twelve native source hashes and adjacent boundaries, inspecting source frames, and checking scope, risk 4, ordering and score semantics. Contract admitted with no open human decision; implementation remains unreviewed.
