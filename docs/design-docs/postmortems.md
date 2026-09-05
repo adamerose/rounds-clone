@@ -1139,3 +1139,9 @@ The corrected timber trace also exposed a contact-coordinate error: the explosio
 ## 2026-09-05 — Connected trace did not exercise other explosive targets
 
 Independent review of ticket 045 found that `trigger_projectile_explosion` treated every dynamic body as part of the timber assembly. A legal blue shot aimed at (71,1000) after tick 2730 struck the separate hanging weight at tick 2735 and released all 17 timber supports even though the tower was outside the blast radius. The recorded trace and the no-shot/card perturbations never targeted a weight, so they missed this live-input case. The correction resolves the contacted body's authoritative shape and releases supports only for timber contact; the exact legal shot is retained as a regression while weight explosions and impulses remain active.
+
+## 2026-09-05 — Ticket checking and closing accepted different timestamp forms
+
+Ticket 045 passed the ticket checker and independent review, then the closing helper refused to find its final review marker after local integration. The ticket used valid ISO-8601 fractional-second timestamps, but `checks/src/review-independence.mjs` recognizes stage markers only at whole-second UTC precision. The explicit ticket selector also compares filename text exactly, so `045` must keep its leading zero. A padded retry still refused until the timestamp mismatch was identified. Existing append-only records remain intact; a new whole-second review boundary receives independent review before closure. Future delivery markers should use `YYYY-MM-DDTHH:mm:ssZ`, and Ivy should align checker and closing grammar and explain which field failed.
+
+An automatic approval-service usage-limit error temporarily blocked one retry. No workaround executed the rejected action. A later read-only check confirmed the clean integrated tip and preserved stash, then the same approved helper route was retried. Publication and cleanup remained paused throughout the refusal.
