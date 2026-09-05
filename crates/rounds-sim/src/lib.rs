@@ -152,6 +152,7 @@ pub struct PlayerInput {
     pub move_axis: i8,
     pub aim_x: i16,
     pub aim_y: i16,
+    pub aim_at_opponent: bool,
     pub jump: bool,
     pub fire: bool,
     pub block: bool,
@@ -166,6 +167,33 @@ impl PlayerInput {
             aim_y: self.aim_y.clamp(-1_000, 1_000),
             ..self
         }
+    }
+
+    /// Resolves optional opponent-relative aim from the latest received state.
+    /// Revisioned flow commands remain unchanged and are validated by authority.
+    pub fn with_progressive_observation(
+        mut self,
+        player: u8,
+        observation: Option<&MatchSnapshot>,
+    ) -> Self {
+        if self.aim_at_opponent {
+            if let Some(snapshot) = observation {
+                let actor = snapshot.players.iter().find(|fighter| fighter.id == player);
+                let target = snapshot
+                    .players
+                    .iter()
+                    .find(|fighter| fighter.id == 1_u8.wrapping_sub(player));
+                if let (Some(actor), Some(target)) = (actor, target) {
+                    let dx = i64::from(target.x_milli) - i64::from(actor.x_milli);
+                    let dy = i64::from(target.y_milli) - i64::from(actor.y_milli);
+                    let scale = dx.abs().max(dy.abs()).max(1);
+                    self.aim_x = (dx * 1_000 / scale) as i16;
+                    self.aim_y = (dy * 1_000 / scale) as i16;
+                }
+            }
+            self.aim_at_opponent = false;
+        }
+        self
     }
 }
 
@@ -214,6 +242,8 @@ pub enum RoundPhase {
     Combat,
     ResultTransition,
     HalfBlue,
+    ArenaTransition,
+    HalfOrange,
     RoundOrange,
 }
 
@@ -840,6 +870,54 @@ impl PhysicsBoundary {
         }
     }
 
+    fn load_timber_arena(&mut self) {
+        for collider in self.platforms.drain(..) {
+            self.rapier.colliders[collider].set_collision_groups(groups(Group::NONE, Group::NONE));
+        }
+        let bullet_ids = self.bullets.keys().copied().collect::<Vec<_>>();
+        for id in bullet_ids {
+            self.remove_bullet(id);
+        }
+        self.platforms = timber_arena()
+            .iter()
+            .map(|surface| {
+                let (_, collider) = self.rapier.insert(
+                    RigidBodyBuilder::fixed().translation(Vector::new(
+                        surface.center_x_milli as f32 / 1_000.0,
+                        surface.center_y_milli as f32 / 1_000.0,
+                    )),
+                    ColliderBuilder::cuboid(
+                        surface.width_milli as f32 / 2_000.0,
+                        surface.height_milli as f32 / 2_000.0,
+                    )
+                    .friction(0.92)
+                    .restitution(0.02)
+                    .collision_groups(groups(
+                        Group::GROUP_3,
+                        Group::GROUP_1
+                            | Group::GROUP_2
+                            | Group::GROUP_4
+                            | Group::GROUP_5
+                            | DYNAMIC_GROUP,
+                    )),
+                );
+                collider
+            })
+            .collect();
+        for (id, position) in [Vector::new(-500.0, -210.0), Vector::new(500.0, -210.0)]
+            .into_iter()
+            .enumerate()
+        {
+            let body = &mut self.rapier.bodies[self.players[id].body];
+            body.set_translation(position, true);
+            body.set_linvel(Vector::ZERO, true);
+        }
+        self.insert_timber_structure();
+        self.rapier
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
+    }
+
     fn insert_yellow_crates(&mut self) {
         for definition in yellow_crate_definitions() {
             let (body, collider) = self.rapier.insert(
@@ -944,13 +1022,27 @@ impl PhysicsBoundary {
         (body_contacts, fighter_contacts)
     }
 
-    fn bullet_dynamic_contact(&self, id: u32) -> Option<u16> {
+    fn bullet_dynamic_contact(&self, id: u32) -> Option<(u16, Vector)> {
         let bullet = self.bullets.get(&id)?;
         self.dynamic_bodies.iter().find_map(|(body_id, body)| {
-            self.rapier
-                .contact_pair(bullet.collider, body.collider)
-                .is_some_and(|pair| pair.has_any_active_contact())
-                .then_some(*body_id)
+            let pair = self.rapier.contact_pair(bullet.collider, body.collider)?;
+            if !pair.has_any_active_contact() {
+                return None;
+            }
+            pair.manifolds.iter().find_map(|manifold| {
+                let contact = manifold.data.solver_contacts.first()?;
+                let (first, second) = manifold
+                    .data
+                    .solver_contact_world_points(contact, &self.rapier.bodies);
+                Some((
+                    *body_id,
+                    if pair.collider1 == bullet.collider {
+                        second
+                    } else {
+                        first
+                    },
+                ))
+            })
         })
     }
 
@@ -1094,6 +1186,65 @@ impl PhysicsBoundary {
     }
 }
 
+fn spawn_dynamic_bodies(
+    world: &mut World,
+    dynamic_definitions: Vec<DynamicBodyDefinition>,
+) -> BTreeMap<u16, Entity> {
+    dynamic_definitions
+        .into_iter()
+        .map(|definition| {
+            let id = definition.id;
+            let entity = world
+                .spawn(DynamicBodyState {
+                    id,
+                    shape: definition.shape,
+                    width: definition.width,
+                    height: definition.height,
+                    radius: definition.radius,
+                    face_rgb: definition.face_rgb,
+                    mass: definition.mass,
+                    friction: definition.friction,
+                    restitution: definition.restitution,
+                })
+                .id();
+            (id, entity)
+        })
+        .collect()
+}
+
+fn spawn_timber_constraints(world: &mut World) -> BTreeMap<u16, Entity> {
+    timber_body_definitions()
+        .into_iter()
+        .map(|definition| {
+            let (id, kind, anchor, active) = match definition.shape {
+                DynamicBodyShape::Timber | DynamicBodyShape::Crate => (
+                    definition.id,
+                    ConstraintKind::Fixed,
+                    definition.position,
+                    true,
+                ),
+                DynamicBodyShape::Weight => (
+                    1_000 + definition.id,
+                    ConstraintKind::Rope,
+                    Vector::new(definition.position.x, 330.0),
+                    true,
+                ),
+            };
+            let entity = world
+                .spawn(ConstraintState {
+                    id,
+                    body_a: None,
+                    body_b: definition.id,
+                    kind,
+                    anchor,
+                    active,
+                })
+                .id();
+            (id, entity)
+        })
+        .collect()
+}
+
 pub struct AuthoritativeMatch {
     world: World,
     physics: PhysicsBoundary,
@@ -1114,6 +1265,7 @@ pub struct AuthoritativeMatch {
     flow: Option<FlowAuthority>,
     round: Option<RoundStateSnapshot>,
     pending_radial_hit: Option<PendingRadialHit>,
+    timber_loaded: bool,
 }
 
 impl AuthoritativeMatch {
@@ -1145,61 +1297,9 @@ impl AuthoritativeMatch {
             ReplayProfile::YellowCrateTerminalBlastReplay => yellow_crate_definitions(),
             _ => Vec::new(),
         };
-        let dynamic_body_entities = if dynamic_definitions.is_empty() {
-            BTreeMap::new()
-        } else {
-            dynamic_definitions
-                .into_iter()
-                .map(|definition| {
-                    let id = definition.id;
-                    let entity = world
-                        .spawn(DynamicBodyState {
-                            id,
-                            shape: definition.shape,
-                            width: definition.width,
-                            height: definition.height,
-                            radius: definition.radius,
-                            face_rgb: definition.face_rgb,
-                            mass: definition.mass,
-                            friction: definition.friction,
-                            restitution: definition.restitution,
-                        })
-                        .id();
-                    (id, entity)
-                })
-                .collect()
-        };
+        let dynamic_body_entities = spawn_dynamic_bodies(&mut world, dynamic_definitions);
         let constraint_entities = if profile == ReplayProfile::TimberCollapseReplay {
-            timber_body_definitions()
-                .into_iter()
-                .map(|definition| {
-                    let (id, kind, anchor, active) = match definition.shape {
-                        DynamicBodyShape::Timber | DynamicBodyShape::Crate => (
-                            definition.id,
-                            ConstraintKind::Fixed,
-                            definition.position,
-                            true,
-                        ),
-                        DynamicBodyShape::Weight => (
-                            1_000 + definition.id,
-                            ConstraintKind::Rope,
-                            Vector::new(definition.position.x, 330.0),
-                            true,
-                        ),
-                    };
-                    let entity = world
-                        .spawn(ConstraintState {
-                            id,
-                            body_a: None,
-                            body_b: definition.id,
-                            kind,
-                            anchor,
-                            active,
-                        })
-                        .id();
-                    (id, entity)
-                })
-                .collect()
+            spawn_timber_constraints(&mut world)
         } else {
             BTreeMap::new()
         };
@@ -1264,8 +1364,18 @@ impl AuthoritativeMatch {
                             eliminated: None,
                         },
                     )
+                })
+                .or_else(|| {
+                    (profile == ReplayProfile::RematchDraftReplay).then_some(RoundStateSnapshot {
+                        phase: RoundPhase::Combat,
+                        phase_tick: 0,
+                        scores: [4, 5],
+                        winner: Some(1),
+                        eliminated: Some(0),
+                    })
                 }),
             pending_radial_hit: None,
+            timber_loaded: profile == ReplayProfile::TimberCollapseReplay,
         };
         if profile == ReplayProfile::RematchDraftReplay {
             let mut orange = simulation.world.entity_mut(simulation.player_entities[0]);
@@ -1310,7 +1420,8 @@ impl AuthoritativeMatch {
 
     pub fn step(&mut self, inputs: [PlayerInput; 2]) {
         self.tick += 1;
-        if let Some(round) = &mut self.round
+        if self.flow.is_none()
+            && let Some(round) = &mut self.round
             && round.phase != RoundPhase::Combat
         {
             round.phase_tick += 1;
@@ -1358,19 +1469,32 @@ impl AuthoritativeMatch {
             }
         }
         let mut rematch_reset = false;
+        let mut timber_load = false;
+        let mut timber_combat_started = false;
+        let mut accepts_combat = true;
         if let Some(flow) = &mut self.flow {
             let had_terminal_result = flow.has_terminal_result();
+            let previous_phase = flow.snapshot().phase;
             flow.advance(inputs.map(|input| input.flow));
+            let phase = flow.snapshot().phase;
             rematch_reset = had_terminal_result && !flow.has_terminal_result();
-            if !flow.accepts_combat() {
-                if rematch_reset {
-                    self.reset_fighters_for_rematch();
-                }
-                return;
-            }
+            timber_load = previous_phase != FlowPhase::TimberTransition
+                && phase == FlowPhase::TimberTransition;
+            timber_combat_started =
+                previous_phase != FlowPhase::TimberCombat && phase == FlowPhase::TimberCombat;
+            accepts_combat = flow.accepts_combat();
         }
-        if rematch_reset {
-            self.reset_fighters_for_rematch();
+        self.sync_round_from_flow();
+        if timber_load {
+            self.load_timber_arena();
+            self.revive_fighters();
+        }
+        if timber_combat_started || rematch_reset {
+            self.revive_fighters();
+            self.winner = None;
+        }
+        if !accepts_combat {
+            return;
         }
         if self.winner.is_some()
             && self.flow.is_none()
@@ -1465,18 +1589,10 @@ impl AuthoritativeMatch {
             }
         }
 
+        // The standalone ticket-040 replay retains its admitted source event.
+        // The connected flow never enters this branch: its explosions require bullets.
         if self.profile == ReplayProfile::TimberCollapseReplay && self.tick == TIMBER_IMPACT_TICK {
-            let released = self.physics.release_explosion_constraints();
-            for id in &released {
-                if let Some(entity) = self.constraint_entities.get(id) {
-                    self.world
-                        .entity_mut(*entity)
-                        .get_mut::<ConstraintState>()
-                        .expect("constraint state")
-                        .active = false;
-                }
-            }
-            self.metrics.released_constraints += released.len() as u32;
+            self.release_timber_constraints();
             self.metrics.explosion_impulsed_bodies += self.physics.apply_radial_explosion(
                 TIMBER_EXPLOSION_CENTER,
                 TIMBER_EXPLOSION_RADIUS,
@@ -1589,41 +1705,49 @@ impl AuthoritativeMatch {
                     removals.push(projectile_id);
                     continue;
                 }
-                let mut target_entity_mut = self.world.entity_mut(target_entity);
-                let mut target_state = target_entity_mut
-                    .get_mut::<PlayerState>()
-                    .expect("player state");
-                target_state.health = target_state.health.saturating_sub(damage);
-                target_state.hit_flash_ticks = 6;
-                if projectile.dazzle_pulses > 0 {
-                    target_state.stun_pulses_remaining = projectile.dazzle_pulses;
-                    target_state.stun_pulse_cooldown = 1;
-                    target_state.stun_ticks = projectile.dazzle_stun_ticks;
-                }
-                if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay {
-                    self.physics.apply_impulse(target, event_impulse);
-                } else {
-                    self.physics
-                        .apply_impulse(target, velocity * HIT_IMPULSE * damage_scale);
-                }
-                self.metrics.hits += 1;
-                self.metrics.health_scaled_knockbacks += 1;
-                if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay {
-                    self.metrics.explosion_impulsed_bodies += self.physics.apply_radial_explosion(
-                        impact_position,
-                        YELLOW_EXPLOSION_RADIUS,
-                        self.explosion_strength,
-                    );
-                    self.explosions.push(ExplosionSnapshot {
-                        id: 20_000 + projectile_id as u16,
-                        tick: self.tick,
-                        x_milli: quantize(impact_position.x),
-                        y_milli: quantize(impact_position.y),
-                        radius_milli: quantize(YELLOW_EXPLOSION_RADIUS),
-                        impulse_milli: quantize(self.explosion_strength),
-                    });
-                    self.metrics.explosive_projectile_impacts += 1;
-                }
+                let eliminated = {
+                    let mut target_entity_mut = self.world.entity_mut(target_entity);
+                    let mut target_state = target_entity_mut
+                        .get_mut::<PlayerState>()
+                        .expect("player state");
+                    target_state.health = target_state.health.saturating_sub(damage);
+                    target_state.hit_flash_ticks = 6;
+                    if projectile.dazzle_pulses > 0 {
+                        target_state.stun_pulses_remaining = projectile.dazzle_pulses;
+                        target_state.stun_pulse_cooldown = 1;
+                        target_state.stun_ticks = projectile.dazzle_stun_ticks;
+                    }
+                    if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+                        self.physics.apply_impulse(target, event_impulse);
+                    } else {
+                        self.physics
+                            .apply_impulse(target, velocity * HIT_IMPULSE * damage_scale);
+                    }
+                    self.metrics.hits += 1;
+                    self.metrics.health_scaled_knockbacks += 1;
+                    if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay {
+                        self.metrics.explosion_impulsed_bodies +=
+                            self.physics.apply_radial_explosion(
+                                impact_position,
+                                YELLOW_EXPLOSION_RADIUS,
+                                self.explosion_strength,
+                            );
+                        self.explosions.push(ExplosionSnapshot {
+                            id: 20_000 + projectile_id as u16,
+                            tick: self.tick,
+                            x_milli: quantize(impact_position.x),
+                            y_milli: quantize(impact_position.y),
+                            radius_milli: quantize(YELLOW_EXPLOSION_RADIUS),
+                            impulse_milli: quantize(self.explosion_strength),
+                        });
+                        self.metrics.explosive_projectile_impacts += 1;
+                    }
+                    let eliminated = target_state.health == 0;
+                    if eliminated {
+                        target_state.alive = false;
+                    }
+                    eliminated
+                };
                 if projectile.explosive_radius_milli > 0 {
                     let center = self
                         .physics
@@ -1632,19 +1756,10 @@ impl AuthoritativeMatch {
                         .unwrap_or_else(|| self.physics.player_pose(target).0);
                     let impulse = projectile.explosive_impulse_milli as f32 / 1_000.0;
                     self.physics.apply_impulse(target, velocity * impulse);
-                    self.explosions.push(ExplosionSnapshot {
-                        id: 10_000 + projectile_id as u16,
-                        tick: self.tick,
-                        x_milli: quantize(center.x),
-                        y_milli: quantize(center.y),
-                        radius_milli: projectile.explosive_radius_milli,
-                        impulse_milli: projectile.explosive_impulse_milli,
-                    });
-                    self.metrics.explosive_projectile_impacts += 1;
+                    self.trigger_projectile_explosion(projectile_id, projectile, center);
                 }
                 removals.push(projectile_id);
-                if target_state.health == 0 {
-                    target_state.alive = false;
+                if eliminated {
                     self.winner = Some(projectile.owner);
                 }
             } else if self.physics.bullet_dynamic_contact(projectile_id).is_some()
@@ -1668,17 +1783,25 @@ impl AuthoritativeMatch {
                     });
                 }
                 if projectile.explosive_radius_milli > 0
-                    && let Some((center, _, _, _)) = self.physics.bullet_pose(projectile_id)
+                    && let Some(center) = self
+                        .physics
+                        .bullet_dynamic_contact(projectile_id)
+                        .map(|(_, point)| point)
+                        .or_else(|| self.physics.bullet_pose(projectile_id).map(|pose| pose.0))
                 {
-                    self.explosions.push(ExplosionSnapshot {
-                        id: 10_000 + projectile_id as u16,
+                    self.impacts.push(ImpactSnapshot {
+                        id: projectile_id,
                         tick: self.tick,
+                        owner: projectile.owner,
+                        target: None,
                         x_milli: quantize(center.x),
                         y_milli: quantize(center.y),
-                        radius_milli: projectile.explosive_radius_milli,
-                        impulse_milli: projectile.explosive_impulse_milli,
+                        damage: 0,
+                        eliminated: false,
+                        impulse_x_milli: 0,
+                        impulse_y_milli: 0,
                     });
-                    self.metrics.explosive_projectile_impacts += 1;
+                    self.trigger_projectile_explosion(projectile_id, projectile, center);
                 }
                 removals.push(projectile_id);
             } else if self.physics.bullet_pose(projectile_id).is_none_or(
@@ -1726,6 +1849,18 @@ impl AuthoritativeMatch {
         {
             return;
         }
+        if let Some(winner) = self.winner {
+            let flow_recorded = self
+                .flow
+                .as_mut()
+                .is_some_and(|flow| flow.record_elimination(winner));
+            if flow_recorded {
+                self.sync_round_from_flow();
+            }
+            if self.flow.is_some() {
+                return;
+            }
+        }
         if let Some(winner) = self.winner
             && let Some(round) = &mut self.round
             && round.phase == RoundPhase::Combat
@@ -1738,7 +1873,90 @@ impl AuthoritativeMatch {
         }
     }
 
-    fn reset_fighters_for_rematch(&mut self) {
+    fn trigger_projectile_explosion(
+        &mut self,
+        projectile_id: u32,
+        projectile: ProjectileState,
+        center: Vector,
+    ) {
+        // Timber is one destructible assembly. Only an explosive projectile
+        // contacting one of its bodies releases its supports; a distant floor
+        // or fighter impact cannot collapse the tower.
+        if self.physics.bullet_dynamic_contact(projectile_id).is_some() {
+            self.release_timber_constraints();
+        }
+        let radius = projectile.explosive_radius_milli as f32 / 1_000.0;
+        let impulse = projectile.explosive_impulse_milli as f32 / 1_000.0;
+        self.metrics.explosion_impulsed_bodies +=
+            self.physics.apply_radial_explosion(center, radius, impulse);
+        self.explosions.push(ExplosionSnapshot {
+            id: 10_000 + projectile_id as u16,
+            tick: self.tick,
+            x_milli: quantize(center.x),
+            y_milli: quantize(center.y),
+            radius_milli: projectile.explosive_radius_milli,
+            impulse_milli: projectile.explosive_impulse_milli,
+        });
+        self.metrics.explosive_projectile_impacts += 1;
+    }
+
+    fn release_timber_constraints(&mut self) {
+        let released = self.physics.release_explosion_constraints();
+        for id in &released {
+            if let Some(entity) = self.constraint_entities.get(id) {
+                self.world
+                    .entity_mut(*entity)
+                    .get_mut::<ConstraintState>()
+                    .expect("constraint state")
+                    .active = false;
+            }
+        }
+        self.metrics.released_constraints += released.len() as u32;
+    }
+
+    fn sync_round_from_flow(&mut self) {
+        let Some(flow) = self.flow.as_ref().map(FlowAuthority::snapshot) else {
+            return;
+        };
+        let phase = match flow.phase {
+            FlowPhase::BlueResultTransition | FlowPhase::OrangeResultTransition => {
+                RoundPhase::ResultTransition
+            }
+            FlowPhase::HalfBlue => RoundPhase::HalfBlue,
+            FlowPhase::TimberTransition => RoundPhase::ArenaTransition,
+            FlowPhase::HalfOrange => RoundPhase::HalfOrange,
+            _ => RoundPhase::Combat,
+        };
+        self.round = Some(RoundStateSnapshot {
+            phase,
+            phase_tick: flow.phase_tick,
+            scores: flow.scores,
+            winner: flow.winner,
+            eliminated: flow.eliminated,
+        });
+    }
+
+    fn load_timber_arena(&mut self) {
+        if self.timber_loaded {
+            return;
+        }
+        for entity in self
+            .projectile_entities
+            .values()
+            .copied()
+            .collect::<Vec<_>>()
+        {
+            self.world.despawn(entity);
+        }
+        self.projectile_entities.clear();
+        self.physics.load_timber_arena();
+        self.dynamic_body_entities =
+            spawn_dynamic_bodies(&mut self.world, timber_body_definitions());
+        self.constraint_entities = spawn_timber_constraints(&mut self.world);
+        self.timber_loaded = true;
+    }
+
+    fn revive_fighters(&mut self) {
         for entity in self.player_entities {
             let mut player = self.world.entity_mut(entity);
             let mut state = player.get_mut::<PlayerState>().expect("player state");
@@ -1751,7 +1969,6 @@ impl AuthoritativeMatch {
             state.stun_pulses_remaining = 0;
             state.stun_pulse_cooldown = 0;
         }
-        self.winner = None;
     }
 
     pub fn snapshot(&mut self) -> MatchSnapshot {
@@ -1868,13 +2085,16 @@ impl AuthoritativeMatch {
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
-            arena: if self.profile == ReplayProfile::RematchDraftReplay
+            arena: if self.timber_loaded {
+                timber_arena().to_vec()
+            } else if self.profile == ReplayProfile::RematchDraftReplay
                 && self.flow.as_ref().is_some_and(|flow| {
                     matches!(
                         flow.snapshot().phase,
                         FlowPhase::CombatConclusion | FlowPhase::RematchPrompt
                     )
-                }) {
+                })
+            {
                 prior_match_arena().to_vec()
             } else {
                 arena_for_profile(self.profile).to_vec()
@@ -2123,8 +2343,33 @@ pub fn scripted_inputs_for(
             };
             orange.move_axis = 0;
             blue.move_axis = 0;
-            orange.fire = matches!(tick, 2_220 | 2_330);
-            blue.fire = matches!(tick, 2_260 | 2_350);
+            orange.fire = matches!(tick, 2_220 | 2_330)
+                || (4_000..4_341).contains(&tick) && tick % 40 == 20
+                || tick == 4_425;
+            orange.aim_at_opponent = tick >= 4_000 && tick != 4_425;
+            if tick == 4_425 {
+                orange.aim_x = -1_000;
+                orange.aim_y = 50;
+            }
+            blue.fire = matches!(tick, 2_260 | 2_350 | 2_440 | 2_518 | 2_557 | 3_650);
+            if (3_500..3_680).contains(&tick) {
+                blue.aim_x = 1_000;
+                blue.aim_y = 100;
+            }
+            if (4_120..4_430).contains(&tick) {
+                orange.move_axis = 1;
+                blue.move_axis = -1;
+            }
+            orange.jump = (4_000..4_420).contains(&tick);
+            blue.jump = (3_000..3_365).contains(&tick)
+                || (3_700..3_970).contains(&tick)
+                || (4_000..4_420).contains(&tick);
+            if (3_000..3_365).contains(&tick) {
+                blue.move_axis = -1;
+            }
+            if (3_700..3_970).contains(&tick) {
+                blue.move_axis = 1;
+            }
             scripts[0].push(orange);
             scripts[1].push(blue);
             continue;
@@ -2313,7 +2558,11 @@ pub fn run_profile_snapshots(profile: ReplayProfile, seed: u64, ticks: u32) -> V
         .copied()
         .zip(scripts[1].iter().copied())
         .map(|(player_zero, player_one)| {
-            simulation.step([player_zero, player_one]);
+            let observation = simulation.snapshot();
+            simulation.step([
+                player_zero.with_progressive_observation(0, Some(&observation)),
+                player_one.with_progressive_observation(1, Some(&observation)),
+            ]);
             simulation.snapshot()
         })
         .collect()
@@ -2836,6 +3085,170 @@ mod tests {
                         || left.rotation_milliradians != right.rotation_milliradians
                 })
         );
+    }
+
+    #[test]
+    fn connected_session_keeps_drafted_cards_through_both_contact_driven_halves() {
+        let snapshots = run_profile_snapshots(
+            ReplayProfile::RematchDraftReplay,
+            SOURCE_DRAFT_SEED,
+            REMATCH_DRAFT_TICKS,
+        );
+        let mut phases = Vec::new();
+        for snapshot in &snapshots {
+            let flow = snapshot.flow.as_ref().unwrap();
+            if phases.last().is_none_or(|(_, phase)| *phase != flow.phase) {
+                phases.push((snapshot.tick, flow.phase));
+            }
+            if snapshot.tick >= 2_101 {
+                assert_eq!(
+                    flow.loadouts,
+                    [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+                );
+            }
+        }
+        assert_eq!(
+            phases
+                .iter()
+                .filter(|(_, phase)| matches!(phase, FlowPhase::EliminationConclusion))
+                .count(),
+            2
+        );
+        assert!(phases.contains(&(
+            CONNECTED_BLUE_RESULT_ONSET_TICK,
+            FlowPhase::BlueResultTransition
+        )));
+        assert!(phases.contains(&(
+            CONNECTED_ORANGE_RESULT_ONSET_TICK,
+            FlowPhase::OrangeResultTransition
+        )));
+        let at = |tick: u32| &snapshots[(tick - 1) as usize];
+        assert_eq!(
+            at(CONNECTED_HALF_BLUE_TICK).flow.as_ref().unwrap().phase,
+            FlowPhase::HalfBlue
+        );
+        assert_eq!(
+            at(CONNECTED_TIMBER_COMBAT_TICK)
+                .flow
+                .as_ref()
+                .unwrap()
+                .phase,
+            FlowPhase::TimberCombat
+        );
+        assert_eq!(
+            at(CONNECTED_HALF_ORANGE_TICK).flow.as_ref().unwrap().phase,
+            FlowPhase::HalfOrange
+        );
+        let handoff = at(CONNECTED_HALF_BLUE_TAIL_TICK);
+        assert_eq!(handoff.round.as_ref().unwrap().winner, Some(1));
+        assert_eq!(handoff.flow.as_ref().unwrap().fighter_alive, [true, true]);
+        assert!(
+            handoff
+                .players
+                .iter()
+                .all(|player| player.alive && player.health == 100)
+        );
+        let loaded = at(CONNECTED_TIMBER_COMBAT_TICK);
+        assert_eq!(loaded.dynamic_bodies.len(), 19);
+        assert!(loaded.constraints.iter().all(|joint| joint.active));
+        assert!(
+            loaded
+                .players
+                .iter()
+                .all(|player| player.alive && player.health == 100)
+        );
+        let impact = snapshots
+            .iter()
+            .find(|state| state.metrics.released_constraints > 0)
+            .unwrap();
+        assert_eq!(impact.tick, CONNECTED_TIMBER_IMPACT_TARGET_TICK);
+        let blast = impact.explosions.last().unwrap();
+        assert!((-200_000..-100_000).contains(&blast.x_milli));
+        assert!((100_000..200_000).contains(&blast.y_milli));
+        assert!(at(2_280).explosions.iter().any(|blast| blast.tick == 2_276));
+        assert_eq!(impact.metrics.released_constraints, 17);
+        assert!(
+            impact
+                .impacts
+                .iter()
+                .any(|hit| hit.tick == impact.tick && hit.owner == 1)
+        );
+        assert!(
+            impact
+                .explosions
+                .iter()
+                .any(|blast| blast.tick == impact.tick)
+        );
+        assert!(
+            snapshots
+                .iter()
+                .any(|state| state.metrics.dazzle_stun_pulses > 0)
+        );
+        let last = snapshots.last().unwrap();
+        assert_eq!(last.flow.as_ref().unwrap().scores, [1, 1]);
+        assert_eq!(last.round.as_ref().unwrap().scores, [1, 1]);
+        assert_eq!(last.winner, Some(0));
+        assert!(
+            last.impacts
+                .iter()
+                .any(|hit| hit.owner == 1 && hit.eliminated)
+        );
+        assert!(
+            last.impacts
+                .iter()
+                .any(|hit| hit.owner == 0 && hit.eliminated)
+        );
+        assert_eq!(
+            last.players
+                .iter()
+                .map(|player| player.alive)
+                .collect::<Vec<_>>(),
+            vec![true, false]
+        );
+    }
+
+    #[test]
+    fn connected_collapse_requires_the_drafted_explosive_card_and_actual_impact_input() {
+        let run = |replace_card: bool, omit_impact: bool| {
+            let mut simulation = AuthoritativeMatch::new_with_profile(
+                SOURCE_DRAFT_SEED,
+                ReplayProfile::RematchDraftReplay,
+            );
+            let mut inputs =
+                scripted_inputs_for(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, 3_700);
+            if replace_card {
+                inputs[1][2_060].flow.as_mut().unwrap().action = FlowAction::Hover(ItemId::Dazzle);
+                inputs[1][2_100].flow.as_mut().unwrap().action =
+                    FlowAction::Confirm(ItemId::Dazzle);
+            }
+            if omit_impact {
+                inputs[1][3_650].fire = false;
+            }
+            for [orange, blue] in inputs[0]
+                .iter()
+                .copied()
+                .zip(inputs[1].iter().copied())
+                .map(|(a, b)| [a, b])
+            {
+                let observation = simulation.snapshot();
+                simulation.step([
+                    orange.with_progressive_observation(0, Some(&observation)),
+                    blue.with_progressive_observation(1, Some(&observation)),
+                ]);
+            }
+            simulation.snapshot()
+        };
+        let nominal = run(false, false);
+        assert_eq!(nominal.metrics.released_constraints, 17);
+        for changed in [run(true, false), run(false, true)] {
+            assert_eq!(
+                changed.flow.as_ref().unwrap().phase,
+                FlowPhase::TimberCombat
+            );
+            assert_eq!(changed.metrics.released_constraints, 0);
+            assert!(changed.constraints.iter().all(|joint| joint.active));
+            assert_ne!(dynamic_body_digest(&nominal), dynamic_body_digest(&changed));
+        }
     }
 
     #[test]

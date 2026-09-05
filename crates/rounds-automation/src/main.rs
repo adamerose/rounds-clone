@@ -227,6 +227,7 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     let local_report: ServerReport = serde_json::from_slice(&local_output.stdout)
         .map_err(|error| format!("decode local client-host report: {error}"))?;
     let clients_agree = reports.len() == 2
+        && reports[0].progressive_state_sha256 == reports[1].progressive_state_sha256
         && reports[0].final_report == reports[1].final_report
         && reports[0].final_report == server_report;
     let local_host_agrees = server_report == local_report;
@@ -261,9 +262,11 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
         .all(|report| report.observed_blue_fan_by_tick_960);
     let flow_completed_with_source_loadouts =
         server_report.state.flow.as_ref().is_some_and(|flow| {
-            flow.phase == FlowPhase::ResumedCombat
-                && flow.scores == [0, 0]
-                && flow.loadouts == [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+            (if ticks > rounds_sim::LEGACY_REMATCH_DRAFT_TICKS {
+                flow.phase == FlowPhase::HalfOrange && flow.scores == [1, 1]
+            } else {
+                flow.phase == FlowPhase::ResumedCombat && flow.scores == [0, 0]
+            }) && flow.loadouts == [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
         });
     let radial_saw_motion_observed = reports
         .iter()
@@ -299,7 +302,15 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 || !both_clients_observed_source_terminal_state
                 || !both_clients_observed_rematch_reset
                 || !both_clients_observed_blue_fan_by_tick_960
-                || !flow_completed_with_source_loadouts))
+                || !flow_completed_with_source_loadouts
+                || (ticks > rounds_sim::LEGACY_REMATCH_DRAFT_TICKS
+                    && (!progressive_explosion_transition_observed
+                        || !reports[0]
+                            .observed_flow_phases
+                            .contains(&FlowPhase::HalfBlue)
+                        || !reports[0]
+                            .observed_flow_phases
+                            .contains(&FlowPhase::TimberCombat)))))
         || (profile == ReplayProfile::RadialSawHalfBlueReplay
             && (!radial_saw_motion_observed
                 || !radial_damage_observed

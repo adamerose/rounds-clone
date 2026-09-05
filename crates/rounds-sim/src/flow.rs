@@ -1,11 +1,19 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-pub const REMATCH_DRAFT_TICKS: u32 = 2_400;
+pub const REMATCH_DRAFT_TICKS: u32 = 4_540;
+pub const LEGACY_REMATCH_DRAFT_TICKS: u32 = 2_400;
 pub const REMATCH_DRAFT_PROFILE: &str = "rematch-draft-replay";
-pub const REMATCH_DRAFT_SOURCE_INTERVAL: &str = "02:40.00-03:20.00";
-pub const REMATCH_DRAFT_SOURCE_START_HUNDREDTHS: u64 = 16_000;
+pub const REMATCH_DRAFT_SOURCE_INTERVAL: &str = "02:39.516029-03:55.182393";
+pub const REMATCH_DRAFT_SOURCE_START_HUNDREDTHS: u64 = 15_952;
 pub const SOURCE_DRAFT_SEED: u64 = 41;
+pub const CONNECTED_BLUE_RESULT_ONSET_TICK: u32 = 2_586;
+pub const CONNECTED_HALF_BLUE_TICK: u32 = 2_609;
+pub const CONNECTED_HALF_BLUE_TAIL_TICK: u32 = 2_700;
+pub const CONNECTED_TIMBER_COMBAT_TICK: u32 = 2_730;
+pub const CONNECTED_TIMBER_IMPACT_TARGET_TICK: u32 = 3_653;
+pub const CONNECTED_ORANGE_RESULT_ONSET_TICK: u32 = 4_450;
+pub const CONNECTED_HALF_ORANGE_TICK: u32 = 4_470;
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -277,6 +285,13 @@ pub enum FlowPhase {
     Handoff,
     ArenaTransition,
     ResumedCombat,
+    EliminationConclusion,
+    BlueResultTransition,
+    HalfBlue,
+    TimberTransition,
+    TimberCombat,
+    OrangeResultTransition,
+    HalfOrange,
     TerminalMatch,
 }
 
@@ -438,7 +453,22 @@ impl FlowAuthority {
     }
 
     pub fn accepts_combat(&self) -> bool {
-        self.snapshot.phase == FlowPhase::ResumedCombat
+        matches!(
+            self.snapshot.phase,
+            FlowPhase::ResumedCombat | FlowPhase::TimberCombat
+        )
+    }
+
+    pub fn record_elimination(&mut self, winner: u8) -> bool {
+        if winner > 1 || !self.accepts_combat() {
+            return false;
+        }
+        self.snapshot.scores[usize::from(winner)] += 1;
+        self.snapshot.winner = Some(winner);
+        self.snapshot.eliminated = Some(1 - winner);
+        self.snapshot.fighter_alive = [winner == 0, winner == 1];
+        self.transition(FlowPhase::EliminationConclusion, None);
+        true
     }
 
     pub fn has_terminal_result(&self) -> bool {
@@ -481,6 +511,54 @@ impl FlowAuthority {
             }
             FlowPhase::ArenaTransition if self.snapshot.phase_tick >= 59 => {
                 self.transition(FlowPhase::ResumedCombat, None);
+            }
+            FlowPhase::EliminationConclusion
+                if self.snapshot.phase_tick
+                    >= if self.snapshot.scores.iter().sum::<u8>() == 1 {
+                        13
+                    } else {
+                        16
+                    } =>
+            {
+                let next = if self.snapshot.winner == Some(1) {
+                    FlowPhase::BlueResultTransition
+                } else {
+                    FlowPhase::OrangeResultTransition
+                };
+                self.transition(next, None);
+            }
+            FlowPhase::BlueResultTransition
+                if self.snapshot.phase_tick
+                    >= if self.snapshot.scores.iter().sum::<u8>() == 1 {
+                        23
+                    } else {
+                        20
+                    } =>
+            {
+                self.transition(FlowPhase::HalfBlue, None);
+            }
+            FlowPhase::HalfBlue | FlowPhase::HalfOrange
+                if self.snapshot.phase_tick >= 91
+                    && self.snapshot.scores.iter().sum::<u8>() == 1 =>
+            {
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::TimberTransition, None);
+            }
+            FlowPhase::TimberTransition if self.snapshot.phase_tick >= 30 => {
+                self.snapshot.winner = None;
+                self.snapshot.eliminated = None;
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::TimberCombat, None);
+            }
+            FlowPhase::OrangeResultTransition
+                if self.snapshot.phase_tick
+                    >= if self.snapshot.scores.iter().sum::<u8>() == 1 {
+                        23
+                    } else {
+                        20
+                    } =>
+            {
+                self.transition(FlowPhase::HalfOrange, None);
             }
             _ => {}
         }
@@ -762,7 +840,7 @@ mod tests {
         let replay = crate::run_profile_snapshots(
             crate::ReplayProfile::RematchDraftReplay,
             SOURCE_DRAFT_SEED,
-            REMATCH_DRAFT_TICKS,
+            LEGACY_REMATCH_DRAFT_TICKS,
         );
         let flow = replay.last().unwrap().flow.as_ref().unwrap();
         assert_eq!(flow.phase, FlowPhase::ResumedCombat);

@@ -1117,3 +1117,21 @@ At 18:32:02 UTC, ticket 043's first required clean `cargo test --workspace --loc
 The verification command was valid, but starting a cold Bevy workspace target with machine-default parallelism was not safe on this host. Repeating clean isolated targets for every verification context also discarded expensive compatible artifacts without adding test coverage.
 
 The repository now caps Cargo at two concurrent jobs and routes compatible builds through the ignored reusable `out/cargo-target`. Agents must announce the exact target, reason, two-job cap, expected approximately 17 GiB cold-build footprint, and cleanup plan before a genuinely clean native build. Full tests, lint, build, capture, and review remain required; the correction limits concurrency and unnecessary rebuilding rather than skipping evidence.
+
+
+## 2026-09-05 — Continuation shell lost its requested working directory
+
+The first continuation shell calls reported `C:\` despite an explicit project workdir. An explicit `Set-Location` exposed a sandbox denial on `C:\_MyFiles\Programming`; the tool had therefore run Git outside the repository. Read-only escalation reached the exact requested repository and confirmed the partial ticket-045 worktree without altering root changes. Subsequent project commands explicitly select the verified path and use the reviewed access route.
+The repository-local `playbook/checks/scripts/check-tickets.mjs` path from project guidance is also absent in this checkout. The validator supplied with the loaded Ivy plugin exists and passes. Validation and delivery use that installed release's helpers, without creating a substitute project script.
+
+
+## 2026-09-05 — A frame filter did not bound source decoding
+
+A source audit selected a 0.37-second interval but omitted an output frame count. FFmpeg continued decoding the remaining video after the filter stopped emitting frames. The exact decoder process and parent were verified, the unnecessary scan was stopped, and a 23-frame bound completed both transition scans in seconds. Future short audits must bound decoding as well as selecting frames.
+
+
+## 2026-09-05 — Connected checks missed scene-selection regressions
+
+The first connected candidate passed all 39 tests and two-client agreement, but direct GPU inspection showed a right-side timber hit using the draft-only starburst, combat distortion obscuring HALF BLUE, and the already-earned blue half disappearing at orange onset. Its source trace also removed the earlier two Explosive Bullet shots to postpone the first death. Metrics and terminal state did not protect the existing visible sequence. The correction keeps those earlier actions, tests the contact location and prior-half projection, and chooses existing timber effects from the authoritative arena state before recapturing the affected frames.
+
+The corrected timber trace also exposed a contact-coordinate error: the explosion event used the projectile center after the physics step, which could be about 57 world units beyond the CCD contact. The event now uses Rapier's actual surface point. Visual verification additionally caught fighters remaining eliminated during the incoming arena overlay; revival now occurs with the actual arena load.

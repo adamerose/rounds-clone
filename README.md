@@ -1,7 +1,8 @@
 # ROUNDS clean-room rewrite
 
 This repository starts from the two supplied ten-minute ROUNDS recordings and builds the clone in Rust with Bevy.
-Five footage-derived slices now exist: a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, the radial-saw duel through `HALF BLUE`, and the yellow-crate terminal blast through `ROUND ORANGE`.
+Five footage-derived slices exist: a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, the radial-saw duel through `HALF BLUE`, and the yellow-crate terminal blast through `ROUND ORANGE`.
+The rematch path now continues through both card drafts, a first half result, the timber arena, projectile-caused collapse and an answering half result in one match.
 Two clients drive one 60 Hz Rapier authority through sequenced local UDP input, the same rules run as a client-host, and the shared Bevy 2D scene renders visibly or to offscreen evidence frames.
 
 ## Build and verify
@@ -26,6 +27,24 @@ cargo test --workspace --locked
 The smoke result proves that both client processes handshake, send monotonic input sequences, receive every progressive snapshot, agree with the authority and local host, and bind one real Bevy render to the received final state.
 The rematch replay capture emits thirteen named 1280×720 anchors whose metadata identifies the source recording and timestamp, replay input, state, renderer, executable, and frame.
 
+
+## Play the connected match
+
+Run `out/cargo-target/debug/rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 18000` for a bounded five-minute local session. The window starts hidden and appears only after verifying the project's monitor-4 placement.
+At `REMATCH?`, orange accepts with Y and blue with Enter. Use left/right arrows and Enter to choose each player's card; only Dazzle and Explosive Bullet have implemented combat behavior. The same match then carries the cards into both arenas.
+
+| Input | Orange | Blue |
+|---|---|---|
+| Move | A / D | Left / Right |
+| Jump | W | Up |
+| Block | S | Down |
+| Fire | Space | Enter |
+| Aim up / left / down / right | I / J / K / L | Numpad 8 / 4 / 5 / 6 |
+
+Without a manual aim direction, aim follows the opponent from the latest observation. Controllers use the left stick to move, right stick to aim, south button to jump, west button to block and right trigger to fire; D-pad and south button control the draft.
+For a short automated demonstration, run `out/cargo-target/debug/rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 4540 --automated`.
+For the two-client development-transport check, run `out/cargo-target/debug/rounds-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 4540 --output-dir out/ticket-045/smoke`.
+
 ## What is and is not implemented
 
 The rematch slice adds an authoritative blue winner and orange elimination, the exact prior-card badges, explicit accepted-rematch reset, phase revisions, per-player votes, seeded five-card offers, active-player validation, typed persistent loadouts, Dazzle stun pulses, Explosive Bullet impacts, item-specific card art and pose response, and a source-timed return to combat.
@@ -35,7 +54,7 @@ Ring-out remains a separately tested simulation capability; the named replay end
 Its named replay profile matches this card-modified interval without claiming base-game constants.
 The radial-saw slice adds stable authoritative moving hazards, ordinary projectile feedback, a moving painted background, and the adjacent `HALF BLUE` result handoff without claiming unobserved saw damage.
 The yellow-crate slice adds stable-ID dynamic Rapier crates, an authority-owned terminal projectile contact and blast impulse, blue elimination and orange scoring, and one private final-composite fullscreen pass for the source-proved discrete radial RGB echoes. Visible and offscreen runs use that same GPU scene and effect pass; its eleven capture anchors preserve the adjacent tick-109 combat, tick-110 result onset, and tick-111 larger result transition.
-Production reliability and Steam transport, the remaining card mechanics, other arenas, complete match lifecycle, audio, and menus remain explicit gaps in `docs/fidelity/footage-coverage.md`.
+Production reliability and Steam transport, the remaining card mechanics, other arenas, the rest of the match lifecycle, audio, and menus remain explicit gaps in `docs/fidelity/footage-coverage.md`.
 
 ## Recover the retired prototype
 

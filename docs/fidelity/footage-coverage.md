@@ -22,6 +22,8 @@ No interval is unclassified.
 The first `S2-static-duel` interval retains the `S0-foundation` process boundaries but replaces their placeholder physics, renderer, and batch transport.
 Later slices add the remaining flow, cards, arena behavior, production online work, and presentation visible in their owned intervals.
 
+The connected rematch route joins the existing draft and timber slices from native PTS 1595160286 through 2351823926 in recording `453954a7…a18c`. It includes the previously omitted blue half result, timber handoff and orange half result, with retained card loadouts and ordinary hit-driven outcomes. The following ice-crossfade frame, PTS 2351990592, remains outside that route. See `connected-match-observations.md` for exact frame identities and differences.
+
 ## Recording `453954a7…a18c`
 
 Source: `reference/MedalTVRounds20260903165304088.mp4`, duration `600.13` seconds.
@@ -48,11 +50,11 @@ Source: `reference/MedalTVRounds20260903165304088.mp4`, duration `600.13` second
 | 02:50–03:00 | orange navigation and `DAZZLE` confirmation inferred from its persistent badge | S1/S5/S7 implemented sub-slice; non-selected offer behavior remains catalog-only |
 | 03:00–03:10 | handoff and blue card fan with `LIFESTEALER` hover | S1/S5/S7 implemented sub-slice; non-selected offer behavior remains catalog-only |
 | 03:10–03:20 | blue navigation, `EXPLOSIVE BULLET` confirmation, 0–0 reset, and upgraded projectiles | S1/S5/S6/S7 implemented sub-slice; production S8 and remaining card behavior unresolved |
-| 03:20–03:26 | approach to the timber arena interval | S2, S3, S4, S5, S7, S8 |
+| 03:20–03:26 | first elimination, HALF BLUE and timber-arena handoff | connected S2/S3/S5/S6/S7 route implemented; production S8 unresolved |
 | 03:26–03:30 | intact stacked timber, suspended weights, reactive floor and combat | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
 | 03:30–03:40 | intact timber combat and upper-left projectile approach | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
 | 03:40–03:50 | explosion, released structure, collapse, debris settlement and continued combat | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
-| 03:50–04:00 | `HALF ORANGE` result overlay | S6, S7 |
+| 03:50–04:00 | elimination and HALF ORANGE through PTS 2351823926, then ice-arena crossfade | connected S6/S7 result implemented; ice arena and later combat unresolved |
 | 04:00–04:10 | ice arena duel | S2, S4, S5, S7, S8 |
 | 04:10–04:20 | `QUICK SHOT` draft choice | S1, S5, S7 |
 | 04:20–04:30 | hanging-column arena duel | S2, S3, S5, S7, S8 |

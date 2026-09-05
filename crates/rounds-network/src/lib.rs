@@ -1,17 +1,18 @@
 use rounds_sim::{
     AuthoritativeMatch, FlowPhase, ItemId, MatchSnapshot, PlayerInput, PriorBadge,
-    RADIAL_HALF_BLUE_TICK, RADIAL_RESULT_ONSET_TICK, ReplayProfile, RoundPhase, TIMBER_IMPACT_TICK,
+    RADIAL_HALF_BLUE_TICK, RADIAL_RESULT_ONSET_TICK, ReplayProfile, RoundPhase,
     YELLOW_FOLLOWING_RESULT_TICK, YELLOW_IMPACT_TICK, YELLOW_LAST_CALM_TICK,
     YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, arena_digest, combat_digest,
     dynamic_body_digest, flow_digest, hash_snapshot, loadout_digest, round_digest, saw_digest,
 };
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 5;
-pub const MAX_NETWORK_TICKS: u32 = 3_000;
+pub const NETWORK_PROTOCOL: u16 = 6;
+pub const MAX_NETWORK_TICKS: u32 = 5_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -78,6 +79,7 @@ pub struct ClientSessionReport {
     pub snapshots_received: u32,
     pub first_snapshot_tick: u32,
     pub last_snapshot_tick: u32,
+    pub progressive_state_sha256: String,
     pub observed_pre_explosion_constraints: bool,
     pub observed_post_explosion_release: bool,
     pub observed_flow_phases: Vec<FlowPhase>,
@@ -265,7 +267,8 @@ pub fn send_inputs(
         _ => return Err("authority returned an invalid handshake".to_owned()),
     }
 
-    let mut last = None;
+    let mut last: Option<(MatchSnapshot, String)> = None;
+    let mut progressive_states = Sha256::new();
     let mut observed_pre_explosion_constraints = false;
     let mut observed_post_explosion_release = false;
     let mut observed_flow_phases = Vec::new();
@@ -286,6 +289,8 @@ pub fn send_inputs(
     let mut yellow_crate_origin = None;
     for (sequence, input) in inputs.iter().copied().enumerate() {
         let sequence = sequence as u32;
+        let input =
+            input.with_progressive_observation(client_id, last.as_ref().map(|(state, _)| state));
         send_client(
             &socket,
             server,
@@ -313,22 +318,18 @@ pub fn send_inputs(
                 if state_hash != hash_snapshot(&state) {
                     return Err("authority snapshot hash did not match its payload".to_owned());
                 }
-                if profile == ReplayProfile::TimberCollapseReplay {
-                    if state.tick < TIMBER_IMPACT_TICK
-                        && !state.constraints.is_empty()
-                        && state.constraints.iter().all(|constraint| constraint.active)
-                    {
-                        observed_pre_explosion_constraints = true;
-                    }
-                    if state.tick >= TIMBER_IMPACT_TICK
-                        && !state.explosions.is_empty()
-                        && state
-                            .constraints
-                            .iter()
-                            .any(|constraint| !constraint.active)
-                    {
-                        observed_post_explosion_release = true;
-                    }
+                if !state.constraints.is_empty()
+                    && state.constraints.iter().all(|constraint| constraint.active)
+                {
+                    observed_pre_explosion_constraints = true;
+                }
+                if !state.explosions.is_empty()
+                    && state
+                        .constraints
+                        .iter()
+                        .any(|constraint| !constraint.active)
+                {
+                    observed_post_explosion_release = true;
                 }
                 if let Some(flow) = &state.flow
                     && observed_flow_phases.last() != Some(&flow.phase)
@@ -462,6 +463,7 @@ pub fn send_inputs(
                                 && round.winner == Some(0)
                         });
                 }
+                progressive_states.update(state_hash.as_bytes());
                 last = Some((*state, state_hash));
             }
             AuthorityPacket::Welcome { .. } => {
@@ -481,6 +483,7 @@ pub fn send_inputs(
         snapshots_received: ticks,
         first_snapshot_tick: 1,
         last_snapshot_tick: ticks,
+        progressive_state_sha256: format!("{:x}", progressive_states.finalize()),
         observed_pre_explosion_constraints,
         observed_post_explosion_release,
         observed_flow_phases,
@@ -714,6 +717,16 @@ mod tests {
             .map(|client| client.join().unwrap())
             .collect::<Vec<_>>();
         let server_report = server_thread.join().unwrap();
+        assert_eq!(
+            reports[0].progressive_state_sha256,
+            reports[1].progressive_state_sha256
+        );
+        assert!(
+            reports
+                .iter()
+                .all(|report| report.observed_pre_explosion_constraints
+                    && report.observed_post_explosion_release)
+        );
         assert_eq!(reports[0].final_report, reports[1].final_report);
         assert_eq!(reports[0].final_report, server_report);
         assert_eq!(
@@ -733,6 +746,14 @@ mod tests {
                 FlowPhase::Reveal,
                 FlowPhase::ArenaTransition,
                 FlowPhase::ResumedCombat,
+                FlowPhase::EliminationConclusion,
+                FlowPhase::BlueResultTransition,
+                FlowPhase::HalfBlue,
+                FlowPhase::TimberTransition,
+                FlowPhase::TimberCombat,
+                FlowPhase::EliminationConclusion,
+                FlowPhase::OrangeResultTransition,
+                FlowPhase::HalfOrange,
             ]
         );
         assert!(reports.iter().all(|report| {

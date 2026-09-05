@@ -286,6 +286,91 @@ struct InteractiveAuthority {
     tick: usize,
     limit: usize,
     automated: bool,
+    tick_budget: f64,
+    pending_flow: [Option<FlowCommand>; 2],
+    final_state: std::sync::mpsc::SyncSender<MatchSnapshot>,
+}
+
+impl Drop for InteractiveAuthority {
+    fn drop(&mut self) {
+        // Winit consumes the App, so retain its real final state when it drops
+        // the authority on either bounded completion or a normal window close.
+        let _ = self.final_state.try_send(self.simulation.snapshot());
+    }
+}
+
+/// Local two-player controls, expressed entirely as authority inputs.
+/// Orange: A/D, W jump, S block, Space fire, I/J/K/L aim.
+/// Blue: arrows, Enter fire, numpad 8/4/5/6 aim. Resting aim tracks the opponent.
+pub fn keyboard_combat_input(keys: &ButtonInput<KeyCode>, player: u8) -> PlayerInput {
+    let [
+        left,
+        right,
+        jump,
+        block,
+        fire,
+        aim_up,
+        aim_left,
+        aim_down,
+        aim_right,
+    ] = if player == 0 {
+        [
+            KeyCode::KeyA,
+            KeyCode::KeyD,
+            KeyCode::KeyW,
+            KeyCode::KeyS,
+            KeyCode::Space,
+            KeyCode::KeyI,
+            KeyCode::KeyJ,
+            KeyCode::KeyK,
+            KeyCode::KeyL,
+        ]
+    } else {
+        [
+            KeyCode::ArrowLeft,
+            KeyCode::ArrowRight,
+            KeyCode::ArrowUp,
+            KeyCode::ArrowDown,
+            KeyCode::Enter,
+            KeyCode::Numpad8,
+            KeyCode::Numpad4,
+            KeyCode::Numpad5,
+            KeyCode::Numpad6,
+        ]
+    };
+    let axis =
+        |positive, negative| i16::from(keys.pressed(positive)) - i16::from(keys.pressed(negative));
+    let aim_x = axis(aim_right, aim_left) * 1_000;
+    let aim_y = axis(aim_up, aim_down) * 1_000;
+    PlayerInput {
+        move_axis: axis(right, left) as i8,
+        aim_x,
+        aim_y,
+        aim_at_opponent: aim_x == 0 && aim_y == 0,
+        jump: keys.pressed(jump),
+        block: keys.pressed(block),
+        fire: keys.pressed(fire),
+        ..PlayerInput::default()
+    }
+}
+
+pub fn gamepad_combat_input(gamepad: &Gamepad) -> PlayerInput {
+    let movement = gamepad.left_stick().x;
+    let aim = gamepad.right_stick();
+    PlayerInput {
+        move_axis: if movement.abs() > 0.2 {
+            movement.signum() as i8
+        } else {
+            0
+        },
+        aim_x: (aim.x * 1_000.0) as i16,
+        aim_y: (aim.y * 1_000.0) as i16,
+        aim_at_opponent: aim.length_squared() < 0.04,
+        jump: gamepad.pressed(GamepadButton::South),
+        fire: gamepad.pressed(GamepadButton::RightTrigger2),
+        block: gamepad.pressed(GamepadButton::West),
+        ..PlayerInput::default()
+    }
 }
 
 /// Maps concrete keyboard input into the same semantic command sent over the
@@ -584,46 +669,52 @@ pub fn run_interactive_visible(
     seed: u64,
     ticks: u32,
     automated: bool,
-) -> Result<(), String> {
+) -> Result<MatchSnapshot, String> {
     if profile != ReplayProfile::RematchDraftReplay {
         return Err("interactive visible flow requires rematch-draft-replay".to_owned());
     }
     let mut simulation = AuthoritativeMatch::new_with_profile(seed, profile);
     let initial = simulation.snapshot();
-    App::new()
-        .add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: None,
-                exit_condition: ExitCondition::DontExit,
-                ..default()
-            }),
-            RadialEchoPlugin,
-        ))
-        .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
-        .insert_resource(SceneSnapshot(initial))
-        .insert_resource(InteractiveAuthority {
-            simulation,
-            scripts: scripted_inputs_for(profile, seed, ticks),
-            tick: 0,
-            limit: ticks as usize,
-            automated,
-        })
-        .init_resource::<VisibleWindowRequested>()
-        .init_resource::<MonitorDiscovery>()
-        .insert_resource(VisibleLifetime {
-            frames: u32::MAX,
-            shown: false,
-        })
-        .add_systems(Startup, setup_visible_scene)
-        .add_systems(Update, create_monitor_four_window)
-        .add_systems(
-            Update,
-            (verify_monitor_show_and_exit, advance_interactive_scene).chain(),
-        )
-        .run()
-        .is_success()
-        .then_some(())
-        .ok_or_else(|| "interactive replay exited before verifying the project display".to_owned())
+    let (final_state, result) = sync_channel(1);
+    let mut app = App::new();
+    app.add_plugins((
+        DefaultPlugins.set(WindowPlugin {
+            primary_window: None,
+            exit_condition: ExitCondition::DontExit,
+            ..default()
+        }),
+        RadialEchoPlugin,
+    ))
+    .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
+    .insert_resource(SceneSnapshot(initial))
+    .insert_resource(InteractiveAuthority {
+        simulation,
+        scripts: scripted_inputs_for(profile, seed, ticks),
+        tick: 0,
+        limit: ticks as usize,
+        automated,
+        tick_budget: 0.0,
+        pending_flow: [None; 2],
+        final_state,
+    })
+    .init_resource::<VisibleWindowRequested>()
+    .init_resource::<MonitorDiscovery>()
+    .insert_resource(VisibleLifetime {
+        frames: u32::MAX,
+        shown: false,
+    })
+    .add_systems(Startup, setup_visible_scene)
+    .add_systems(Update, create_monitor_four_window)
+    .add_systems(
+        Update,
+        (verify_monitor_show_and_exit, advance_interactive_scene).chain(),
+    );
+    if !app.run().is_success() {
+        return Err("interactive replay exited before verifying the project display".to_owned());
+    }
+    result
+        .try_recv()
+        .map_err(|error| format!("receive final interactive state: {error}"))
 }
 
 fn create_monitor_four_window(
@@ -902,6 +993,7 @@ fn advance_interactive_scene(
     visuals: Query<Entity, With<SceneVisual>>,
     keys: Res<ButtonInput<KeyCode>>,
     gamepads: Query<&Gamepad>,
+    time: Res<Time>,
     mut authority: ResMut<InteractiveAuthority>,
     mut scene: ResMut<SceneSnapshot>,
     mut lifetime: ResMut<VisibleLifetime>,
@@ -916,6 +1008,9 @@ fn advance_interactive_scene(
         With<Camera2d>,
     >,
 ) {
+    if !lifetime.shown {
+        return;
+    }
     if authority.tick >= authority.limit {
         lifetime.frames = lifetime.frames.min(3);
         return;
@@ -944,7 +1039,24 @@ fn advance_interactive_scene(
             }
         }
     }
-    for substep in 0..10 {
+    for (player, command) in direct.into_iter().enumerate() {
+        if command.is_some() {
+            authority.pending_flow[player] = command;
+        }
+    }
+    let mut live = std::array::from_fn(|player| keyboard_combat_input(&keys, player as u8));
+    for (player, gamepad) in gamepads.iter().take(2).enumerate() {
+        live[player] = gamepad_combat_input(gamepad);
+    }
+    let steps = if authority.automated {
+        10
+    } else {
+        authority.tick_budget += time.delta_secs_f64() * f64::from(rounds_sim::TICKS_PER_SECOND);
+        let steps = authority.tick_budget.floor() as usize;
+        authority.tick_budget -= steps as f64;
+        steps
+    };
+    for substep in 0..steps {
         if authority.tick >= authority.limit {
             break;
         }
@@ -954,15 +1066,19 @@ fn advance_interactive_scene(
                 authority.scripts[1][authority.tick],
             ]
         } else {
-            [PlayerInput::default(); 2]
+            live
         };
         if substep == 0 {
-            for player in 0..2 {
-                if direct[player].is_some() {
-                    inputs[player].flow = direct[player];
+            for (player, input) in inputs.iter_mut().enumerate() {
+                if let Some(command) = authority.pending_flow[player].take() {
+                    input.flow = Some(command);
                 }
             }
         }
+        let observation = authority.simulation.snapshot();
+        inputs = std::array::from_fn(|player| {
+            inputs[player].with_progressive_observation(player as u8, Some(&observation))
+        });
         authority.simulation.step(inputs);
         authority.tick += 1;
     }
@@ -1032,6 +1148,12 @@ fn camera_state(
     let explosion_age = snapshot
         .explosions
         .last()
+        .filter(|_| {
+            snapshot
+                .round
+                .as_ref()
+                .is_none_or(|round| round.phase == rounds_sim::RoundPhase::Combat)
+        })
         .map(|explosion| snapshot.tick.saturating_sub(explosion.tick));
     let yellow = snapshot.profile == rounds_sim::YELLOW_REPLAY_PROFILE;
     let flash = explosion_age
@@ -1344,7 +1466,10 @@ fn spawn_snapshot_scene(
         .profile
         .parse::<ReplayProfile>()
         .unwrap_or(ReplayProfile::TealDuelReplay);
-    let timber_scene = profile == ReplayProfile::TimberCollapseReplay;
+    let timber_scene = snapshot
+        .dynamic_bodies
+        .iter()
+        .any(|body| body.shape == DynamicBodyShape::Timber);
     let draft_replay = profile == ReplayProfile::RematchDraftReplay;
     let radial_replay = profile == ReplayProfile::RadialSawHalfBlueReplay;
     let yellow_replay = profile == ReplayProfile::YellowCrateTerminalBlastReplay;
@@ -1427,7 +1552,17 @@ fn spawn_snapshot_scene(
         return;
     }
 
+    let arena_alpha = snapshot.round.as_ref().map_or(1.0, |round| {
+        if round.phase == rounds_sim::RoundPhase::HalfOrange {
+            (1.0 - (round.phase_tick as f32 - 40.0) / 30.0).clamp(0.0, 1.0)
+        } else {
+            1.0
+        }
+    });
     for surface in &snapshot.arena {
+        if arena_alpha == 0.0 {
+            continue;
+        }
         if radial_replay && surface.id >= 6 {
             continue;
         }
@@ -1444,6 +1579,7 @@ fn spawn_snapshot_scene(
                 snapshot,
                 Vec2::new(x, y),
                 Vec2::new(width, height),
+                arena_alpha,
             );
             continue;
         }
@@ -1538,7 +1674,9 @@ fn spawn_snapshot_scene(
     }
 
     for constraint in snapshot.constraints.iter().filter(|constraint| {
-        constraint.active && constraint.kind == rounds_sim::ConstraintKind::Rope
+        arena_alpha > 0.0
+            && constraint.active
+            && constraint.kind == rounds_sim::ConstraintKind::Rope
     }) {
         let Some(body) = snapshot
             .dynamic_bodies
@@ -1556,7 +1694,7 @@ fn spawn_snapshot_scene(
         commands.spawn((
             SceneVisual,
             Sprite::from_color(
-                Color::srgba_u8(130, 79, 54, 170),
+                Color::srgba_u8(130, 79, 54, (170.0 * arena_alpha) as u8),
                 Vec2::new(segment.length(), 2.0),
             ),
             Transform::from_xyz(anchor.x + segment.x * 0.5, anchor.y + segment.y * 0.5, -4.0)
@@ -1565,10 +1703,14 @@ fn spawn_snapshot_scene(
     }
 
     for body in &snapshot.dynamic_bodies {
+        if arena_alpha == 0.0 {
+            continue;
+        }
         let x = body.x_milli as f32 / 1_000.0;
         let y = body.y_milli as f32 / 1_000.0;
         let rotation = body.rotation_milliradians as f32 / 1_000.0;
-        let color = Color::srgb_u8(body.face_rgb[0], body.face_rgb[1], body.face_rgb[2]);
+        let color = Color::srgb_u8(body.face_rgb[0], body.face_rgb[1], body.face_rgb[2])
+            .with_alpha(arena_alpha);
         let (width, height) = match body.shape {
             DynamicBodyShape::Timber | DynamicBodyShape::Crate => (
                 body.width_milli as f32 / 1_000.0,
@@ -1582,7 +1724,7 @@ fn spawn_snapshot_scene(
         commands.spawn((
             SceneVisual,
             Sprite::from_color(
-                Color::srgba_u8(0, 8, 25, 125),
+                Color::srgba_u8(0, 8, 25, (125.0 * arena_alpha) as u8),
                 Vec2::new(width * 1.04, height * 1.04),
             ),
             Transform::from_xyz(x + 13.0, y - 15.0, -3.0)
@@ -1625,7 +1767,7 @@ fn spawn_snapshot_scene(
             } else {
                 flash_envelope(age)
             };
-            if explosion.id >= 10_000 && flash > 0.0 && !yellow_replay {
+            if explosion.id >= 10_000 && flash > 0.0 && !yellow_replay && !timber_scene {
                 for wedge in 0..18 {
                     let angle = wedge as f32 * std::f32::consts::TAU / 18.0;
                     let radius = (90.0 + age as f32 * 13.0) * flash.sqrt();
@@ -1990,9 +2132,8 @@ fn spawn_snapshot_scene(
         }
     }
 
-    if radial_replay {
+    if radial_replay || draft_replay {
         spawn_radial_impacts(commands, meshes, materials, snapshot);
-        spawn_radial_result(commands, meshes, materials, snapshot);
     }
 
     if yellow_replay {
@@ -2002,6 +2143,9 @@ fn spawn_snapshot_scene(
 
     if draft_replay {
         spawn_flow_hud(commands, meshes, materials, snapshot);
+    }
+    if !yellow_replay {
+        spawn_radial_result(commands, meshes, materials, snapshot);
     }
 }
 
@@ -2287,10 +2431,21 @@ fn spawn_radial_result(
     let Some(round) = &snapshot.round else {
         return;
     };
-    if round.phase == rounds_sim::RoundPhase::Combat {
+    if matches!(round.phase, rounds_sim::RoundPhase::Combat) {
         return;
     }
-    let dim = if round.phase == rounds_sim::RoundPhase::HalfBlue {
+    let established = matches!(
+        round.phase,
+        rounds_sim::RoundPhase::HalfBlue
+            | rounds_sim::RoundPhase::HalfOrange
+            | rounds_sim::RoundPhase::ArenaTransition
+    );
+    let transition_alpha = if round.phase == rounds_sim::RoundPhase::ArenaTransition {
+        (1.0 - round.phase_tick as f32 / 30.0).clamp(0.0, 1.0)
+    } else {
+        1.0
+    };
+    let dim = if established {
         0.82
     } else {
         (0.68 + round.phase_tick as f32 / 120.0).clamp(0.68, 0.82)
@@ -2298,12 +2453,12 @@ fn spawn_radial_result(
     commands.spawn((
         SceneVisual,
         Sprite::from_color(
-            Color::srgba(0.0, 0.025, 0.08, dim),
+            Color::srgba(0.0, 0.025, 0.08, dim * transition_alpha),
             Vec2::new(1_280.0, 720.0),
         ),
         Transform::from_xyz(0.0, 0.0, 40.0),
     ));
-    let scale = if round.phase == rounds_sim::RoundPhase::HalfBlue {
+    let scale = if established {
         1.0
     } else {
         0.44 + (round.phase_tick as f32 / 29.0).clamp(0.0, 1.0) * 0.56
@@ -2314,12 +2469,18 @@ fn spawn_radial_result(
             Color::srgb_u8(255, 169, 18)
         } else {
             Color::srgb_u8(35, 184, 255)
-        };
+        }
+        .with_alpha(transition_alpha);
         let center = Vec2::new(-96.0 + player as f32 * 192.0, -22.0);
         commands.spawn((
             SceneVisual,
             Mesh2d(meshes.add(Circle::new(radius - 2.0))),
-            MeshMaterial2d(materials.add(Color::srgba_u8(0, 12, 35, 230))),
+            MeshMaterial2d(materials.add(Color::srgba_u8(
+                0,
+                12,
+                35,
+                (230.0 * transition_alpha) as u8,
+            ))),
             Transform::from_xyz(center.x, center.y, 42.0),
         ));
         commands.spawn((
@@ -2328,7 +2489,9 @@ fn spawn_radial_result(
             MeshMaterial2d(materials.add(color)),
             Transform::from_xyz(center.x, center.y, 43.0),
         ));
-        if round.scores[player] > 0 {
+        if round.scores[player] > 0
+            && (snapshot.flow.is_none() || established || round.winner != Some(player as u8))
+        {
             spawn_left_half_disc(
                 commands,
                 meshes,
@@ -2340,15 +2503,20 @@ fn spawn_radial_result(
             );
         }
     }
-    if round.phase == rounds_sim::RoundPhase::HalfBlue {
+    if established {
+        let (label, color) = if round.winner == Some(0) {
+            ("HALF ORANGE", Color::srgb_u8(255, 183, 44))
+        } else {
+            ("HALF BLUE", Color::srgb_u8(101, 220, 255))
+        };
         commands.spawn((
             SceneVisual,
-            Text2d::new("HALF BLUE"),
+            Text2d::new(label),
             TextFont {
                 font_size: FontSize::Px(70.0),
                 ..default()
             },
-            TextColor(Color::srgb_u8(101, 220, 255)),
+            TextColor(color.with_alpha(transition_alpha)),
             Transform::from_xyz(0.0, 88.0, 44.0),
         ));
     }
@@ -3327,6 +3495,7 @@ fn spawn_timber_floor(
     snapshot: &MatchSnapshot,
     center: Vec2,
     size: Vec2,
+    alpha: f32,
 ) {
     const SEGMENTS: usize = 14;
     const FACETS: [[u8; 3]; 4] = [[246, 0, 79], [222, 0, 75], [255, 17, 101], [195, 0, 70]];
@@ -3371,7 +3540,7 @@ fn spawn_timber_floor(
                 Vec2::new(right, bottom) + shadow_offset,
                 Vec2::new(right, top_right) + shadow_offset,
             ],
-            Color::srgba_u8(0, 8, 34, 205),
+            Color::srgba_u8(0, 8, 34, (205.0 * alpha) as u8),
             -2.0,
         );
         spawn_triangle(
@@ -3383,7 +3552,7 @@ fn spawn_timber_floor(
                 Vec2::new(right, top_right) + shadow_offset,
                 Vec2::new(left, top_left) + shadow_offset,
             ],
-            Color::srgba_u8(0, 8, 34, 205),
+            Color::srgba_u8(0, 8, 34, (205.0 * alpha) as u8),
             -2.0,
         );
         let first_color = FACETS[segment % FACETS.len()];
@@ -3397,7 +3566,7 @@ fn spawn_timber_floor(
                 Vec2::new(right, bottom),
                 Vec2::new(right, top_right),
             ],
-            Color::srgb_u8(first_color[0], first_color[1], first_color[2]),
+            Color::srgb_u8(first_color[0], first_color[1], first_color[2]).with_alpha(alpha),
             0.0,
         );
         spawn_triangle(
@@ -3409,7 +3578,7 @@ fn spawn_timber_floor(
                 Vec2::new(right, top_right),
                 Vec2::new(left, top_left),
             ],
-            Color::srgb_u8(second_color[0], second_color[1], second_color[2]),
+            Color::srgb_u8(second_color[0], second_color[1], second_color[2]).with_alpha(alpha),
             0.0,
         );
         if shock > 0.0 {
@@ -3607,6 +3776,54 @@ mod tests {
         assert_eq!(keyboard, controller);
         assert_eq!(keyboard.phase_revision, flow.phase_revision);
         assert!(matches!(keyboard.action, FlowAction::Hover(_)));
+        let mut keys = ButtonInput::default();
+        for key in [
+            KeyCode::KeyA,
+            KeyCode::KeyW,
+            KeyCode::Space,
+            KeyCode::KeyI,
+            KeyCode::KeyJ,
+        ] {
+            keys.press(key);
+        }
+        let combat = keyboard_combat_input(&keys, 0);
+        assert_eq!(
+            (combat.move_axis, combat.aim_x, combat.aim_y),
+            (-1, -1_000, 1_000)
+        );
+        assert!(combat.jump && combat.fire && !combat.aim_at_opponent);
+        assert!(gamepad_combat_input(&Gamepad::default()).aim_at_opponent);
+        let mut pad = Gamepad::default();
+        pad.analog_mut().set(GamepadAxis::LeftStickX, -1.0);
+        pad.analog_mut().set(GamepadAxis::RightStickX, -1.0);
+        pad.analog_mut().set(GamepadAxis::RightStickY, 1.0);
+        pad.digital_mut().press(GamepadButton::South);
+        pad.digital_mut().press(GamepadButton::RightTrigger2);
+        assert_eq!(combat, gamepad_combat_input(&pad));
+        let apply = |input| {
+            let mut authority = AuthoritativeMatch::new_with_profile(
+                rounds_sim::SOURCE_DRAFT_SEED,
+                ReplayProfile::RematchDraftReplay,
+            );
+            let trace = scripted_inputs_for(
+                ReplayProfile::RematchDraftReplay,
+                rounds_sim::SOURCE_DRAFT_SEED,
+                2_220,
+            );
+            for (&orange, &blue) in trace[0].iter().zip(&trace[1]) {
+                authority.step([orange, blue]);
+            }
+            authority.step([input, PlayerInput::default()]);
+            authority.snapshot()
+        };
+        let keyboard_state = apply(combat);
+        assert_eq!(keyboard_state, apply(gamepad_combat_input(&pad)));
+        assert!(
+            keyboard_state
+                .projectiles
+                .iter()
+                .any(|projectile| projectile.owner == 0 && projectile.dazzle_pulses == 3)
+        );
     }
 
     #[test]
@@ -3690,5 +3907,20 @@ mod tests {
                 .all(|card| !card.highlighted)
         );
         assert_empty_score_and_badges(&mut blue_confirmed, &[(0, "Da"), (1, "Ex")]);
+        let connected = rounds_sim::run_profile_snapshots(
+            ReplayProfile::RematchDraftReplay,
+            rounds_sim::SOURCE_DRAFT_SEED,
+            rounds_sim::REMATCH_DRAFT_TICKS,
+        );
+        for tick in [
+            rounds_sim::CONNECTED_BLUE_RESULT_ONSET_TICK,
+            rounds_sim::CONNECTED_HALF_BLUE_TICK,
+            rounds_sim::CONNECTED_HALF_ORANGE_TICK,
+        ] {
+            let (_, _, chromatic, lens) = camera_state(&connected[(tick - 1) as usize]);
+            assert_eq!(chromatic.intensity, 0.0);
+            assert_eq!(lens.intensity, 0.0);
+            assert_eq!(lens.scale, 1.0);
+        }
     }
 }

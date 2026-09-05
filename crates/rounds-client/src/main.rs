@@ -4,11 +4,14 @@ use rounds_presentation::{
     run_interactive_visible, run_visible, yellow_frame_signature,
 };
 use rounds_sim::{
-    MatchSnapshot, RADIAL_HALF_BLUE_TICK, RADIAL_LAST_COMBAT_TICK, RADIAL_RESULT_ONSET_TICK,
-    REPLAY_TICKS, ReplayProfile, YELLOW_FOLLOWING_RESULT_TICK, YELLOW_IMPACT_TICK,
-    YELLOW_LAST_CALM_TICK, YELLOW_LAST_COMBAT_TICK, YELLOW_LOCAL_BURST_TICK, YELLOW_PEAK_ECHO_TICK,
-    YELLOW_REPLAY_TICKS, YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, YELLOW_TRAILS_TICK,
-    arena_digest, combat_digest, dynamic_body_digest, flow_digest, loadout_digest, round_digest,
+    CONNECTED_BLUE_RESULT_ONSET_TICK, CONNECTED_HALF_BLUE_TAIL_TICK, CONNECTED_HALF_BLUE_TICK,
+    CONNECTED_HALF_ORANGE_TICK, CONNECTED_ORANGE_RESULT_ONSET_TICK, CONNECTED_TIMBER_COMBAT_TICK,
+    CONNECTED_TIMBER_IMPACT_TARGET_TICK, LEGACY_REMATCH_DRAFT_TICKS, MatchSnapshot,
+    RADIAL_HALF_BLUE_TICK, RADIAL_LAST_COMBAT_TICK, RADIAL_RESULT_ONSET_TICK, REPLAY_TICKS,
+    ReplayProfile, YELLOW_FOLLOWING_RESULT_TICK, YELLOW_IMPACT_TICK, YELLOW_LAST_CALM_TICK,
+    YELLOW_LAST_COMBAT_TICK, YELLOW_LOCAL_BURST_TICK, YELLOW_PEAK_ECHO_TICK, YELLOW_REPLAY_TICKS,
+    YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, YELLOW_TRAILS_TICK, arena_digest,
+    combat_digest, dynamic_body_digest, flow_digest, loadout_digest, round_digest,
     run_profile_match, run_profile_snapshots, saw_digest, scripted_inputs_for,
 };
 use serde::Serialize;
@@ -91,8 +94,11 @@ fn run() -> Result<(), String> {
         }
         "visible-flow" => {
             let automated = arguments.iter().any(|argument| argument == "--automated");
-            run_interactive_visible(profile, seed, ticks, automated)?;
-            print_json(&local_report(profile, seed, ticks))
+            let state = run_interactive_visible(profile, seed, ticks, automated)?;
+            print_json(&serde_json::json!({
+                "stateSha256": rounds_sim::hash_snapshot(&state),
+                "state": state,
+            }))
         }
         "remote" => remote(&arguments, profile, seed, ticks),
         _ => Err(
@@ -169,7 +175,9 @@ fn capture_replay(
     seed: u64,
     ticks: u32,
 ) -> Result<(), String> {
-    if ticks != profile.replay_ticks() {
+    if ticks != profile.replay_ticks()
+        && !(profile == ReplayProfile::RematchDraftReplay && ticks == LEGACY_REMATCH_DRAFT_TICKS)
+    {
         return Err(format!(
             "capture-replay requires the admitted {}-tick {} profile",
             profile.replay_ticks(),
@@ -223,21 +231,40 @@ fn capture_replay(
             ("round-orange", YELLOW_ROUND_ORANGE_TICK),
             ("result-tail", YELLOW_REPLAY_TICKS),
         ],
-        ReplayProfile::RematchDraftReplay => vec![
-            ("victory", 180),
-            ("rematch-prompt", 300),
-            ("arena-fade", 420),
-            ("orange-initial-offer", 540),
-            ("orange-burst-hover", 600),
-            ("orange-dazzle-confirmed", 840),
-            ("blue-initial-offer", 960),
-            ("blue-lifestealer-hover", 1_560),
-            ("blue-echo-hover", 2_040),
-            ("blue-explosive-confirmed", 2_120),
-            ("resumed-combat", 2_220),
-            ("upgraded-projectiles", 2_280),
-            ("continued-combat", 2_400),
-        ],
+        ReplayProfile::RematchDraftReplay => {
+            let mut anchors = vec![
+                ("victory", 180),
+                ("rematch-prompt", 300),
+                ("arena-fade", 420),
+                ("orange-initial-offer", 540),
+                ("orange-burst-hover", 600),
+                ("orange-dazzle-confirmed", 840),
+                ("blue-initial-offer", 960),
+                ("blue-lifestealer-hover", 1_560),
+                ("blue-echo-hover", 2_040),
+                ("blue-explosive-confirmed", 2_120),
+                ("resumed-combat", 2_220),
+                ("upgraded-projectiles", 2_280),
+                ("continued-combat", 2_400),
+            ];
+            if ticks > LEGACY_REMATCH_DRAFT_TICKS {
+                anchors.extend([
+                    ("blue-last-combat", CONNECTED_BLUE_RESULT_ONSET_TICK - 1),
+                    ("blue-result-onset", CONNECTED_BLUE_RESULT_ONSET_TICK),
+                    ("half-blue", CONNECTED_HALF_BLUE_TICK),
+                    ("half-blue-tail", CONNECTED_HALF_BLUE_TAIL_TICK),
+                    ("timber-arena-load", CONNECTED_TIMBER_COMBAT_TICK),
+                    ("intact-timber", 3_300),
+                    ("timber-impact", CONNECTED_TIMBER_IMPACT_TARGET_TICK),
+                    ("timber-collapse", CONNECTED_TIMBER_IMPACT_TARGET_TICK + 48),
+                    ("last-combat", CONNECTED_ORANGE_RESULT_ONSET_TICK - 1),
+                    ("orange-result-onset", CONNECTED_ORANGE_RESULT_ONSET_TICK),
+                    ("half-orange", CONNECTED_HALF_ORANGE_TICK),
+                    ("result-only-tail", profile.replay_ticks()),
+                ]);
+            }
+            anchors
+        }
     };
     let outputs = anchors
         .iter()
@@ -345,6 +372,115 @@ fn source_timestamp(profile: ReplayProfile, tick: u32) -> String {
 }
 
 fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static str)> {
+    if profile == ReplayProfile::RematchDraftReplay {
+        return match tick {
+            0 => Some((
+                1_595_160_286,
+                "8ed98510d1b11746b36f4bee6d577e2d42aef6f8012fa63c5eae07a7de8cf010",
+            )),
+            180 => Some((
+                1_630_160_146,
+                "546f847e9ba6096ffa4b81ec39ecb3f307c2325eee67de5785267fb65fb9fe83",
+            )),
+            300 => Some((
+                1_650_160_066,
+                "7a1e41a519831e36c2ccdb51d14b13e9b89ea2279959f57f913d33cc4c5bf28e",
+            )),
+            420 => Some((
+                1_670_159_986,
+                "f4a964e41a28e5f11bf3dcab641230a8e232b0b2ad4f20e396d312f2ce4a293c",
+            )),
+            540 => Some((
+                1_690_159_906,
+                "0142e5aebcc5d36f9e85ec1ccc540b3a44ef70c8797ca0dc49b8cfaca2612f7b",
+            )),
+            600 => Some((
+                1_700_159_866,
+                "0513c67348f7c7dade25f6e089609feb8242b2ebf6898caf4c152f523c02c806",
+            )),
+            840 => Some((
+                1_740_159_706,
+                "40bca7b38b802420f508299f95065bd210ccbd4a4a0e25fa7a5e3b44261fefa8",
+            )),
+            960 => Some((
+                1_760_159_626,
+                "0814efc64e193f6498ecdd6a710c4b24579641f82347607865bc55849e33068a",
+            )),
+            1_560 => Some((
+                1_860_159_226,
+                "c908a442c9a26c2708c66903c161d1bdcfb9a3b7687982ddcef0b15c5967fdad",
+            )),
+            2_040 => Some((
+                1_940_158_906,
+                "dbccdc00cd66860058bf7d75a97512f61cbf99db5d3639f5a8a7bc57025440bc",
+            )),
+            2_120 => Some((
+                1_953_492_186,
+                "ac8e7a24e33ad9f3df6b6798170c8a08ca95c4e5c8c669d6a8a26c812ffdf4f0",
+            )),
+            2_220 => Some((
+                1_970_158_786,
+                "2a84b6b41861392b539e5d7fcd816eb96d8f930a3535058307978831e4ecb8ac",
+            )),
+            2_280 => Some((
+                1_980_158_746,
+                "bfe1097bc75f1cfac1aeca0025600550ff7ee137be188ad026d456a7a44d2f5c",
+            )),
+            2_400 => Some((
+                2_000_158_666,
+                "393cc3d0ee9ecc461997e39da78dd2df51972a8fc909bb48eda08e40d9f3ce7c",
+            )),
+            2_585 => Some((
+                2_025_991_896,
+                "32339820f8a05a839e3d315497cf614306f74340356d8de2237d7c72036b9687",
+            )),
+            2_586 => Some((
+                2_026_158_562,
+                "5c263f881a9050501566444fdb0f84bc7b7664ed5ed8e4aabd3f58ade637b317",
+            )),
+            2_609 => Some((
+                2_029_991_880,
+                "c5c3b9d31675d2317020c1f968ed0c4688656612f2e72e9550d9542e832e1a94",
+            )),
+            2_700 => Some((
+                2_045_158_486,
+                "b0307fab233516c2cea436aab85c5e29bfdd8c55d3fc238a6f11d6bef996e02b",
+            )),
+            2_730 => Some((
+                2_050_158_466,
+                "9b1e056c1d00ed9890a4ae941f62ef4d9b6112a04eb04156a394d5fa3ae8631d",
+            )),
+            3_300 => Some((
+                2_145_324_752,
+                "491a46b52f8ee4f929ed085a63b72934c8fbaceca76393b7e4890676a343fb36",
+            )),
+            3_653 => Some((
+                2_204_157_850,
+                "d3d536325778594946b91171a42eea289fcbac84ed3dd4cd825ca31600e680ce",
+            )),
+            3_701 => Some((
+                2_211_991_152,
+                "cebca6ea478d0318f79d168a7692769a912e3abcd0db94e870b4838e78228b1e",
+            )),
+            4_449 => Some((
+                2_336_657_320,
+                "cfb81cd5b5fcd99bda0441cecf9afe8d5f82d83203a86b11e1fabca681885738",
+            )),
+            4_450 => Some((
+                2_336_823_986,
+                "2c903dfcc768591523211289f6dc3357631e010a8102dbcfdd2c72932c235bf8",
+            )),
+            4_470 => Some((
+                2_340_157_306,
+                "66d02502fd61186fff2da80ae1775a9b0546a02cf9310962b25e5a033f11f0e7",
+            )),
+            4_540 => Some((
+                2_351_823_926,
+                "9438b1bb537ad6b651729ed374d9f5ddf6d9badfa232df6cb34779ed03647ab2",
+            )),
+            _ => None,
+        };
+    }
     if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
         return match tick {
             0 => Some((

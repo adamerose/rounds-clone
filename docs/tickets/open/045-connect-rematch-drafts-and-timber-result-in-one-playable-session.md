@@ -8,6 +8,7 @@ value: 10
 risk: 4
 sessions:
   - codex:01a06920-7449-74d0-9b09-57855a012572
+  - codex:01a0708b-4602-7183-983b-8d08a61ff092
 execution: unattended
 depends-on: [40, 41]
 supersedes: []
@@ -80,3 +81,15 @@ Turn the already implemented rematch/draft and timber-collapse slices into one c
 - 2026-09-05T00:30:35Z stage review start session codex:01a06920-7449-74d0-9b09-57855a012572/admit_045 — Began final focused admission review of the corrected adjacent-frame endpoint and complete contract.
 - 2026-09-05T00:31:05Z stage review end session codex:01a06920-7449-74d0-9b09-57855a012572/admit_045 — Approved admission at risk 4 with no findings after independently reproducing the last result-only frame and first ice-crossfade frame and regressing feasibility, dependencies, live-input ownership, and proportional scope.
 - 2026-09-05T00:31:18Z stage design end session codex:01a06920-7449-74d0-9b09-57855a012572 — Admitted ticket 045 as the continuous rematch-to-two-halves product slice.
+- 2026-09-05T00:33:26.998Z stage implement start session codex:01a06920-7449-74d0-9b09-57855a012572/implement_045 — Began composing the admitted continuous authority in its isolated worktree after reading the full contract, architecture, fidelity records, and closed prerequisite tickets 040 and 041.
+- 2026-09-05T07:52:49.964397Z stage research start session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Resumed the admitted partial implementation from the interrupted task; rechecking exact source boundaries and retained build evidence.
+- 2026-09-05T07:55:32.832778Z stage research end session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Reproduced all seven exact source hashes, inspected original-resolution result/handoff frames, and recorded observations in docs/fidelity/connected-match-observations.md.
+- 2026-09-05T08:06:18.792019Z stage implement start session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Continuing source-bound metadata and documentation while the implementation child completes connected authority, input, renderer and regressions; the warm target remains shared and Cargo commands run sequentially.
+- 2026-09-05T08:17:07.686779Z stage implement end session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Completed the first connected candidate; format, strict lint, locked build and all 39 tests pass on the reusable two-job target.
+- 2026-09-05T08:17:07.686779Z stage verify start session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Inspecting the completed 25-anchor shared-GPU capture and two-client 4,540-snapshot smoke against the native source frames.
+- 2026-09-05T08:18:47.630181Z stage verify end session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Both clients agreed through all 4,540 snapshots, but original-resolution inspection of all 25 anchors found the timber impact on the wrong side with draft-only starburst art, lingering blue-result distortion, lost prior blue half during orange onset, and removed early Explosive Bullet shots from the inherited draft slice. Candidate not ready for review.
+- 2026-09-05T08:18:47.630181Z stage correction start session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Correcting the ordinary shot trace and shared effects/result projection while preserving the earlier two blue shots and existing source cadence.
+- 2026-09-05T08:39:22.395732Z stage correction end session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Restored early card shots, moved ordinary timber contact to the upper-left surface using Rapier contact coordinates, reused timber effects, revived fighters during arena loading, and preserved crisp results and prior half awards; all 39 tests and capped warm-target checks pass.
+- 2026-09-05T08:39:22.395732Z stage verify start session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Regenerated all 25 shared-GPU anchors and the full progressive UDP smoke from the corrected executable, then ran guarded visible playback.
+- 2026-09-05T08:39:22.395732Z stage verify end session codex:01a0708b-4602-7183-983b-8d08a61ff092 — Both clients agreed through 4,540 snapshots; local, received-client and actual visible final state hashes agree. All 25 source, executable and PNG hashes validated; changed frames inspected at 1280x720 and unchanged frames matched the prior full inspection. Monitor-4 guard and bounded playback passed. Evidence, limitations and responsibility inventory are in docs/fidelity/connected-match-observations.md.
+- 2026-09-05T08:39:59.573128Z stage review start session codex:01a0708b-4602-7183-983b-8d08a61ff092/01a070b5-9f0b-7e61-b92b-5db64dbb8c35 — Starting independent exact-candidate review of the complete connected slice and source-paired evidence; the reviewer identity is reserved on the candidate and does not imply approval before its verdict.
