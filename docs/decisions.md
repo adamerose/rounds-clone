@@ -515,3 +515,9 @@ Ticket 043 now binds PTS 4238316380 to tick 109 as final undimmed combat, adjace
 ## 2026-09-04 — Bound clean Cargo builds to two jobs and reuse compatible artifacts
 
 A confirmed ticket-043 cold workspace test allowed about seven MSVC linkers to run together, produced roughly 16.9 GiB of artifacts, saturated memory and disk, and froze the host. Human direction admits ticket 044 at risk 2: repository Cargo configuration now enforces two jobs and a worktree-local ignored reusable target. Clean builds must announce their target, reason, cap, approximately 17 GiB precedent, and cleanup plan before launch; verification coverage remains complete and sequential compatible commands reuse the prepared artifacts.
+
+## 2026-09-05 — Admit one continuous rematch-to-two-halves match slice
+
+Ticket 045 composes closed tickets 040 and 041 into one authoritative playable session instead of adding a sixth disconnected replay showcase. Players or automation accept the rematch, draft `DAZZLE` and `EXPLOSIVE BULLET`, return to combat, produce `HALF BLUE`, load the timber arena with state intact, trigger the physical collapse through ordinary projectile contact, and produce the answering `HALF ORANGE` for a 1–1 half state.
+The source contract begins at native PTS 1595160286 and ends at PTS 2351823926, the independently reproduced last clean result-only frame; adjacent PTS 2351990592 is the first visible ice geometry and remains outside the ticket. Durable gameplay remains ECS/authority state while scene actions and anchors are configuration, and implementation may not increase the current replay-profile branch count to connect the systems.
+Fresh reviewer `codex:01a06920-7449-74d0-9b09-57855a012572/admit_045` approved the corrected risk-4 contract after rejecting two omitted source transitions and one imprecise endpoint. The admitted evidence stays limited to connected lifecycle and causality regressions, one two-client smoke, and shared-renderer source anchors.
