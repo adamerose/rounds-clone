@@ -176,7 +176,11 @@ fn capture_replay(
     ticks: u32,
 ) -> Result<(), String> {
     if ticks != profile.replay_ticks()
-        && !(profile == ReplayProfile::RematchDraftReplay && ticks == LEGACY_REMATCH_DRAFT_TICKS)
+        && !(profile == ReplayProfile::RematchDraftReplay
+            && matches!(
+                ticks,
+                LEGACY_REMATCH_DRAFT_TICKS | rounds_sim::CONNECTED_FIRST_ROUND_TICKS
+            ))
     {
         return Err(format!(
             "capture-replay requires the admitted {}-tick {} profile",
@@ -263,6 +267,22 @@ fn capture_replay(
                     ("result-only-tail", profile.replay_ticks()),
                 ]);
             }
+            if ticks == rounds_sim::CONNECTED_FIRST_ROUND_TICKS {
+                anchors.extend([
+                    ("ice-crossfade", 4541),
+                    ("ice-established", 4603),
+                    ("ice-early-traversal", 4786),
+                    ("ice-projectile-exchange", 4969),
+                    ("ice-later-traversal", 5213),
+                    ("ice-terminal-approach", 5310),
+                    ("ice-terminal-burst", 5312),
+                    ("ice-terminal-response", 5314),
+                    ("ice-last-undimmed", 5338),
+                    ("ice-first-result", 5339),
+                    ("ice-round-blue", 5355),
+                    ("ice-round-pip", 5466),
+                ]);
+            }
             anchors
         }
     };
@@ -323,7 +343,13 @@ fn capture_state(
         seed,
         tick: state.tick,
         anchor: anchor.to_owned(),
-        source_interval: profile.source_interval(),
+        source_interval: if profile == ReplayProfile::RematchDraftReplay
+            && trace_ticks > rounds_sim::REMATCH_DRAFT_TICKS
+        {
+            "02:39.516029-04:10.615664"
+        } else {
+            profile.source_interval()
+        },
         source_timestamp: source_timestamp(profile, state.tick),
         source_pts: source_binding(profile, state.tick).map(|binding| binding.0),
         source_rgba_sha256: source_binding(profile, state.tick).map(|binding| binding.1),
@@ -477,6 +503,54 @@ fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static st
             4_540 => Some((
                 2_351_823_926,
                 "9438b1bb537ad6b651729ed374d9f5ddf6d9badfa232df6cb34779ed03647ab2",
+            )),
+            4541 => Some((
+                2351990592,
+                "ca82da2a0b4dead0fafd53be2ba3a3d6c8317b9c76649ebcbe7ce35655bb5405",
+            )),
+            4603 => Some((
+                2362323884,
+                "7b345dad4e6b7fba4f23b6c4622273b8361ddecf1e8ca600cf8c19edb1492436",
+            )),
+            4786 => Some((
+                2392823762,
+                "3d2ae2939f40a3a8d53191589ef5c42ab360a7242ce65d9590685069536b5ba4",
+            )),
+            4969 => Some((
+                2423323640,
+                "28a0c8a0adb0a913c22d878c090c052cff570109c36d2326e36ee6cd09866800",
+            )),
+            5213 => Some((
+                2463990144,
+                "5992ac0074765324a238d19bb7b1c02158dc768db551a0c7273bac558a47f428",
+            )),
+            5310 => Some((
+                2480156746,
+                "d0334341908395c4e5dc6095529c3e3f0594a4d357669d5c035d0facdf7973a3",
+            )),
+            5312 => Some((
+                2480490078,
+                "e584b9d9f4607ba3d0bfdb60a574fcb1d4664e8e6cf6c754c4b2a661f7c484ab",
+            )),
+            5314 => Some((
+                2480823410,
+                "85d609cbf409c8b974ea3ebd228b667af579e01335d2ace07108ac17676ae82d",
+            )),
+            5338 => Some((
+                2484823394,
+                "c9ccbd8e1c67498d9a7f4c5438da5c36e9914e8826b9e553793a8375aa3c2c61",
+            )),
+            5339 => Some((
+                2484990060,
+                "e757a34cb37134b6458c96cbdd4434a025e3984011d5b9d33daede652742cc74",
+            )),
+            5355 => Some((
+                2487656716,
+                "8e1fe4a7514a96823783ed995657c1dac71247527666d4f9f10875119891ec83",
+            )),
+            5466 => Some((
+                2506156642,
+                "ae4d4d943d9ec939064a0d9d4a3b08a8d6f31cb820639d297bf9caf1c5333a32",
             )),
             _ => None,
         };

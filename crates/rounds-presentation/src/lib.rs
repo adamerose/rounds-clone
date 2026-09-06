@@ -55,11 +55,19 @@ const MONITOR_DISCOVERY_FRAME_LIMIT: u16 = 120;
 const REQUIRED_COMPLETE_RENDER_FRAMES: u8 = 2;
 const RADIAL_ECHO_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("1b624fab-9a06-4a96-b054-d334760f910c");
+const ROUND_FONT_HANDLE: Handle<Font> = uuid_handle!("52b1b7b5-ad12-4e7a-8f2b-772aef08b446");
 
-struct RadialEchoPlugin;
+struct SharedScenePlugin;
 
-impl Plugin for RadialEchoPlugin {
+impl Plugin for SharedScenePlugin {
     fn build(&self, app: &mut App) {
+        app.world_mut()
+            .resource_mut::<Assets<Font>>()
+            .insert(
+                ROUND_FONT_HANDLE.id(),
+                Font::from_bytes(include_bytes!("fonts/Arimo.ttf").to_vec()),
+            )
+            .expect("shared scene owns its embedded round font");
         load_internal_asset!(
             app,
             RADIAL_ECHO_SHADER_HANDLE,
@@ -475,7 +483,7 @@ fn render_png_with_readiness(
             .disable::<bevy::log::LogPlugin>()
             .disable::<WinitPlugin>(),
     )
-    .add_plugins(RadialEchoPlugin)
+    .add_plugins(SharedScenePlugin)
     .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
     .insert_resource(SceneSnapshot(snapshot.clone()))
     .init_resource::<CaptureReadiness>()
@@ -639,7 +647,7 @@ pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
                 exit_condition: ExitCondition::DontExit,
                 ..default()
             }),
-            RadialEchoPlugin,
+            SharedScenePlugin,
         ))
         .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
         .insert_resource(SceneSnapshot(snapshots[0].clone()))
@@ -683,7 +691,7 @@ pub fn run_interactive_visible(
             exit_condition: ExitCondition::DontExit,
             ..default()
         }),
-        RadialEchoPlugin,
+        SharedScenePlugin,
     ))
     .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
     .insert_resource(SceneSnapshot(initial))
@@ -1116,14 +1124,31 @@ fn verify_monitor_show_and_exit(
             exit.write(AppExit::error());
             return;
         }
+        let WindowPosition::At(position) = primary.0.position else {
+            eprintln!("native window position was unavailable; window remained hidden");
+            exit.write(AppExit::error());
+            return;
+        };
+        let center = position + primary.0.physical_size().as_ivec2() / 2;
+        let display_min = monitor.physical_position;
+        let display_max = display_min + monitor.physical_size().as_ivec2();
+        if !center.cmpge(display_min).all() || !center.cmplt(display_max).all() {
+            eprintln!(
+                "native window center {center:?} was outside monitor 4; window remained hidden"
+            );
+            exit.write(AppExit::error());
+            return;
+        }
         primary.0.visible = true;
         lifetime.shown = true;
         println!(
-            "{{\"event\":\"windowPlacementVerified\",\"width\":{},\"height\":{},\"x\":{},\"y\":{}}}",
+            "{{\"event\":\"windowPlacementVerified\",\"width\":{},\"height\":{},\"x\":{},\"y\":{},\"centerX\":{},\"centerY\":{}}}",
             monitor.physical_width,
             monitor.physical_height,
             monitor.physical_position.x,
-            monitor.physical_position.y
+            monitor.physical_position.y,
+            center.x,
+            center.y
         );
     }
     if lifetime.frames == 0 {
@@ -1156,20 +1181,33 @@ fn camera_state(
         })
         .map(|explosion| snapshot.tick.saturating_sub(explosion.tick));
     let yellow = snapshot.profile == rounds_sim::YELLOW_REPLAY_PROFILE;
+    let ice = snapshot.arena.iter().any(|surface| surface.id >= 40);
     let flash = explosion_age
-        .map(if yellow {
-            yellow_flash_envelope
-        } else {
-            flash_envelope
+        .map(|age| {
+            if ice {
+                yellow_flash_envelope(age + 3)
+            } else if yellow {
+                yellow_flash_envelope(age)
+            } else {
+                flash_envelope(age)
+            }
         })
         .unwrap_or(0.0);
-    let shock = if yellow {
+    let shock = if ice {
+        0.0
+    } else if yellow {
         radial_echo_settings(snapshot).strength
     } else {
         explosion_age.map(shock_envelope).unwrap_or(0.0)
     };
     let shake_x = (snapshot.tick as f32 * 2.31).sin() * (5.0 * flash + 8.0 * shock);
-    let shake_y = (snapshot.tick as f32 * 1.73).cos() * (4.0 * flash + 6.0 * shock);
+    let shake_y = if ice {
+        explosion_age
+            .map(|age| 11.0 * (1.0 - age as f32 / 3.0).clamp(0.0, 1.0))
+            .unwrap_or(0.0)
+    } else {
+        (snapshot.tick as f32 * 1.73).cos() * (4.0 * flash + 6.0 * shock)
+    };
     let transform = Transform::from_xyz(
         player_nudge.clamp(-5.0, 5.0) + shake_x,
         if yellow { 48.0 } else { 0.0 } + shake_y,
@@ -1193,12 +1231,16 @@ fn camera_state(
         ..default()
     };
     let lens = LensDistortion {
-        intensity: if yellow {
+        intensity: if ice {
+            0.0
+        } else if yellow {
             flash * -0.025 + shock * -0.045
         } else {
             flash * -0.04 + shock * -0.30
         },
-        scale: if yellow {
+        scale: if ice {
+            1.0
+        } else if yellow {
             1.0 + flash * 0.008 + shock * 0.018
         } else {
             1.0 + flash * 0.015 + shock * 0.10
@@ -1424,29 +1466,50 @@ fn spawn_yellow_paper(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<ColorMaterial>,
     tick: u32,
+    ice: bool,
 ) {
     let drift = tick as f32 * 0.0025;
-    for facet in 0..54_u32 {
+    for facet in 0..if ice { 480_u32 } else { 54_u32 } {
         let column = facet % 9;
         let row = facet / 9;
         let seed = facet as f32 * 1.731;
-        let center = Vec2::new(
-            -620.0 + column as f32 * 154.0 + (seed + drift).sin() * 34.0,
-            -330.0 + row as f32 * 132.0 + (seed * 0.73 - drift).cos() * 31.0,
-        );
+        let center = if ice {
+            Vec2::new(
+                -680.0 + (facet.wrapping_mul(317) % 1_360) as f32 + (seed + drift).sin() * 24.0,
+                -390.0
+                    + (facet.wrapping_mul(191) % 780) as f32
+                    + (seed * 0.73 - drift).cos() * 18.0,
+            )
+        } else {
+            Vec2::new(
+                -620.0 + column as f32 * 154.0 + (seed + drift).sin() * 34.0,
+                -330.0 + row as f32 * 132.0 + (seed * 0.73 - drift).cos() * 31.0,
+            )
+        };
         let width = 82.0 + (facet.wrapping_mul(47) % 105) as f32;
-        let height = 58.0 + (facet.wrapping_mul(31) % 78) as f32;
+        let height = if ice {
+            7.0 + (facet.wrapping_mul(31) % 35) as f32
+        } else {
+            58.0 + (facet.wrapping_mul(31) % 78) as f32
+        };
         let skew = (seed * 0.41).sin() * 30.0;
+        let brush = Rot2::radians(if ice {
+            (center.x * 0.003 + center.y * 0.002 + drift * 0.03).sin() * 0.8
+        } else {
+            0.0
+        });
         spawn_triangle(
             commands,
             meshes,
             materials,
             [
-                center + Vec2::new(-width * 0.5, -height * 0.5),
-                center + Vec2::new(width * 0.5, -height * 0.42),
-                center + Vec2::new(skew, height * 0.5),
+                center + brush * Vec2::new(-width * 0.5, -height * 0.5),
+                center + brush * Vec2::new(width * 0.5, -height * 0.42),
+                center + brush * Vec2::new(skew, height * 0.5),
             ],
-            if facet % 3 == 0 {
+            if ice && facet % 3 != 0 {
+                Color::srgba_u8(0, 12, 40, 16 + (facet % 7) as u8 * 3)
+            } else if facet % 3 == 0 {
                 Color::srgba_u8(9, 77, 78, 16)
             } else {
                 Color::srgba_u8(0, 21, 48, 22)
@@ -1473,7 +1536,14 @@ fn spawn_snapshot_scene(
     let draft_replay = profile == ReplayProfile::RematchDraftReplay;
     let radial_replay = profile == ReplayProfile::RadialSawHalfBlueReplay;
     let yellow_replay = profile == ReplayProfile::YellowCrateTerminalBlastReplay;
-    let fighter_scale = if yellow_replay { 0.62 } else { 1.0 };
+    let ice_scene = snapshot.arena.iter().any(|surface| surface.id >= 40);
+    let fighter_scale = if ice_scene {
+        0.56
+    } else if yellow_replay {
+        0.62
+    } else {
+        1.0
+    };
     let circle = meshes.add(Circle::new(22.0 * fighter_scale));
     let block_ring = meshes.add(Annulus::new(29.0 * fighter_scale, 33.0 * fighter_scale));
     let bullet = meshes.add(Circle::new(5.0));
@@ -1486,6 +1556,8 @@ fn spawn_snapshot_scene(
                 Color::srgb_u8(188, 238, 229)
             } else if yellow_replay {
                 Color::srgb_u8(2, 43, 54)
+            } else if ice_scene {
+                Color::srgb_u8(3, 42, 61)
             } else if timber_scene {
                 Color::srgb_u8(2, 32, 49)
             } else if draft_replay {
@@ -1500,8 +1572,8 @@ fn spawn_snapshot_scene(
         ),
         Transform::from_xyz(0.0, 0.0, -100.0),
     ));
-    if yellow_replay {
-        spawn_yellow_paper(commands, meshes, materials, snapshot.tick);
+    if yellow_replay || ice_scene {
+        spawn_yellow_paper(commands, meshes, materials, snapshot.tick, ice_scene);
     } else if !radial_replay {
         let drift = snapshot.tick as f32 * 0.035;
         for (index, x) in [-520.0_f32, -260.0, 0.0, 260.0, 520.0]
@@ -1571,6 +1643,10 @@ fn spawn_snapshot_scene(
         let width = surface.width_milli as f32 / 1_000.0;
         let height = surface.height_milli as f32 / 1_000.0;
         let rotation = surface.rotation_milliradians as f32 / 1_000.0;
+        if ice_scene {
+            spawn_ice_surface(commands, meshes, materials, surface, snapshot.tick);
+            continue;
+        }
         if timber_scene {
             spawn_timber_floor(
                 commands,
@@ -1747,11 +1823,12 @@ fn spawn_snapshot_scene(
     }
 
     if let Some(explosion) = snapshot.explosions.last().filter(|_| {
-        snapshot
-            .round
-            .as_ref()
-            .map(|round| round.phase == rounds_sim::RoundPhase::Combat)
-            .unwrap_or(true)
+        ice_scene
+            || snapshot
+                .round
+                .as_ref()
+                .map(|round| round.phase == rounds_sim::RoundPhase::Combat)
+                .unwrap_or(true)
     }) {
         let age = snapshot.tick.saturating_sub(explosion.tick);
         if age <= 48 {
@@ -1762,7 +1839,9 @@ fn spawn_snapshot_scene(
             if yellow_replay {
                 center.y -= 40.0;
             }
-            let flash = if yellow_replay {
+            let flash = if ice_scene {
+                yellow_flash_envelope(age + 3)
+            } else if yellow_replay {
                 yellow_flash_envelope(age)
             } else {
                 flash_envelope(age)
@@ -1770,7 +1849,11 @@ fn spawn_snapshot_scene(
             if explosion.id >= 10_000 && flash > 0.0 && !yellow_replay && !timber_scene {
                 for wedge in 0..18 {
                     let angle = wedge as f32 * std::f32::consts::TAU / 18.0;
-                    let radius = (90.0 + age as f32 * 13.0) * flash.sqrt();
+                    let radius = if ice_scene {
+                        (40.0 + age as f32 * 3.0) * flash.sqrt()
+                    } else {
+                        (90.0 + age as f32 * 13.0) * flash.sqrt()
+                    };
                     let spread = 0.11 + (wedge % 3) as f32 * 0.025;
                     spawn_triangle(
                         commands,
@@ -1863,7 +1946,13 @@ fn spawn_snapshot_scene(
                     ));
                 }
             }
-            for spark in 0..72 {
+            for spark in 0..if ice_scene && age > 12 {
+                0
+            } else if ice_scene {
+                24
+            } else {
+                72
+            } {
                 let angle = spark as f32 * 2.399 + (spark % 5) as f32 * 0.11;
                 let speed = 1.5 + (spark * 11 % 17) as f32 * 0.18;
                 let distance = 10.0 + age as f32 * speed;
@@ -1940,14 +2029,16 @@ fn spawn_snapshot_scene(
                     ));
                 }
             }
-            for fragment in 0..18 {
+            for fragment in 0..if ice_scene { 32 } else { 18 } {
                 let angle = fragment as f32 * 1.71 + 0.23;
                 let speed = 0.8 + (fragment % 6) as f32 * 0.28;
                 let distance = 12.0 + age as f32 * speed;
                 commands.spawn((
                     SceneVisual,
                     Sprite::from_color(
-                        if fragment % 3 == 0 {
+                        if ice_scene && fragment % 2 == 0 {
+                            Color::linear_rgba(2.4, 2.6, 2.2, 0.85)
+                        } else if fragment % 3 == 0 {
                             Color::srgb_u8(92, 29, 38)
                         } else {
                             Color::linear_rgba(2.8, 0.32, 0.04, 0.9)
@@ -1956,7 +2047,8 @@ fn spawn_snapshot_scene(
                     ),
                     Transform::from_xyz(
                         center.x + angle.cos() * distance,
-                        center.y + angle.sin() * distance - age as f32 * age as f32 * 0.013,
+                        center.y + angle.sin() * distance
+                            - age as f32 * age as f32 * if ice_scene { 0.055 } else { 0.013 },
                         19.0,
                     )
                     .with_rotation(Quat::from_rotation_z(angle + age as f32 * 0.08)),
@@ -1966,12 +2058,25 @@ fn spawn_snapshot_scene(
     }
 
     for player in &snapshot.players {
-        let x = player.x_milli as f32 / 1_000.0;
-        let y = player.y_milli as f32 / 1_000.0 - if yellow_replay { 32.0 } else { 0.0 };
+        if ice_scene && !player.alive {
+            continue;
+        }
+        let mut position = Vec2::new(player.x_milli as f32, player.y_milli as f32) / 1_000.0;
+        if let (Some(origins), Some(flow)) = (snapshot.arena_entry_from_milli, &snapshot.flow) {
+            let origin = origins[usize::from(player.id)];
+            let origin = Vec2::new(origin[0] as f32, origin[1] as f32) / 1_000.0;
+            let progress = (flow.phase_tick as f32 / 60.0).clamp(0.0, 1.0);
+            position = origin.lerp(position, 1.0 - (1.0 - progress).powi(3))
+                - arena_presentation_offset(snapshot);
+        }
+        let x = position.x;
+        let y = position.y - if yellow_replay { 32.0 } else { 0.0 };
         let body_color = if player.hit_flash_ticks > 0 && !yellow_replay {
             Color::WHITE
         } else if !player.alive {
             Color::srgba_u8(96, 42, 54, 150)
+        } else if player.id == 0 && ice_scene {
+            Color::srgb_u8(248, 91, 35)
         } else if player.id == 0 {
             Color::srgb_u8(244, 63, 86)
         } else {
@@ -1995,7 +2100,84 @@ fn spawn_snapshot_scene(
             MeshMaterial2d(materials.add(body_color)),
             Transform::from_xyz(x, y, 5.0),
         ));
+        if ice_scene {
+            for eye_x in [-4.0, 4.0] {
+                commands.spawn((
+                    SceneVisual,
+                    Mesh2d(meshes.add(Circle::new(2.4))),
+                    MeshMaterial2d(materials.add(Color::srgb_u8(235, 239, 225))),
+                    Transform::from_xyz(x + eye_x, y + 1.5, 6.0),
+                ));
+                commands.spawn((
+                    SceneVisual,
+                    Mesh2d(meshes.add(Circle::new(1.0))),
+                    MeshMaterial2d(materials.add(Color::srgb_u8(7, 32, 58))),
+                    Transform::from_xyz(x + eye_x, y + 1.2, 6.1),
+                ));
+            }
+            spawn_triangle(
+                commands,
+                meshes,
+                materials,
+                [
+                    Vec2::new(x - 5.0, y - 3.0),
+                    Vec2::new(x, y - 7.0),
+                    Vec2::new(x + 5.0, y - 3.0),
+                ],
+                Color::srgb_u8(224, 93, 145),
+                6.0,
+            );
+            if player.id == 0 {
+                for (offset, size, color) in [
+                    (
+                        Vec2::new(0.0, 17.0),
+                        Vec2::new(24.0, 12.0),
+                        Color::srgb_u8(168, 43, 45),
+                    ),
+                    (
+                        Vec2::new(-3.0, 17.0),
+                        Vec2::new(6.0, 12.0),
+                        Color::srgb_u8(224, 223, 200),
+                    ),
+                    (
+                        Vec2::new(0.0, 10.0),
+                        Vec2::new(30.0, 4.0),
+                        Color::srgb_u8(32, 35, 36),
+                    ),
+                ] {
+                    commands.spawn((
+                        SceneVisual,
+                        Sprite::from_color(color, size),
+                        Transform::from_xyz(x + offset.x, y + offset.y, 7.0),
+                    ));
+                }
+            } else {
+                for point in 0..3 {
+                    let crown_x = x - 6.0 + point as f32 * 6.0;
+                    spawn_triangle(
+                        commands,
+                        meshes,
+                        materials,
+                        [
+                            Vec2::new(crown_x - 3.5, y + 32.0),
+                            Vec2::new(crown_x + 3.5, y + 32.0),
+                            Vec2::new(crown_x, y + 40.0),
+                        ],
+                        Color::srgb_u8(255, 200, 54),
+                        7.0,
+                    );
+                }
+            }
+        }
         let aim = Vec2::new(f32::from(player.aim_x), f32::from(player.aim_y)).normalize_or(Vec2::X);
+        if ice_scene {
+            commands.spawn((
+                SceneVisual,
+                Mesh2d(meshes.add(Circle::new(4.5))),
+                MeshMaterial2d(materials.add(Color::srgb_u8(238, 233, 213))),
+                Transform::from_xyz(x + aim.x * 24.0, y + aim.y * 24.0, 8.0),
+            ));
+        }
         commands.spawn((
             SceneVisual,
             Sprite::from_color(
@@ -2020,7 +2202,9 @@ fn spawn_snapshot_scene(
         commands.spawn((
             SceneVisual,
             Sprite::from_color(
-                if player.id == 0 {
+                if ice_scene {
+                    Color::srgb_u8(164, 221, 80)
+                } else if player.id == 0 {
                     Color::srgb_u8(244, 90, 104)
                 } else {
                     Color::srgb_u8(70, 188, 255)
@@ -2040,7 +2224,13 @@ fn spawn_snapshot_scene(
         ));
         commands.spawn((
             SceneVisual,
-            Text2d::new(if !player.alive {
+            Text2d::new(if ice_scene {
+                if player.id == 0 {
+                    "Jewish Gorgonite"
+                } else {
+                    "Binklederry"
+                }
+            } else if !player.alive {
                 if player.id == 0 {
                     "ORANGE • OUT"
                 } else {
@@ -2052,7 +2242,11 @@ fn spawn_snapshot_scene(
                 "BLUE"
             }),
             TextFont {
-                font_size: FontSize::Px(12.0 * fighter_scale),
+                font_size: FontSize::Px(if ice_scene {
+                    11.0
+                } else {
+                    12.0 * fighter_scale
+                }),
                 ..default()
             },
             TextColor(Color::WHITE),
@@ -2147,6 +2341,200 @@ fn spawn_snapshot_scene(
     if !yellow_replay {
         spawn_radial_result(commands, meshes, materials, snapshot);
     }
+    let motion = arena_presentation_offset(snapshot);
+    if motion != Vec2::ZERO {
+        commands.queue(move |world: &mut World| {
+            let mut transforms = world.query_filtered::<&mut Transform, With<SceneVisual>>();
+            for mut transform in transforms.iter_mut(world) {
+                if (-60.0..30.0).contains(&transform.translation.z) {
+                    transform.translation += motion.extend(0.0);
+                }
+            }
+        });
+    }
+}
+
+fn arena_presentation_offset(snapshot: &MatchSnapshot) -> Vec2 {
+    let Some(flow) = &snapshot.flow else {
+        return Vec2::ZERO;
+    };
+    if flow.phase == FlowPhase::IceTransition {
+        let remaining = (1.0 - flow.phase_tick as f32 / 60.0).clamp(0.0, 1.0);
+        return Vec2::new(1_206.0 * remaining.powi(3), 0.0);
+    }
+    if matches!(flow.phase, FlowPhase::RoundBlue | FlowPhase::RoundOrange) {
+        let progress = (flow.phase_tick as f32 / 85.0).clamp(0.0, 1.0);
+        return Vec2::new(-7.0 * progress, 28.0 + 1_000.0 * progress.powi(2));
+    }
+    Vec2::ZERO
+}
+
+fn spawn_ice_surface(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    surface: &rounds_sim::ArenaSurfaceSnapshot,
+    tick: u32,
+) {
+    let center = Vec2::new(surface.center_x_milli as f32, surface.center_y_milli as f32) / 1_000.0;
+    let rotation = Rot2::radians(surface.rotation_milliradians as f32 / 1_000.0);
+    let outline = surface
+        .outline_milli
+        .iter()
+        .map(|point| center + rotation * (Vec2::new(point[0] as f32, point[1] as f32) / 1_000.0))
+        .collect::<Vec<_>>();
+    if outline.len() < 3 {
+        return;
+    }
+    // Horizontal bands triangulate the stepped and notched contours without filling their recesses.
+    let mut levels = outline.iter().map(|point| point.y).collect::<Vec<_>>();
+    levels.sort_by(f32::total_cmp);
+    levels.dedup();
+    let mut triangles = Vec::new();
+    for band in levels.windows(2) {
+        let middle = (band[0] + band[1]) * 0.5;
+        let mut crossings = outline
+            .iter()
+            .zip(outline.iter().cycle().skip(1))
+            .take(outline.len())
+            .filter(|(a, b)| (a.y < middle && b.y > middle) || (b.y < middle && a.y > middle))
+            .map(|(a, b)| {
+                let x_at = |y| a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y);
+                (x_at(middle), x_at(band[0]), x_at(band[1]))
+            })
+            .collect::<Vec<_>>();
+        crossings.sort_by(|a, b| a.0.total_cmp(&b.0));
+        for pair in crossings.as_chunks::<2>().0 {
+            let bottom_left = Vec2::new(pair[0].1, band[0]);
+            let bottom_right = Vec2::new(pair[1].1, band[0]);
+            let top_left = Vec2::new(pair[0].2, band[1]);
+            let top_right = Vec2::new(pair[1].2, band[1]);
+            triangles.extend([
+                [bottom_left, bottom_right, top_right],
+                [bottom_left, top_right, top_left],
+            ]);
+        }
+    }
+    let top = *levels.last().unwrap();
+    let width = surface.width_milli as f32 / 1_000.0;
+    let top_edge = outline.iter().filter(|point| (point.y - top).abs() < 0.001);
+    let shadow_left = Vec2::new(
+        top_edge
+            .clone()
+            .map(|point| point.x)
+            .fold(f32::INFINITY, f32::min),
+        top,
+    );
+    let shadow_right = Vec2::new(
+        top_edge
+            .map(|point| point.x)
+            .fold(f32::NEG_INFINITY, f32::max),
+        top,
+    );
+    let light = Vec2::new(0.0, 760.0);
+    let shadow_end = |point: Vec2| {
+        let direction = point - light;
+        point + direction * ((-520.0 - point.y) / direction.y)
+    };
+    let far_left = shadow_end(shadow_left);
+    let far_right = shadow_end(shadow_right);
+    for triangle in [
+        [shadow_left, far_left, far_right],
+        [shadow_left, far_right, shadow_right],
+    ] {
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            triangle,
+            Color::srgb_u8(0, 0, 27),
+            -40.0,
+        );
+    }
+    for &triangle in &triangles {
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            triangle,
+            Color::srgb_u8(221, 233, 226),
+            0.0,
+        );
+    }
+    let height = surface.height_milli as f32 / 1_000.0;
+    let phase = tick as f32 * 0.007 + surface.id as f32 * 1.71;
+    let extent = width.hypot(height);
+    for stroke in 0..36_u32 {
+        let cluster = stroke / 9;
+        let seed = u32::from(surface.id) * 31 + cluster * 97;
+        let cyan = (0.5 + (phase * 0.63 + cluster as f32 * 1.7).sin() * 0.7).clamp(0.0, 1.0)
+            * if center.y > 0.0 { 0.25 } else { 1.0 };
+        let direction =
+            Vec2::from_angle(phase.sin() * 1.2 + 0.7 + radial_brush_noise(seed, 0, 17) * 0.9);
+        let normal = direction.perp();
+        let origin = center
+            + Vec2::new(
+                radial_brush_noise(seed, 0, 3) * width * 0.52,
+                radial_brush_noise(seed, 0, 7) * height * 0.52,
+            )
+            + normal * radial_brush_noise(seed, stroke, 11) * extent * 0.13;
+        let broad = stroke % 9 == 0;
+        let thickness = if broad {
+            extent * (0.04 + cyan * 0.08)
+        } else {
+            (1.0 + (stroke * 13 % 19) as f32) * (0.3 + cyan * 0.7)
+        };
+        let length = extent * (0.14 + radial_brush_noise(seed, stroke, 23).abs() * 0.65);
+        let paint = [
+            origin - direction * length * 0.7,
+            origin + direction * length * 0.6 + normal * thickness,
+            origin + direction * length * 0.1 - normal * thickness * 0.45,
+        ];
+        let color = if broad || stroke % 4 == 0 {
+            Color::srgba_u8(0, 188, 226, (20.0 + cyan * 230.0) as u8)
+        } else if stroke % 3 == 0 || stroke % 5 == 0 {
+            Color::srgba_u8(243, 249, 232, 225)
+        } else {
+            Color::srgba_u8(28, 203, 230, (12.0 + cyan * 185.0) as u8)
+        };
+        for triangle in &triangles {
+            let clipped = clip_ice_paint(&paint, triangle);
+            for index in 1..clipped.len().saturating_sub(1) {
+                spawn_triangle(
+                    commands,
+                    meshes,
+                    materials,
+                    [clipped[0], clipped[index], clipped[index + 1]],
+                    color,
+                    0.5 + stroke as f32 * 0.001,
+                );
+            }
+        }
+    }
+}
+
+fn clip_ice_paint(paint: &[Vec2; 3], contour: &[Vec2; 3]) -> Vec<Vec2> {
+    let mut polygon = paint.to_vec();
+    for edge in 0..3 {
+        let start = contour[edge];
+        let direction = contour[(edge + 1) % 3] - start;
+        let input = std::mem::take(&mut polygon);
+        for (&a, &b) in input
+            .iter()
+            .zip(input.iter().cycle().skip(1))
+            .take(input.len())
+        {
+            let side_a = direction.perp_dot(a - start);
+            let side_b = direction.perp_dot(b - start);
+            if side_a >= 0.0 {
+                polygon.push(a);
+            }
+            if (side_a >= 0.0) != (side_b >= 0.0) {
+                polygon.push(a.lerp(b, side_a / (side_a - side_b)));
+            }
+        }
+    }
+    polygon
 }
 
 fn spawn_radial_backdrop(
@@ -2434,18 +2822,27 @@ fn spawn_radial_result(
     if matches!(round.phase, rounds_sim::RoundPhase::Combat) {
         return;
     }
+    let ice = snapshot.arena.iter().any(|surface| surface.id >= 40);
+    let full_round = snapshot.flow.is_some()
+        && round
+            .winner
+            .is_some_and(|winner| round.scores[usize::from(winner)] >= 2);
     let established = matches!(
         round.phase,
         rounds_sim::RoundPhase::HalfBlue
             | rounds_sim::RoundPhase::HalfOrange
             | rounds_sim::RoundPhase::ArenaTransition
+            | rounds_sim::RoundPhase::RoundBlue
+            | rounds_sim::RoundPhase::RoundOrange
     );
     let transition_alpha = if round.phase == rounds_sim::RoundPhase::ArenaTransition {
         (1.0 - round.phase_tick as f32 / 30.0).clamp(0.0, 1.0)
     } else {
         1.0
     };
-    let dim = if established {
+    let dim = if ice || full_round {
+        0.72
+    } else if established {
         0.82
     } else {
         (0.68 + round.phase_tick as f32 / 120.0).clamp(0.68, 0.82)
@@ -2460,10 +2857,11 @@ fn spawn_radial_result(
     ));
     let scale = if established {
         1.0
+    } else if full_round {
+        0.75 + (round.phase_tick as f32 / 16.0).clamp(0.0, 1.0) * 0.25
     } else {
         0.44 + (round.phase_tick as f32 / 29.0).clamp(0.0, 1.0) * 0.56
     };
-    let radius = 67.0 * scale;
     for player in 0..2 {
         let color = if player == 0 {
             Color::srgb_u8(255, 169, 18)
@@ -2471,7 +2869,21 @@ fn spawn_radial_result(
             Color::srgb_u8(35, 184, 255)
         }
         .with_alpha(transition_alpha);
-        let center = Vec2::new(-96.0 + player as f32 * 192.0, -22.0);
+        let mut center = if ice || full_round {
+            Vec2::new(-100.0 + player as f32 * 200.0, 0.0)
+        } else {
+            Vec2::new(-96.0 + player as f32 * 192.0, -22.0)
+        };
+        let mut radius = 67.0 * scale;
+        if full_round && established {
+            let travel = (round.phase_tick.saturating_sub(40) as f32 / 65.0).clamp(0.0, 1.0);
+            if round.winner == Some(player as u8) {
+                center = center.lerp(Vec2::new(-612.0, 332.0 - player as f32 * 42.0), travel);
+                radius = radius * (1.0 - travel) + 7.0 * travel;
+            } else {
+                center = center.lerp(Vec2::new(0.0, -323.0), travel);
+            }
+        }
         commands.spawn((
             SceneVisual,
             Mesh2d(meshes.add(Circle::new(radius - 2.0))),
@@ -2489,8 +2901,16 @@ fn spawn_radial_result(
             MeshMaterial2d(materials.add(color)),
             Transform::from_xyz(center.x, center.y, 43.0),
         ));
-        if round.scores[player] > 0
-            && (snapshot.flow.is_none() || established || round.winner != Some(player as u8))
+        if full_round && established && round.winner == Some(player as u8) {
+            commands.spawn((
+                SceneVisual,
+                Mesh2d(meshes.add(Circle::new(radius - 1.0))),
+                MeshMaterial2d(materials.add(color)),
+                Transform::from_xyz(center.x, center.y, 43.0),
+            ));
+        } else if (round.scores[player] > 0
+            && (snapshot.flow.is_none() || established || round.winner != Some(player as u8)))
+            || (full_round && round.winner == Some(player as u8))
         {
             spawn_left_half_disc(
                 commands,
@@ -2505,19 +2925,46 @@ fn spawn_radial_result(
     }
     if established {
         let (label, color) = if round.winner == Some(0) {
-            ("HALF ORANGE", Color::srgb_u8(255, 183, 44))
+            (
+                if full_round {
+                    "ROUND ORANGE"
+                } else {
+                    "HALF ORANGE"
+                },
+                if ice || full_round {
+                    Color::srgb_u8(255, 203, 95)
+                } else {
+                    Color::srgb_u8(255, 183, 44)
+                },
+            )
         } else {
-            ("HALF BLUE", Color::srgb_u8(101, 220, 255))
+            (
+                if full_round {
+                    "ROUND BLUE"
+                } else {
+                    "HALF BLUE"
+                },
+                if ice || full_round {
+                    Color::srgb_u8(160, 220, 245)
+                } else {
+                    Color::srgb_u8(101, 220, 255)
+                },
+            )
         };
         commands.spawn((
             SceneVisual,
             Text2d::new(label),
             TextFont {
-                font_size: FontSize::Px(70.0),
+                font_size: FontSize::Px(if ice || full_round { 66.0 } else { 70.0 }),
+                font: if ice || full_round {
+                    ROUND_FONT_HANDLE.into()
+                } else {
+                    default()
+                },
                 ..default()
             },
             TextColor(color.with_alpha(transition_alpha)),
-            Transform::from_xyz(0.0, 88.0, 44.0),
+            Transform::from_xyz(0.0, if ice || full_round { 134.0 } else { 88.0 }, 44.0),
         ));
     }
 }
@@ -3355,6 +3802,13 @@ fn spawn_flow_hud(
         .flow
         .as_ref()
         .expect("draft profile has flow state");
+    let ice = snapshot.arena.iter().any(|surface| surface.id >= 40);
+    let full_round = snapshot.round.as_ref().is_some_and(|round| {
+        round
+            .winner
+            .is_some_and(|winner| round.scores[usize::from(winner)] >= 2)
+    });
+    let compact = ice || full_round;
     if matches!(
         flow.phase,
         FlowPhase::CombatConclusion | FlowPhase::RematchPrompt
@@ -3426,13 +3880,21 @@ fn spawn_flow_hud(
     }
     for player in 0..2 {
         for index in 0..5_u8 {
-            let filled = index < flow.scores[player];
+            let award_in_flight = full_round
+                && snapshot.round.as_ref().is_some_and(|round| {
+                    round.winner == Some(player as u8)
+                        && (round.phase == rounds_sim::RoundPhase::ResultTransition
+                            || round.phase_tick < 105)
+                });
+            let filled = index < flow.scores[player].saturating_sub(u8::from(award_in_flight));
             let color = if player == 0 {
                 Color::srgb_u8(255, 116, 45)
             } else {
                 Color::srgb_u8(76, 184, 255)
             };
-            let mesh = if filled {
+            let mesh = if compact {
+                Mesh::from(Circle::new(if filled { 7.0 } else { 1.3 }))
+            } else if filled {
                 Mesh::from(Circle::new(8.0))
             } else {
                 Mesh::from(Annulus::new(5.5, 8.0))
@@ -3451,8 +3913,16 @@ fn spawn_flow_hud(
                     color.with_alpha(0.38)
                 })),
                 Transform::from_xyz(
-                    -610.0 + index as f32 * 22.0,
-                    330.0 - player as f32 * 25.0,
+                    if compact {
+                        -612.0 + index as f32 * 19.5
+                    } else {
+                        -610.0 + index as f32 * 22.0
+                    },
+                    if compact {
+                        332.0 - player as f32 * 42.0
+                    } else {
+                        330.0 - player as f32 * 25.0
+                    },
                     35.0,
                 ),
             ));
@@ -3462,6 +3932,28 @@ fn spawn_flow_hud(
             .map(|badge| badge.label())
             .chain(flow.loadouts[player].iter().map(|item| item.short_badge()));
         for (index, badge) in badges.enumerate() {
+            if compact {
+                let center = Vec2::new(612.0 - index as f32 * 37.0, 332.0 - player as f32 * 40.0);
+                for (offset, size) in [
+                    (Vec2::new(-16.0, 0.0), Vec2::new(1.0, 32.0)),
+                    (Vec2::new(16.0, 0.0), Vec2::new(1.0, 32.0)),
+                    (Vec2::new(0.0, -16.0), Vec2::new(32.0, 1.0)),
+                    (Vec2::new(0.0, 16.0), Vec2::new(32.0, 1.0)),
+                ] {
+                    commands.spawn((
+                        SceneVisual,
+                        Sprite::from_color(
+                            if player == 0 {
+                                Color::srgb_u8(220, 155, 76)
+                            } else {
+                                Color::srgb_u8(74, 172, 194)
+                            },
+                            size,
+                        ),
+                        Transform::from_xyz(center.x + offset.x, center.y + offset.y, 35.0),
+                    ));
+                }
+            }
             commands.spawn((
                 SceneVisual,
                 HudBadge {
@@ -3479,8 +3971,16 @@ fn spawn_flow_hud(
                     Color::srgb_u8(103, 206, 255)
                 }),
                 Transform::from_xyz(
-                    552.0 + (index % 3) as f32 * 34.0,
-                    326.0 - player as f32 * 88.0 - (index / 3) as f32 * 30.0,
+                    if compact {
+                        612.0 - index as f32 * 37.0
+                    } else {
+                        552.0 + (index % 3) as f32 * 34.0
+                    },
+                    if compact {
+                        332.0 - player as f32 * 40.0
+                    } else {
+                        326.0 - player as f32 * 88.0 - (index / 3) as f32 * 30.0
+                    },
                     35.0,
                 ),
             ));

@@ -11,8 +11,8 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 6;
-pub const MAX_NETWORK_TICKS: u32 = 5_000;
+pub const NETWORK_PROTOCOL: u16 = 7;
+pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -687,7 +687,7 @@ mod tests {
     #[test]
     fn two_udp_clients_receive_the_same_complete_rematch_and_draft_flow() {
         let seed = rounds_sim::SOURCE_DRAFT_SEED;
-        let ticks = rounds_sim::REMATCH_DRAFT_TICKS;
+        let ticks = rounds_sim::CONNECTED_FIRST_ROUND_TICKS;
         let scripts = scripted_inputs_for(ReplayProfile::RematchDraftReplay, seed, ticks);
         let server = BoundServer::bind("127.0.0.1:0").unwrap();
         let address = server.local_addr().unwrap();
@@ -754,6 +754,11 @@ mod tests {
                 FlowPhase::EliminationConclusion,
                 FlowPhase::OrangeResultTransition,
                 FlowPhase::HalfOrange,
+                FlowPhase::IceTransition,
+                FlowPhase::IceCombat,
+                FlowPhase::EliminationConclusion,
+                FlowPhase::BlueResultTransition,
+                FlowPhase::RoundBlue,
             ]
         );
         assert!(reports.iter().all(|report| {

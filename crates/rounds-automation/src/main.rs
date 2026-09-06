@@ -262,8 +262,10 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
         .all(|report| report.observed_blue_fan_by_tick_960);
     let flow_completed_with_source_loadouts =
         server_report.state.flow.as_ref().is_some_and(|flow| {
-            (if ticks > rounds_sim::LEGACY_REMATCH_DRAFT_TICKS {
-                flow.phase == FlowPhase::HalfOrange && flow.scores == [1, 1]
+            (if ticks >= rounds_sim::CONNECTED_FIRST_ROUND_TICKS {
+                flow.phase == FlowPhase::RoundBlue && flow.scores == [0, 1] && flow.halves == [1, 2]
+            } else if ticks > rounds_sim::LEGACY_REMATCH_DRAFT_TICKS {
+                flow.phase == FlowPhase::HalfOrange && flow.halves == [1, 1]
             } else {
                 flow.phase == FlowPhase::ResumedCombat && flow.scores == [0, 0]
             }) && flow.loadouts == [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
@@ -310,7 +312,11 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                             .contains(&FlowPhase::HalfBlue)
                         || !reports[0]
                             .observed_flow_phases
-                            .contains(&FlowPhase::TimberCombat)))))
+                            .contains(&FlowPhase::TimberCombat)))
+                || (ticks >= rounds_sim::CONNECTED_FIRST_ROUND_TICKS
+                    && !reports[0]
+                        .observed_flow_phases
+                        .contains(&FlowPhase::IceCombat))))
         || (profile == ReplayProfile::RadialSawHalfBlueReplay
             && (!radial_saw_motion_observed
                 || !radial_damage_observed

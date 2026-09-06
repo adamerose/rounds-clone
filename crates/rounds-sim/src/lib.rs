@@ -2,7 +2,7 @@ use bevy_ecs::prelude::*;
 use bevy_rapier2d::rapier::prelude::{
     ColliderBuilder, ColliderHandle, FixedJointBuilder, GenericJoint, Group, ImpulseJointHandle,
     InteractionGroups, InteractionTestMode, PhysicsWorld as RapierWorld, RigidBodyBuilder,
-    RigidBodyHandle, RopeJointBuilder, Rotation, Vector,
+    RigidBodyHandle, RopeJointBuilder, Rotation, SharedShape, Vector,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -197,9 +197,11 @@ impl PlayerInput {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArenaSurfaceSnapshot {
+    /// Local polygon contour shared by physics and presentation; empty for rectangles.
+    pub outline_milli: Vec<[i32; 2]>,
     pub id: u8,
     pub center_x_milli: i32,
     pub center_y_milli: i32,
@@ -245,11 +247,14 @@ pub enum RoundPhase {
     ArenaTransition,
     HalfOrange,
     RoundOrange,
+    RoundBlue,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoundStateSnapshot {
+    /// The connected match owns round totals; isolated legacy slices do not.
+    pub completed_rounds: Option<[u8; 2]>,
     pub phase: RoundPhase,
     pub phase_tick: u32,
     pub scores: [u8; 2],
@@ -386,6 +391,7 @@ pub struct MatchSnapshot {
     pub explosions: Vec<ExplosionSnapshot>,
     pub impacts: Vec<ImpactSnapshot>,
     pub players: Vec<PlayerSnapshot>,
+    pub arena_entry_from_milli: Option<[[i32; 2]; 2]>,
     pub projectiles: Vec<ProjectileSnapshot>,
     pub metrics: CombatMetrics,
     pub winner: Option<u8>,
@@ -642,6 +648,8 @@ struct PhysicsBoundary {
     rapier: RapierWorld,
     players: [PlayerPhysics; 2],
     platforms: Vec<ColliderHandle>,
+    retired_platforms: Vec<ColliderHandle>,
+    timber_anchor: Option<RigidBodyHandle>,
     bullets: BTreeMap<u32, BulletPhysics>,
     dynamic_bodies: BTreeMap<u16, DynamicBodyPhysics>,
     constraints: BTreeMap<u16, ConstraintPhysics>,
@@ -737,6 +745,8 @@ impl PhysicsBoundary {
             rapier,
             players,
             platforms,
+            retired_platforms: Vec::new(),
+            timber_anchor: None,
             bullets: BTreeMap::new(),
             dynamic_bodies: BTreeMap::new(),
             constraints: BTreeMap::new(),
@@ -801,6 +811,7 @@ impl PhysicsBoundary {
 
     fn insert_timber_structure(&mut self) {
         let anchor = self.rapier.insert_body(RigidBodyBuilder::fixed());
+        self.timber_anchor = Some(anchor);
         for definition in timber_body_definitions() {
             let body_builder = RigidBodyBuilder::dynamic()
                 .translation(definition.position)
@@ -870,9 +881,84 @@ impl PhysicsBoundary {
         }
     }
 
+    fn load_ice_arena(&mut self) {
+        for constraint in std::mem::take(&mut self.constraints).into_values() {
+            self.rapier.impulse_joints.remove(constraint.handle, true);
+        }
+        for body in std::mem::take(&mut self.dynamic_bodies).into_values() {
+            self.rapier.remove_body(body.body);
+        }
+        if let Some(anchor) = self.timber_anchor.take() {
+            self.rapier.remove_body(anchor);
+        }
+        for collider in self
+            .platforms
+            .drain(..)
+            .chain(self.retired_platforms.drain(..))
+        {
+            if let Some(body) = self.rapier.colliders[collider].parent() {
+                self.rapier.remove_body(body);
+            }
+        }
+        for id in self.bullets.keys().copied().collect::<Vec<_>>() {
+            self.remove_bullet(id);
+        }
+        self.platforms = ice_arena()
+            .iter()
+            .map(|surface| {
+                let vertices = surface
+                    .outline_milli
+                    .iter()
+                    .map(|p| Vector::new(p[0] as f32 / 1_000.0, p[1] as f32 / 1_000.0))
+                    .collect::<Vec<_>>();
+                let edges = (0..vertices.len())
+                    .map(|i| [i as u32, ((i + 1) % vertices.len()) as u32])
+                    .collect::<Vec<_>>();
+                let shape = ColliderBuilder::convex_decomposition(&vertices, &edges);
+                self.rapier
+                    .insert(
+                        RigidBodyBuilder::fixed().translation(Vector::new(
+                            surface.center_x_milli as f32 / 1_000.0,
+                            surface.center_y_milli as f32 / 1_000.0,
+                        )),
+                        shape
+                            .rotation(surface.rotation_milliradians as f32 / 1_000.0)
+                            .friction(0.92)
+                            .restitution(0.02)
+                            .collision_groups(groups(
+                                Group::GROUP_3,
+                                Group::GROUP_1
+                                    | Group::GROUP_2
+                                    | Group::GROUP_4
+                                    | Group::GROUP_5
+                                    | DYNAMIC_GROUP,
+                            )),
+                    )
+                    .1
+            })
+            .collect();
+        for (id, position) in [Vector::new(-529.0, -102.0), Vector::new(519.0, -102.0)]
+            .into_iter()
+            .enumerate()
+        {
+            let body = &mut self.rapier.bodies[self.players[id].body];
+            body.set_translation(position, true);
+            body.set_linvel(Vector::ZERO, true);
+        }
+        self.rapier
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
+        for player in self.players {
+            self.rapier.colliders[player.collider].set_shape(SharedShape::ball(12.0));
+        }
+    }
+
     fn load_timber_arena(&mut self) {
+        // Keep the established Rapier insertion order for the connected timber
+        // contacts. These colliders cannot collide; ice loading removes them.
         for collider in self.platforms.drain(..) {
             self.rapier.colliders[collider].set_collision_groups(groups(Group::NONE, Group::NONE));
+            self.retired_platforms.push(collider);
         }
         let bullet_ids = self.bullets.keys().copied().collect::<Vec<_>>();
         for id in bullet_ids {
@@ -1067,9 +1153,18 @@ impl PhysicsBoundary {
         jumped
     }
 
+    fn player_radius(&self, id: u8) -> f32 {
+        self.rapier.colliders[self.players[usize::from(id)].collider]
+            .shape()
+            .as_ball()
+            .expect("fighter circle")
+            .radius
+    }
+
     fn spawn_bullet(&mut self, id: u32, owner: u8, aim: Vector, collide_with_arena: bool) {
         let shooter = &self.rapier.bodies[self.players[usize::from(owner)].body];
-        let origin = shooter.translation() + aim * (PLAYER_RADIUS + BULLET_RADIUS + 4.0);
+        let origin =
+            shooter.translation() + aim * (self.player_radius(owner) + BULLET_RADIUS + 4.0);
         let (membership, filter) = bullet_groups(owner, collide_with_arena);
         let (body, collider) = self.rapier.insert(
             RigidBodyBuilder::dynamic()
@@ -1125,22 +1220,54 @@ impl PhysicsBoundary {
         })
     }
 
-    fn bullet_contact(&self, id: u32, target: u8) -> bool {
-        let Some(bullet) = self.bullets.get(&id) else {
-            return false;
-        };
-        if self
+    fn bullet_contact(&self, id: u32, target: u8) -> Option<Vector> {
+        let bullet = self.bullets.get(&id)?;
+        if let Some(pair) = self
             .rapier
             .contact_pair(bullet.collider, self.players[usize::from(target)].collider)
-            .is_some_and(|pair| pair.has_any_active_contact())
+            && let Some(point) = pair.solver_manifolds().iter().find_map(|manifold| {
+                let contact = manifold.data.solver_contacts.first()?;
+                let (first, second) = manifold
+                    .data
+                    .solver_contact_world_points(contact, &self.rapier.bodies);
+                Some(if pair.collider1 == bullet.collider {
+                    second
+                } else {
+                    first
+                })
+            })
         {
-            return true;
+            return Some(point);
         }
         let bullet_position = self.rapier.bodies[bullet.body].translation();
-        let player_position =
-            self.rapier.bodies[self.players[usize::from(target)].body].translation();
-        segment_distance_squared(bullet.previous, bullet_position, player_position)
-            <= (PLAYER_RADIUS + BULLET_RADIUS + 2.0).powi(2)
+        let player_position = self.player_pose(target).0;
+        let radius = self.player_radius(target);
+        let segment = bullet_position - bullet.previous;
+        let length_squared = segment.length_squared();
+        let fraction = if length_squared > 0.0 {
+            ((player_position - bullet.previous).dot(segment) / length_squared).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let closest = bullet.previous + segment * fraction;
+        let contact_radius = radius + BULLET_RADIUS + 2.0;
+        if closest.distance_squared(player_position) > contact_radius.powi(2) {
+            return None;
+        }
+        // Preserve the existing swept-hit tolerance, but locate the first contact
+        // on the fighter instead of publishing the projectile's later endpoint.
+        let start = bullet.previous - player_position;
+        let entry = if start.length_squared() > contact_radius.powi(2) && length_squared > 0.0 {
+            let projection = start.dot(segment);
+            let discriminant = projection.powi(2)
+                - length_squared * (start.length_squared() - contact_radius.powi(2));
+            let time =
+                ((-projection - discriminant.max(0.0).sqrt()) / length_squared).clamp(0.0, 1.0);
+            start + segment * time
+        } else {
+            start
+        };
+        Some(player_position + entry.normalize_or_zero() * radius)
     }
 
     fn bullet_platform_contact(&self, id: u32) -> bool {
@@ -1245,6 +1372,13 @@ fn spawn_timber_constraints(world: &mut World) -> BTreeMap<u16, Entity> {
         .collect()
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ArenaStage {
+    Profile,
+    Timber,
+    Ice,
+}
+
 pub struct AuthoritativeMatch {
     world: World,
     physics: PhysicsBoundary,
@@ -1265,7 +1399,8 @@ pub struct AuthoritativeMatch {
     flow: Option<FlowAuthority>,
     round: Option<RoundStateSnapshot>,
     pending_radial_hit: Option<PendingRadialHit>,
-    timber_loaded: bool,
+    arena_stage: ArenaStage,
+    arena_entry_from_milli: Option<[[i32; 2]; 2]>,
 }
 
 impl AuthoritativeMatch {
@@ -1348,6 +1483,7 @@ impl AuthoritativeMatch {
             flow: (profile == ReplayProfile::RematchDraftReplay).then(|| FlowAuthority::new(seed)),
             round: (profile == ReplayProfile::RadialSawHalfBlueReplay)
                 .then_some(RoundStateSnapshot {
+                    completed_rounds: None,
                     phase: RoundPhase::Combat,
                     phase_tick: 0,
                     scores: [1, 0],
@@ -1357,6 +1493,7 @@ impl AuthoritativeMatch {
                 .or_else(|| {
                     (profile == ReplayProfile::YellowCrateTerminalBlastReplay).then_some(
                         RoundStateSnapshot {
+                            completed_rounds: None,
                             phase: RoundPhase::Combat,
                             phase_tick: 0,
                             scores: [2, 1],
@@ -1364,18 +1501,14 @@ impl AuthoritativeMatch {
                             eliminated: None,
                         },
                     )
-                })
-                .or_else(|| {
-                    (profile == ReplayProfile::RematchDraftReplay).then_some(RoundStateSnapshot {
-                        phase: RoundPhase::Combat,
-                        phase_tick: 0,
-                        scores: [4, 5],
-                        winner: Some(1),
-                        eliminated: Some(0),
-                    })
                 }),
             pending_radial_hit: None,
-            timber_loaded: profile == ReplayProfile::TimberCollapseReplay,
+            arena_entry_from_milli: None,
+            arena_stage: if profile == ReplayProfile::TimberCollapseReplay {
+                ArenaStage::Timber
+            } else {
+                ArenaStage::Profile
+            },
         };
         if profile == ReplayProfile::RematchDraftReplay {
             let mut orange = simulation.world.entity_mut(simulation.player_entities[0]);
@@ -1385,6 +1518,7 @@ impl AuthoritativeMatch {
             state.health = 0;
             state.alive = false;
             simulation.winner = Some(1);
+            simulation.sync_round_from_flow();
         }
         simulation
     }
@@ -1407,6 +1541,7 @@ impl AuthoritativeMatch {
             );
         }
         self.round = Some(RoundStateSnapshot {
+            completed_rounds: None,
             phase: RoundPhase::Combat,
             phase_tick: 0,
             scores: [1, 0],
@@ -1470,6 +1605,7 @@ impl AuthoritativeMatch {
         }
         let mut rematch_reset = false;
         let mut timber_load = false;
+        let mut ice_load = false;
         let mut timber_combat_started = false;
         let mut accepts_combat = true;
         if let Some(flow) = &mut self.flow {
@@ -1480,8 +1616,10 @@ impl AuthoritativeMatch {
             rematch_reset = had_terminal_result && !flow.has_terminal_result();
             timber_load = previous_phase != FlowPhase::TimberTransition
                 && phase == FlowPhase::TimberTransition;
-            timber_combat_started =
-                previous_phase != FlowPhase::TimberCombat && phase == FlowPhase::TimberCombat;
+            ice_load =
+                previous_phase != FlowPhase::IceTransition && phase == FlowPhase::IceTransition;
+            timber_combat_started = previous_phase != phase
+                && matches!(phase, FlowPhase::TimberCombat | FlowPhase::IceCombat);
             accepts_combat = flow.accepts_combat();
         }
         self.sync_round_from_flow();
@@ -1489,7 +1627,12 @@ impl AuthoritativeMatch {
             self.load_timber_arena();
             self.revive_fighters();
         }
+        if ice_load {
+            self.load_ice_arena();
+            self.revive_fighters();
+        }
         if timber_combat_started || rematch_reset {
+            self.arena_entry_from_milli = None;
             self.revive_fighters();
             self.winner = None;
         }
@@ -1634,7 +1777,7 @@ impl AuthoritativeMatch {
                 .get::<ProjectileState>()
                 .expect("projectile state");
             let target = 1 - projectile.owner;
-            if self.physics.bullet_contact(projectile_id, target) {
+            if let Some(impact_position) = self.physics.bullet_contact(projectile_id, target) {
                 let target_entity = self.player_entities[usize::from(target)];
                 let blocking = self
                     .world
@@ -1658,11 +1801,6 @@ impl AuthoritativeMatch {
                     .bullet_pose(projectile_id)
                     .map(|(_, _, velocity, _)| velocity.normalize_or_zero())
                     .unwrap_or(Vector::new(if target == 0 { -1.0 } else { 1.0 }, 0.0));
-                let impact_position = self
-                    .physics
-                    .bullet_pose(projectile_id)
-                    .map(|pose| pose.0)
-                    .unwrap_or_else(|| self.physics.player_pose(target).0);
                 let damage = if self.profile == ReplayProfile::RadialSawHalfBlueReplay {
                     50
                 } else if self.profile == ReplayProfile::RematchDraftReplay {
@@ -1749,14 +1887,9 @@ impl AuthoritativeMatch {
                     eliminated
                 };
                 if projectile.explosive_radius_milli > 0 {
-                    let center = self
-                        .physics
-                        .bullet_pose(projectile_id)
-                        .map(|pose| pose.0)
-                        .unwrap_or_else(|| self.physics.player_pose(target).0);
                     let impulse = projectile.explosive_impulse_milli as f32 / 1_000.0;
                     self.physics.apply_impulse(target, velocity * impulse);
-                    self.trigger_projectile_explosion(projectile_id, projectile, center);
+                    self.trigger_projectile_explosion(projectile_id, projectile, impact_position);
                 }
                 removals.push(projectile_id);
                 if eliminated {
@@ -1934,21 +2067,24 @@ impl AuthoritativeMatch {
                 RoundPhase::ResultTransition
             }
             FlowPhase::HalfBlue => RoundPhase::HalfBlue,
-            FlowPhase::TimberTransition => RoundPhase::ArenaTransition,
+            FlowPhase::TimberTransition | FlowPhase::IceTransition => RoundPhase::ArenaTransition,
+            FlowPhase::RoundBlue => RoundPhase::RoundBlue,
+            FlowPhase::RoundOrange => RoundPhase::RoundOrange,
             FlowPhase::HalfOrange => RoundPhase::HalfOrange,
             _ => RoundPhase::Combat,
         };
         self.round = Some(RoundStateSnapshot {
             phase,
             phase_tick: flow.phase_tick,
-            scores: flow.scores,
+            scores: flow.halves,
+            completed_rounds: Some(flow.scores),
             winner: flow.winner,
             eliminated: flow.eliminated,
         });
     }
 
     fn load_timber_arena(&mut self) {
-        if self.timber_loaded {
+        if self.arena_stage == ArenaStage::Timber {
             return;
         }
         for entity in self
@@ -1964,7 +2100,31 @@ impl AuthoritativeMatch {
         self.dynamic_body_entities =
             spawn_dynamic_bodies(&mut self.world, timber_body_definitions());
         self.constraint_entities = spawn_timber_constraints(&mut self.world);
-        self.timber_loaded = true;
+        self.arena_stage = ArenaStage::Timber;
+    }
+
+    fn load_ice_arena(&mut self) {
+        self.arena_entry_from_milli = Some([0, 1].map(|id| {
+            let (position, _) = self.physics.player_pose(id);
+            [quantize(position.x), quantize(position.y)]
+        }));
+        for entity in self
+            .projectile_entities
+            .values()
+            .chain(self.dynamic_body_entities.values())
+            .chain(self.constraint_entities.values())
+            .copied()
+            .collect::<Vec<_>>()
+        {
+            self.world.despawn(entity);
+        }
+        self.projectile_entities.clear();
+        self.dynamic_body_entities.clear();
+        self.constraint_entities.clear();
+        self.physics.load_ice_arena();
+        self.explosions.clear();
+        self.impacts.clear();
+        self.arena_stage = ArenaStage::Ice;
     }
 
     fn revive_fighters(&mut self) {
@@ -2092,11 +2252,13 @@ impl AuthoritativeMatch {
             })
             .collect();
         MatchSnapshot {
-            protocol: 5,
+            protocol: 6,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
-            arena: if self.timber_loaded {
+            arena: if self.arena_stage == ArenaStage::Ice {
+                ice_arena().to_vec()
+            } else if self.arena_stage == ArenaStage::Timber {
                 timber_arena().to_vec()
             } else if self.profile == ReplayProfile::RematchDraftReplay
                 && self.flow.as_ref().is_some_and(|flow| {
@@ -2116,6 +2278,7 @@ impl AuthoritativeMatch {
             explosions: self.explosions.clone(),
             impacts: self.impacts.clone(),
             players,
+            arena_entry_from_milli: self.arena_entry_from_milli,
             projectiles,
             metrics: self.metrics.clone(),
             winner: self.winner,
@@ -2133,7 +2296,7 @@ pub fn teal_arena() -> &'static [ArenaSurfaceSnapshot] {
     const CYAN: [u8; 3] = [44, 232, 207];
     const LIME: [u8; 3] = [104, 239, 133];
     const DARK: [u8; 3] = [91, 99, 76];
-    const ARENA: [ArenaSurfaceSnapshot; 19] = [
+    static ARENA: [ArenaSurfaceSnapshot; 19] = [
         surface(0, -520, -170, 92, 24, CYAN),
         surface(1, -390, -58, 82, 24, LIME),
         surface(2, -260, 36, 76, 24, CYAN),
@@ -2159,13 +2322,13 @@ pub fn teal_arena() -> &'static [ArenaSurfaceSnapshot] {
 
 pub fn timber_arena() -> &'static [ArenaSurfaceSnapshot] {
     const FLOOR: [u8; 3] = [246, 0, 79];
-    const ARENA: [ArenaSurfaceSnapshot; 1] = [surface(0, 0, -300, 1_600, 60, FLOOR)];
+    static ARENA: [ArenaSurfaceSnapshot; 1] = [surface(0, 0, -300, 1_600, 60, FLOOR)];
     &ARENA
 }
 
 pub fn draft_arena() -> &'static [ArenaSurfaceSnapshot] {
     const YELLOW: [u8; 3] = [252, 224, 0];
-    const ARENA: [ArenaSurfaceSnapshot; 9] = [
+    static ARENA: [ArenaSurfaceSnapshot; 9] = [
         surface(0, -520, -210, 170, 44, YELLOW),
         surface(1, -260, -40, 140, 44, YELLOW),
         surface(2, 0, -210, 145, 44, YELLOW),
@@ -2181,7 +2344,7 @@ pub fn draft_arena() -> &'static [ArenaSurfaceSnapshot] {
 
 pub fn prior_match_arena() -> &'static [ArenaSurfaceSnapshot] {
     const PINK: [u8; 3] = [248, 0, 78];
-    const ARENA: [ArenaSurfaceSnapshot; 9] = [
+    static ARENA: [ArenaSurfaceSnapshot; 9] = [
         surface(0, -520, -260, 210, 48, PINK),
         surface(1, -310, -100, 130, 38, PINK),
         surface(2, -90, 55, 120, 38, PINK),
@@ -2199,7 +2362,7 @@ pub fn radial_saw_arena() -> &'static [ArenaSurfaceSnapshot] {
     const WHITE: [u8; 3] = [244, 248, 239];
     const CYAN: [u8; 3] = [68, 221, 238];
     const DARK: [u8; 3] = [3, 23, 51];
-    const ARENA: [ArenaSurfaceSnapshot; 9] = [
+    static ARENA: [ArenaSurfaceSnapshot; 9] = [
         rotated_surface(0, -220, 72, 286, 52, 785, WHITE),
         rotated_surface(1, 220, 72, 220, 52, -785, WHITE),
         rotated_surface(2, -190, -154, 214, 52, -785, CYAN),
@@ -2215,7 +2378,7 @@ pub fn radial_saw_arena() -> &'static [ArenaSurfaceSnapshot] {
 
 pub fn yellow_crate_arena() -> &'static [ArenaSurfaceSnapshot] {
     const YELLOW: [u8; 3] = [255, 231, 0];
-    const ARENA: [ArenaSurfaceSnapshot; 13] = [
+    static ARENA: [ArenaSurfaceSnapshot; 13] = [
         surface(0, -480, 160, 118, 44, YELLOW),
         surface(1, -160, 160, 118, 44, YELLOW),
         surface(2, 160, 160, 118, 44, YELLOW),
@@ -2231,6 +2394,212 @@ pub fn yellow_crate_arena() -> &'static [ArenaSurfaceSnapshot] {
         surface(12, 480, -140, 118, 44, YELLOW),
     ];
     &ARENA
+}
+
+pub fn ice_arena() -> &'static [ArenaSurfaceSnapshot] {
+    static ARENA: std::sync::OnceLock<Vec<ArenaSurfaceSnapshot>> = std::sync::OnceLock::new();
+    ARENA.get_or_init(|| {
+        let contours: &[&[[i32; 2]]] = &[
+            &[
+                [452, 127],
+                [503, 127],
+                [503, 149],
+                [499, 156],
+                [499, 205],
+                [503, 212],
+                [503, 229],
+                [452, 229],
+                [452, 212],
+                [456, 205],
+                [456, 156],
+                [452, 149],
+            ],
+            &[
+                [777, 127],
+                [828, 127],
+                [828, 149],
+                [824, 156],
+                [824, 205],
+                [828, 212],
+                [828, 229],
+                [777, 229],
+                [777, 212],
+                [781, 205],
+                [781, 156],
+                [777, 149],
+            ],
+            &[
+                [596, 183],
+                [683, 183],
+                [683, 216],
+                [670, 231],
+                [608, 231],
+                [596, 216],
+            ],
+            &[
+                [316, 272],
+                [402, 272],
+                [402, 306],
+                [388, 321],
+                [330, 321],
+                [316, 306],
+            ],
+            &[
+                [878, 272],
+                [964, 272],
+                [964, 306],
+                [950, 321],
+                [892, 321],
+                [878, 306],
+            ],
+            &[
+                [570, 294],
+                [710, 294],
+                [710, 338],
+                [699, 355],
+                [581, 355],
+                [570, 338],
+            ],
+            &[
+                [164, 373],
+                [251, 373],
+                [251, 406],
+                [237, 422],
+                [178, 422],
+                [164, 406],
+            ],
+            &[
+                [1030, 373],
+                [1117, 373],
+                [1117, 406],
+                [1103, 422],
+                [1044, 422],
+                [1030, 406],
+            ],
+            &[
+                [452, 371],
+                [503, 371],
+                [503, 393],
+                [499, 399],
+                [499, 507],
+                [503, 514],
+                [503, 533],
+                [452, 533],
+                [452, 514],
+                [456, 507],
+                [456, 399],
+                [452, 393],
+            ],
+            &[
+                [777, 371],
+                [828, 371],
+                [828, 393],
+                [824, 399],
+                [824, 507],
+                [828, 514],
+                [828, 533],
+                [777, 533],
+                [777, 514],
+                [781, 507],
+                [781, 399],
+                [777, 393],
+            ],
+            &[
+                [68, 474],
+                [130, 474],
+                [130, 590],
+                [149, 611],
+                [149, 800],
+                [45, 800],
+                [45, 612],
+                [68, 590],
+            ],
+            &[
+                [1149, 474],
+                [1213, 474],
+                [1213, 590],
+                [1232, 611],
+                [1232, 800],
+                [1130, 800],
+                [1130, 612],
+                [1149, 590],
+            ],
+            &[
+                [284, 474],
+                [347, 474],
+                [347, 590],
+                [365, 611],
+                [365, 800],
+                [264, 800],
+                [264, 612],
+                [284, 590],
+            ],
+            &[
+                [933, 474],
+                [996, 474],
+                [996, 590],
+                [1015, 611],
+                [1015, 800],
+                [914, 800],
+                [914, 612],
+                [933, 590],
+            ],
+            &[[181, 504], [233, 504], [233, 552], [207, 578], [181, 552]],
+            &[
+                [1047, 504],
+                [1099, 504],
+                [1099, 552],
+                [1073, 578],
+                [1047, 552],
+            ],
+            &[
+                [425, 611],
+                [531, 611],
+                [570, 572],
+                [570, 480],
+                [581, 471],
+                [596, 471],
+                [596, 449],
+                [609, 437],
+                [670, 437],
+                [683, 449],
+                [683, 471],
+                [699, 471],
+                [710, 480],
+                [710, 572],
+                [750, 611],
+                [855, 611],
+                [855, 800],
+                [425, 800],
+            ],
+        ];
+        contours
+            .iter()
+            .enumerate()
+            .map(|(id, contour)| {
+                let min_x = contour.iter().map(|p| p[0]).min().unwrap();
+                let max_x = contour.iter().map(|p| p[0]).max().unwrap();
+                let min_y = contour.iter().map(|p| p[1]).min().unwrap();
+                let max_y = contour.iter().map(|p| p[1]).max().unwrap();
+                let cx = (min_x + max_x) / 2;
+                let cy = (min_y + max_y) / 2;
+                let mut result = surface(
+                    40 + id as u8,
+                    cx - 640,
+                    360 - cy,
+                    max_x - min_x,
+                    max_y - min_y,
+                    [223, 235, 229],
+                );
+                result.outline_milli = contour
+                    .iter()
+                    .rev()
+                    .map(|p| [(p[0] - cx) * 1_000, (cy - p[1]) * 1_000])
+                    .collect();
+                result
+            })
+            .collect()
+    })
 }
 
 pub fn arena_for_profile(profile: ReplayProfile) -> &'static [ArenaSurfaceSnapshot] {
@@ -2252,6 +2621,7 @@ const fn surface(
     color: [u8; 3],
 ) -> ArenaSurfaceSnapshot {
     ArenaSurfaceSnapshot {
+        outline_milli: Vec::new(),
         id,
         center_x_milli: x * 1_000,
         center_y_milli: y * 1_000,
@@ -2272,6 +2642,7 @@ const fn rotated_surface(
     color: [u8; 3],
 ) -> ArenaSurfaceSnapshot {
     ArenaSurfaceSnapshot {
+        outline_milli: Vec::new(),
         id,
         center_x_milli: x * 1_000,
         center_y_milli: y * 1_000,
@@ -2289,6 +2660,77 @@ pub fn hash_snapshot(snapshot: &MatchSnapshot) -> String {
 
 pub fn scripted_inputs(seed: u64, ticks: u32) -> [Vec<PlayerInput>; 2] {
     scripted_inputs_for(ReplayProfile::default(), seed, ticks)
+}
+
+// Public controls for the connected ice observation; ranges name input ticks.
+fn connected_ice_input(player: usize, tick: u32) -> PlayerInput {
+    let actions = [
+        (0, 4710, 4740, 1, 1, 0, 1000, 0, 0),
+        (0, 4740, 4770, 1, 0, 0, 1000, 0, 0),
+        (0, 4820, 4850, 1, 1, 0, 1000, 0, 0),
+        (0, 4850, 4880, 1, 0, 0, 1000, 0, 0),
+        (0, 4920, 4929, 0, 0, 0, 1000, 0, 0),
+        (0, 4929, 4930, 1, 1, 0, 1000, 0, 0),
+        (0, 4930, 4945, 1, 0, 0, 1000, 0, 0),
+        (0, 4945, 4950, -1, 0, 0, -1000, 0, 0),
+        (0, 4980, 5020, 1, 0, 0, 1000, 0, 0),
+        (0, 5055, 5063, 1, 0, 0, 1000, 0, 0),
+        (0, 5175, 5190, 1, 0, 0, 1000, 0, 0),
+        (0, 5190, 5202, -1, 0, 0, -1000, 0, 0),
+        (0, 5202, 5211, 0, 0, 0, 1000, 0, 0),
+        (0, 5211, 5212, 0, 1, 0, 1000, 0, 0),
+        (0, 5212, 5225, 1, 0, 0, 1000, 0, 0),
+        (0, 5225, 5230, -1, 0, 0, -1000, 0, 0),
+        (0, 5230, 5265, -1, 1, 0, -1000, 0, 0),
+        (0, 5265, 5299, -1, 0, 0, -1000, 0, 0),
+        (0, 5299, 5305, 1, 0, 0, 1000, 0, 0),
+        (0, 5305, 5312, 0, 0, 0, 1000, 0, 0),
+        (1, 4601, 4656, -1, 1, 0, -1000, 0, 0),
+        (1, 4656, 4801, -1, 0, 0, -1000, 0, 0),
+        (1, 4801, 4811, -1, 1, 0, -1000, 0, 0),
+        (1, 4811, 4831, -1, 0, 0, -1000, 0, 0),
+        (1, 4831, 4905, 0, 0, 0, -1000, 0, 0),
+        (1, 4905, 4943, -1, 0, 0, -1000, 0, 0),
+        (1, 4943, 4955, 0, 1, 0, -1000, 0, 0),
+        (1, 4955, 4960, 1, 0, 0, 1000, 0, 0),
+        (1, 4960, 4965, 0, 0, 0, -1000, 0, 0),
+        (1, 4970, 5000, -1, 0, 0, -1000, 0, 0),
+        (1, 5000, 5001, 0, 1, 0, 1000, 0, 0),
+        (1, 5004, 5005, 0, 0, 1, 0, 0, 1),
+        (1, 5043, 5044, 0, 0, 1, 0, 0, 1),
+        (1, 5055, 5056, 0, 0, 0, 1000, 0, 0),
+        (1, 5065, 5066, 0, 0, 0, 1000, 0, 0),
+        (1, 5072, 5073, 0, 0, 0, 1000, 0, 0),
+        (1, 5082, 5083, 0, 0, 1, 0, 0, 1),
+        (1, 5084, 5135, -1, 0, 0, -1000, 0, 0),
+        (1, 5135, 5175, 1, 1, 0, 1000, 0, 0),
+        (1, 5175, 5180, -1, 0, 0, -1000, 0, 0),
+        (1, 5180, 5192, 0, 0, 0, -1000, 0, 0),
+        (1, 5192, 5213, -1, 0, 0, -1000, 0, 0),
+        (1, 5213, 5235, 1, 1, 0, 1000, 0, 0),
+        (1, 5235, 5240, -1, 0, 0, -1000, 0, 0),
+        (1, 5240, 5290, 0, 0, 0, -1000, 0, 0),
+        (1, 5290, 5304, -1, 0, 0, -1000, 0, 0),
+        (1, 5304, 5310, 1, 0, 0, 1000, 0, 0),
+        (1, 5310, 5311, 0, 0, 0, 1000, 0, 0),
+        (1, 5311, 5312, 0, 0, 1, 0, 0, 1),
+        (1, 4958, 4959, 1, 0, 1, -1000, 350, 0),
+    ];
+    let mut input = PlayerInput::default();
+    for (owner, start, end, movement, jump, fire, aim_x, aim_y, track) in actions {
+        if owner == player && (start..end).contains(&tick) {
+            input = PlayerInput {
+                move_axis: movement,
+                jump: jump != 0,
+                fire: fire != 0,
+                aim_x,
+                aim_y,
+                aim_at_opponent: track != 0,
+                ..PlayerInput::default()
+            };
+        }
+    }
+    input
 }
 
 pub fn scripted_inputs_for(
@@ -2380,6 +2822,10 @@ pub fn scripted_inputs_for(
             }
             if (3_700..3_970).contains(&tick) {
                 blue.move_axis = 1;
+            }
+            if tick >= CONNECTED_ICE_COMBAT_TICK {
+                orange = connected_ice_input(0, tick);
+                blue = connected_ice_input(1, tick);
             }
             scripts[0].push(orange);
             scripts[1].push(blue);
@@ -2633,16 +3079,6 @@ fn bullet_groups(owner: u8, collide_with_arena: bool) -> (Group, Group) {
     }
 }
 
-fn segment_distance_squared(start: Vector, end: Vector, point: Vector) -> f32 {
-    let segment = end - start;
-    let length_squared = segment.length_squared();
-    if length_squared == 0.0 {
-        return point.distance_squared(start);
-    }
-    let fraction = ((point - start).dot(segment) / length_squared).clamp(0.0, 1.0);
-    point.distance_squared(start + segment * fraction)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2679,6 +3115,21 @@ mod tests {
         let event = impact.impacts.last().expect("terminal projectile contact");
         assert_eq!((event.tick, event.owner, event.target), (81, 0, Some(1)));
         assert!(event.damage > 0 && event.eliminated);
+        let target = &impact.players[usize::from(event.target.unwrap())];
+        let distance = Vector::new(
+            (event.x_milli - target.x_milli) as f32 / 1_000.0,
+            (event.y_milli - target.y_milli) as f32 / 1_000.0,
+        )
+        .length();
+        assert!(
+            distance <= PLAYER_RADIUS + 1.0,
+            "hit effect must originate on the struck fighter, not the projectile's later endpoint: {distance}"
+        );
+        let explosion = impact.explosions.last().unwrap();
+        assert_eq!(
+            (event.x_milli, event.y_milli),
+            (explosion.x_milli, explosion.y_milli)
+        );
         assert_eq!(
             (event.impulse_x_milli, event.impulse_y_milli),
             (3_870_000, 0),
@@ -3196,7 +3647,7 @@ mod tests {
                 .any(|state| state.metrics.dazzle_stun_pulses > 0)
         );
         let last = snapshots.last().unwrap();
-        assert_eq!(last.flow.as_ref().unwrap().scores, [1, 1]);
+        assert_eq!(last.flow.as_ref().unwrap().halves, [1, 1]);
         assert_eq!(last.round.as_ref().unwrap().scores, [1, 1]);
         assert_eq!(last.winner, Some(0));
         assert!(
@@ -3216,6 +3667,282 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![true, false]
         );
+    }
+
+    #[test]
+    fn either_color_can_sweep_or_win_the_deciding_ice_duel_with_ordinary_damage() {
+        for pattern in [&[0, 0][..], &[1, 1], &[0, 1, 0], &[1, 0, 1]] {
+            let scripts =
+                scripted_inputs_for(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, 2_200);
+            let mut game = AuthoritativeMatch::new_with_profile(
+                SOURCE_DRAFT_SEED,
+                ReplayProfile::RematchDraftReplay,
+            );
+            let mut previous = game.snapshot();
+            let mut eliminated = Vec::new();
+            let mut visited_ice = false;
+            for tick in 0_u32..6_000 {
+                let flow = previous.flow.as_ref().unwrap();
+                let mut inputs = [PlayerInput::default(); 2];
+                if tick < 2_200 {
+                    inputs = [scripts[0][tick as usize], scripts[1][tick as usize]];
+                } else if matches!(
+                    flow.phase,
+                    FlowPhase::ResumedCombat | FlowPhase::TimberCombat | FlowPhase::IceCombat
+                ) {
+                    let desired = pattern[usize::from(flow.halves.iter().sum::<u8>())];
+                    let first = flow.phase == FlowPhase::ResumedCombat;
+                    for (player, input) in inputs.iter_mut().enumerate() {
+                        let dx =
+                            previous.players[1 - player].x_milli - previous.players[player].x_milli;
+                        *input = PlayerInput {
+                            move_axis: if !first && dx.abs() > 45_000 {
+                                dx.signum() as i8
+                            } else {
+                                0
+                            },
+                            jump: !first,
+                            fire: player == usize::from(desired) && (first || dx.abs() < 400_000),
+                            aim_at_opponent: true,
+                            ..PlayerInput::default()
+                        };
+                    }
+                }
+                game.step([
+                    inputs[0].with_progressive_observation(0, Some(&previous)),
+                    inputs[1].with_progressive_observation(1, Some(&previous)),
+                ]);
+                let state = game.snapshot();
+                let flow = state.flow.as_ref().unwrap();
+                visited_ice |= flow.phase == FlowPhase::IceCombat;
+                if flow.phase == FlowPhase::EliminationConclusion
+                    && previous.flow.as_ref().unwrap().phase != flow.phase
+                {
+                    let winner = flow.winner.unwrap();
+                    assert_eq!(state.players[usize::from(1 - winner)].health, 0);
+                    assert!(state.impacts.iter().any(|hit| hit.tick == state.tick
+                        && hit.owner == winner
+                        && hit.eliminated));
+                    eliminated.push(winner);
+                }
+                previous = state;
+                if matches!(
+                    previous.flow.as_ref().unwrap().phase,
+                    FlowPhase::RoundBlue | FlowPhase::RoundOrange
+                ) {
+                    break;
+                }
+            }
+            assert_eq!(eliminated, pattern);
+            assert_eq!(visited_ice, pattern.len() == 3);
+            let winner = usize::from(*pattern.last().unwrap());
+            let mut rounds = [0, 0];
+            rounds[winner] = 1;
+            assert_eq!(previous.flow.as_ref().unwrap().scores, rounds);
+            assert_eq!(previous.flow.as_ref().unwrap().halves[winner], 2);
+            assert_eq!(
+                previous.flow.as_ref().unwrap().halves[1 - winner],
+                u8::from(pattern.len() == 3)
+            );
+            for _ in 0..180 {
+                game.step([PlayerInput::default(); 2]);
+            }
+            assert_eq!(game.snapshot().flow.unwrap().scores, rounds);
+        }
+    }
+
+    #[test]
+    fn connected_ice_keeps_identity_cleans_physics_and_awards_one_round_from_the_hit() {
+        let scripts = scripted_inputs_for(
+            ReplayProfile::RematchDraftReplay,
+            SOURCE_DRAFT_SEED,
+            CONNECTED_FIRST_ROUND_TICKS,
+        );
+        for omit_terminal_shot in [false, true] {
+            let mut game = AuthoritativeMatch::new_with_profile(
+                SOURCE_DRAFT_SEED,
+                ReplayProfile::RematchDraftReplay,
+            );
+            let entities = game.player_entities;
+            let fighter_bodies = game.physics.players.each_ref().map(|player| player.body);
+            let mut previous = game.snapshot();
+            assert_eq!(
+                previous.round.as_ref().unwrap().completed_rounds,
+                Some([4, 5])
+            );
+            assert_eq!(previous.round.as_ref().unwrap().scores, [0, 0]);
+            let mut retired_entities = Vec::new();
+            let mut retired_colliders = Vec::new();
+            for tick in 0..CONNECTED_FIRST_ROUND_TICKS {
+                if omit_terminal_shot && tick == 5_340 {
+                    break;
+                }
+                let mut inputs = [scripts[0][tick as usize], scripts[1][tick as usize]];
+                if omit_terminal_shot && tick == 5_311 {
+                    inputs[1].fire = false;
+                }
+                game.step([
+                    inputs[0].with_progressive_observation(0, Some(&previous)),
+                    inputs[1].with_progressive_observation(1, Some(&previous)),
+                ]);
+                let state = game.snapshot();
+                assert_eq!(game.player_entities, entities);
+                assert_eq!(
+                    game.physics.players.each_ref().map(|player| player.body),
+                    fighter_bodies
+                );
+                if state.tick == CONNECTED_ICE_LOAD_TICK - 1 {
+                    retired_entities.extend(
+                        game.dynamic_body_entities
+                            .values()
+                            .chain(game.constraint_entities.values())
+                            .chain(game.projectile_entities.values())
+                            .copied(),
+                    );
+                    retired_colliders.extend(
+                        game.physics
+                            .platforms
+                            .iter()
+                            .chain(&game.physics.retired_platforms)
+                            .copied(),
+                    );
+                    assert!(!retired_entities.is_empty());
+                    assert!(!game.physics.retired_platforms.is_empty());
+                    for handle in &game.physics.retired_platforms {
+                        assert_eq!(
+                            game.physics.rapier.colliders[*handle]
+                                .collision_groups()
+                                .memberships,
+                            Group::NONE
+                        );
+                    }
+                }
+                if state.tick == CONNECTED_ICE_LOAD_TICK {
+                    assert_eq!(
+                        state.arena_entry_from_milli,
+                        Some([0, 1].map(|id| {
+                            [previous.players[id].x_milli, previous.players[id].y_milli]
+                        }))
+                    );
+                    assert!(
+                        retired_entities
+                            .iter()
+                            .all(|entity| game.world.get_entity(*entity).is_err())
+                    );
+                    assert!(
+                        retired_colliders.iter().all(|handle| !game
+                            .physics
+                            .rapier
+                            .colliders
+                            .contains(*handle))
+                    );
+                    assert!(game.physics.retired_platforms.is_empty());
+                    assert!(game.physics.dynamic_bodies.is_empty());
+                    assert!(game.physics.constraints.is_empty());
+                    assert!(game.physics.bullets.is_empty());
+                    assert_eq!(game.physics.rapier.bodies.len(), 19);
+                    assert_eq!(game.physics.rapier.colliders.len(), 19);
+                    assert_eq!(game.physics.rapier.impulse_joints.len(), 0);
+                    assert_eq!(state.arena.len(), 17);
+                    assert!(
+                        state.dynamic_bodies.is_empty()
+                            && state.constraints.is_empty()
+                            && state.projectiles.is_empty()
+                    );
+                    assert_eq!(state.flow.as_ref().unwrap().halves, [1, 1]);
+                    assert_eq!(state.flow.as_ref().unwrap().scores, [0, 0]);
+                    assert!(
+                        state
+                            .players
+                            .iter()
+                            .all(|player| player.alive && player.health == 100)
+                    );
+                }
+                if state.tick >= CONNECTED_ICE_LOAD_TICK {
+                    assert_eq!(
+                        state.flow.as_ref().unwrap().loadouts,
+                        [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+                    );
+                }
+                if state.tick == CONNECTED_ICE_COMBAT_TICK {
+                    assert!(state.arena_entry_from_milli.is_none());
+                }
+                if !omit_terminal_shot {
+                    if state.tick == 4_969 {
+                        let orange = &state.players[0];
+                        let blue = &state.players[1];
+                        assert!((-230_000..-190_000).contains(&orange.x_milli));
+                        assert!((150_000..210_000).contains(&orange.y_milli));
+                        assert!((-125_000..-50_000).contains(&blue.x_milli));
+                        assert!((0..65_000).contains(&blue.y_milli));
+                        assert!(state.impacts.iter().any(|hit| {
+                            hit.tick == 4_961
+                                && hit.owner == 1
+                                && hit.target.is_none()
+                                && (-240_000..-200_000).contains(&hit.x_milli)
+                                && (45_000..85_000).contains(&hit.y_milli)
+                        }));
+                    }
+                    if state.tick == 5_213 {
+                        let orange = &state.players[0];
+                        let blue = &state.players[1];
+                        assert!((-150_000..-110_000).contains(&orange.x_milli));
+                        assert!((-230_000..-190_000).contains(&orange.y_milli));
+                        assert!((-220_000..-180_000).contains(&blue.x_milli));
+                        assert!((-20_000..25_000).contains(&blue.y_milli));
+                    }
+                    if state.tick == 5_312 {
+                        assert!(
+                            state
+                                .impacts
+                                .iter()
+                                .any(|hit| hit.tick == 5_312 && hit.owner == 1 && hit.eliminated)
+                        );
+                        assert_eq!(state.players[0].health, 0);
+                        assert_eq!(state.players[1].health, 100);
+                        let hit = state.impacts.iter().find(|hit| hit.tick == 5_312).unwrap();
+                        let fighter = &state.players[0];
+                        assert!(
+                            Vector::new(
+                                (hit.x_milli - fighter.x_milli) as f32,
+                                (hit.y_milli - fighter.y_milli) as f32,
+                            )
+                            .length()
+                                <= 13_000.0
+                        );
+                    }
+                    let expected = match state.tick {
+                        5_338 => Some(FlowPhase::EliminationConclusion),
+                        5_339 => Some(FlowPhase::BlueResultTransition),
+                        5_355 => Some(FlowPhase::RoundBlue),
+                        _ => None,
+                    };
+                    if let Some(phase) = expected {
+                        assert_eq!(state.flow.as_ref().unwrap().phase, phase);
+                    }
+                }
+                previous = state;
+            }
+            let flow = previous.flow.as_ref().unwrap();
+            if omit_terminal_shot {
+                assert_eq!(flow.phase, FlowPhase::IceCombat);
+                assert_eq!(flow.halves, [1, 1]);
+                assert_eq!(flow.scores, [0, 0]);
+                assert_eq!(previous.players[0].health, 25);
+            } else {
+                assert_eq!(flow.phase, FlowPhase::RoundBlue);
+                assert_eq!(flow.halves, [1, 2]);
+                assert_eq!(flow.scores, [0, 1]);
+                assert_eq!(
+                    previous.round.as_ref().unwrap().completed_rounds,
+                    Some([0, 1])
+                );
+                for _ in 0..180 {
+                    game.step([PlayerInput::default(); 2]);
+                }
+                assert_eq!(game.snapshot().flow.unwrap().scores, [0, 1]);
+            }
+        }
     }
 
     #[test]

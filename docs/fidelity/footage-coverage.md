@@ -11,18 +11,19 @@ No interval is unclassified.
 |---|---|---|
 | `S0-foundation` | Bevy ECS fixed ticks, two-player scripted input, movement, jump, fire, block, hits, UDP client-host and headless authority, bounded state, deterministic PNG capture | implemented scaffold; not fidelity evidence |
 | `S1-flow-draft` | reproduce card offers, readable card faces, player reveal, pick input, inter-round handoff, waiting and rematch screens | first rematch/two-draft sub-slice implemented at recording `453954a7…a18c` 02:40.00–03:20.00; remaining flows unresolved |
-| `S2-static-duel` | reproduce base locomotion, aim, gun, block, health, death and a footage-matched static arena end to end | first sub-slice implemented at recording `1460e670…15f9` 00:22.50–00:35.60; remaining static duels unresolved |
+| `S2-static-duel` | reproduce base locomotion, aim, gun, block, health, death and a footage-matched static arena end to end | first sub-slice implemented at recording `1460e670…15f9` 00:22.50–00:35.60; connected ice duel added at recording `453954a7…a18c` PTS 2351990592–2506156642; remaining static duels unresolved |
 | `S3-arena-motion` | reproduce suspended, rotating, sliding and articulated arena pieces with authoritative networked physics | first suspended-weight and released-joint sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; remaining arena motion unresolved |
-| `S4-reactive-world` | reproduce destructible platforms, debris, explosions, ice and other reactive arena materials | first explosive timber-collapse sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; ice and remaining reactive worlds unresolved |
+| `S4-reactive-world` | reproduce destructible platforms, debris, explosions, ice and other reactive arena materials | first explosive timber-collapse sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; connected ice contours and ordinary card impacts added, with no fracture or friction rule established by that interval; remaining reactive worlds unresolved |
 | `S5-card-combat` | reproduce every visible named card and its stacked combat interaction across rounds | Dazzle and Explosive Bullet first implemented in the 02:40.00–03:20.00 sub-slice; remaining card behavior unresolved |
-| `S6-match` | reproduce round, half, score, color handoff, match completion and rematch cadence | first blue 4–5 victory/rematch/0–0 reset sub-slice implemented at recording `453954a7…a18c` 02:40.00–03:20.00; remaining lifecycle unresolved |
-| `S7-presentation` | reproduce characters, lighting, camera, shake, trails, hit-stop, chromatic/radial effects, particles, text and audio | first static-duel and explosive-collapse visual sub-slices implemented; audio, hit-stop, and remaining presentation unresolved |
+| `S6-match` | reproduce round, half, score, color handoff, match completion and rematch cadence | blue 4–5 victory/rematch/0–0 reset continues through the first full-round award at recording `453954a7…a18c` PTS 2506156642; either color may sweep the opening fights or win the deciding ice duel; next draft and remaining lifecycle unresolved |
+| `S7-presentation` | reproduce characters, lighting, camera, shake, trails, hit-stop, chromatic/radial effects, particles, text and audio | first static-duel, explosive-collapse and connected ice/first-round visual sub-slices implemented in the shared scene; audio, hit-stop, and remaining presentation unresolved |
 | `S8-online` | replace the localhost scripted UDP scaffold with production online prediction, interpolation, reconciliation and eventual Steam transport | unresolved fidelity gap; Steam is not implemented |
 
 The first `S2-static-duel` interval retains the `S0-foundation` process boundaries but replaces their placeholder physics, renderer, and batch transport.
 Later slices add the remaining flow, cards, arena behavior, production online work, and presentation visible in their owned intervals.
 
-The connected rematch route joins the existing draft and timber slices from native PTS 1595160286 through 2351823926 in recording `453954a7…a18c`. It includes the previously omitted blue half result, timber handoff and orange half result, with retained card loadouts and ordinary hit-driven outcomes. The following ice-crossfade frame, PTS 2351990592, remains outside that route. See `connected-match-observations.md` for exact frame identities and differences.
+The connected rematch route joins the existing draft, timber and ice slices from native PTS 1595160286 through the selected first-round frame at PTS 2506156642 in recording `453954a7…a18c`. The source-shaped blue/orange/blue sequence retains Da and Ex, enters ice with halves 1–1 and rounds 0–0, then ends with halves 1–2 and rounds 0–1. Either color can instead win two opening fights and earn a round without entering ice; ordinary combat decides each outcome. The losing half remains visible through this result. The next draft, later half reset and remaining rounds are unresolved.
+The ice extension starts at PTS 2351990592. Its seventeen static polygon contours supply both collision and rendering, while animated cyan/pale paint, shadows and incoming/outgoing motion stay in the shared presentation scene. The interval provides no evidence for ice friction, fracture or melting. See `connected-match-observations.md` for the earlier 25 anchors and `ice-round-observations.md` for the twelve added anchors, exact frame identities and visual differences. The existing `rematch-draft-replay` profile accepts the complete 5,466-tick route for local controls, bounded playback, replay capture and the two-client smoke path; this adds no separate ice profile or production-network claim.
 
 ## Recording `453954a7…a18c`
 
@@ -54,9 +55,9 @@ Source: `reference/MedalTVRounds20260903165304088.mp4`, duration `600.13` second
 | 03:26–03:30 | intact stacked timber, suspended weights, reactive floor and combat | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
 | 03:30–03:40 | intact timber combat and upper-left projectile approach | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
 | 03:40–03:50 | explosion, released structure, collapse, debris settlement and continued combat | S3/S4/S7 implemented sub-slice; S2, S5, S8 remain incomplete |
-| 03:50–04:00 | elimination and HALF ORANGE through PTS 2351823926, then ice-arena crossfade | connected S6/S7 result implemented; ice arena and later combat unresolved |
-| 04:00–04:10 | ice arena duel | S2, S4, S5, S7, S8 |
-| 04:10–04:20 | `QUICK SHOT` draft choice | S1, S5, S7 |
+| 03:50–04:00 | elimination and HALF ORANGE through PTS 2351823926, then incoming ice and first traversal | connected S2/S5/S6/S7 route implemented; unobserved ice reactions and production S8 unresolved |
+| 04:00–04:10 | ice duel, close terminal burst, adjacent undimmed/result frames at PTS 2484823394/2484990060, then ROUND BLUE | connected S2/S5/S6/S7 route implemented; remaining S4 and production S8 unresolved |
+| 04:10–04:20 | first blue round pip through selected PTS 2506156642, then `QUICK SHOT` draft choice | connected S6/S7 first-round result implemented through the selected endpoint; following S1/S5/S7 draft unresolved |
 | 04:20–04:30 | hanging-column arena duel | S2, S3, S5, S7, S8 |
 | 04:30–04:40 | hanging-column movement and combat | S2, S3, S5, S7, S8 |
 | 04:40–04:50 | `COMBINE` card presentation | S1, S5, S7 |

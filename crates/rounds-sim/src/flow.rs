@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const REMATCH_DRAFT_TICKS: u32 = 4_540;
+pub const CONNECTED_FIRST_ROUND_TICKS: u32 = 5_466;
+pub const CONNECTED_ICE_LOAD_TICK: u32 = 4_541;
+pub const CONNECTED_ICE_COMBAT_TICK: u32 = 4_601;
+pub const CONNECTED_ICE_RESULT_ONSET_TICK: u32 = 5_339;
 pub const LEGACY_REMATCH_DRAFT_TICKS: u32 = 2_400;
 pub const REMATCH_DRAFT_PROFILE: &str = "rematch-draft-replay";
 pub const REMATCH_DRAFT_SOURCE_INTERVAL: &str = "02:39.516029-03:55.182393";
@@ -292,6 +296,10 @@ pub enum FlowPhase {
     TimberCombat,
     OrangeResultTransition,
     HalfOrange,
+    IceTransition,
+    IceCombat,
+    RoundBlue,
+    RoundOrange,
     TerminalMatch,
 }
 
@@ -382,6 +390,7 @@ pub struct FlowSnapshot {
     pub phase_tick: u32,
     pub active_player: Option<u8>,
     pub scores: [u8; 2],
+    pub halves: [u8; 2],
     pub winner: Option<u8>,
     pub eliminated: Option<u8>,
     pub fighter_alive: [bool; 2],
@@ -411,6 +420,7 @@ impl FlowAuthority {
                 phase_tick: 0,
                 active_player: None,
                 scores: [4, 5],
+                halves: [0, 0],
                 winner: Some(1),
                 eliminated: Some(0),
                 fighter_alive: [false, true],
@@ -455,7 +465,7 @@ impl FlowAuthority {
     pub fn accepts_combat(&self) -> bool {
         matches!(
             self.snapshot.phase,
-            FlowPhase::ResumedCombat | FlowPhase::TimberCombat
+            FlowPhase::ResumedCombat | FlowPhase::TimberCombat | FlowPhase::IceCombat
         )
     }
 
@@ -463,7 +473,10 @@ impl FlowAuthority {
         if winner > 1 || !self.accepts_combat() {
             return false;
         }
-        self.snapshot.scores[usize::from(winner)] += 1;
+        self.snapshot.halves[usize::from(winner)] += 1;
+        if self.snapshot.halves[usize::from(winner)] == 2 {
+            self.snapshot.scores[usize::from(winner)] += 1;
+        }
         self.snapshot.winner = Some(winner);
         self.snapshot.eliminated = Some(1 - winner);
         self.snapshot.fighter_alive = [winner == 0, winner == 1];
@@ -514,8 +527,10 @@ impl FlowAuthority {
             }
             FlowPhase::EliminationConclusion
                 if self.snapshot.phase_tick
-                    >= if self.snapshot.scores.iter().sum::<u8>() == 1 {
+                    >= if self.snapshot.halves.iter().sum::<u8>() == 1 {
                         13
+                    } else if self.snapshot.halves.iter().sum::<u8>() == 3 {
+                        27
                     } else {
                         16
                     } =>
@@ -529,17 +544,26 @@ impl FlowAuthority {
             }
             FlowPhase::BlueResultTransition
                 if self.snapshot.phase_tick
-                    >= if self.snapshot.scores.iter().sum::<u8>() == 1 {
+                    >= if self.snapshot.halves.iter().sum::<u8>() == 1 {
                         23
+                    } else if self.snapshot.halves.iter().sum::<u8>() == 3 {
+                        16
                     } else {
                         20
                     } =>
             {
-                self.transition(FlowPhase::HalfBlue, None);
+                self.transition(
+                    if self.snapshot.halves[1] == 2 {
+                        FlowPhase::RoundBlue
+                    } else {
+                        FlowPhase::HalfBlue
+                    },
+                    None,
+                );
             }
             FlowPhase::HalfBlue | FlowPhase::HalfOrange
                 if self.snapshot.phase_tick >= 91
-                    && self.snapshot.scores.iter().sum::<u8>() == 1 =>
+                    && self.snapshot.halves.iter().sum::<u8>() == 1 =>
             {
                 self.snapshot.fighter_alive = [true, true];
                 self.transition(FlowPhase::TimberTransition, None);
@@ -550,15 +574,36 @@ impl FlowAuthority {
                 self.snapshot.fighter_alive = [true, true];
                 self.transition(FlowPhase::TimberCombat, None);
             }
+            FlowPhase::HalfBlue | FlowPhase::HalfOrange
+                if self.snapshot.phase_tick >= 71 && self.snapshot.halves == [1, 1] =>
+            {
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::IceTransition, None);
+            }
+            FlowPhase::IceTransition if self.snapshot.phase_tick >= 60 => {
+                self.snapshot.winner = None;
+                self.snapshot.eliminated = None;
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::IceCombat, None);
+            }
             FlowPhase::OrangeResultTransition
                 if self.snapshot.phase_tick
-                    >= if self.snapshot.scores.iter().sum::<u8>() == 1 {
+                    >= if self.snapshot.halves.iter().sum::<u8>() == 1 {
                         23
+                    } else if self.snapshot.halves.iter().sum::<u8>() == 3 {
+                        16
                     } else {
                         20
                     } =>
             {
-                self.transition(FlowPhase::HalfOrange, None);
+                self.transition(
+                    if self.snapshot.halves[0] == 2 {
+                        FlowPhase::RoundOrange
+                    } else {
+                        FlowPhase::HalfOrange
+                    },
+                    None,
+                );
             }
             _ => {}
         }
@@ -593,6 +638,7 @@ impl FlowAuthority {
             self.transition(FlowPhase::TerminalMatch, None);
         } else if self.snapshot.rematch_votes == [RematchVote::Yes; 2] {
             self.snapshot.scores = [0, 0];
+            self.snapshot.halves = [0, 0];
             self.snapshot.winner = None;
             self.snapshot.eliminated = None;
             self.snapshot.fighter_alive = [true, true];
