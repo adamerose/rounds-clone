@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-05T23:37:39Z
 origin: system-detected
 tags: ["product-fidelity", "match-flow", "arenas", "bevy"]
@@ -76,3 +76,5 @@ The connected Bevy match currently stops after the timber duel with one half per
 - 2026-09-06T02:07:23Z stage correction start session codex:01a073e9-17ec-7170-933a-0e18a071972d/01a073ea-e6fa-7bd2-9ff0-85f9201f2b93 — Parent staged whitespace check found one trailing space in the newly added, previously untracked OFL license. Normalizing only that noncompiled text and recording a post-build inventory without changing capture provenance.
 - 2026-09-06T02:07:24Z — Parent staged whitespace verification caught one trailing space in the newly added OFL license that the earlier unstaged check omitted. Removed only that space after the verified build; font bytes, compiled inputs and executables remain unchanged. Original final-product-manifest.json and captures are preserved. post-build-license-manifest.json records current source inventory be34b4863cae91fb919a6fdb28263755b4458942b390f51347529870f67bda6a and the exact license delta. Historical build-time inventory statements above remain records of that build; independent review will rebuild the final committed candidate. No suite or capture rerun is needed for noncompiled license whitespace.
 - 2026-09-06T02:07:46Z stage correction end session codex:01a073e9-17ec-7170-933a-0e18a071972d/01a073ea-e6fa-7bd2-9ff0-85f9201f2b93 — Removed exactly one noncompiled license trailing space. Working diff and complete HEAD-to-working-tree whitespace checks pass; the untouched parent index still reports the original line-21 space until restaged. Ticket validation passes. Post-build manifest proves only license bytes changed and compiled inputs, font and all executable hashes are unchanged; no build or recapture performed.
+- 2026-09-06T02:23:53Z stage review end session codex:01a073e9-17ec-7170-933a-0e18a071972d/01a07474-b3ff-7731-afb4-98a1cd8fe8ee — approved candidate 8caa16182f587522fd603bafe0d7e42441af7e80..663a92b5b62ab22c9defe34c1a428ee8ba217bd9
+- 2026-09-06T02:23:53Z stage integration end session codex:01a073e9-17ec-7170-933a-0e18a071972d — integrated 663a92b5b62ab22c9defe34c1a428ee8ba217bd9 as 663a92b5b62ab22c9defe34c1a428ee8ba217bd9
