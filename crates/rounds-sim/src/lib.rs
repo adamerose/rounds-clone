@@ -2717,6 +2717,10 @@ pub fn scripted_inputs(seed: u64, ticks: u32) -> [Vec<PlayerInput>; 2] {
 }
 
 // Public controls for the connected ice observation; ranges name input ticks.
+// Rows resolve last-match-wins over `PlayerInput::default()`, so each jump press
+// is held through its airborne ticks by splitting or amending the rows it spans
+// and filling the uncovered gaps with rows that are default in every field but
+// `jump`, never by overlaying a wider row.
 fn connected_ice_input(player: usize, tick: u32) -> PlayerInput {
     let actions = [
         (0, 4710, 4740, 1, 1, 0, 1000, 0, 0),
@@ -2725,15 +2729,20 @@ fn connected_ice_input(player: usize, tick: u32) -> PlayerInput {
         (0, 4850, 4880, 1, 0, 0, 1000, 0, 0),
         (0, 4920, 4929, 0, 0, 0, 1000, 0, 0),
         (0, 4929, 4930, 1, 1, 0, 1000, 0, 0),
-        (0, 4930, 4945, 1, 0, 0, 1000, 0, 0),
-        (0, 4945, 4950, -1, 0, 0, -1000, 0, 0),
-        (0, 4980, 5020, 1, 0, 0, 1000, 0, 0),
+        (0, 4930, 4931, 1, 0, 0, 1000, 0, 0),
+        (0, 4931, 4945, 1, 1, 0, 1000, 0, 0),
+        (0, 4945, 4950, -1, 1, 0, -1000, 0, 0),
+        (0, 4950, 4980, 0, 1, 0, 0, 0, 0),
+        (0, 4980, 4988, 1, 1, 0, 1000, 0, 0),
+        (0, 4988, 5020, 1, 0, 0, 1000, 0, 0),
         (0, 5055, 5063, 1, 0, 0, 1000, 0, 0),
         (0, 5175, 5190, 1, 0, 0, 1000, 0, 0),
         (0, 5190, 5202, -1, 0, 0, -1000, 0, 0),
         (0, 5202, 5211, 0, 0, 0, 1000, 0, 0),
         (0, 5211, 5212, 0, 1, 0, 1000, 0, 0),
-        (0, 5212, 5225, 1, 0, 0, 1000, 0, 0),
+        (0, 5212, 5213, 1, 0, 0, 1000, 0, 0),
+        (0, 5213, 5218, 1, 1, 0, 1000, 0, 0),
+        (0, 5218, 5225, 1, 0, 0, 1000, 0, 0),
         (0, 5225, 5230, -1, 0, 0, -1000, 0, 0),
         (0, 5230, 5265, -1, 1, 0, -1000, 0, 0),
         (0, 5265, 5299, -1, 0, 0, -1000, 0, 0),
@@ -2750,10 +2759,15 @@ fn connected_ice_input(player: usize, tick: u32) -> PlayerInput {
         (1, 4960, 4965, 0, 0, 0, -1000, 0, 0),
         (1, 4970, 5000, -1, 0, 0, -1000, 0, 0),
         (1, 5000, 5001, 0, 1, 0, 1000, 0, 0),
-        (1, 5004, 5005, 0, 0, 1, 0, 0, 1),
-        (1, 5043, 5044, 0, 0, 1, 0, 0, 1),
-        (1, 5055, 5056, 0, 0, 0, 1000, 0, 0),
-        (1, 5065, 5066, 0, 0, 0, 1000, 0, 0),
+        (1, 5002, 5004, 0, 1, 0, 0, 0, 0),
+        (1, 5004, 5005, 0, 1, 1, 0, 0, 1),
+        (1, 5005, 5043, 0, 1, 0, 0, 0, 0),
+        (1, 5043, 5044, 0, 1, 1, 0, 0, 1),
+        (1, 5044, 5055, 0, 1, 0, 0, 0, 0),
+        (1, 5055, 5056, 0, 1, 0, 1000, 0, 0),
+        (1, 5056, 5065, 0, 1, 0, 0, 0, 0),
+        (1, 5065, 5066, 0, 1, 0, 1000, 0, 0),
+        (1, 5066, 5070, 0, 1, 0, 0, 0, 0),
         (1, 5072, 5073, 0, 0, 0, 1000, 0, 0),
         (1, 5082, 5083, 0, 0, 1, 0, 0, 1),
         (1, 5084, 5135, -1, 0, 0, -1000, 0, 0),
@@ -2917,8 +2931,16 @@ pub fn scripted_inputs_for(
             } else {
                 0
             };
-            orange.jump = matches!(tick, 160 | 340 | 520 | 820 | 888);
-            blue.jump = tick == 650;
+            // Each press is held through the ticks the fighter is already
+            // airborne, so a jump that is still held keeps its arc. The holds
+            // are inert today: `set_player_control` jumps only when grounded.
+            orange.jump = matches!(tick, 160 | 340 | 520 | 820 | 888)
+                || (163..164).contains(&tick)
+                || (343..344).contains(&tick)
+                || (523..525).contains(&tick)
+                || (824..825).contains(&tick)
+                || (892..893).contains(&tick);
+            blue.jump = tick == 650 || (652..659).contains(&tick);
             orange.fire = tick == 359;
             if tick == 359 {
                 orange.aim_x = 0;
@@ -2988,8 +3010,14 @@ pub fn scripted_inputs_for(
             } else {
                 0
             };
-            orange.jump = matches!(tick, 120 | 960 | 1_280);
-            blue.jump = matches!(tick, 260 | 1_150);
+            // Held through each press's airborne ticks. Orange's 960 press has
+            // none: it reports grounded on every tick that follows it.
+            orange.jump = matches!(tick, 120 | 960 | 1_280)
+                || (122..170).contains(&tick)
+                || (1_299..1_305).contains(&tick);
+            blue.jump = matches!(tick, 260 | 1_150)
+                || (262..310).contains(&tick)
+                || (1_159..1_160).contains(&tick);
             orange.fire = matches!(tick, 820 | 1_100);
             blue.fire = matches!(tick, 620 | 1_320);
             scripts[0].push(orange);
@@ -3017,7 +3045,12 @@ pub fn scripted_inputs_for(
             blue.move_axis = -1;
         }
         orange.jump = (330..670).contains(&tick);
-        blue.jump = matches!(tick, 40 | 500 | 650);
+        // Each blue press is held through its airborne ticks; all three cover
+        // the whole rise.
+        blue.jump = matches!(tick, 40 | 500 | 650)
+            || (42..74).contains(&tick)
+            || (502..534).contains(&tick)
+            || (652..681).contains(&tick);
         if tick == 292 {
             orange.aim_y = 180;
         }
@@ -3136,6 +3169,7 @@ fn bullet_groups(owner: u8, collide_with_arena: bool) -> (Group, Group) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeSet;
 
     #[test]
     fn yellow_terminal_blast_is_one_continuous_authoritative_physics_replay() {
@@ -4360,5 +4394,183 @@ mod tests {
         assert_eq!(held.flow.as_ref().unwrap().winner, Some(0));
         assert_eq!(held.metrics.simultaneous_eliminations, 0);
         assert_eq!(held.metrics.ring_outs, state.metrics.ring_outs);
+    }
+
+    /// Ticket 051's one-tick jump presses, rewritten as `{T} ∪ [A, R)`:
+    /// `(player, T, Some((A, R)))`, where `A` is the first tick after the press on
+    /// which that fighter's snapshot reports `grounded == false` and `R` the first
+    /// tick after `A` on which it reports grounded again. `None` means the fighter
+    /// never leaves the ground after the press, so it keeps no hold.
+    type ScriptedJumpPress = (usize, u32, Option<(u32, u32)>);
+
+    struct ScriptedJumpContract {
+        profile: ReplayProfile,
+        seed: u64,
+        ticks: u32,
+        presses: &'static [ScriptedJumpPress],
+        /// Jump holds already in the shipped scripts, which ticket 051 leaves alone.
+        existing_holds: &'static [(usize, u32, u32)],
+        jumps: u32,
+        /// `rounds-automation inspect --profile <name>` reports this as `stateHash`.
+        state_sha256: &'static str,
+    }
+
+    const SCRIPTED_JUMP_CONTRACTS: &[ScriptedJumpContract] = &[
+        ScriptedJumpContract {
+            profile: ReplayProfile::TealDuelReplay,
+            seed: 38,
+            ticks: TEAL_REPLAY_TICKS,
+            presses: &[
+                (1, 40, Some((42, 74))),
+                (1, 500, Some((502, 534))),
+                (1, 650, Some((652, 681))),
+            ],
+            existing_holds: &[(0, 330, 670)],
+            jumps: 17,
+            state_sha256: "dec5d001827bec942cd91dd9e0f92adfc23c2e212b5159af9e15fc52033f4e2e",
+        },
+        ScriptedJumpContract {
+            profile: ReplayProfile::RadialSawHalfBlueReplay,
+            seed: 42,
+            ticks: RADIAL_REPLAY_TICKS,
+            presses: &[
+                (0, 160, Some((163, 164))),
+                (0, 340, Some((343, 344))),
+                (0, 520, Some((523, 525))),
+                (0, 820, Some((824, 825))),
+                (0, 888, Some((892, 893))),
+                (1, 650, Some((652, 659))),
+            ],
+            existing_holds: &[],
+            jumps: 6,
+            state_sha256: "b12c936c6b4d0991c796497e434f128b967b7972c1f2063d1d68aa0d2406879f",
+        },
+        ScriptedJumpContract {
+            profile: ReplayProfile::YellowCrateTerminalBlastReplay,
+            seed: 43,
+            ticks: YELLOW_REPLAY_TICKS,
+            presses: &[],
+            existing_holds: &[],
+            jumps: 0,
+            state_sha256: "5f321381ae706f43498927d584ca664323bf556c1c309399a9f9ed6df8516879",
+        },
+        ScriptedJumpContract {
+            profile: ReplayProfile::TimberCollapseReplay,
+            seed: 40,
+            ticks: REPLAY_TICKS,
+            presses: &[
+                (0, 120, Some((122, 170))),
+                (0, 960, None),
+                (0, 1_280, Some((1_299, 1_305))),
+                (1, 260, Some((262, 310))),
+                (1, 1_150, Some((1_159, 1_160))),
+            ],
+            existing_holds: &[],
+            jumps: 5,
+            state_sha256: "f7ddbc03932e9dac0411a0f2565a388a398da23b67ba7156fa8fcea26aa74b8c",
+        },
+        ScriptedJumpContract {
+            profile: ReplayProfile::RematchDraftReplay,
+            seed: SOURCE_DRAFT_SEED,
+            ticks: CONNECTED_FIRST_ROUND_TICKS,
+            presses: &[
+                (0, 4_929, Some((4_931, 4_988))),
+                (0, 5_211, Some((5_213, 5_218))),
+                (1, 5_000, Some((5_002, 5_070))),
+            ],
+            existing_holds: &[
+                (1, 3_000, 3_365),
+                (1, 3_700, 3_970),
+                (0, 4_000, 4_420),
+                (1, 4_000, 4_420),
+                (1, 4_601, 4_656),
+                (0, 4_710, 4_740),
+                (1, 4_801, 4_811),
+                (0, 4_820, 4_850),
+                (1, 4_943, 4_955),
+                (1, 5_135, 5_175),
+                (1, 5_213, 5_235),
+                (0, 5_230, 5_265),
+            ],
+            jumps: 141,
+            state_sha256: "cc2dbd3ecd3034ce8a2fbd1c689f33abf98aa7a7977298dec459b5f381ef331d",
+        },
+    ];
+
+    /// Ticket 051. A held jump re-applies the whole impulse on the first tick
+    /// contact restores `grounded`, so extending a press across ticks the fighter
+    /// is already airborne must change nothing: `set_player_control` reads
+    /// `input.jump` only as `input.jump && grounded`. This drives all five shipped
+    /// profiles at their published seeds and tick counts through the public
+    /// snapshot boundary and asserts, from `snapshot` alone, that every added hold
+    /// tick is airborne, that each press tick is still a grounded press, that the
+    /// scripted jump ticks are exactly the contract's set, and that the jump count
+    /// and the final `stateHash` `inspect` reports have not moved.
+    #[test]
+    fn scripted_jump_presses_hold_through_their_airborne_ticks_without_moving_any_digest() {
+        for contract in SCRIPTED_JUMP_CONTRACTS {
+            let profile = contract.profile;
+            let scripts = scripted_inputs_for(profile, contract.seed, contract.ticks);
+            let snapshots = run_profile_snapshots(profile, contract.seed, contract.ticks);
+            assert_eq!(snapshots.len(), contract.ticks as usize);
+            // The input at script index `i` is applied against the `grounded` flag
+            // published in the snapshot whose tick is `i`, because `step`
+            // increments the tick before it reads control.
+            let grounded_at =
+                |tick: u32, player: usize| snapshots[tick as usize - 1].players[player].grounded;
+
+            for (player, script) in scripts.iter().enumerate() {
+                let mut expected = BTreeSet::new();
+                for (_, start, end) in contract
+                    .existing_holds
+                    .iter()
+                    .filter(|(owner, ..)| *owner == player)
+                {
+                    expected.extend(*start..*end);
+                }
+                for (_, press, window) in contract
+                    .presses
+                    .iter()
+                    .filter(|(owner, ..)| *owner == player)
+                {
+                    assert!(
+                        grounded_at(*press, player),
+                        "{profile:?} player {player}: press {press} must stay a grounded press"
+                    );
+                    expected.insert(*press);
+                    let Some((first_airborne, regrounded)) = window else {
+                        continue;
+                    };
+                    for tick in *first_airborne..*regrounded {
+                        assert!(
+                            !grounded_at(tick, player),
+                            "{profile:?} player {player}: hold tick {tick} of press {press} \
+                             is grounded, so the hold would jump again"
+                        );
+                        expected.insert(tick);
+                    }
+                }
+                let scripted = script
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, input)| input.jump)
+                    .map(|(tick, _)| tick as u32)
+                    .collect::<BTreeSet<_>>();
+                assert_eq!(
+                    scripted, expected,
+                    "{profile:?} player {player}: scripted jump ticks"
+                );
+            }
+
+            let terminal = snapshots
+                .last()
+                .expect("every profile runs at least one tick");
+            assert_eq!(terminal.metrics.jumps, contract.jumps, "{profile:?} jumps");
+            assert_eq!(
+                hash_snapshot(terminal),
+                contract.state_sha256,
+                "{profile:?} final stateHash"
+            );
+        }
     }
 }
