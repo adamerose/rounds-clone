@@ -375,6 +375,7 @@ pub struct CombatMetrics {
     pub explosion_impulsed_bodies: u32,
     pub dazzle_stun_pulses: u32,
     pub explosive_projectile_impacts: u32,
+    pub simultaneous_eliminations: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -426,7 +427,6 @@ struct ProjectileState {
 
 #[derive(Clone, Copy)]
 struct PendingRadialHit {
-    owner: u8,
     target: u8,
     direction: Vector,
 }
@@ -647,6 +647,8 @@ fn yellow_crate_definitions() -> Vec<DynamicBodyDefinition> {
 struct PhysicsBoundary {
     rapier: RapierWorld,
     players: [PlayerPhysics; 2],
+    /// Current arena spawn positions, reused when a fight repeats in place.
+    spawns: [Vector; 2],
     platforms: Vec<ColliderHandle>,
     retired_platforms: Vec<ColliderHandle>,
     timber_anchor: Option<RigidBodyHandle>,
@@ -744,6 +746,7 @@ impl PhysicsBoundary {
         let mut boundary = Self {
             rapier,
             players,
+            spawns: player_spawns.map(|(x, y, _)| Vector::new(x, y)),
             platforms,
             retired_platforms: Vec::new(),
             timber_anchor: None,
@@ -937,17 +940,8 @@ impl PhysicsBoundary {
                     .1
             })
             .collect();
-        for (id, position) in [Vector::new(-529.0, -102.0), Vector::new(519.0, -102.0)]
-            .into_iter()
-            .enumerate()
-        {
-            let body = &mut self.rapier.bodies[self.players[id].body];
-            body.set_translation(position, true);
-            body.set_linvel(Vector::ZERO, true);
-        }
-        self.rapier
-            .bodies
-            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
+        self.spawns = [Vector::new(-529.0, -102.0), Vector::new(519.0, -102.0)];
+        self.respawn_players();
         for player in self.players {
             self.rapier.colliders[player.collider].set_shape(SharedShape::ball(12.0));
         }
@@ -990,15 +984,21 @@ impl PhysicsBoundary {
                 collider
             })
             .collect();
-        for (id, position) in [Vector::new(-500.0, -210.0), Vector::new(500.0, -210.0)]
-            .into_iter()
-            .enumerate()
-        {
+        self.spawns = [Vector::new(-500.0, -210.0), Vector::new(500.0, -210.0)];
+        self.respawn_players();
+        self.insert_timber_structure();
+        self.rapier
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
+    }
+
+    /// Returns both fighters to the current arena spawns at rest.
+    fn respawn_players(&mut self) {
+        for (id, position) in self.spawns.into_iter().enumerate() {
             let body = &mut self.rapier.bodies[self.players[id].body];
             body.set_translation(position, true);
             body.set_linvel(Vector::ZERO, true);
         }
-        self.insert_timber_structure();
         self.rapier
             .bodies
             .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
@@ -1596,9 +1596,8 @@ impl AuthoritativeMatch {
             self.metrics.hits += 1;
             self.metrics.health_scaled_knockbacks += 1;
             if eliminated {
-                self.winner = Some(hit.owner);
+                self.resolve_elimination_outcome();
             }
-            self.begin_result_if_due();
             if self.winner.is_some() {
                 return;
             }
@@ -1607,6 +1606,7 @@ impl AuthoritativeMatch {
         let mut timber_load = false;
         let mut ice_load = false;
         let mut timber_combat_started = false;
+        let mut repeated_after_draw = false;
         let mut accepts_combat = true;
         if let Some(flow) = &mut self.flow {
             let had_terminal_result = flow.has_terminal_result();
@@ -1620,6 +1620,8 @@ impl AuthoritativeMatch {
                 previous_phase != FlowPhase::IceTransition && phase == FlowPhase::IceTransition;
             timber_combat_started = previous_phase != phase
                 && matches!(phase, FlowPhase::TimberCombat | FlowPhase::IceCombat);
+            repeated_after_draw =
+                previous_phase == FlowPhase::EliminationConclusion && flow.accepts_combat();
             accepts_combat = flow.accepts_combat();
         }
         self.sync_round_from_flow();
@@ -1631,6 +1633,9 @@ impl AuthoritativeMatch {
             self.load_ice_arena();
             self.revive_fighters();
         }
+        if repeated_after_draw {
+            self.repeat_fight_in_place();
+        }
         if timber_combat_started || rematch_reset {
             self.arena_entry_from_milli = None;
             self.revive_fighters();
@@ -1639,9 +1644,9 @@ impl AuthoritativeMatch {
         if !accepts_combat {
             return;
         }
-        if self.winner.is_some()
-            && self.flow.is_none()
+        if self.flow.is_none()
             && self.profile != ReplayProfile::YellowCrateTerminalBlastReplay
+            && (self.winner.is_some() || self.living_fighters().is_empty())
         {
             return;
         }
@@ -1668,15 +1673,18 @@ impl AuthoritativeMatch {
                         self.metrics.dazzle_stun_pulses += 1;
                     }
                 }
-                if input.aim_x != 0 || input.aim_y != 0 {
+                // An eliminated fighter keeps its last pose but no input reaches it,
+                // including after a ring-out that leaves positive health.
+                let acts = state.alive && state.health > 0;
+                if acts && (input.aim_x != 0 || input.aim_y != 0) {
                     state.aim = Vector::new(f32::from(input.aim_x), f32::from(input.aim_y))
                         .normalize_or_zero();
                 }
-                if input.block && state.block_ticks == 0 {
+                if acts && input.block && state.block_ticks == 0 {
                     state.block_ticks = BLOCK_DURATION;
                     self.metrics.block_activations += 1;
                 }
-                if state.health > 0
+                if acts
                     && state.stun_ticks == 0
                     && self
                         .physics
@@ -1685,11 +1693,7 @@ impl AuthoritativeMatch {
                     self.metrics.jumps += 1;
                     state.grounded = false;
                 }
-                if state.health > 0
-                    && state.stun_ticks == 0
-                    && input.fire
-                    && state.fire_cooldown == 0
-                {
+                if acts && state.stun_ticks == 0 && input.fire && state.fire_cooldown == 0 {
                     let extra = self
                         .flow
                         .as_ref()
@@ -1779,13 +1783,19 @@ impl AuthoritativeMatch {
             let target = 1 - projectile.owner;
             if let Some(impact_position) = self.physics.bullet_contact(projectile_id, target) {
                 let target_entity = self.player_entities[usize::from(target)];
-                let blocking = self
-                    .world
-                    .entity(target_entity)
-                    .get::<PlayerState>()
-                    .expect("player state")
-                    .block_ticks
-                    > 0;
+                let (target_alive, blocking) = {
+                    let state = self
+                        .world
+                        .entity(target_entity)
+                        .get::<PlayerState>()
+                        .expect("player state");
+                    (state.alive, state.block_ticks > 0)
+                };
+                if !target_alive {
+                    // A settled elimination cannot be re-decided by a later contact.
+                    removals.push(projectile_id);
+                    continue;
+                }
                 if blocking {
                     self.physics.reflect_bullet(projectile_id, target);
                     self.world
@@ -1836,14 +1846,13 @@ impl AuthoritativeMatch {
                 });
                 if self.profile == ReplayProfile::RadialSawHalfBlueReplay {
                     self.pending_radial_hit = Some(PendingRadialHit {
-                        owner: projectile.owner,
                         target,
                         direction: velocity,
                     });
                     removals.push(projectile_id);
                     continue;
                 }
-                let eliminated = {
+                {
                     let mut target_entity_mut = self.world.entity_mut(target_entity);
                     let mut target_state = target_entity_mut
                         .get_mut::<PlayerState>()
@@ -1880,21 +1889,16 @@ impl AuthoritativeMatch {
                         });
                         self.metrics.explosive_projectile_impacts += 1;
                     }
-                    let eliminated = target_state.health == 0;
-                    if eliminated {
+                    if target_state.health == 0 {
                         target_state.alive = false;
                     }
-                    eliminated
-                };
+                }
                 if projectile.explosive_radius_milli > 0 {
                     let impulse = projectile.explosive_impulse_milli as f32 / 1_000.0;
                     self.physics.apply_impulse(target, velocity * impulse);
                     self.trigger_projectile_explosion(projectile_id, projectile, impact_position);
                 }
                 removals.push(projectile_id);
-                if eliminated {
-                    self.winner = Some(projectile.owner);
-                }
             } else if self.physics.bullet_dynamic_contact(projectile_id).is_some()
                 || self.physics.bullet_platform_contact(projectile_id)
             {
@@ -1954,7 +1958,6 @@ impl AuthoritativeMatch {
             }
         }
 
-        let mut dead = Vec::new();
         for id in 0..2_u8 {
             let entity = self.player_entities[usize::from(id)];
             let (position, _) = self.physics.player_pose(id);
@@ -1967,13 +1970,64 @@ impl AuthoritativeMatch {
                     state.alive = false;
                     self.metrics.ring_outs += 1;
                 }
-                dead.push(id);
             }
         }
-        if dead.len() == 1 {
-            self.winner = Some(1 - dead[0]);
-        }
+        self.resolve_elimination_outcome();
+        // Standalone replays defer their result onset to a source tick.
         self.begin_result_if_due();
+    }
+
+    fn living_fighters(&self) -> Vec<u8> {
+        self.player_entities
+            .iter()
+            .filter_map(|entity| self.world.entity(*entity).get::<PlayerState>())
+            .filter(|state| state.alive)
+            .map(|state| state.id)
+            .collect()
+    }
+
+    /// Decides one fight outcome from who is still alive after this tick's
+    /// damage and ring-outs. A lone survivor wins; nobody wins when both fall
+    /// together, and an outcome already recorded is never replaced.
+    fn resolve_elimination_outcome(&mut self) {
+        if self.winner.is_some() {
+            return;
+        }
+        match self.living_fighters().as_slice() {
+            [survivor] => {
+                self.winner = Some(*survivor);
+                self.begin_result_if_due();
+            }
+            [] => {
+                if let Some(flow) = self.flow.as_mut()
+                    && flow.record_simultaneous_elimination()
+                {
+                    self.metrics.simultaneous_eliminations += 1;
+                    self.sync_round_from_flow();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Repeats the current fight in the same arena after a no-award result.
+    fn repeat_fight_in_place(&mut self) {
+        for entity in self
+            .projectile_entities
+            .values()
+            .copied()
+            .collect::<Vec<_>>()
+        {
+            self.world.despawn(entity);
+        }
+        for id in self.projectile_entities.keys().copied().collect::<Vec<_>>() {
+            self.physics.remove_bullet(id);
+        }
+        self.projectile_entities.clear();
+        self.physics.respawn_players();
+        self.arena_entry_from_milli = None;
+        self.revive_fighters();
+        self.winner = None;
     }
 
     fn begin_result_if_due(&mut self) {
@@ -4134,5 +4188,177 @@ mod tests {
                 .iter()
                 .any(|explosion| explosion.id >= 10_000)
         );
+    }
+
+    /// Plays the source rematch and both drafts, then waits for live combat.
+    fn connected_match_at_resumed_combat() -> (AuthoritativeMatch, MatchSnapshot) {
+        let scripts =
+            scripted_inputs_for(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, 2_200);
+        let mut game = AuthoritativeMatch::new_with_profile(
+            SOURCE_DRAFT_SEED,
+            ReplayProfile::RematchDraftReplay,
+        );
+        for (orange, blue) in scripts[0].iter().zip(&scripts[1]).take(2_200) {
+            game.step([*orange, *blue]);
+        }
+        let mut state = game.snapshot();
+        for _ in 0..600 {
+            if state.flow.as_ref().unwrap().phase == FlowPhase::ResumedCombat {
+                break;
+            }
+            game.step([PlayerInput::default(); 2]);
+            state = game.snapshot();
+        }
+        assert_eq!(state.flow.as_ref().unwrap().phase, FlowPhase::ResumedCombat);
+        (game, state)
+    }
+
+    /// Ordinary outward walking from the spawn until the fighter leaves the arena.
+    fn walk_outward(player: usize) -> PlayerInput {
+        PlayerInput {
+            move_axis: if player == 0 { -1 } else { 1 },
+            ..PlayerInput::default()
+        }
+    }
+
+    /// Ticks after combat resumes until one fighter, walking alone, rings out.
+    fn solo_ring_out_delay(player: usize) -> u32 {
+        let (mut game, start) = connected_match_at_resumed_combat();
+        for delay in 1..600 {
+            let mut inputs = [PlayerInput::default(); 2];
+            inputs[player] = walk_outward(player);
+            game.step(inputs);
+            if game.snapshot().metrics.ring_outs > start.metrics.ring_outs {
+                return delay;
+            }
+        }
+        panic!("player {player} never left the arena by walking");
+    }
+
+    #[test]
+    fn simultaneous_ring_out_freezes_both_fighters_and_repeats_the_fight_once() {
+        let delays = [solo_ring_out_delay(0), solo_ring_out_delay(1)];
+        let (mut game, start) = connected_match_at_resumed_combat();
+        let start_flow = start.flow.clone().unwrap();
+        let hold = [
+            delays[1].saturating_sub(delays[0]),
+            delays[0].saturating_sub(delays[1]),
+        ];
+        let mut state = start.clone();
+        for elapsed in 0..delays[0].max(delays[1]) {
+            let mut inputs = [PlayerInput::default(); 2];
+            for (player, input) in inputs.iter_mut().enumerate() {
+                if elapsed >= hold[player] {
+                    *input = walk_outward(player);
+                }
+            }
+            game.step(inputs);
+            state = game.snapshot();
+            assert_eq!(state.winner, None, "nobody wins before both leave");
+        }
+        let flow = state.flow.clone().unwrap();
+        assert_eq!(state.metrics.ring_outs, start.metrics.ring_outs + 2);
+        assert!(
+            state
+                .players
+                .iter()
+                .all(|player| !player.alive && player.health == 100)
+        );
+        assert_eq!(state.winner, None);
+        assert_eq!(flow.phase, FlowPhase::EliminationConclusion);
+        assert_eq!((flow.winner, flow.eliminated), (None, None));
+        assert_eq!(flow.fighter_alive, [false, false]);
+        assert_eq!(
+            (flow.halves, flow.scores),
+            (start_flow.halves, start_flow.scores)
+        );
+        assert_eq!(state.metrics.simultaneous_eliminations, 1);
+        let draw_tick = state.tick;
+        let frozen_aim = state.players.iter().map(|p| (p.aim_x, p.aim_y));
+        let frozen_aim = frozen_aim.collect::<Vec<_>>();
+
+        // Held and changed inputs after elimination cannot act or pick a winner.
+        let mut resumed_at = None;
+        for _ in 0..40 {
+            let hostile = PlayerInput {
+                move_axis: 1,
+                aim_x: 0,
+                aim_y: -1_000,
+                jump: true,
+                fire: true,
+                block: true,
+                ..PlayerInput::default()
+            };
+            game.step([hostile; 2]);
+            state = game.snapshot();
+            let flow = state.flow.as_ref().unwrap();
+            if flow.phase == FlowPhase::EliminationConclusion {
+                assert_eq!(state.metrics.shots_fired, start.metrics.shots_fired);
+                assert_eq!(state.metrics.jumps, start.metrics.jumps);
+                assert_eq!(
+                    state.metrics.block_activations,
+                    start.metrics.block_activations
+                );
+                assert!(state.projectiles.is_empty());
+                assert_eq!(state.winner, None);
+                let aim = state.players.iter().map(|p| (p.aim_x, p.aim_y));
+                assert_eq!(aim.collect::<Vec<_>>(), frozen_aim);
+            } else if resumed_at.is_none() {
+                resumed_at = Some(state.tick);
+                assert_eq!(flow.phase, FlowPhase::ResumedCombat);
+            }
+        }
+        let resumed_at = resumed_at.expect("the same fight repeats after the pause");
+        assert!(resumed_at > draw_tick && resumed_at <= draw_tick + 20);
+        let flow = state.flow.clone().unwrap();
+        assert_eq!(flow.fighter_alive, [true, true]);
+        assert_eq!(
+            (flow.halves, flow.scores),
+            (start_flow.halves, start_flow.scores)
+        );
+        assert_eq!(flow.loadouts, start_flow.loadouts);
+        assert_eq!(state.metrics.simultaneous_eliminations, 1);
+        assert_eq!(state.metrics.ring_outs, start.metrics.ring_outs + 2);
+        assert!(
+            state
+                .players
+                .iter()
+                .all(|player| player.alive && player.health == 100)
+        );
+        for (player, spawn) in state.players.iter().zip([-500_000, 500_000]) {
+            assert!((player.x_milli - spawn).abs() < 60_000, "{player:?}");
+            assert!(player.x_milli.abs() < quantize(KILL_X));
+        }
+        // The repeated fight accepts ordinary combat again: the hostile inputs
+        // above already fired and jumped once combat resumed.
+        assert!(state.metrics.shots_fired > start.metrics.shots_fired);
+        assert!(state.metrics.jumps > start.metrics.jumps);
+    }
+
+    #[test]
+    fn lone_ring_out_after_a_health_elimination_cannot_change_the_winner() {
+        let (mut game, start) = connected_match_at_resumed_combat();
+        let winner_before = start.winner;
+        assert_eq!(winner_before, None);
+        // Blue walks out alone; orange stays and wins that fight.
+        let mut state = start;
+        for _ in 0..600 {
+            game.step([PlayerInput::default(), walk_outward(1)]);
+            state = game.snapshot();
+            if state.winner.is_some() {
+                break;
+            }
+        }
+        assert_eq!(state.winner, Some(0));
+        assert_eq!(state.flow.as_ref().unwrap().halves, [1, 0]);
+        // Orange now walking out during the held result cannot undo the award.
+        for _ in 0..30 {
+            game.step([walk_outward(0), walk_outward(1)]);
+        }
+        let held = game.snapshot();
+        assert_eq!(held.flow.as_ref().unwrap().halves, [1, 0]);
+        assert_eq!(held.flow.as_ref().unwrap().winner, Some(0));
+        assert_eq!(held.metrics.simultaneous_eliminations, 0);
+        assert_eq!(held.metrics.ring_outs, state.metrics.ring_outs);
     }
 }

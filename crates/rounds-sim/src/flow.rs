@@ -409,6 +409,8 @@ pub struct FlowSnapshot {
 
 pub struct FlowAuthority {
     snapshot: FlowSnapshot,
+    /// Combat phase to repeat after a no-award simultaneous elimination.
+    repeat_phase: Option<FlowPhase>,
 }
 
 impl FlowAuthority {
@@ -451,6 +453,7 @@ impl FlowAuthority {
                 accepted_actions: 0,
                 catalog: item_catalog(),
             },
+            repeat_phase: None,
         }
     }
 
@@ -480,6 +483,21 @@ impl FlowAuthority {
         self.snapshot.winner = Some(winner);
         self.snapshot.eliminated = Some(1 - winner);
         self.snapshot.fighter_alive = [winner == 0, winner == 1];
+        self.transition(FlowPhase::EliminationConclusion, None);
+        true
+    }
+
+    /// Records that both fighters fell on the same tick. Provisional policy
+    /// pending source evidence: nobody scores, halves and loadouts stay, and the
+    /// same arena repeats without a draft. Returns false outside live combat.
+    pub fn record_simultaneous_elimination(&mut self) -> bool {
+        if !self.accepts_combat() {
+            return false;
+        }
+        self.repeat_phase = Some(self.snapshot.phase);
+        self.snapshot.winner = None;
+        self.snapshot.eliminated = None;
+        self.snapshot.fighter_alive = [false, false];
         self.transition(FlowPhase::EliminationConclusion, None);
         true
     }
@@ -535,10 +553,13 @@ impl FlowAuthority {
                         16
                     } =>
             {
-                let next = if self.snapshot.winner == Some(1) {
-                    FlowPhase::BlueResultTransition
-                } else {
-                    FlowPhase::OrangeResultTransition
+                let next = match self.snapshot.winner {
+                    Some(1) => FlowPhase::BlueResultTransition,
+                    Some(_) => FlowPhase::OrangeResultTransition,
+                    None => {
+                        self.snapshot.fighter_alive = [true, true];
+                        self.repeat_phase.take().unwrap_or(FlowPhase::ResumedCombat)
+                    }
                 };
                 self.transition(next, None);
             }
@@ -978,5 +999,60 @@ mod tests {
             ..Default::default()
         };
         assert_ne!(loadout_digest(&nominal), loadout_digest(&changed_loadout));
+    }
+
+    #[test]
+    fn simultaneous_elimination_awards_nothing_and_repeats_the_same_combat_phase() {
+        let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        assert!(!flow.record_simultaneous_elimination(), "not in combat");
+        advance_to_prompt(&mut flow);
+        let revision = flow.snapshot.phase_revision;
+        flow.advance([
+            Some(FlowCommand {
+                phase_revision: revision,
+                action: FlowAction::VoteYes,
+            }),
+            Some(FlowCommand {
+                phase_revision: revision,
+                action: FlowAction::VoteNo,
+            }),
+        ]);
+        assert_eq!(flow.snapshot.phase, FlowPhase::TerminalMatch);
+        assert!(!flow.record_simultaneous_elimination());
+
+        let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        flow.snapshot.halves = [1, 0];
+        flow.snapshot.loadouts = [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]];
+        flow.snapshot.winner = None;
+        flow.snapshot.eliminated = None;
+        flow.snapshot.fighter_alive = [true, true];
+        flow.transition(FlowPhase::TimberCombat, None);
+        let before = flow.snapshot();
+        assert!(flow.record_simultaneous_elimination());
+        assert_eq!(flow.snapshot.phase, FlowPhase::EliminationConclusion);
+        assert_eq!(flow.snapshot.fighter_alive, [false, false]);
+        assert_eq!(
+            (flow.snapshot.winner, flow.snapshot.eliminated),
+            (None, None)
+        );
+        assert!(!flow.has_terminal_result());
+        // A later elimination report cannot replace the recorded outcome.
+        assert!(!flow.record_elimination(0));
+        assert!(!flow.record_simultaneous_elimination());
+        let mut ticks = 0;
+        while flow.snapshot.phase == FlowPhase::EliminationConclusion {
+            flow.advance([None, None]);
+            ticks += 1;
+            assert!(ticks <= 30, "the pause is bounded");
+        }
+        assert_eq!(flow.snapshot.phase, FlowPhase::TimberCombat);
+        assert_eq!(flow.snapshot.fighter_alive, [true, true]);
+        assert_eq!(flow.snapshot.halves, before.halves);
+        assert_eq!(flow.snapshot.scores, before.scores);
+        assert_eq!(flow.snapshot.loadouts, before.loadouts);
+        assert_eq!(flow.snapshot.capabilities, before.capabilities);
+        assert!(flow.accepts_combat());
+        assert!(flow.record_elimination(1));
+        assert_eq!(flow.snapshot.halves, [1, 1]);
     }
 }
