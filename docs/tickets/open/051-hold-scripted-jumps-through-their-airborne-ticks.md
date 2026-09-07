@@ -1,0 +1,76 @@
+---
+format: 3
+status: idea
+created: 2026-09-07T12:05:00Z
+origin: system-detected
+tags: ["product-fidelity", "movement", "bevy"]
+value: 5
+risk: 2
+sessions:
+  - claude:96849848-e6ec-488e-b4ac-b113acc49f8a
+execution: unattended
+depends-on: []
+supersedes: []
+split-from: [50]
+---
+
+# Hold scripted jumps through their airborne ticks
+
+Seventeen jumps in the five replay input scripts are written as a single-tick press. The shipped simulation cannot tell a press from a hold once the fighter is off the ground — `set_player_control` computes `jumped = input.jump && grounded` and reads `input.jump` nowhere else — so extending each of those presses across the ticks the fighter is already airborne changes nothing at all today. Ticket 050 wants to add a jump-release cut, under which a jump that is still held keeps its full arc and a jump released early is cut short. Every one of these seventeen jumps would read as released on its first tick and would lose its arc. Rewriting them as press-plus-airborne-hold first turns 050 from a change that perturbs forty-one anchors into one whose preserved set is enumerated in advance, and it does so through a change whose no-op is provable at the public boundary rather than asserted.
+
+Why it matters: 050 currently carries risk 5 and blocks ticket 049. Its risk is almost entirely the preservation cost of moving jumps that were never meant to be short. This ticket removes that cost from 050's ledger at a cost of zero digest movement, and it is verifiable today without deciding anything about the release rule.
+
+## Outcome
+
+- Every one-tick jump press in `scripted_inputs_for` and `connected_ice_input` (`crates/rounds-sim/src/lib.rs`) is rewritten as `{T} ∪ [A, R)`, where `T` is today's press tick, `A` is the first tick after `T` on which that fighter's `PlayerSnapshot.grounded` is false, and `R` is the first tick after `A` on which it is true again. No added tick is one on which the fighter reports grounded, because a held jump re-applies the full impulse on the first tick contact restores `grounded` — the behaviour ticket 049 recorded for orange jumping at both 4711 and 4712. The seventeen rows and their exact windows are in the table below.
+- The nine per-anchor digests that `rounds-client capture-replay` writes — `stateSha256`, `dynamicBodySha256`, `arenaSha256`, `sawSha256`, `combatSha256`, `roundSha256`, `flowSha256`, `loadoutSha256` and `frameSha256` — are byte-identical before and after the change at all 73 anchors: teal 5, radial 8, yellow 11, timber 12 and rematch 37, captured at the seeds and tick counts the README and `docs/architecture.md` publish (teal seed 38 / 786 ticks, radial seed 42 / 938, yellow seed 43 / 155, timber seed 40 / 1440, rematch seed 41 / 5466). The two fields in the same metadata that necessarily move are `inputTraceSha256`, which is the SHA-256 of the serialised scripts themselves and therefore *must* change, and `executableSha256`, which changes on any rebuild; neither is a defect and no other field may move.
+- The 5,466-tick two-client smoke reports the same final `stateHash` as the retained baseline, with clients, local host and received-state GPU render in agreement, and `rounds-automation inspect` reports the same `stateHash`, `dynamicBodyDigest`, `combatDigest`, `roundDigest`, `flowDigest` and `loadoutDigest` for all five profiles at their full tick counts.
+- `metrics.jumps` at the end of each profile is unchanged: teal 17, radial 6, yellow 0, timber 5, rematch 141. A changed count is the direct symptom of a hold tick that lands on a grounded tick.
+- Seven of the seventeen presses gain a hold that covers the whole flight, which is longer than the shipped 23–24 tick rise, so under 050's release cut those jumps stay fully held and keep their arcs exactly: teal blue 40, 500 and 650, timber orange 120, timber blue 260, rematch orange 4929 and rematch blue 5000. Nine gain a hold of one to seven ticks, which is all the airborne room they have — radial orange 160, 340, 520, 820 and 888, radial blue 650, timber orange 1280, timber blue 1150 and rematch orange 5211 — and those are the jumps whose anchors 050 may still move. One press, timber orange 960, reports grounded on every one of the 48 ticks after it and gains no hold tick at all; it stays a bare one-tick press and is named here so a reader does not read its absence as an oversight.
+- No source pairing, anchor tick, arena contour, physics constant, profile, renderer path or transport changes, and no fidelity claim is made or withdrawn: this ticket delivers preparation, not fidelity.
+
+The seventeen presses, with the windows measured through the public `grounded` flag and retained as `out/ticket-050/grounded-windows.json` and `out/ticket-051/flight-ends.json`. Ticks are script indices, which are also the snapshot ticks the windows were read at; see the offset decision below.
+
+| profile | seed | fighter | press `T` | first airborne `A` | re-grounded `R` | hold ticks added | covers the full rise |
+|---|---:|---|---:|---:|---:|---:|---|
+| `teal-duel-replay` | 38 | blue | 40 | 42 | 74 | 32 | yes |
+| `teal-duel-replay` | 38 | blue | 500 | 502 | 534 | 32 | yes |
+| `teal-duel-replay` | 38 | blue | 650 | 652 | 681 | 29 | yes |
+| `radial-saw-half-blue-replay` | 42 | orange | 160 | 163 | 164 | 1 | no |
+| `radial-saw-half-blue-replay` | 42 | orange | 340 | 343 | 344 | 1 | no |
+| `radial-saw-half-blue-replay` | 42 | orange | 520 | 523 | 525 | 2 | no |
+| `radial-saw-half-blue-replay` | 42 | orange | 820 | 824 | 825 | 1 | no |
+| `radial-saw-half-blue-replay` | 42 | orange | 888 | 892 | 893 | 1 | no |
+| `radial-saw-half-blue-replay` | 42 | blue | 650 | 652 | 659 | 7 | no |
+| `timber-collapse-replay` | 40 | orange | 120 | 122 | 170 | 48 | yes |
+| `timber-collapse-replay` | 40 | orange | 960 | none | — | 0 | no airborne tick exists |
+| `timber-collapse-replay` | 40 | orange | 1280 | 1299 | 1305 | 6 | no |
+| `timber-collapse-replay` | 40 | blue | 260 | 262 | 310 | 48 | yes |
+| `timber-collapse-replay` | 40 | blue | 1150 | 1159 | 1160 | 1 | no |
+| `rematch-draft-replay` | 41 | orange | 4929 | 4931 | 4988 | 57 | yes |
+| `rematch-draft-replay` | 41 | orange | 5211 | 5213 | 5218 | 5 | no |
+| `rematch-draft-replay` | 41 | blue | 5000 | 5002 | 5070 | 68 | yes |
+
+Four of these fighters leave the ground again inside the same 48-tick probe, and `[A, R)` deliberately stops at the first re-grounding in every case: radial orange 520 is airborne again at 561–561 and 563–564, radial orange 820 at 859–859 and 861–861, radial blue 650 at 662–674, and rematch orange 5211 at 5220–5247. Two of those are a later separation from the geometry rather than a continuation of the jump, and the other two come after the arc has already ended, so nothing is gained by chasing them and each would need its own measured window. `[A, R)` is the whole rule.
+
+## Decisions
+
+- Input rows are configuration, and only input rows change. The edit is confined to the jump fields of `scripted_inputs_for` and the `actions` table of `connected_ice_input` in `crates/rounds-sim/src/lib.rs`, plus test code. No physics constant, no line of `set_player_control`, no contour, friction, gravity, damping or `JUMP_SPEED` value, no arena-specific rule, no new `ReplayProfile`, no anchor tick and no source pairing may move. No test-only input route may substitute for the shipped script.
+- Zero digest change is the acceptance criterion, not an expectation. Any movement in the nine per-anchor digests, in the smoke `stateHash` or in `metrics.jumps` is a defect in the rewritten rows — a hold tick that landed on a grounded tick — and is fixed by correcting the row. It is never grounds for re-tuning a route, re-timing an anchor or recapturing evidence. The only two metadata fields permitted to change are `inputTraceSha256` and `executableSha256`, for the reasons given in Outcome.
+- The hold windows are read as script indices without adjustment, and this is deliberate. `AuthoritativeMatch::step` increments `tick` first, so the input at script index `i` produces the snapshot whose `tick` is `i + 1`, and `set_player_control` at script index `i` reads the `grounded` flag published in the snapshot at tick `i`. `out/ticket-050/grounded-windows.json` recorded grounded per snapshot tick, so its airborne ticks are exactly the script indices on which a hold is inert. The implementation must demonstrate this in the regression rather than trust the arithmetic: assert `grounded == false` in the snapshot at each added tick, for each rewritten press.
+- Every field of every tick's `PlayerInput` other than `jump` stays exactly as it is today. `connected_ice_input` resolves overlapping rows last-match-wins and leaves ticks no row covers at `PlayerInput::default()`, whose `aim_x`/`aim_y` of zero `step` treats as "leave the aim alone" (`if acts && (input.aim_x != 0 || input.aim_y != 0)`). A hold that spans an uncovered gap must therefore be filled with a row that is `PlayerInput::default()` in every field but `jump` — movement 0, fire 0, aim `(0, 0)`, no opponent tracking — and a hold that spans an existing row must be made by splitting or amending that row, never by appending a broad overlay that would also overwrite its movement or aim.
+- No mechanic is admitted here. This ticket says nothing about whether a release cut should exist, what factor it should use or whether it should fire while airborne or whenever `velocity.y > 0`. Those belong to ticket 050 and this contract must stay true whether 050 lands or not.
+- Cargo must reuse the prepared target at `out/cargo-target` under the repository two-job cap in `.cargo/config.toml`; no clean build, and no concurrent Cargo invocation.
+- The only window this work may open is the one automated `visible-flow --automated` run in the verification set, launched hidden first with its verified window centre inside monitor 4 before it is shown, and closed afterwards.
+
+## Evidence required
+
+- A regression at the public step/snapshot boundary, driving `run_profile_snapshots` for each of the five profiles at its full tick count and asserting from `snapshot` alone, with no private body access: for every rewritten press, that the fighter's `grounded` is false on every added hold tick; that the set of ticks on which each fighter's scripted `jump` is true equals the table above unioned with the multi-tick hold windows that already exist and are not touched — teal orange `[330,670)`; rematch blue `[3000,3365)` and `[3700,3970)`; rematch orange and blue `[4000,4420)`; and the eight `connected_ice_input` rows that carry a hold longer than one tick, namely orange `[4710,4740)`, `[4820,4850)` and `[5230,5265)` and blue `[4601,4656)`, `[4801,4811)`, `[4943,4955)`, `[5135,5175)` and `[5213,5235)`; and that `metrics.jumps` at the final tick is 17, 6, 0, 5 and 141 respectively. This regression must be written and shown failing against the shipped one-tick rows before they are changed, and passing after.
+- A baseline captured from today's executables *before* the change and retained under `out/ticket-051/baseline-`: `rounds-client capture-replay` metadata for all five profiles at their published seeds and tick counts, the `rounds-automation inspect` report for each profile at its full tick count, and the 5,466-tick two-client smoke report. Then the same set after the change, and a comparison table naming, per anchor, all nine digest fields as identical. All 73 anchors are compared; sampling is not sufficient, because the failure mode this ticket guards against is a single wrong tick in one profile.
+- The full verification set on the prepared two-job target: `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo build --workspace --locked`; `cargo test --workspace --locked` with no failures and no ignored tests; the 5,466-tick two-client smoke with clients, local host and received-state GPU in agreement; `capture-replay` for all five profiles; the yellow 155-tick `capture`; one `visible-flow --profile rematch-draft-replay --seed 41 --ticks 5466 --automated` run reporting the verified window centre inside monitor 4; `git diff --check`. State plainly whatever was unavailable, as tickets 046, 047 and 049 did.
+- A responsibility inventory stating that only input configuration rows and test lines changed, with the line counts, and that no product behaviour, README, architecture note, fidelity observation or decision record became false — none should, because nothing observable changed. If any living record turns out to describe these rows, update it in the same change.
+
+## Work log
+
+- 2026-09-07T12:05:00Z stage design start session claude:96849848-e6ec-488e-b4ac-b113acc49f8a/shape-051-opus — Shaping ticket 050's measured first half into its own contract: rewrite the seventeen one-tick scripted jump presses as press-plus-airborne-hold so a later release-sensitive jump leaves their arcs alone. Reading the retained research and the shipped scripts only; no Cargo command and no window.
+- 2026-09-07T12:10:00Z stage design end session claude:96849848-e6ec-488e-b4ac-b113acc49f8a/shape-051-opus — Contract written with all seventeen presses and their exact `{T} ∪ [A, R)` windows. Two corrections to ticket 050's research were needed and are carried here. First, its Scratch said six presses have room for a full hold and eleven do not; its own `grounded-windows.json` shows seven with a contiguous airborne run of at least 24 ticks (teal 40/500/650, timber 120/260, rematch 4929/5000), nine with a run of one to seven ticks, and one — timber orange 960 — with no airborne tick in 48, so no hold at all. Second, four of those windows never re-grounded inside the 48-tick probe and had no stated end; `out/ticket-051/flight_ends.py` walked the same public `inspect` boundary forward and closed them at 170, 310, 4988 and 5070, so every one of the seventeen rows is now fully determined. Also read out of the code, and bound in Decisions, that `inputTraceSha256` hashes the serialised scripts and so must change while the other nine digests must not; that `step` increments the tick first, so a snapshot tick reads directly as the script index whose input saw that `grounded` flag; and that `connected_ice_input` is last-match-wins over `PlayerInput::default()` gaps, so a hold spanning a gap needs a default-shaped filler row. No product code, test, capture, README, architecture note or decision was touched, no Cargo command was run and no window was opened; the only files written outside this ticket are the ignored probe and its output under `out/ticket-051/`.
