@@ -11,7 +11,7 @@ sessions:
 execution: unattended
 depends-on: [46]
 supersedes: []
-split-from: [48]
+split-from: []
 ---
 
 # Run the first loser draft through flow and presentation
