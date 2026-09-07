@@ -413,8 +413,11 @@ struct PlayerState {
     block_ticks: u16,
     hit_flash_ticks: u8,
     grounded: bool,
-    /// Last tick's jump input, so `set_player_control` can see the tick it is
-    /// let go of. Authority-internal: it reaches no serialised projection.
+    /// Last tick's jump input, so `step` can see the tick it is let go of. It
+    /// follows the input on every tick the authority reads it, whether or not
+    /// control runs for this fighter, and is cleared with the rest of the
+    /// transient control state on a revive. Authority-internal: it reaches no
+    /// serialised projection.
     jump_held: bool,
     alive: bool,
     stun_ticks: u16,
@@ -1139,15 +1142,16 @@ impl PhysicsBoundary {
         })
     }
 
+    /// `released` is the fighter's own held-to-released transition on this tick,
+    /// decided by the caller from the input it read, so a release the fighter
+    /// could not act on is never carried forward to a later tick.
     fn set_player_control(
         &mut self,
         id: u8,
         input: PlayerInput,
         grounded: bool,
-        jump_held: &mut bool,
+        released: bool,
     ) -> bool {
-        let released = *jump_held && !input.jump;
-        *jump_held = input.jump;
         let body = &mut self.rapier.bodies[self.players[usize::from(id)].body];
         let mut velocity = body.linvel();
         let control = if input.move_axis == 0 {
@@ -1699,6 +1703,13 @@ impl AuthoritativeMatch {
                 // An eliminated fighter keeps its last pose but no input reaches it,
                 // including after a ring-out that leaves positive health.
                 let acts = state.alive && state.health > 0;
+                // The release memory follows the jump input on every tick the
+                // authority reads it, whether or not control runs for this
+                // fighter. A fighter that lets go while stunned or eliminated has
+                // let go; deferring that release to the tick control returns would
+                // cut a jump the fighter is already halfway through.
+                let released = state.jump_held && !input.jump;
+                state.jump_held = input.jump;
                 if acts && (input.aim_x != 0 || input.aim_y != 0) {
                     state.aim = Vector::new(f32::from(input.aim_x), f32::from(input.aim_y))
                         .normalize_or_zero();
@@ -1709,12 +1720,9 @@ impl AuthoritativeMatch {
                 }
                 if acts
                     && state.stun_ticks == 0
-                    && self.physics.set_player_control(
-                        state.id,
-                        input,
-                        state.grounded,
-                        &mut state.jump_held,
-                    )
+                    && self
+                        .physics
+                        .set_player_control(state.id, input, state.grounded, released)
                 {
                     self.metrics.jumps += 1;
                     state.grounded = false;
@@ -2219,6 +2227,7 @@ impl AuthoritativeMatch {
             state.stun_ticks = 0;
             state.stun_pulses_remaining = 0;
             state.stun_pulse_cooldown = 0;
+            state.jump_held = false;
         }
     }
 
@@ -4457,6 +4466,11 @@ mod tests {
         /// The subset of `existing_holds` ticket 050 extended, with the release
         /// tick they used to have.
         extended_holds: &'static [ExtendedJumpHold],
+        /// Releases that fall inside a freeze `step` returns from before it reads
+        /// control, as `(player, release tick, first controlled tick)`. The
+        /// release is consumed on the first controlled tick after the freeze, so
+        /// every tick of the window has to be free of the cut's condition.
+        frozen_releases: &'static [(usize, u32, u32)],
         jumps: u32,
         /// `rounds-automation inspect --profile <name>` reports this as `stateHash`.
         state_sha256: &'static str,
@@ -4474,6 +4488,7 @@ mod tests {
             ],
             existing_holds: &[(0, 330, 670)],
             extended_holds: &[],
+            frozen_releases: &[],
             jumps: 17,
             state_sha256: "dec5d001827bec942cd91dd9e0f92adfc23c2e212b5159af9e15fc52033f4e2e",
         },
@@ -4491,6 +4506,7 @@ mod tests {
             ],
             existing_holds: &[],
             extended_holds: &[],
+            frozen_releases: &[],
             jumps: 6,
             state_sha256: "b12c936c6b4d0991c796497e434f128b967b7972c1f2063d1d68aa0d2406879f",
         },
@@ -4501,6 +4517,7 @@ mod tests {
             presses: &[],
             existing_holds: &[],
             extended_holds: &[],
+            frozen_releases: &[],
             jumps: 0,
             state_sha256: "5f321381ae706f43498927d584ca664323bf556c1c309399a9f9ed6df8516879",
         },
@@ -4517,6 +4534,7 @@ mod tests {
             ],
             existing_holds: &[],
             extended_holds: &[],
+            frozen_releases: &[],
             jumps: 5,
             state_sha256: "f7ddbc03932e9dac0411a0f2565a388a398da23b67ba7156fa8fcea26aa74b8c",
         },
@@ -4553,6 +4571,7 @@ mod tests {
                 (1, 5_235, 5_244),
                 (0, 5_265, 5_282),
             ],
+            frozen_releases: &[(0, 4_541, 4_601)],
             jumps: 141,
             state_sha256: "cc2dbd3ecd3034ce8a2fbd1c689f33abf98aa7a7977298dec459b5f381ef331d",
         },
@@ -4615,6 +4634,39 @@ mod tests {
                      airborne and rising ({} milli u/s), so a release cut could reach it",
                     velocity_y_at(*end, *player)
                 );
+            }
+
+            // Ticket 050's correction. Orange's extended hold ends at 4541, which
+            // is inside the round-end freeze: from blue's elimination until the
+            // ice round begins, `step` returns before it reads any input, so the
+            // release is consumed on the first controlled tick after the freeze
+            // rather than on 4541 itself. It is inert either way, and this asserts
+            // the whole window is: physics is frozen at `velocity_y` 0 from 4541
+            // to 4600 and the fighter is grounded from 4601, so no tick between
+            // the release and the first controlled tick is airborne-and-rising.
+            for (player, release, first_controlled) in contract.frozen_releases {
+                for tick in *release..*first_controlled {
+                    assert_eq!(
+                        velocity_y_at(tick, *player),
+                        0,
+                        "{profile:?} player {player}: tick {tick} of the frozen release \
+                         window is not at rest, so the freeze is not what this claims"
+                    );
+                }
+                assert!(
+                    grounded_at(*first_controlled, *player),
+                    "{profile:?} player {player}: the first controlled tick \
+                     {first_controlled} after the frozen release at {release} is airborne"
+                );
+                for tick in *release..=*first_controlled {
+                    assert!(
+                        grounded_at(tick, *player) || velocity_y_at(tick, *player) <= 0,
+                        "{profile:?} player {player}: tick {tick} between the frozen \
+                         release at {release} and the first controlled tick is airborne \
+                         and rising ({} milli u/s), so a release cut could reach it",
+                        velocity_y_at(tick, *player)
+                    );
+                }
             }
 
             for (player, script) in scripts.iter().enumerate() {
@@ -4710,6 +4762,17 @@ mod tests {
     /// jumps again there — the behaviour ticket 049 recorded for orange at 4711
     /// and 4712 and ticket 051 built its hold windows around.
     fn scripted_jump_arc(hold: u32, ticks: u32) -> JumpArc {
+        scripted_jump_arc_with_stun(hold, ticks, None)
+    }
+
+    /// Drives the teal ground press of `scripted_jump_arc`, optionally stunning
+    /// the fighter across the release tick. With `stun` set, the stun is written
+    /// immediately after the press step, so the release at input tick `hold` is
+    /// read on a tick `step` skips `set_player_control` for that fighter, and
+    /// control returns `stun - 1` ticks later while the fighter is airborne and
+    /// still rising. Everything measured is still read from `snapshot`: no body,
+    /// velocity or position is touched.
+    fn scripted_jump_arc_with_stun(hold: u32, ticks: u32, stun: Option<u16>) -> JumpArc {
         const SETTLE: u32 = 30;
         let mut simulation =
             AuthoritativeMatch::new_with_profile(38, ReplayProfile::TealDuelReplay);
@@ -4730,6 +4793,11 @@ mod tests {
                 ..PlayerInput::default()
             };
             simulation.step([input, PlayerInput::default()]);
+            if let Some(stun) = stun
+                && index + 1 == hold
+            {
+                set_stun_ticks(&mut simulation, stun);
+            }
             let snapshot = simulation.snapshot();
             trace.push((
                 snapshot.tick,
@@ -4775,6 +4843,60 @@ mod tests {
             release_grounded,
             release_velocity_y_milli,
         }
+    }
+
+    /// Stuns fighter 0 exactly as a Dazzle impact does. The shipped impact is
+    /// `target_state.stun_ticks = projectile.dazzle_stun_ticks`, and every Dazzle
+    /// card in `flow.rs` carries `dazzle_stun_ticks: 6`. Firing a real Dazzle
+    /// projectile needs the draft profile 2,220 ticks in with both fighters placed
+    /// by hand, so the impact's own write is used here and nothing else about the
+    /// state is touched.
+    fn set_stun_ticks(simulation: &mut AuthoritativeMatch, ticks: u16) {
+        let entity = simulation.player_entities[0];
+        let mut player = simulation.world.entity_mut(entity);
+        player
+            .get_mut::<PlayerState>()
+            .expect("player state")
+            .stun_ticks = ticks;
+    }
+
+    /// Puts fighter 0 in the state an eliminated fighter is in as far as `acts` is
+    /// concerned: `step` computes `acts = state.alive && state.health > 0` and
+    /// skips control for it when that is false.
+    fn eliminate_fighter(simulation: &mut AuthoritativeMatch) {
+        let entity = simulation.player_entities[0];
+        let mut player = simulation.world.entity_mut(entity);
+        player.get_mut::<PlayerState>().expect("player state").alive = false;
+    }
+
+    /// Reads fighter 0's release memory. It is authority-internal and reaches no
+    /// snapshot, so there is nothing else to read it from.
+    fn jump_held(simulation: &AuthoritativeMatch) -> bool {
+        simulation
+            .world
+            .entity(simulation.player_entities[0])
+            .get::<PlayerState>()
+            .expect("player state")
+            .jump_held
+    }
+
+    /// Settles a teal fighter on flat ground and presses jump for one tick, the
+    /// grounded press ticket 051's rewrite leaves. The fighter is airborne and
+    /// rising afterwards, with `jump_held` true.
+    fn teal_match_after_a_one_tick_press() -> AuthoritativeMatch {
+        let mut simulation =
+            AuthoritativeMatch::new_with_profile(38, ReplayProfile::TealDuelReplay);
+        for _ in 0..30 {
+            simulation.step([PlayerInput::default(); 2]);
+        }
+        simulation.step([
+            PlayerInput {
+                jump: true,
+                ..PlayerInput::default()
+            },
+            PlayerInput::default(),
+        ]);
+        simulation
     }
 
     /// Ticket 049's whole-phase fit, unchanged: least squares of
@@ -4856,6 +4978,15 @@ mod tests {
         // source-shaped short hop, against the source's measured ice hop of
         // 80.5 px in 12 ticks fitting v0 746.5 and ascent 3100.
         let hop = scripted_jump_arc(12, 60);
+        println!(
+            "release 11 ticks after take-off: {:.2} px over {} ticks, fit v0 {:.0}, \
+             ascent {:.0}, rms {:.2}",
+            hop.rise_px,
+            hop.apex_tick - hop.takeoff_tick,
+            hop.fit_v0,
+            hop.fit_ascent,
+            hop.fit_rms
+        );
         assert!(
             !hop.release_grounded && hop.release_velocity_y_milli > 0,
             "the release must be read on an airborne rising tick: grounded={}, vy={}",
@@ -4960,6 +5091,99 @@ mod tests {
             (grounded_release.rise_px - 116.862).abs() < 0.001,
             "a grounded release must change nothing, got {:.3} px",
             grounded_release.rise_px
+        );
+    }
+
+    /// Ticket 050's correction. The release memory follows the jump input on
+    /// every tick the authority reads it, whether or not control runs for that
+    /// fighter, so a release read while the fighter cannot act is spent where it
+    /// happened instead of being deferred to the next controlled tick and judged
+    /// against the state there.
+    ///
+    /// The drive is the one-tick grounded press ticket 051's rewrite leaves at
+    /// `T + 1`: `grounded` true with `velocity_y_milli_per_second` +647,447, the
+    /// release the contract says "does nothing at all". Control is taken away
+    /// across it by the stun a Dazzle impact writes, and returns five ticks later
+    /// while the fighter is airborne and rising — where the deferred release used
+    /// to be cut, collapsing the arc from 116.862 px over 23 ticks to 53.993 px
+    /// over 11. The two tests after this one cover the eliminated fighter and the
+    /// revive.
+    #[test]
+    fn a_release_read_while_stunned_is_not_deferred_to_the_next_controlled_tick() {
+        let stunned = scripted_jump_arc_with_stun(1, 60, Some(6));
+        let rise_ticks = stunned.apex_tick - stunned.takeoff_tick;
+        println!(
+            "dazzle stun over the release: grounded {}, vy {} milli u/s; rise \
+             {:.3} px over {rise_ticks} ticks, {} jump(s), fit v0 {:.1}, ascent {:.0}",
+            stunned.release_grounded,
+            stunned.release_velocity_y_milli,
+            stunned.rise_px,
+            stunned.jumps,
+            stunned.fit_v0,
+            stunned.fit_ascent
+        );
+        assert!(
+            stunned.release_grounded,
+            "the one-tick press must still be released on a grounded tick"
+        );
+        assert_eq!(
+            stunned.release_velocity_y_milli, 647_447,
+            "the stunned release must be read while strongly rising"
+        );
+        assert_eq!(stunned.jumps, 1, "a one-tick press jumps once");
+        assert!(
+            (stunned.rise_px - 116.862).abs() < 0.001,
+            "a release read while stunned must change nothing, got {:.3} px over \
+             {rise_ticks} ticks (fit v0 {:.1}, ascent {:.0})",
+            stunned.rise_px,
+            stunned.fit_v0,
+            stunned.fit_ascent
+        );
+        assert_eq!(
+            rise_ticks, 23,
+            "a release read while stunned must leave the whole rise alone"
+        );
+    }
+
+    /// Ticket 050's correction, the eliminated fighter. `acts` is false on the
+    /// release tick, so control is skipped there; the elimination also ends the
+    /// round at the end of that same tick, so there is no later controlled tick
+    /// and the arc cannot carry the measurement. The memory itself is read
+    /// instead: it reaches no snapshot, and a release still standing in it is a
+    /// release waiting to be spent on whatever state control next sees.
+    #[test]
+    fn a_release_read_while_the_fighter_is_eliminated_is_not_left_standing() {
+        let mut eliminated = teal_match_after_a_one_tick_press();
+        assert!(
+            jump_held(&eliminated),
+            "the press must leave the release memory held"
+        );
+        eliminate_fighter(&mut eliminated);
+        eliminated.step([PlayerInput::default(); 2]);
+        assert!(
+            !jump_held(&eliminated),
+            "a release read while the fighter is eliminated must be spent on that \
+             tick, not left standing for the next controlled tick"
+        );
+    }
+
+    /// Ticket 050's correction, the revive. Every arena load, rematch reset and
+    /// repeated fight runs `revive_fighters`, which clears the fighter's transient
+    /// control state; the release memory belongs with the rest of it, so a fighter
+    /// that was still holding jump when its round ended starts the next one with
+    /// nothing to release.
+    #[test]
+    fn revive_fighters_clears_the_release_memory() {
+        let mut revived = teal_match_after_a_one_tick_press();
+        assert!(
+            jump_held(&revived),
+            "the press must leave the release memory held"
+        );
+        revived.revive_fighters();
+        assert!(
+            !jump_held(&revived),
+            "revive_fighters must clear the release memory with the rest of the \
+             fighter's transient control state"
         );
     }
 }
