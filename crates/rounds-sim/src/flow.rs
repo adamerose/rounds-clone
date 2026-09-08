@@ -403,7 +403,7 @@ pub fn item_catalog() -> Vec<ItemDefinition> {
             "PARASITE",
             &[
                 "Bullets deal damage over 5 seconds",
-                "More life steal",
+                "More Life steal",
                 "More HP",
                 "More DMG",
                 "+0.25s Reload time",
@@ -1250,7 +1250,7 @@ mod tests {
                 "PARASITE",
                 vec![
                     "Bullets deal damage over 5 seconds",
-                    "More life steal",
+                    "More Life steal",
                     "More HP",
                     "More DMG",
                     "+0.25s Reload time",
