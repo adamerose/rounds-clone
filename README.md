@@ -31,7 +31,7 @@ The 2,400-tick rematch replay capture retains thirteen named 1280×720 anchors. 
 ## Play the connected match
 
 Run `out/cargo-target/debug/rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 18000` for a bounded five-minute local session. The window starts hidden and appears only after verifying the project's monitor-4 placement.
-At `REMATCH?`, orange accepts with Y and blue with Enter. Use left/right arrows and Enter to choose each player's card; only Dazzle and Explosive Bullet have implemented combat behavior. The same match carries those cards through the fights needed to finish the first round.
+At `REMATCH?`, orange accepts with Y and blue with Enter. Use left/right arrows and Enter to choose each player's card. The opening fans can confirm only Dazzle and Explosive Bullet; Quick Shot's projectile-speed capability is added later by the loser draft. The same match carries those cards through the fights needed to finish the first round.
 
 | Input | Orange | Blue |
 |---|---|---|
@@ -50,7 +50,7 @@ Capture all 48 shared-renderer entries with `out/cargo-target/debug/rounds-clien
 ## What is and is not implemented
 
 The rematch slice adds an authoritative blue winner and orange elimination, the exact prior-card badges, explicit accepted-rematch reset, phase revisions, per-player votes, seeded five-card offers, active-player validation, typed persistent loadouts, Dazzle stun pulses, Explosive Bullet impacts, item-specific card art and pose response, and a source-timed return to combat.
-Seven distinct unselected definitions are intentionally catalog-only and cannot be confirmed; they remain visible fidelity targets rather than inert fake upgrades.
+The catalog contains 14 definitions. Dazzle, Explosive Bullet, and Quick Shot are implemented; the other eleven definitions are catalog-only and cannot be confirmed. The separate general implemented-offer pool contains those three implemented entries, but it does not drive the fixed source-shaped offer lists.
 The teal slice has stable Bevy ECS identities, Rapier bodies and contacts behind a private boundary, static stepped geometry, movement and air control, jumping, aiming, recoil, CCD bullets, reflection, damage-scaled knockback, a terminal upper-right impact, one winner, a real Bevy renderer, and live authoritative snapshots.
 Jump height is variable in every arena: letting go of jump while airborne and still rising cuts the remaining upward speed to 30 %, so a held jump rises 116.86 px over 23 ticks and a jump let go of eleven ticks after take-off rises 85.12 px over 14 ticks. Holding jump changes nothing, and a release read on a grounded tick does nothing whatever the vertical speed. Letting go while stunned or eliminated counts as letting go on that tick, so being stunned mid-jump never cuts the jump short once the stun wears off. No shipped replay script exercises the cut yet — every scripted release falls on a grounded or already-falling tick, which is why all 73 capture anchors are byte-identical across the change — so the first deliberate use of it will be the ice route ticket 049 owns.
 Ring-out remains a separately tested simulation capability; the named replay ends before the result transition and records no ring-out.

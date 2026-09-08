@@ -4206,14 +4206,29 @@ mod tests {
         assert_eq!(projectile_launch_speed(default), BULLET_SPEED);
 
         let confirmed =
-            run_profile_match(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, 5_802).0;
-        let quick_shot = confirmed.flow.unwrap().capabilities[0];
-        assert!(projectile_launch_speed(quick_shot) > BULLET_SPEED);
+            run_profile_match(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, 5_802)
+                .0
+                .flow
+                .unwrap();
+        assert!(confirmed.loadouts[0].contains(&ItemId::QuickShot));
+        let quick_shot = confirmed.capabilities[0];
+        assert_eq!(quick_shot.projectile_speed_factor.milli, 1_250);
+        assert_ne!(
+            quick_shot.projectile_speed_factor,
+            default.projectile_speed_factor
+        );
         assert_eq!(quick_shot.dazzle_stun_pulses, 3);
         assert_eq!(quick_shot.dazzle_stun_ticks, 6);
         assert_eq!(quick_shot.fire_cooldown_extra_ticks, 15);
 
         let (mut game, previous) = connected_match_at_resumed_combat();
+        game.flow
+            .as_mut()
+            .unwrap()
+            .copy_player_build_for_test(0, &confirmed);
+        let equipped = game.snapshot().flow.unwrap();
+        assert!(equipped.loadouts[0].contains(&ItemId::QuickShot));
+        assert_eq!(equipped.capabilities[0], quick_shot);
         game.step([
             PlayerInput {
                 fire: true,
@@ -4235,7 +4250,10 @@ mod tests {
         )
         .length()
             / 1_000.0;
-        assert!((speed - projectile_launch_speed(default)).abs() < 0.01);
+        let expected_speed = BULLET_SPEED * f32::from(quick_shot.projectile_speed_factor.milli)
+            / f32::from(ProjectileSpeedFactor::default().milli);
+        assert_eq!(expected_speed, 4_500.0);
+        assert!((speed - expected_speed).abs() < 0.01, "{speed}");
     }
 
     #[test]

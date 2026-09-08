@@ -598,6 +598,13 @@ impl FlowAuthority {
         self.snapshot.capabilities[usize::from(player)]
     }
 
+    #[cfg(test)]
+    pub(crate) fn copy_player_build_for_test(&mut self, player: u8, source: &FlowSnapshot) {
+        let index = usize::from(player);
+        self.snapshot.loadouts[index] = source.loadouts[index].clone();
+        self.snapshot.capabilities[index] = source.capabilities[index];
+    }
+
     pub fn accepts_combat(&self) -> bool {
         matches!(
             self.snapshot.phase,
