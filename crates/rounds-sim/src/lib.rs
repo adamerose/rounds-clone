@@ -219,6 +219,36 @@ pub struct ArenaSurfaceSnapshot {
     pub face_rgb: [u8; 3],
 }
 
+/// One source-observed hanging body and its presentation-only square/link geometry.
+/// These values deliberately carry no collider, mass, joint, or solver semantics.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HangingBodyPresentation {
+    pub id: u16,
+    pub nominal_x_milli: i32,
+    pub body_x_milli: i32,
+    pub body_y_milli: i32,
+    pub body_width_milli: i32,
+    pub body_height_milli: i32,
+    pub square_x_milli: i32,
+    pub square_y_milli: i32,
+    pub square_size_milli: i32,
+    pub square_opening_milli: i32,
+    pub ceiling_y_milli: i32,
+    pub body_top_y_milli: i32,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HangingEntryPresentation {
+    pub age_ticks: u8,
+    pub body_rgb: [u8; 3],
+    pub square_rim_rgb: [u8; 3],
+    pub square_opening_rgb: [u8; 3],
+    pub link_rgb: [u8; 3],
+    pub bodies: Vec<HangingBodyPresentation>,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SawSnapshot {
@@ -394,6 +424,7 @@ pub struct MatchSnapshot {
     pub profile: String,
     pub tick: u32,
     pub arena: Vec<ArenaSurfaceSnapshot>,
+    pub hanging_entry: Option<HangingEntryPresentation>,
     pub saws: Vec<SawSnapshot>,
     pub dynamic_bodies: Vec<DynamicBodySnapshot>,
     pub constraints: Vec<ConstraintSnapshot>,
@@ -961,6 +992,32 @@ impl PhysicsBoundary {
         }
     }
 
+    fn load_held_hanging_entry(&mut self) {
+        for constraint in std::mem::take(&mut self.constraints).into_values() {
+            self.rapier.impulse_joints.remove(constraint.handle, true);
+        }
+        for body in std::mem::take(&mut self.dynamic_bodies).into_values() {
+            self.rapier.remove_body(body.body);
+        }
+        if let Some(anchor) = self.timber_anchor.take() {
+            self.rapier.remove_body(anchor);
+        }
+        for collider in self
+            .platforms
+            .drain(..)
+            .chain(self.retired_platforms.drain(..))
+        {
+            if let Some(body) = self.rapier.colliders[collider].parent() {
+                self.rapier.remove_body(body);
+            }
+        }
+        for id in self.bullets.keys().copied().collect::<Vec<_>>() {
+            self.remove_bullet(id);
+        }
+        self.spawns = [Vector::new(-405.0, 53.0), Vector::new(405.0, 87.0)];
+        self.respawn_players();
+    }
+
     fn load_timber_arena(&mut self) {
         // Keep the established Rapier insertion order for the connected timber
         // contacts. These colliders cannot collide; ice loading removes them.
@@ -1414,6 +1471,7 @@ enum ArenaStage {
     Profile,
     Timber,
     Ice,
+    HangingEntry,
 }
 
 pub struct AuthoritativeMatch {
@@ -1643,6 +1701,7 @@ impl AuthoritativeMatch {
         let mut rematch_reset = false;
         let mut timber_load = false;
         let mut ice_load = false;
+        let mut hanging_entry_load = false;
         let mut timber_combat_started = false;
         let mut repeated_after_draw = false;
         let mut accepts_combat = true;
@@ -1656,6 +1715,8 @@ impl AuthoritativeMatch {
                 && phase == FlowPhase::TimberTransition;
             ice_load =
                 previous_phase != FlowPhase::IceTransition && phase == FlowPhase::IceTransition;
+            hanging_entry_load =
+                previous_phase != FlowPhase::HangingEntry && phase == FlowPhase::HangingEntry;
             timber_combat_started = previous_phase != phase
                 && matches!(phase, FlowPhase::TimberCombat | FlowPhase::IceCombat);
             repeated_after_draw =
@@ -1670,6 +1731,9 @@ impl AuthoritativeMatch {
         if ice_load {
             self.load_ice_arena();
             self.revive_fighters();
+        }
+        if hanging_entry_load {
+            self.load_held_hanging_entry();
         }
         if repeated_after_draw {
             self.repeat_fight_in_place();
@@ -2167,9 +2231,10 @@ impl AuthoritativeMatch {
                 RoundPhase::ResultTransition
             }
             FlowPhase::HalfBlue => RoundPhase::HalfBlue,
-            FlowPhase::TimberTransition | FlowPhase::IceTransition | FlowPhase::PostRoundBridge => {
-                RoundPhase::ArenaTransition
-            }
+            FlowPhase::TimberTransition
+            | FlowPhase::IceTransition
+            | FlowPhase::PostRoundBridge
+            | FlowPhase::HangingEntry => RoundPhase::ArenaTransition,
             FlowPhase::RoundBlue => RoundPhase::RoundBlue,
             FlowPhase::RoundOrange => RoundPhase::RoundOrange,
             FlowPhase::HalfOrange => RoundPhase::HalfOrange,
@@ -2227,6 +2292,32 @@ impl AuthoritativeMatch {
         self.explosions.clear();
         self.impacts.clear();
         self.arena_stage = ArenaStage::Ice;
+    }
+
+    fn load_held_hanging_entry(&mut self) {
+        if self.arena_stage == ArenaStage::HangingEntry {
+            return;
+        }
+        for entity in self
+            .projectile_entities
+            .values()
+            .chain(self.dynamic_body_entities.values())
+            .chain(self.constraint_entities.values())
+            .copied()
+            .collect::<Vec<_>>()
+        {
+            self.world.despawn(entity);
+        }
+        self.projectile_entities.clear();
+        self.dynamic_body_entities.clear();
+        self.constraint_entities.clear();
+        self.physics.load_held_hanging_entry();
+        self.explosions.clear();
+        self.impacts.clear();
+        self.arena_entry_from_milli = None;
+        self.revive_fighters();
+        self.winner = None;
+        self.arena_stage = ArenaStage::HangingEntry;
     }
 
     fn revive_fighters(&mut self) {
@@ -2355,7 +2446,7 @@ impl AuthoritativeMatch {
             })
             .collect();
         MatchSnapshot {
-            protocol: 7,
+            protocol: 8,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
@@ -2363,6 +2454,8 @@ impl AuthoritativeMatch {
                 ice_arena().to_vec()
             } else if self.arena_stage == ArenaStage::Timber {
                 timber_arena().to_vec()
+            } else if self.arena_stage == ArenaStage::HangingEntry {
+                Vec::new()
             } else if self.profile == ReplayProfile::RematchDraftReplay
                 && self.flow.as_ref().is_some_and(|flow| {
                     matches!(
@@ -2375,6 +2468,14 @@ impl AuthoritativeMatch {
             } else {
                 arena_for_profile(self.profile).to_vec()
             },
+            hanging_entry: (self.arena_stage == ArenaStage::HangingEntry).then(|| {
+                let age = self
+                    .flow
+                    .as_ref()
+                    .map(|flow| flow.snapshot().phase_tick.min(47) as u8)
+                    .unwrap_or(0);
+                hanging_entry_presentation(age)
+            }),
             saws,
             dynamic_bodies,
             constraints,
@@ -2421,6 +2522,271 @@ pub fn teal_arena() -> &'static [ArenaSurfaceSnapshot] {
         surface(18, 520, -286, 58, 32, DARK),
     ];
     &ARENA
+}
+
+#[derive(Clone, Copy)]
+struct HangingBodyLayout {
+    id: u16,
+    x: i32,
+    body_y: i32,
+    body_height: i32,
+    square_y: i32,
+    body_top_y: i32,
+}
+
+const HANGING_LAYOUT: [HangingBodyLayout; 21] = [
+    HangingBodyLayout {
+        id: 400,
+        x: -405,
+        body_y: 23,
+        body_height: 36,
+        square_y: 152,
+        body_top_y: 41,
+    },
+    HangingBodyLayout {
+        id: 401,
+        x: -315,
+        body_y: 21,
+        body_height: 108,
+        square_y: 152,
+        body_top_y: 75,
+    },
+    HangingBodyLayout {
+        id: 402,
+        x: -225,
+        body_y: 21,
+        body_height: 108,
+        square_y: 152,
+        body_top_y: 75,
+    },
+    HangingBodyLayout {
+        id: 403,
+        x: -135,
+        body_y: 21,
+        body_height: 108,
+        square_y: 152,
+        body_top_y: 75,
+    },
+    HangingBodyLayout {
+        id: 404,
+        x: -45,
+        body_y: 21,
+        body_height: 108,
+        square_y: 152,
+        body_top_y: 75,
+    },
+    HangingBodyLayout {
+        id: 405,
+        x: 45,
+        body_y: 21,
+        body_height: 108,
+        square_y: 152,
+        body_top_y: 75,
+    },
+    HangingBodyLayout {
+        id: 406,
+        x: 135,
+        body_y: 21,
+        body_height: 108,
+        square_y: 152,
+        body_top_y: 75,
+    },
+    HangingBodyLayout {
+        id: 407,
+        x: 225,
+        body_y: 21,
+        body_height: 108,
+        square_y: 152,
+        body_top_y: 75,
+    },
+    HangingBodyLayout {
+        id: 408,
+        x: 315,
+        body_y: 21,
+        body_height: 108,
+        square_y: 152,
+        body_top_y: 75,
+    },
+    HangingBodyLayout {
+        id: 409,
+        x: 405,
+        body_y: 23,
+        body_height: 36,
+        square_y: 152,
+        body_top_y: 41,
+    },
+    HangingBodyLayout {
+        id: 410,
+        x: -450,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 411,
+        x: -360,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 412,
+        x: -270,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 413,
+        x: -180,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 414,
+        x: -90,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 415,
+        x: 0,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 416,
+        x: 90,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 417,
+        x: 180,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 418,
+        x: 270,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 419,
+        x: 360,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+    HangingBodyLayout {
+        id: 420,
+        x: 450,
+        body_y: -235,
+        body_height: 108,
+        square_y: -104,
+        body_top_y: -181,
+    },
+];
+
+const LEFT_ENTRY_KNOTS: [(u8, f32); 7] = [
+    (0, 1_102.0),
+    (4, 755.5),
+    (8, 440.5),
+    (12, 224.5),
+    (16, 90.5),
+    (20, 21.5),
+    (24, 0.0),
+];
+const RIGHT_ENTRY_KNOTS: [(u8, f32); 7] = [
+    (0, 1_102.0),
+    (4, 755.5),
+    (8, 390.0),
+    (12, 191.5),
+    (16, 72.0),
+    (20, 13.5),
+    (24, 0.0),
+];
+const CENTRAL_ENTRY_KNOTS: [(u8, f32); 7] = [
+    (0, 1_102.0),
+    (4, 755.5),
+    (8, 495.5),
+    (12, 260.5),
+    (16, 111.5),
+    (20, 30.5),
+    (24, 0.0),
+];
+
+fn monotone_entry_offset(age: u8, knots: &[(u8, f32)]) -> f32 {
+    if age >= knots.last().expect("entry curve has knots").0 {
+        return 0.0;
+    }
+    let pair = knots
+        .windows(2)
+        .find(|pair| age >= pair[0].0 && age <= pair[1].0)
+        .expect("entry age lies within curve");
+    let t = f32::from(age - pair[0].0) / f32::from(pair[1].0 - pair[0].0);
+    let smooth = t * t * (3.0 - 2.0 * t);
+    pair[0].1 + (pair[1].1 - pair[0].1) * smooth
+}
+
+pub fn hanging_entry_presentation(age: u8) -> HangingEntryPresentation {
+    let age = age.min(47);
+    let bodies = HANGING_LAYOUT
+        .iter()
+        .map(|body| {
+            let square_offset = if body.x < 0 {
+                monotone_entry_offset(age, &LEFT_ENTRY_KNOTS)
+            } else if body.x > 0 {
+                monotone_entry_offset(age, &RIGHT_ENTRY_KNOTS)
+            } else {
+                monotone_entry_offset(age, &CENTRAL_ENTRY_KNOTS)
+            };
+            let body_offset = if body.id == 415 {
+                monotone_entry_offset(age.saturating_add(4), &CENTRAL_ENTRY_KNOTS)
+            } else {
+                square_offset
+            };
+            HangingBodyPresentation {
+                id: body.id,
+                nominal_x_milli: body.x * 1_000,
+                body_x_milli: ((body.x as f32 + body_offset) * 1_000.0).round() as i32,
+                body_y_milli: body.body_y * 1_000,
+                body_width_milli: 36_000,
+                body_height_milli: body.body_height * 1_000,
+                square_x_milli: ((body.x as f32 + square_offset) * 1_000.0).round() as i32,
+                square_y_milli: body.square_y * 1_000,
+                square_size_milli: 23_000,
+                square_opening_milli: 17_000,
+                ceiling_y_milli: 400_000,
+                body_top_y_milli: body.body_top_y * 1_000,
+            }
+        })
+        .collect();
+    HangingEntryPresentation {
+        age_ticks: age,
+        body_rgb: [157, 92, 72],
+        square_rim_rgb: [102, 61, 62],
+        square_opening_rgb: [3, 8, 30],
+        link_rgb: [67, 61, 61],
+        bodies,
+    }
 }
 
 pub fn timber_arena() -> &'static [ArenaSurfaceSnapshot] {
@@ -4201,6 +4567,125 @@ mod tests {
     }
 
     #[test]
+    fn connected_route_enters_one_presentation_only_held_hanging_scene() {
+        let scripts = scripted_inputs_for(
+            ReplayProfile::RematchDraftReplay,
+            SOURCE_DRAFT_SEED,
+            HELD_HANGING_ENTRY_TICKS,
+        );
+        let mut game = AuthoritativeMatch::new_with_profile(
+            SOURCE_DRAFT_SEED,
+            ReplayProfile::RematchDraftReplay,
+        );
+        let mut previous = game.snapshot();
+        let mut accepted_before_entry = None;
+        for tick in 0..HELD_HANGING_ENTRY_TICKS {
+            let inputs = if tick >= FIRST_LOSER_DRAFT_TICKS {
+                [
+                    PlayerInput {
+                        move_axis: 1,
+                        jump: true,
+                        fire: true,
+                        block: true,
+                        ..PlayerInput::default()
+                    },
+                    PlayerInput {
+                        move_axis: -1,
+                        jump: true,
+                        fire: true,
+                        block: true,
+                        ..PlayerInput::default()
+                    },
+                ]
+            } else {
+                [scripts[0][tick as usize], scripts[1][tick as usize]]
+            };
+            game.step([
+                inputs[0].with_progressive_observation(0, Some(&previous)),
+                inputs[1].with_progressive_observation(1, Some(&previous)),
+            ]);
+            let state = game.snapshot();
+            if state.tick == FIRST_LOSER_DRAFT_TICKS {
+                accepted_before_entry = Some(state.flow.as_ref().unwrap().accepted_actions);
+            }
+            if state.tick == 5_894 {
+                let flow = state.flow.as_ref().unwrap();
+                assert_eq!(flow.phase, FlowPhase::HangingEntry);
+                assert_eq!(flow.phase_tick, 0);
+                assert_eq!(flow.scores, [0, 1]);
+                assert_eq!(flow.halves, [0, 0]);
+                assert_eq!(flow.winner, None);
+                assert_eq!(flow.eliminated, None);
+                assert_eq!(flow.fighter_alive, [true, true]);
+                assert!(state.arena.is_empty());
+                assert!(state.dynamic_bodies.is_empty());
+                assert!(state.constraints.is_empty());
+                assert!(state.projectiles.is_empty());
+                assert!(game.physics.platforms.is_empty());
+                assert!(game.physics.dynamic_bodies.is_empty());
+                assert!(game.physics.constraints.is_empty());
+                assert!(game.physics.bullets.is_empty());
+                let hanging = state.hanging_entry.as_ref().unwrap();
+                assert_eq!(hanging.bodies.len(), 21);
+                let first = hanging.bodies.iter().find(|body| body.id == 410).unwrap();
+                assert_eq!(first.body_x_milli - first.body_width_milli / 2, 634_000);
+            }
+            if state.tick == 5_914 {
+                let hanging = state.hanging_entry.as_ref().unwrap();
+                let central = hanging.bodies.iter().find(|body| body.id == 415).unwrap();
+                assert_eq!(central.body_x_milli, 0);
+                assert_eq!(central.square_x_milli, 30_500);
+            }
+            if state.tick >= 5_894 {
+                assert_eq!(
+                    state
+                        .players
+                        .iter()
+                        .map(|player| (player.x_milli, player.y_milli))
+                        .collect::<Vec<_>>(),
+                    [(-405_000, 53_000), (405_000, 87_000)]
+                );
+                assert!(state.players.iter().all(|player| {
+                    player.alive
+                        && player.health == 100
+                        && player.velocity_x_milli_per_second == 0
+                        && player.velocity_y_milli_per_second == 0
+                }));
+                assert_eq!(state.metrics, previous.metrics);
+            }
+            previous = state;
+        }
+        let flow = previous.flow.as_ref().unwrap();
+        assert_eq!(flow.phase, FlowPhase::HangingEntry);
+        assert_eq!(flow.phase_tick, 47);
+        assert_eq!(flow.accepted_actions, accepted_before_entry.unwrap());
+        assert_eq!(
+            flow.loadouts,
+            [
+                vec![ItemId::Dazzle, ItemId::QuickShot],
+                vec![ItemId::ExplosiveBullet]
+            ]
+        );
+        assert_eq!(
+            previous.round.as_ref().unwrap().completed_rounds,
+            Some([0, 1])
+        );
+        let hanging = previous.hanging_entry.unwrap();
+        assert_eq!(hanging.age_ticks, 47);
+        assert_eq!(
+            hanging
+                .bodies
+                .iter()
+                .map(|body| body.id)
+                .collect::<Vec<_>>(),
+            (400..=420).collect::<Vec<_>>()
+        );
+        assert!(hanging.bodies.iter().all(|body| {
+            body.body_x_milli == body.nominal_x_milli && body.square_x_milli == body.nominal_x_milli
+        }));
+    }
+
+    #[test]
     fn connected_first_loser_draft_rejects_invalid_public_flow_commands_without_mutation() {
         type RetainedState = (
             [u8; 2],
@@ -4858,7 +5343,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 17,
-            state_sha256: "5dc920df490981a15057e729f1278b83a73f338789bced109b4d08f0c80f55b1",
+            state_sha256: "f4be9397651e707770b38b78cf6db79faff821171d1bb082dea2d0ab221f8306",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::RadialSawHalfBlueReplay,
@@ -4876,7 +5361,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 6,
-            state_sha256: "c91ca18ef278aa06f935c0056c44d213b479a0d5e0a8da1351db38649b99dcfa",
+            state_sha256: "570e338b0ec0b9cbfd410904a6f5f902b1cefdce794bcd5ff0d77c59dd11a47e",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::YellowCrateTerminalBlastReplay,
@@ -4887,7 +5372,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 0,
-            state_sha256: "74bae86dc24cc1caab44c341d8fbd685b65e900a814f3e093a83e7445ee2ef1f",
+            state_sha256: "7753f25a4cd679c0cbb7ad47335107a477a64bbc61abc61ecd95f44796a3b070",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::TimberCollapseReplay,
@@ -4904,7 +5389,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 5,
-            state_sha256: "013e4b851317f50f7d0a5fe57ea0b24e221c04544052e6fa3ca33f2ca7ab7579",
+            state_sha256: "350d07d54914461fbcfad9dbbf89f0a1e1225118a93dad64e35874c32649f561",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::RematchDraftReplay,
@@ -4941,7 +5426,7 @@ mod tests {
             ],
             frozen_releases: &[(0, 4_541, 4_601)],
             jumps: 141,
-            state_sha256: "c6afc39c856ea99e29cf5a9e5227b8b90b4699f0da8b14f72e020c1ecf08daaa",
+            state_sha256: "bead1e19e27b6f06cfc024cc657069c705c6fd2b098cca53f9abd1bf60bad19a",
         },
     ];
 

@@ -4,6 +4,7 @@ use sha2::{Digest, Sha256};
 pub const REMATCH_DRAFT_TICKS: u32 = 4_540;
 pub const CONNECTED_FIRST_ROUND_TICKS: u32 = 5_466;
 pub const FIRST_LOSER_DRAFT_TICKS: u32 = 5_893;
+pub const HELD_HANGING_ENTRY_TICKS: u32 = 5_941;
 pub const CONNECTED_ICE_LOAD_TICK: u32 = 4_541;
 pub const CONNECTED_ICE_COMBAT_TICK: u32 = 4_601;
 pub const CONNECTED_ICE_RESULT_ONSET_TICK: u32 = 5_339;
@@ -408,6 +409,7 @@ pub enum FlowPhase {
     PostRoundDraft,
     PostRoundReveal,
     PostRoundBridge,
+    HangingEntry,
     TerminalMatch,
 }
 
@@ -698,6 +700,12 @@ impl FlowAuthority {
             }
             FlowPhase::PostRoundReveal if self.snapshot.phase_tick >= 16 => {
                 self.transition(FlowPhase::PostRoundBridge, None);
+            }
+            FlowPhase::PostRoundBridge if self.snapshot.phase_tick >= 76 => {
+                self.snapshot.winner = None;
+                self.snapshot.eliminated = None;
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::HangingEntry, None);
             }
             FlowPhase::EliminationConclusion
                 if self.snapshot.phase_tick

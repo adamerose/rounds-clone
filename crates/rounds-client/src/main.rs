@@ -182,6 +182,7 @@ fn capture_replay(
                 LEGACY_REMATCH_DRAFT_TICKS
                     | rounds_sim::CONNECTED_FIRST_ROUND_TICKS
                     | rounds_sim::FIRST_LOSER_DRAFT_TICKS
+                    | rounds_sim::HELD_HANGING_ENTRY_TICKS
             ))
     {
         return Err(format!(
@@ -285,7 +286,7 @@ fn capture_replay(
                     ("ice-round-pip", 5466),
                 ]);
             }
-            if ticks == rounds_sim::FIRST_LOSER_DRAFT_TICKS {
+            if ticks >= rounds_sim::FIRST_LOSER_DRAFT_TICKS {
                 anchors.extend([
                     ("first-round-endpoint", 5466),
                     ("last-overlay-without-card", 5478),
@@ -298,6 +299,19 @@ fn capture_replay(
                     ("quick-shot-confirmed", 5802),
                     ("post-round-bridge", 5818),
                     ("bridge-endpoint", 5893),
+                ]);
+            }
+            if ticks == rounds_sim::HELD_HANGING_ENTRY_TICKS {
+                anchors.extend([
+                    ("hanging-first-sliver", 5894),
+                    ("hanging-left-entry", 5898),
+                    ("hanging-both-sides", 5902),
+                    ("hanging-convergence", 5906),
+                    ("hanging-distinct-offsets", 5910),
+                    ("hanging-central-separation", 5914),
+                    ("hanging-settled", 5918),
+                    ("hanging-held-tail", 5940),
+                    ("hanging-endpoint", 5941),
                 ]);
             }
             anchors
@@ -361,7 +375,9 @@ fn capture_state(
         tick: state.tick,
         anchor: anchor.to_owned(),
         source_interval: if profile == ReplayProfile::RematchDraftReplay {
-            if trace_ticks == rounds_sim::FIRST_LOSER_DRAFT_TICKS {
+            if trace_ticks == rounds_sim::HELD_HANGING_ENTRY_TICKS {
+                "02:39.516029-04:18.532299"
+            } else if trace_ticks == rounds_sim::FIRST_LOSER_DRAFT_TICKS {
                 "02:39.516029-04:17.732302"
             } else if trace_ticks > rounds_sim::REMATCH_DRAFT_TICKS {
                 "02:39.516029-04:10.615664"
@@ -612,6 +628,42 @@ fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static st
             5893 => Some((
                 2577323024,
                 "ccc3b4919a7988b1e14e2566814a6c540b4f9f65e4b0f49c74d25b2ba6bfbb74",
+            )),
+            5894 => Some((
+                2577489690,
+                "a89e7c2e1931d4f941eaf91ccc5a3187a4e032471dbf5041945b1c19513a2199",
+            )),
+            5898 => Some((
+                2578156354,
+                "2677a84fcd410b3a6c26bb1bcabc08c7f9a58d551f4d15a474f25f6ff719674a",
+            )),
+            5902 => Some((
+                2578823018,
+                "efd5d36e1e1a4ef937af291aa8aa97c9acdd23e1d0b63593d032add8a61acf09",
+            )),
+            5906 => Some((
+                2579489682,
+                "ababdcc0ea199133dd1bb2dae65e3529d818acc22a538b41ad9da7169f19eeb4",
+            )),
+            5910 => Some((
+                2580156346,
+                "193b2b063f278302aae23442608c992fc873ca9f1f8a123cc759e5b1533d04ba",
+            )),
+            5914 => Some((
+                2580823010,
+                "d98144f0bbcb12e561ca6a3f3f3ee703b31ec885c404e5e77bf4788bf891a067",
+            )),
+            5918 => Some((
+                2581489674,
+                "689ded32c34af48aba5a00c725bd8a08356c48ad66cf4c73c475fa2bb532ccd4",
+            )),
+            5940 => Some((
+                2585156326,
+                "5c8995a6ca0f0af7a38a2e4973b7ce1ca208fb18395201a1194db1cb4788c1cb",
+            )),
+            5941 => Some((
+                2585322992,
+                "f90f451ed5bf928b6ea04a3a5fdf1623278063ff043dd67127e7cd9f43ce3067",
             )),
             _ => None,
         };

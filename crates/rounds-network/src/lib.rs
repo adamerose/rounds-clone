@@ -11,7 +11,7 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 8;
+pub const NETWORK_PROTOCOL: u16 = 9;
 pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
@@ -91,6 +91,7 @@ pub struct ClientSessionReport {
     pub observed_quick_shot_hover: bool,
     pub observed_quick_shot_confirmation: bool,
     pub observed_post_round_bridge: bool,
+    pub observed_hanging_entry: bool,
     pub observed_radial_saw_motion: bool,
     pub observed_radial_damage: bool,
     pub observed_radial_result_onset: bool,
@@ -285,6 +286,7 @@ pub fn send_inputs(
     let mut observed_quick_shot_hover = false;
     let mut observed_quick_shot_confirmation = false;
     let mut observed_post_round_bridge = false;
+    let mut observed_hanging_entry = false;
     let mut first_radial_angles = None;
     let mut observed_radial_saw_motion = false;
     let mut observed_radial_damage = false;
@@ -412,6 +414,27 @@ pub fn send_inputs(
                         && flow.phase == FlowPhase::PostRoundBridge
                         && flow.scores == [0, 1]
                         && flow.halves == [0, 0];
+                    observed_hanging_entry |= state.tick == rounds_sim::HELD_HANGING_ENTRY_TICKS
+                        && flow.phase == FlowPhase::HangingEntry
+                        && flow.phase_tick == 47
+                        && flow.scores == [0, 1]
+                        && flow.halves == [0, 0]
+                        && flow.fighter_alive == [true, true]
+                        && state.arena.is_empty()
+                        && state.hanging_entry.as_ref().is_some_and(|entry| {
+                            entry.age_ticks == 47
+                                && entry.bodies.len() == 21
+                                && entry.bodies.iter().all(|body| {
+                                    body.body_x_milli == body.nominal_x_milli
+                                        && body.square_x_milli == body.nominal_x_milli
+                                })
+                        })
+                        && state.players.iter().all(|player| {
+                            player.alive
+                                && player.health == 100
+                                && player.velocity_x_milli_per_second == 0
+                                && player.velocity_y_milli_per_second == 0
+                        });
                 }
                 if profile == ReplayProfile::RadialSawHalfBlueReplay {
                     let angles = state
@@ -533,6 +556,7 @@ pub fn send_inputs(
         observed_quick_shot_hover,
         observed_quick_shot_confirmation,
         observed_post_round_bridge,
+        observed_hanging_entry,
         observed_radial_saw_motion,
         observed_radial_damage,
         observed_radial_result_onset,
@@ -728,9 +752,9 @@ mod tests {
     }
 
     #[test]
-    fn two_udp_clients_receive_the_same_complete_rematch_and_draft_flow() {
+    fn two_udp_clients_receive_the_same_complete_rematch_draft_and_hanging_entry() {
         let seed = rounds_sim::SOURCE_DRAFT_SEED;
-        let ticks = rounds_sim::FIRST_LOSER_DRAFT_TICKS;
+        let ticks = rounds_sim::HELD_HANGING_ENTRY_TICKS;
         let scripts = scripted_inputs_for(ReplayProfile::RematchDraftReplay, seed, ticks);
         let server = BoundServer::bind("127.0.0.1:0").unwrap();
         let address = server.local_addr().unwrap();
@@ -805,6 +829,7 @@ mod tests {
                 FlowPhase::PostRoundDraft,
                 FlowPhase::PostRoundReveal,
                 FlowPhase::PostRoundBridge,
+                FlowPhase::HangingEntry,
             ]
         );
         assert!(reports.iter().all(|report| {
@@ -816,6 +841,7 @@ mod tests {
                 && report.observed_quick_shot_hover
                 && report.observed_quick_shot_confirmation
                 && report.observed_post_round_bridge
+                && report.observed_hanging_entry
         }));
         assert!(server_report.flow_digest.is_some());
         assert!(server_report.loadout_digest.is_some());

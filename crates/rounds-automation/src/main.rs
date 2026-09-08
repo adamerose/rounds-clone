@@ -39,6 +39,7 @@ struct SmokeEvidence {
     both_clients_observed_source_terminal_state: bool,
     both_clients_observed_rematch_reset: bool,
     both_clients_observed_blue_fan_by_tick_960: bool,
+    both_clients_observed_hanging_entry: bool,
     observed_flow_phases: Vec<FlowPhase>,
     flow_completed_with_source_loadouts: bool,
     radial_saw_motion_observed: bool,
@@ -267,9 +268,15 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             && report.observed_quick_shot_confirmation
             && report.observed_post_round_bridge
     });
+    let both_clients_observed_hanging_entry =
+        reports.iter().all(|report| report.observed_hanging_entry);
     let flow_completed_with_source_loadouts =
         server_report.state.flow.as_ref().is_some_and(|flow| {
-            (if ticks >= rounds_sim::FIRST_LOSER_DRAFT_TICKS {
+            (if ticks >= rounds_sim::HELD_HANGING_ENTRY_TICKS {
+                flow.phase == FlowPhase::HangingEntry
+                    && flow.scores == [0, 1]
+                    && flow.halves == [0, 0]
+            } else if ticks >= rounds_sim::FIRST_LOSER_DRAFT_TICKS {
                 flow.phase == FlowPhase::PostRoundBridge
                     && flow.scores == [0, 1]
                     && flow.halves == [0, 0]
@@ -325,6 +332,8 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 || !both_clients_observed_blue_fan_by_tick_960
                 || (ticks >= rounds_sim::FIRST_LOSER_DRAFT_TICKS
                     && !both_clients_observed_first_loser_draft)
+                || (ticks >= rounds_sim::HELD_HANGING_ENTRY_TICKS
+                    && !both_clients_observed_hanging_entry)
                 || !flow_completed_with_source_loadouts
                 || (ticks > rounds_sim::LEGACY_REMATCH_DRAFT_TICKS
                     && (!progressive_explosion_transition_observed
@@ -385,6 +394,7 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             both_clients_observed_source_terminal_state,
             both_clients_observed_rematch_reset,
             both_clients_observed_blue_fan_by_tick_960,
+            both_clients_observed_hanging_entry,
             observed_flow_phases: reports[0].observed_flow_phases.clone(),
             flow_completed_with_source_loadouts,
             radial_saw_motion_observed,

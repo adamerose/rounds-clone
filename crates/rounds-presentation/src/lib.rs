@@ -256,6 +256,18 @@ struct CardPresentation {
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+struct HangingBodyVisual(u16);
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+struct HangingSquareVisual(u16);
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+struct HangingLinkVisual {
+    body: u16,
+    segment: u8,
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 enum CaptureElement {
     Background,
     Character,
@@ -1545,7 +1557,8 @@ fn spawn_snapshot_scene(
     let radial_replay = profile == ReplayProfile::RadialSawHalfBlueReplay;
     let yellow_replay = profile == ReplayProfile::YellowCrateTerminalBlastReplay;
     let ice_scene = snapshot.arena.iter().any(|surface| surface.id >= 40);
-    let fighter_scale = if ice_scene {
+    let hanging_scene = snapshot.hanging_entry.is_some();
+    let fighter_scale = if ice_scene || hanging_scene {
         0.56
     } else if yellow_replay {
         0.62
@@ -1564,7 +1577,7 @@ fn spawn_snapshot_scene(
                 Color::srgb_u8(188, 238, 229)
             } else if yellow_replay {
                 Color::srgb_u8(2, 43, 54)
-            } else if ice_scene {
+            } else if ice_scene || hanging_scene {
                 Color::srgb_u8(3, 42, 61)
             } else if timber_scene {
                 Color::srgb_u8(2, 32, 49)
@@ -1615,6 +1628,9 @@ fn spawn_snapshot_scene(
 
     if radial_replay {
         spawn_radial_backdrop(commands, meshes, materials, snapshot.tick, &snapshot.arena);
+    }
+    if let Some(hanging) = &snapshot.hanging_entry {
+        spawn_hanging_entry(commands, materials, hanging);
     }
 
     if let Some(flow) = &snapshot.flow
@@ -2069,7 +2085,7 @@ fn spawn_snapshot_scene(
     }
 
     for player in &snapshot.players {
-        if ice_scene && !player.alive {
+        if (ice_scene || hanging_scene) && !player.alive {
             continue;
         }
         let mut position = Vec2::new(player.x_milli as f32, player.y_milli as f32) / 1_000.0;
@@ -2086,7 +2102,7 @@ fn spawn_snapshot_scene(
             Color::WHITE
         } else if !player.alive {
             Color::srgba_u8(96, 42, 54, 150)
-        } else if player.id == 0 && ice_scene {
+        } else if player.id == 0 && (ice_scene || hanging_scene) {
             Color::srgb_u8(248, 91, 35)
         } else if player.id == 0 {
             Color::srgb_u8(244, 63, 86)
@@ -2111,7 +2127,7 @@ fn spawn_snapshot_scene(
             MeshMaterial2d(materials.add(body_color)),
             Transform::from_xyz(x, y, 5.0),
         ));
-        if ice_scene {
+        if ice_scene || hanging_scene {
             for eye_x in [-4.0, 4.0] {
                 commands.spawn((
                     SceneVisual,
@@ -2427,6 +2443,95 @@ fn arena_presentation_offset(snapshot: &MatchSnapshot) -> Vec2 {
         return Vec2::new(-7.0 * progress, 28.0 + 1_000.0 * progress.powi(2));
     }
     Vec2::ZERO
+}
+
+fn spawn_hanging_entry(
+    commands: &mut Commands,
+    _materials: &mut Assets<ColorMaterial>,
+    hanging: &rounds_sim::HangingEntryPresentation,
+) {
+    let body_color = Color::srgb_u8(
+        hanging.body_rgb[0],
+        hanging.body_rgb[1],
+        hanging.body_rgb[2],
+    );
+    let rim_color = Color::srgb_u8(
+        hanging.square_rim_rgb[0],
+        hanging.square_rim_rgb[1],
+        hanging.square_rim_rgb[2],
+    );
+    let opening_color = Color::srgb_u8(
+        hanging.square_opening_rgb[0],
+        hanging.square_opening_rgb[1],
+        hanging.square_opening_rgb[2],
+    );
+    let link_color = Color::srgb_u8(
+        hanging.link_rgb[0],
+        hanging.link_rgb[1],
+        hanging.link_rgb[2],
+    );
+    for body in &hanging.bodies {
+        let body_center = Vec2::new(
+            body.body_x_milli as f32 / 1_000.0,
+            body.body_y_milli as f32 / 1_000.0,
+        );
+        let square_center = Vec2::new(
+            body.square_x_milli as f32 / 1_000.0,
+            body.square_y_milli as f32 / 1_000.0,
+        );
+        for (segment_index, (start, end)) in [
+            (
+                Vec2::new(square_center.x, body.ceiling_y_milli as f32 / 1_000.0),
+                square_center,
+            ),
+            (
+                square_center,
+                Vec2::new(body_center.x, body.body_top_y_milli as f32 / 1_000.0),
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let segment = end - start;
+            commands.spawn((
+                SceneVisual,
+                HangingLinkVisual {
+                    body: body.id,
+                    segment: segment_index as u8,
+                },
+                Sprite::from_color(link_color, Vec2::new(segment.length(), 2.0)),
+                Transform::from_xyz(start.x + segment.x * 0.5, start.y + segment.y * 0.5, -5.0)
+                    .with_rotation(Quat::from_rotation_z(segment.y.atan2(segment.x))),
+            ));
+        }
+        commands.spawn((
+            SceneVisual,
+            HangingBodyVisual(body.id),
+            Sprite::from_color(
+                body_color,
+                Vec2::new(
+                    body.body_width_milli as f32 / 1_000.0,
+                    body.body_height_milli as f32 / 1_000.0,
+                ),
+            ),
+            Transform::from_xyz(body_center.x, body_center.y, -2.0),
+        ));
+        let square_size = body.square_size_milli as f32 / 1_000.0;
+        commands.spawn((
+            SceneVisual,
+            HangingSquareVisual(body.id),
+            Sprite::from_color(rim_color, Vec2::splat(square_size)),
+            Transform::from_xyz(square_center.x, square_center.y, -1.0),
+        ));
+        commands.spawn((
+            SceneVisual,
+            Sprite::from_color(
+                opening_color,
+                Vec2::splat(body.square_opening_milli as f32 / 1_000.0),
+            ),
+            Transform::from_xyz(square_center.x, square_center.y, 0.0),
+        ));
+    }
 }
 
 fn spawn_ice_surface(
@@ -2876,6 +2981,9 @@ fn spawn_radial_result(
     materials: &mut Assets<ColorMaterial>,
     snapshot: &MatchSnapshot,
 ) {
+    if snapshot.hanging_entry.is_some() {
+        return;
+    }
     let Some(round) = &snapshot.round else {
         return;
     };
@@ -4044,7 +4152,7 @@ fn spawn_flow_hud(
             .winner
             .is_some_and(|winner| round.scores[usize::from(winner)] >= 2)
     });
-    let compact = ice || full_round;
+    let compact = ice || snapshot.hanging_entry.is_some() || full_round;
     if matches!(
         flow.phase,
         FlowPhase::CombatConclusion | FlowPhase::RematchPrompt
@@ -4172,7 +4280,10 @@ fn spawn_flow_hud(
         let badge_x = |index: usize| {
             if matches!(
                 flow.phase,
-                FlowPhase::PostRoundDraft | FlowPhase::PostRoundReveal | FlowPhase::PostRoundBridge
+                FlowPhase::PostRoundDraft
+                    | FlowPhase::PostRoundReveal
+                    | FlowPhase::PostRoundBridge
+                    | FlowPhase::HangingEntry
             ) {
                 612.0 - (badge_count - 1 - index) as f32 * 37.0
             } else {
@@ -4427,6 +4538,40 @@ mod tests {
             .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(badges, expected);
+    }
+
+    #[test]
+    fn held_hanging_renderer_consumes_the_authority_layout_once() {
+        let mut world = draft_scene_at(rounds_sim::HELD_HANGING_ENTRY_TICKS);
+        let mut bodies = world
+            .query::<&HangingBodyVisual>()
+            .iter(&world)
+            .map(|body| body.0)
+            .collect::<Vec<_>>();
+        bodies.sort_unstable();
+        assert_eq!(bodies, (400..=420).collect::<Vec<_>>());
+        let mut squares = world
+            .query::<&HangingSquareVisual>()
+            .iter(&world)
+            .map(|square| square.0)
+            .collect::<Vec<_>>();
+        squares.sort_unstable();
+        assert_eq!(squares, bodies);
+        let links = world
+            .query::<&HangingLinkVisual>()
+            .iter(&world)
+            .copied()
+            .collect::<Vec<_>>();
+        assert_eq!(links.len(), 42);
+        assert!((400..=420).all(|id| {
+            links.iter().filter(|link| link.body == id).count() == 2
+                && links
+                    .iter()
+                    .filter(|link| link.body == id)
+                    .map(|link| link.segment)
+                    .collect::<std::collections::BTreeSet<_>>()
+                    == [0, 1].into_iter().collect()
+        }));
     }
 
     fn card_state(world: &mut World, item: ItemId) -> CardPresentation {
