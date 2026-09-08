@@ -1,6 +1,6 @@
 # Match-end waiting observations
 
-The score-driven match-end evidence comes from `reference/MedalTVRounds20260903170709695.mp4`, SHA-256 `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9`. Ticket 054 decoded the two native frames below with imageio-ffmpeg's FFmpeg 7.1 pipeline, `-copyts`, `-fps_mode passthrough`, exact PTS selection, two threads, and SHA-256 over 3,686,400 packed 1280×720 RGBA bytes.
+The score-driven match-end evidence comes from `reference/MedalTVRounds20260903170709695.mp4`, SHA-256 `1460e67037f46e128972fa216894b24c4069ac9690d79e3861af6679486d15f9`. Ticket 054 and ticket 057's shaping session independently decoded the two native frames below with imageio-ffmpeg's FFmpeg 7.1 pipeline, `-copyts`, `-fps_mode passthrough`, exact PTS selection, two threads, and SHA-256 over 3,686,400 packed 1280×720 RGBA bytes.
 
 | Observation | PTS / seconds | RGBA SHA-256 | Visible facts |
 |---|---:|---|---|
