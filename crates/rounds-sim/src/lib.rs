@@ -4148,13 +4148,22 @@ mod tests {
 
         assert_eq!(at(5_588).hovered[0], Some(ItemId::Overpower));
         assert_eq!(at(5_710).hovered[0], Some(ItemId::QuickShot));
+        let hovered = at(5_801);
+        assert_eq!(hovered.phase, FlowPhase::PostRoundDraft);
+        assert_eq!(hovered.hovered[0], Some(ItemId::QuickShot));
+        assert_eq!(hovered.selected[0], None);
+        assert_eq!(hovered.revealed, None);
         assert_eq!(
-            at(5_801).loadouts[0],
+            hovered.loadouts[0],
             vec![ItemId::Dazzle],
             "hover does not apply the item"
         );
         let confirmed = at(5_802);
         assert_eq!(confirmed.phase, FlowPhase::PostRoundReveal);
+        assert_eq!(confirmed.phase_tick, 0);
+        assert_eq!(confirmed.hovered[0], Some(ItemId::QuickShot));
+        assert_eq!(confirmed.selected[0], Some(ItemId::QuickShot));
+        assert_eq!(confirmed.revealed, Some(ItemId::QuickShot));
         assert_eq!(
             confirmed.loadouts,
             [
@@ -4167,7 +4176,14 @@ mod tests {
         assert_eq!(confirmed.capabilities[0].fire_cooldown_extra_ticks, 15);
         assert!(confirmed.capabilities[0].projectile_speed_factor.milli > 1_000);
         assert_eq!(confirmed.capabilities[1], endpoint.capabilities[1]);
-        assert_eq!(at(5_818).phase, FlowPhase::PostRoundBridge);
+        let before_bridge = at(5_817);
+        assert_eq!(before_bridge.phase, FlowPhase::PostRoundReveal);
+        assert_eq!(before_bridge.revealed, Some(ItemId::QuickShot));
+        let bridge = at(5_818);
+        assert_eq!(bridge.phase, FlowPhase::PostRoundBridge);
+        assert_eq!(bridge.phase_tick, 0);
+        assert_eq!(bridge.revealed, None);
+        assert_eq!(bridge.selected[0], Some(ItemId::QuickShot));
         let final_flow = at(FIRST_LOSER_DRAFT_TICKS);
         assert_eq!(final_flow.phase, FlowPhase::PostRoundBridge);
         assert_eq!(final_flow.scores, [0, 1]);

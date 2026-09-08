@@ -877,7 +877,7 @@ impl FlowAuthority {
         self.snapshot.phase_revision += 1;
         self.snapshot.phase_tick = 0;
         self.snapshot.active_player = active_player;
-        if phase != FlowPhase::Reveal {
+        if !matches!(phase, FlowPhase::Reveal | FlowPhase::PostRoundReveal) {
             self.snapshot.revealed = None;
         }
     }

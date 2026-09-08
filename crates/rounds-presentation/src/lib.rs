@@ -3083,16 +3083,26 @@ fn spawn_draft_scene(
         ),
         Transform::from_xyz(0.0, 0.0, 25.0),
     ));
+    let bridge_entry = flow.phase == FlowPhase::PostRoundBridge && flow.phase_tick == 0;
     if matches!(
         flow.phase,
-        FlowPhase::ArenaFade | FlowPhase::ArenaTransition | FlowPhase::PostRoundBridge
-    ) {
+        FlowPhase::ArenaFade | FlowPhase::ArenaTransition
+    ) || (flow.phase == FlowPhase::PostRoundBridge && !bridge_entry)
+    {
         return;
     }
     if flow.phase == FlowPhase::Handoff {
         return;
     }
-    let player = flow.active_player.unwrap_or(0);
+    let player = flow
+        .active_player
+        .or_else(|| {
+            flow.offers
+                .iter()
+                .position(|offers| !offers.is_empty())
+                .map(|player| player as u8)
+        })
+        .unwrap_or(0);
     let base = if player == 0 {
         Color::srgb_u8(242, 76, 42)
     } else {
@@ -3109,15 +3119,14 @@ fn spawn_draft_scene(
         .and_then(|item| offers.iter().position(|offer| *offer == item))
         .unwrap_or(2);
     let focus = (focused_index as f32 - 2.0) / 2.0;
-    let reveal_pose = if flow.revealed.is_some() { 1.0 } else { 0.0 };
-    let confirmation_progress =
-        if matches!(flow.phase, FlowPhase::Reveal | FlowPhase::PostRoundReveal) {
-            (flow.phase_tick as f32 / 18.0).clamp(0.0, 1.0)
-        } else {
-            0.0
-        };
-    let confirmation_settled = matches!(flow.phase, FlowPhase::Reveal | FlowPhase::PostRoundReveal)
-        && flow.phase_tick >= 12;
+    let selected_item = flow.revealed.or(flow.selected[usize::from(player)]);
+    let reveal_pose = if selected_item.is_some() { 1.0 } else { 0.0 };
+    let confirmation_progress = if flow.phase == FlowPhase::Reveal {
+        (flow.phase_tick as f32 / 18.0).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let confirmation_settled = flow.phase == FlowPhase::Reveal && flow.phase_tick >= 12;
     let breathe = (snapshot.tick as f32 * 0.045).sin() * 5.0;
     commands.spawn((
         SceneVisual,
@@ -3200,15 +3209,18 @@ fn spawn_draft_scene(
     ));
 
     for (index, item_id) in offers.iter().enumerate() {
+        if bridge_entry && selected_item == Some(*item_id) {
+            continue;
+        }
         let item = flow
             .catalog
             .iter()
             .find(|item| item.id == *item_id)
             .expect("offered item registered");
         let centered = index as f32 - 2.0;
-        let selected_offscreen = confirmation_settled && flow.revealed == Some(*item_id);
+        let selected_offscreen = confirmation_settled && selected_item == Some(*item_id);
         let highlighted = if matches!(flow.phase, FlowPhase::Reveal | FlowPhase::PostRoundReveal) {
-            !confirmation_settled && flow.revealed == Some(*item_id)
+            !confirmation_settled && selected_item == Some(*item_id)
         } else {
             hovered == Some(*item_id)
         };
@@ -3225,7 +3237,7 @@ fn spawn_draft_scene(
             Vec2::new(x, y),
             angle,
             highlighted,
-            flow.revealed == Some(*item_id),
+            selected_item == Some(*item_id),
             50.0 + index as f32,
             CardPresentation {
                 item: *item_id,
@@ -4664,6 +4676,9 @@ mod tests {
         let mut quick_shot = draft_scene_at(5_710);
         assert!(card_state(&mut quick_shot, ItemId::QuickShot).highlighted);
         let mut before = draft_scene_at(5_801);
+        let before_quick_shot = card_state(&mut before, ItemId::QuickShot);
+        assert!(before_quick_shot.highlighted);
+        assert!(!before_quick_shot.selected_offscreen);
         let mut before_badges = before
             .query::<&HudBadge>()
             .iter(&before)
@@ -4675,6 +4690,9 @@ mod tests {
             vec![(0, "Da".to_owned()), (1, "Ex".to_owned())]
         );
         let mut confirmed = draft_scene_at(5_802);
+        let confirmed_quick_shot = card_state(&mut confirmed, ItemId::QuickShot);
+        assert!(confirmed_quick_shot.highlighted);
+        assert!(!confirmed_quick_shot.selected_offscreen);
         let mut confirmed_badges = confirmed
             .query::<&HudBadge>()
             .iter(&confirmed)
@@ -4689,8 +4707,26 @@ mod tests {
                 (1, "Ex".to_owned())
             ]
         );
+        let mut before_bridge = draft_scene_at(5_817);
+        let departing_quick_shot = card_state(&mut before_bridge, ItemId::QuickShot);
+        assert!(departing_quick_shot.highlighted);
+        assert!(!departing_quick_shot.selected_offscreen);
         let mut bridge = draft_scene_at(5_818);
-        assert_eq!(bridge.query::<&CardPresentation>().iter(&bridge).count(), 0);
+        let bridge_cards = bridge
+            .query::<&CardPresentation>()
+            .iter(&bridge)
+            .map(|card| card.item)
+            .collect::<Vec<_>>();
+        assert_eq!(bridge_cards.len(), 4);
+        assert!(!bridge_cards.contains(&ItemId::QuickShot));
+        for item in [
+            ItemId::ColdBullets,
+            ItemId::CarefulPlanning,
+            ItemId::Overpower,
+            ItemId::BigBullet,
+        ] {
+            assert!(bridge_cards.contains(&item));
+        }
         assert_eq!(
             bridge
                 .query::<&HudScorePip>()

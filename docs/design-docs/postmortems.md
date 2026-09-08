@@ -1183,3 +1183,7 @@ The final twelve native pairs confirm that the false ledges are gone, the termin
 ## 2026-09-06 — Untracked license escaped the working-diff whitespace check
 
 The parent's staged diff check found a trailing space on line 21 of the newly added OFL license before commit. The child's earlier unstaged `git diff --check` did not inspect this then-untracked file. Removing that single space preserves the license text and leaves font bytes, compiled inputs and executables unchanged. The original capture manifest is retained; a separate post-build inventory records the normalized license. For new files, inspect the complete candidate diff (including additions), rather than treating an unstaged diff check as full coverage. The parent's existing index still contains the old license until it stages this correction.
+
+## 2026-09-08 — Ticket 053's first CLI resume used an incompatible model override
+
+The first CLI resume failed before sampling because it attempted to resume a `gpt-5.6-sol` thread as `gpt-6-astra`, and the installed CLI rejected Astra as requiring a newer version. No candidate bytes changed during that failed attempt; the correction resumed in the owning session and exact worktree without the incompatible override.
