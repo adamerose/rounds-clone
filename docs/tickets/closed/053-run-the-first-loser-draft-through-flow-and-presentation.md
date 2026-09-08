@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-07T17:39:20Z
 origin: system-detected
 tags: ["product-fidelity", "match-flow", "cards", "presentation", "bevy"]
@@ -134,3 +134,5 @@ Why it matters: the coverage ledger currently calls the 04:10–04:20 draft unre
 - 2026-09-08T09:59:14Z stage verification end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Exact-candidate verification passed on the retained target: format, strict workspace/all-target clippy, locked workspace build, 56 tests (56 passed, 0 failed, 0 ignored), release-matched Ivy ticket validation, and `git diff --check`. Strict lint first rejected an index-only test loop; the loop now consumes the paired scripts directly and the complete sequence passes. Relative to the source-equivalent capture commit, the only new candidate delta beyond the already-reviewed production implementation is inside the existing `#[cfg(test)]` module plus this work log, so retained captures remain explicitly attributed to their original binaries and production-source equivalence rather than relabeled.
 - 2026-09-08T09:59:15Z stage correction end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — One connected regression now reaches the first loser draft through the real 5,494-tick route and submits every required rejection through `PlayerInput.flow` and public `AuthoritativeMatch::step`. It covers winner hover and confirm as `WrongPlayer`, stale revision, an item outside the offer, all four catalog-only confirmations after accepted hovers, confirmation without a matching hover, and repeat confirmation after the accepted Quick Shot selection; every rejection preserves halves, completed rounds, loadouts, and capabilities. Production code and runtime evidence are unchanged. Ready for fresh independent review.
 - 2026-09-08T10:00:45Z stage review start session codex:01a08076-03b0-7733-925f-af406e3dcf6a — Fresh native read-only review of exact candidate range `4f39b90569df548d70d94d9a19a82566d304597d..HEAD`, with emphasis on the connected rejection correction, all earlier findings, and the retained evidence/provenance chain.
+- 2026-09-08T10:15:04Z stage review end session codex:01a08076-03b0-7733-925f-af406e3dcf6a — approved candidate 4f39b90569df548d70d94d9a19a82566d304597d..062d5cab51e9e35ce1819678147e8e0a29a0be21
+- 2026-09-08T10:15:04Z stage integration end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — integrated 062d5cab51e9e35ce1819678147e8e0a29a0be21 as 062d5cab51e9e35ce1819678147e8e0a29a0be21
