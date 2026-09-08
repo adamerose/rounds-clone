@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-08T15:58:37Z
 origin: agent-proposed
 tags: ["rounds", "bevy", "match-flow", "draft", "fidelity"]
@@ -51,3 +51,6 @@ Ticket 057 can now reach the source's terminal `WAITING` state, but the authorit
 - 2026-09-08T15:58:37Z stage research end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Native and adjacent source frames prove a cleared 0-0 orange-first draft and identify both five-card rows; no frame exposes what ended Waiting, so trigger policy remains outside the slice and all seven newly identified mechanics remain catalog-only.
 - 2026-09-08T15:58:37Z stage design start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Shaping one typed lifecycle operation, complete reset semantics, existing fade/draft reuse, source-order catalog-only offers, shared rendering, public authority and preservation evidence.
 - 2026-09-08T15:58:37Z stage design end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — The contract advances the proved post-Waiting state without selecting a timer, player input, host action or readiness rule, and without making any newly transcribed card playable.
+- 2026-09-08T16:07:02Z stage review start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a081c0-96a1-7cf2-a4cb-45b52f79db74 — Fresh-context admission review of exact range `6f90f253dffc4cd978cd366db0d090008f14b380..84df0c8d5246bc83e03d84a481a87ba6c11085eb` against the source, current authority seams and the risk-4 admission bar.
+- 2026-09-08T16:07:02Z stage review end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a081c0-96a1-7cf2-a4cb-45b52f79db74 — ADMIT at risk 4 with no findings. The contract separates reset semantics from its unseen trigger, keeps seven source-visible cards catalog-only, reuses the existing state machine, and has finite public, rendered, transport and preservation evidence.
+- 2026-09-08T16:07:02Z — Admitted: status set to ready by top-level session codex:01a07f87-97d0-7751-825a-29e87e8fe64a. Implementation remains unreviewed.
