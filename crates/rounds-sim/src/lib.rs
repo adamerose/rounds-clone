@@ -4201,6 +4201,199 @@ mod tests {
     }
 
     #[test]
+    fn connected_first_loser_draft_rejects_invalid_public_flow_commands_without_mutation() {
+        type RetainedState = (
+            [u8; 2],
+            [u8; 2],
+            Option<[u8; 2]>,
+            [Vec<ItemId>; 2],
+            [FighterCapabilities; 2],
+        );
+
+        fn retained(snapshot: &MatchSnapshot) -> RetainedState {
+            (
+                snapshot.flow.as_ref().unwrap().halves,
+                snapshot.flow.as_ref().unwrap().scores,
+                snapshot
+                    .round
+                    .as_ref()
+                    .and_then(|round| round.completed_rounds),
+                snapshot.flow.as_ref().unwrap().loadouts.clone(),
+                snapshot.flow.as_ref().unwrap().capabilities,
+            )
+        }
+
+        fn step_flow(
+            game: &mut AuthoritativeMatch,
+            player: usize,
+            command: FlowCommand,
+        ) -> MatchSnapshot {
+            let previous = game.snapshot();
+            let mut inputs = [PlayerInput::default(); 2];
+            inputs[player].flow = Some(command);
+            game.step([
+                inputs[0].with_progressive_observation(0, Some(&previous)),
+                inputs[1].with_progressive_observation(1, Some(&previous)),
+            ]);
+            game.snapshot()
+        }
+
+        fn assert_flow_result(
+            game: &mut AuthoritativeMatch,
+            player: usize,
+            phase_revision: u16,
+            action: FlowAction,
+            expected_result: ActionResult,
+            expected_state: &RetainedState,
+        ) -> MatchSnapshot {
+            let snapshot = step_flow(
+                game,
+                player,
+                FlowCommand {
+                    phase_revision,
+                    action,
+                },
+            );
+            assert_eq!(
+                snapshot.flow.as_ref().unwrap().last_results[player],
+                expected_result
+            );
+            assert_eq!(&retained(&snapshot), expected_state);
+            snapshot
+        }
+
+        let ticks = 5_494;
+        let scripts =
+            scripted_inputs_for(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, ticks);
+        let mut game = AuthoritativeMatch::new_with_profile(
+            SOURCE_DRAFT_SEED,
+            ReplayProfile::RematchDraftReplay,
+        );
+        let mut previous = game.snapshot();
+        for (player_zero, player_one) in scripts[0].iter().zip(&scripts[1]) {
+            game.step([
+                player_zero.with_progressive_observation(0, Some(&previous)),
+                player_one.with_progressive_observation(1, Some(&previous)),
+            ]);
+            previous = game.snapshot();
+        }
+
+        let entered = game.snapshot();
+        let flow = entered.flow.as_ref().unwrap();
+        assert_eq!(flow.phase, FlowPhase::PostRoundDraft);
+        assert_eq!(flow.active_player, Some(0));
+        let revision = flow.phase_revision;
+        let baseline = retained(&entered);
+
+        for action in [
+            FlowAction::Hover(ItemId::QuickShot),
+            FlowAction::Confirm(ItemId::QuickShot),
+        ] {
+            assert_flow_result(
+                &mut game,
+                1,
+                revision,
+                action,
+                ActionResult::WrongPlayer,
+                &baseline,
+            );
+        }
+
+        assert_flow_result(
+            &mut game,
+            0,
+            revision - 1,
+            FlowAction::Hover(ItemId::QuickShot),
+            ActionResult::Stale,
+            &baseline,
+        );
+
+        assert_flow_result(
+            &mut game,
+            0,
+            revision,
+            FlowAction::Hover(ItemId::Dazzle),
+            ActionResult::NotOffered,
+            &baseline,
+        );
+
+        for item in [
+            ItemId::ColdBullets,
+            ItemId::CarefulPlanning,
+            ItemId::Overpower,
+            ItemId::BigBullet,
+        ] {
+            let hovered = assert_flow_result(
+                &mut game,
+                0,
+                revision,
+                FlowAction::Hover(item),
+                ActionResult::Accepted,
+                &baseline,
+            );
+            assert_eq!(hovered.flow.as_ref().unwrap().hovered[0], Some(item));
+
+            let unimplemented = assert_flow_result(
+                &mut game,
+                0,
+                revision,
+                FlowAction::Confirm(item),
+                ActionResult::UnimplementedItem,
+                &baseline,
+            );
+            assert_eq!(unimplemented.flow.as_ref().unwrap().hovered[0], Some(item));
+        }
+
+        assert_flow_result(
+            &mut game,
+            0,
+            revision,
+            FlowAction::Confirm(ItemId::QuickShot),
+            ActionResult::NotHovered,
+            &baseline,
+        );
+
+        assert_flow_result(
+            &mut game,
+            0,
+            revision,
+            FlowAction::Hover(ItemId::QuickShot),
+            ActionResult::Accepted,
+            &baseline,
+        );
+        let confirmed = step_flow(
+            &mut game,
+            0,
+            FlowCommand {
+                phase_revision: revision,
+                action: FlowAction::Confirm(ItemId::QuickShot),
+            },
+        );
+        assert_eq!(
+            confirmed.flow.as_ref().unwrap().last_results[0],
+            ActionResult::Accepted
+        );
+        let confirmed_retained = retained(&confirmed);
+        assert_eq!(
+            confirmed_retained.3,
+            [
+                vec![ItemId::Dazzle, ItemId::QuickShot],
+                vec![ItemId::ExplosiveBullet],
+            ]
+        );
+
+        let reveal_revision = confirmed.flow.as_ref().unwrap().phase_revision;
+        assert_flow_result(
+            &mut game,
+            0,
+            reveal_revision,
+            FlowAction::Confirm(ItemId::QuickShot),
+            ActionResult::Duplicate,
+            &confirmed_retained,
+        );
+    }
+
+    #[test]
     fn projectile_speed_factor_is_typed_and_threaded_through_the_spawn_boundary() {
         let default = FighterCapabilities::default();
         assert_eq!(projectile_launch_speed(default), BULLET_SPEED);
