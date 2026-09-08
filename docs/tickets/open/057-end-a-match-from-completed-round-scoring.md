@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-08T14:09:05Z
 origin: agent-proposed
 tags: ["rounds", "bevy", "match-flow", "networking", "presentation", "fidelity"]
@@ -59,3 +59,6 @@ The authority awards completed rounds but never lets those awards end a match. I
 - 2026-09-08T14:16:53Z stage review end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a0810e-331e-7d80-bddb-f7b7644813c7 — RETURN on one finding: reviving ECS state without repositioning cannot make a fighter eliminated beyond a kill boundary visible in Waiting. Source identities, dependency, finite scope, risk 4, ticket validation and whitespace otherwise passed.
 - 2026-09-08T14:16:53Z stage correction start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Replacing the impossible no-respawn promise with one entry operation that clears projectiles, respawns both physics bodies at the profile's existing arena anchors and revives both ECS states; adding a public ring-out terminal regression.
 - 2026-09-08T14:16:53Z stage correction end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Projectile and ring-out match conclusions now share one testable visible-pair outcome without changing the live arena, final score or retained builds.
+- 2026-09-08T14:17:46Z stage review start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a0810e-331e-7d80-bddb-f7b7644813c7 — Re-reviewing the exact amended range a8341173ea0661cebeec018a7710968e1483b734..3eb7a1f3c05877f4b36dca5e355621c5306f6ee7 against the returned ring-out finding and the full admission bar.
+- 2026-09-08T14:19:02Z stage review end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a0810e-331e-7d80-bddb-f7b7644813c7 — ADMIT at risk 4 with no remaining findings. The explicit respawn-and-revive entry operation and public ring-out regression resolve the offscreen-loser path while retaining arena and terminal state; source identities, dependency, finite scope, ticket validation and whitespace pass.
+- 2026-09-08T14:19:02Z — Admitted: status set to ready by the top-level session codex:01a07f87-97d0-7751-825a-29e87e8fe64a. Implementation remains unreviewed.
