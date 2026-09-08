@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-09-08T10:40:28Z
 origin: agent-proposed
 tags: ["rounds", "bevy", "fidelity", "match-flow", "arena"]
@@ -52,3 +52,5 @@ The connected rematch route currently stops on the empty bridge after orange dra
 - 2026-09-08T10:48:33Z — Fresh admission reviewer `codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a0809d-68de-7922-8718-07bcab8187c6` returned candidate bf73af4 solely because its exact layout and frame values lived only in ignored 048 evidence; scope, dependency, risk and no-physics boundary were otherwise sound.
 - 2026-09-08T10:48:33Z stage correction start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Promoting the exact source identities, geometry, presentation knots and uncertainty into a tracked fidelity record without changing the slice boundary or product scope.
 - 2026-09-08T10:51:05Z stage correction end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Added the durable eleven-frame source table, complete nominal layout, visible-link and palette choices, per-group curve knots and uncertainty; release-matched ticket and whitespace checks pass.
+- 2026-09-08T10:51:39Z stage admission start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a080a5-1ad3-7a32-b389-afd732431f28 — Fresh context began admission review of exact range d8027c8..fb6947f after the source-contract correction.
+- 2026-09-08T10:57:58Z stage admission end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a080a5-1ad3-7a32-b389-afd732431f28 — ADMIT risk 4 with no findings. The reviewer decoded every retained frame copy and matched all eleven packed RGBA hashes, checked the complete layout and current code seams, and passed the release-matched ticket and exact-range whitespace checks.
