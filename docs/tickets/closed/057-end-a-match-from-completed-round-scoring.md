@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-08T14:09:05Z
 origin: agent-proposed
 tags: ["rounds", "bevy", "match-flow", "networking", "presentation", "fidelity"]
@@ -69,3 +69,5 @@ The authority awards completed rounds but never lets those awards end a match. I
 - 2026-09-08T15:24:55Z stage correction start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Auditing the reported nine-frame difference against ticket 055's retained delivery report rather than accepting the first metadata filename as the delivered baseline.
 - 2026-09-08T15:24:55Z stage correction end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — The nine frames differ only from ticket 055's preliminary `anchors.json`; all 57 rematch frames match its reviewed backdrop-drift correction `correction-1-anchors.json` byte-for-byte, whose SHA-256 is `8151f1729ef36eb5159082be965b833aee55af93469b6a8f5f7c9dcb44a4e1a7`. All 93 retained frame hashes therefore match the delivered baselines. The release-matched external Ivy ticket checker is available from the plugin cache and is run by the top-level session.
 - 2026-09-08T15:35:42Z stage review start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a081a3-177f-7921-afb6-15e04f031afe — Binding the independent implementation review and its exact-candidate verification to the candidate tip; the reviewer found no defects in `d4d6836d47e2fbb56fdc799b6f7b3132802d4ac2..47ef415df3a43f68961d736c0d2f3b6f992947dc` and is rechecking this metadata-only extension.
+- 2026-09-08T15:44:53Z stage review end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a081a3-177f-7921-afb6-15e04f031afe — approved candidate d4d6836d47e2fbb56fdc799b6f7b3132802d4ac2..71821759d6b6a1f43294cb1fe885ced1a58ee15e
+- 2026-09-08T15:44:53Z stage integration end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — integrated 71821759d6b6a1f43294cb1fe885ced1a58ee15e as 71821759d6b6a1f43294cb1fe885ced1a58ee15e
