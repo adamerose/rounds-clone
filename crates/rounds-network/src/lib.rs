@@ -11,7 +11,7 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 9;
+pub const NETWORK_PROTOCOL: u16 = 10;
 pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
@@ -51,6 +51,7 @@ enum AuthorityPacket {
 #[serde(rename_all = "camelCase")]
 pub struct ServerReport {
     pub protocol: u16,
+    pub constructed_prehistory: Option<String>,
     pub clients_handshaken: u8,
     pub inputs_received: u32,
     pub progressive_snapshots: u32,
@@ -92,6 +93,7 @@ pub struct ClientSessionReport {
     pub observed_quick_shot_confirmation: bool,
     pub observed_post_round_bridge: bool,
     pub observed_hanging_entry: bool,
+    pub observed_score_driven_waiting: bool,
     pub observed_radial_saw_motion: bool,
     pub observed_radial_damage: bool,
     pub observed_radial_result_onset: bool,
@@ -216,6 +218,7 @@ impl BoundServer {
         let (state, state_hash) = final_state.expect("validated non-zero tick count");
         Ok(ServerReport {
             protocol: NETWORK_PROTOCOL,
+            constructed_prehistory: expected_profile.constructed_prehistory().map(str::to_owned),
             clients_handshaken: 2,
             inputs_received: expected_ticks * 2,
             progressive_snapshots: expected_ticks,
@@ -287,6 +290,7 @@ pub fn send_inputs(
     let mut observed_quick_shot_confirmation = false;
     let mut observed_post_round_bridge = false;
     let mut observed_hanging_entry = false;
+    let mut observed_score_driven_waiting = false;
     let mut first_radial_angles = None;
     let mut observed_radial_saw_motion = false;
     let mut observed_radial_damage = false;
@@ -349,6 +353,17 @@ pub fn send_inputs(
                     observed_flow_phases.push(flow.phase);
                 }
                 if let Some(flow) = &state.flow {
+                    observed_score_driven_waiting |= flow.phase == FlowPhase::Waiting
+                        && flow.scores == [3, 5]
+                        && flow.halves == [1, 2]
+                        && flow.winner == Some(1)
+                        && flow.eliminated == Some(0)
+                        && flow.fighter_alive == [true, true]
+                        && state
+                            .players
+                            .iter()
+                            .all(|player| player.alive && player.health == 100)
+                        && state.projectiles.is_empty();
                     observed_source_terminal_state |= flow.scores == [4, 5]
                         && flow.winner == Some(1)
                         && flow.eliminated == Some(0)
@@ -557,6 +572,7 @@ pub fn send_inputs(
         observed_quick_shot_confirmation,
         observed_post_round_bridge,
         observed_hanging_entry,
+        observed_score_driven_waiting,
         observed_radial_saw_motion,
         observed_radial_damage,
         observed_radial_result_onset,
@@ -569,6 +585,7 @@ pub fn send_inputs(
         observed_yellow_round_orange,
         final_report: ServerReport {
             protocol: NETWORK_PROTOCOL,
+            constructed_prehistory: profile.constructed_prehistory().map(str::to_owned),
             clients_handshaken: 2,
             inputs_received: ticks * 2,
             progressive_snapshots: ticks,
@@ -664,6 +681,70 @@ mod tests {
     use super::*;
     use rounds_sim::{REPLAY_TICKS, run_scripted_match, scripted_inputs, scripted_inputs_for};
     use std::thread;
+
+    #[test]
+    fn waiting_phase_round_trips_and_the_previous_protocol_is_rejected() {
+        let encoded = serde_json::to_vec(&FlowPhase::Waiting).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<FlowPhase>(&encoded).unwrap(),
+            FlowPhase::Waiting
+        );
+        assert!(validate_protocol(NETWORK_PROTOCOL).is_ok());
+        assert_eq!(
+            validate_protocol(NETWORK_PROTOCOL - 1),
+            Err(format!(
+                "unsupported network protocol {}",
+                NETWORK_PROTOCOL - 1
+            ))
+        );
+    }
+
+    #[test]
+    fn two_udp_clients_observe_the_same_score_driven_waiting_state() {
+        let seed = 57;
+        let profile = ReplayProfile::MatchEndWaitingReplay;
+        let ticks = rounds_sim::MATCH_END_WAITING_REPLAY_TICKS;
+        let scripts = scripted_inputs_for(profile, seed, ticks);
+        let server = BoundServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_thread = thread::spawn(move || server.run(seed, ticks, profile).unwrap());
+        let clients = scripts
+            .into_iter()
+            .enumerate()
+            .map(|(client_id, inputs)| {
+                thread::spawn(move || {
+                    send_inputs(address, client_id as u8, seed, profile, &inputs).unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let reports = clients
+            .into_iter()
+            .map(|client| client.join().unwrap())
+            .collect::<Vec<_>>();
+        let server_report = server_thread.join().unwrap();
+        assert_eq!(reports[0].final_report, reports[1].final_report);
+        assert_eq!(reports[0].final_report, server_report);
+        assert_eq!(
+            reports[0].observed_flow_phases,
+            vec![
+                FlowPhase::ResumedCombat,
+                FlowPhase::EliminationConclusion,
+                FlowPhase::BlueResultTransition,
+                FlowPhase::RoundBlue,
+                FlowPhase::Waiting,
+            ]
+        );
+        assert!(
+            reports
+                .iter()
+                .all(|report| report.observed_score_driven_waiting)
+        );
+        assert_eq!(
+            server_report.constructed_prehistory.as_deref(),
+            Some(rounds_sim::MATCH_END_WAITING_CONSTRUCTED_PREHISTORY)
+        );
+        assert_eq!(server_report.state.flow.as_ref().unwrap().scores, [3, 5]);
+    }
 
     #[test]
     fn two_udp_clients_observe_the_same_yellow_terminal_blast_and_result() {

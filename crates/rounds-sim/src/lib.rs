@@ -43,6 +43,18 @@ pub const YELLOW_LAST_COMBAT_TICK: u32 = 109;
 pub const YELLOW_RESULT_ONSET_TICK: u32 = 110;
 pub const YELLOW_FOLLOWING_RESULT_TICK: u32 = 111;
 pub const YELLOW_ROUND_ORANGE_TICK: u32 = 125;
+pub const MATCH_END_WAITING_REPLAY_TICKS: u32 = 240;
+pub const MATCH_END_WAITING_REPLAY_PROFILE: &str = "match-end-waiting-replay";
+pub const MATCH_END_WAITING_SOURCE_INTERVAL: &str = "03:20.015867";
+pub const MATCH_END_WAITING_SOURCE_PTS: i64 = 2_000_158_666;
+pub const MATCH_END_WAITING_SOURCE_RGBA_SHA256: &str =
+    "c4c9547151263157cf54afe9495c7f1b1103cc3c2da8d3b29314bb0c57a09a6d";
+pub const MATCH_END_WAITING_CONSTRUCTED_PREHISTORY: &str =
+    "constructed 3-4 completed rounds with one half each";
+pub const MATCH_END_DECISIVE_IMPACT_TICK: u32 = 17;
+pub const MATCH_END_RESULT_TRANSITION_TICK: u32 = 44;
+pub const MATCH_END_ROUND_BLUE_TICK: u32 = 60;
+pub const MATCH_END_WAITING_TICK: u32 = 199;
 
 const PLAYER_RADIUS: f32 = 22.0;
 const RUN_SPEED: f32 = 220.0;
@@ -80,6 +92,7 @@ pub fn projectile_launch_speed(capabilities: FighterCapabilities) -> f32 {
 pub enum ReplayProfile {
     TealDuelReplay,
     RematchDraftReplay,
+    MatchEndWaitingReplay,
     RadialSawHalfBlueReplay,
     YellowCrateTerminalBlastReplay,
     #[default]
@@ -91,6 +104,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => TEAL_REPLAY_PROFILE,
             Self::RematchDraftReplay => REMATCH_DRAFT_PROFILE,
+            Self::MatchEndWaitingReplay => MATCH_END_WAITING_REPLAY_PROFILE,
             Self::RadialSawHalfBlueReplay => RADIAL_REPLAY_PROFILE,
             Self::YellowCrateTerminalBlastReplay => YELLOW_REPLAY_PROFILE,
             Self::TimberCollapseReplay => REPLAY_PROFILE,
@@ -101,6 +115,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => TEAL_REPLAY_TICKS,
             Self::RematchDraftReplay => REMATCH_DRAFT_TICKS,
+            Self::MatchEndWaitingReplay => MATCH_END_WAITING_REPLAY_TICKS,
             Self::RadialSawHalfBlueReplay => RADIAL_REPLAY_TICKS,
             Self::YellowCrateTerminalBlastReplay => YELLOW_REPLAY_TICKS,
             Self::TimberCollapseReplay => REPLAY_TICKS,
@@ -111,6 +126,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => TEAL_SOURCE_INTERVAL,
             Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_INTERVAL,
+            Self::MatchEndWaitingReplay => MATCH_END_WAITING_SOURCE_INTERVAL,
             Self::RadialSawHalfBlueReplay => RADIAL_SOURCE_INTERVAL,
             Self::YellowCrateTerminalBlastReplay => YELLOW_SOURCE_INTERVAL,
             Self::TimberCollapseReplay => SOURCE_INTERVAL,
@@ -121,6 +137,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => TEAL_SOURCE_SHA256,
             Self::RematchDraftReplay => SOURCE_SHA256,
+            Self::MatchEndWaitingReplay => TEAL_SOURCE_SHA256,
             Self::RadialSawHalfBlueReplay => TEAL_SOURCE_SHA256,
             Self::YellowCrateTerminalBlastReplay => SOURCE_SHA256,
             Self::TimberCollapseReplay => SOURCE_SHA256,
@@ -131,6 +148,7 @@ impl ReplayProfile {
         match self {
             Self::TealDuelReplay => 2_250,
             Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_START_HUNDREDTHS,
+            Self::MatchEndWaitingReplay => 19_602,
             Self::RadialSawHalfBlueReplay => 23_204,
             Self::YellowCrateTerminalBlastReplay => 42_201,
             Self::TimberCollapseReplay => 20_600,
@@ -145,13 +163,20 @@ impl std::str::FromStr for ReplayProfile {
         match value {
             TEAL_REPLAY_PROFILE => Ok(Self::TealDuelReplay),
             REMATCH_DRAFT_PROFILE => Ok(Self::RematchDraftReplay),
+            MATCH_END_WAITING_REPLAY_PROFILE => Ok(Self::MatchEndWaitingReplay),
             RADIAL_REPLAY_PROFILE => Ok(Self::RadialSawHalfBlueReplay),
             YELLOW_REPLAY_PROFILE => Ok(Self::YellowCrateTerminalBlastReplay),
             REPLAY_PROFILE => Ok(Self::TimberCollapseReplay),
             _ => Err(format!(
-                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, {RADIAL_REPLAY_PROFILE}, {YELLOW_REPLAY_PROFILE}, or {REPLAY_PROFILE}"
+                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, {MATCH_END_WAITING_REPLAY_PROFILE}, {RADIAL_REPLAY_PROFILE}, {YELLOW_REPLAY_PROFILE}, or {REPLAY_PROFILE}"
             )),
         }
+    }
+}
+
+impl ReplayProfile {
+    pub fn constructed_prehistory(self) -> Option<&'static str> {
+        (self == Self::MatchEndWaitingReplay).then_some(MATCH_END_WAITING_CONSTRUCTED_PREHISTORY)
     }
 }
 
@@ -742,6 +767,7 @@ impl PhysicsBoundary {
         let player_spawns = match profile {
             ReplayProfile::TealDuelReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
             ReplayProfile::RematchDraftReplay => [(-500.0, -150.0, 0_u8), (500.0, -150.0, 1_u8)],
+            ReplayProfile::MatchEndWaitingReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
             ReplayProfile::RadialSawHalfBlueReplay => [(-285.0, 118.0, 0_u8), (285.0, 118.0, 1_u8)],
             ReplayProfile::YellowCrateTerminalBlastReplay => {
                 [(220.0, 292.0, 0_u8), (570.0, 292.0, 1_u8)]
@@ -1576,7 +1602,13 @@ impl AuthoritativeMatch {
             } else {
                 TIMBER_EXPLOSION_IMPULSE
             },
-            flow: (profile == ReplayProfile::RematchDraftReplay).then(|| FlowAuthority::new(seed)),
+            flow: match profile {
+                ReplayProfile::RematchDraftReplay => Some(FlowAuthority::historical_rematch(seed)),
+                ReplayProfile::MatchEndWaitingReplay => {
+                    Some(FlowAuthority::match_end_waiting_replay(seed))
+                }
+                _ => None,
+            },
             round: (profile == ReplayProfile::RadialSawHalfBlueReplay)
                 .then_some(RoundStateSnapshot {
                     completed_rounds: None,
@@ -1614,6 +1646,9 @@ impl AuthoritativeMatch {
             state.health = 0;
             state.alive = false;
             simulation.winner = Some(1);
+            simulation.sync_round_from_flow();
+        }
+        if profile == ReplayProfile::MatchEndWaitingReplay {
             simulation.sync_round_from_flow();
         }
         simulation
@@ -1704,6 +1739,7 @@ impl AuthoritativeMatch {
         let mut hanging_entry_load = false;
         let mut timber_combat_started = false;
         let mut repeated_after_draw = false;
+        let mut waiting_entered = false;
         let mut accepts_combat = true;
         if let Some(flow) = &mut self.flow {
             let had_terminal_result = flow.has_terminal_result();
@@ -1721,6 +1757,7 @@ impl AuthoritativeMatch {
                 && matches!(phase, FlowPhase::TimberCombat | FlowPhase::IceCombat);
             repeated_after_draw =
                 previous_phase == FlowPhase::EliminationConclusion && flow.accepts_combat();
+            waiting_entered = previous_phase != FlowPhase::Waiting && phase == FlowPhase::Waiting;
             accepts_combat = flow.accepts_combat();
         }
         self.sync_round_from_flow();
@@ -1737,6 +1774,9 @@ impl AuthoritativeMatch {
         }
         if repeated_after_draw {
             self.repeat_fight_in_place();
+        }
+        if waiting_entered {
+            self.enter_match_waiting();
         }
         if timber_combat_started || rematch_reset {
             self.arena_entry_from_milli = None;
@@ -2140,6 +2180,33 @@ impl AuthoritativeMatch {
         self.winner = None;
     }
 
+    /// Makes the concluded match source-visible without changing its arena,
+    /// awarded score, winner, or retained build state.
+    fn enter_match_waiting(&mut self) {
+        for entity in self
+            .projectile_entities
+            .values()
+            .copied()
+            .collect::<Vec<_>>()
+        {
+            self.world.despawn(entity);
+        }
+        for id in self.projectile_entities.keys().copied().collect::<Vec<_>>() {
+            self.physics.remove_bullet(id);
+        }
+        self.projectile_entities.clear();
+        self.physics.respawn_players();
+        self.arena_entry_from_milli = None;
+        self.revive_fighters();
+        for entity in self.player_entities {
+            self.world
+                .entity_mut(entity)
+                .get_mut::<PlayerState>()
+                .expect("player state")
+                .grounded = true;
+        }
+    }
+
     fn begin_result_if_due(&mut self) {
         if self.profile == ReplayProfile::YellowCrateTerminalBlastReplay
             && self.tick < YELLOW_RESULT_ONSET_TICK
@@ -2446,7 +2513,7 @@ impl AuthoritativeMatch {
             })
             .collect();
         MatchSnapshot {
-            protocol: 8,
+            protocol: 9,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
@@ -3075,6 +3142,7 @@ pub fn arena_for_profile(profile: ReplayProfile) -> &'static [ArenaSurfaceSnapsh
     match profile {
         ReplayProfile::TealDuelReplay => teal_arena(),
         ReplayProfile::RematchDraftReplay => draft_arena(),
+        ReplayProfile::MatchEndWaitingReplay => teal_arena(),
         ReplayProfile::RadialSawHalfBlueReplay => radial_saw_arena(),
         ReplayProfile::YellowCrateTerminalBlastReplay => yellow_crate_arena(),
         ReplayProfile::TimberCollapseReplay => timber_arena(),
@@ -3234,7 +3302,18 @@ pub fn scripted_inputs_for(
         Vec::with_capacity(ticks as usize),
     ];
     for tick in 0..ticks {
-        if profile == ReplayProfile::RematchDraftReplay {
+        if profile == ReplayProfile::MatchEndWaitingReplay {
+            scripts[0].push(PlayerInput {
+                aim_x: 1_000,
+                ..PlayerInput::default()
+            });
+            scripts[1].push(PlayerInput {
+                aim_x: -1_000,
+                fire: tick == 0,
+                ..PlayerInput::default()
+            });
+            continue;
+        } else if profile == ReplayProfile::RematchDraftReplay {
             let mut orange = PlayerInput {
                 aim_x: 1_000,
                 ..PlayerInput::default()
@@ -5343,7 +5422,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 17,
-            state_sha256: "f4be9397651e707770b38b78cf6db79faff821171d1bb082dea2d0ab221f8306",
+            state_sha256: "90a93bd4fd2effcd78626b59a05a96473a83b92942f8766a4a630bfe32e50671",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::RadialSawHalfBlueReplay,
@@ -5361,7 +5440,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 6,
-            state_sha256: "570e338b0ec0b9cbfd410904a6f5f902b1cefdce794bcd5ff0d77c59dd11a47e",
+            state_sha256: "42700b3383c1d22fadd2d5e6c0bab32ebc6ab505c87f4ad49dc821c13c3600bb",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::YellowCrateTerminalBlastReplay,
@@ -5372,7 +5451,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 0,
-            state_sha256: "7753f25a4cd679c0cbb7ad47335107a477a64bbc61abc61ecd95f44796a3b070",
+            state_sha256: "f2c34be96331138bf07945db1c70b5ca9138d71ee0d48045c193c7908703c43e",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::TimberCollapseReplay,
@@ -5389,7 +5468,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 5,
-            state_sha256: "350d07d54914461fbcfad9dbbf89f0a1e1225118a93dad64e35874c32649f561",
+            state_sha256: "dc547472a81528d07dd2fb0f1c07374ade31e0bae3537cabeac45a77f4c4e120",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::RematchDraftReplay,
@@ -5426,15 +5505,15 @@ mod tests {
             ],
             frozen_releases: &[(0, 4_541, 4_601)],
             jumps: 141,
-            state_sha256: "bead1e19e27b6f06cfc024cc657069c705c6fd2b098cca53f9abd1bf60bad19a",
+            state_sha256: "8dc4339d7271d1a1947e40db5437561fbfca263d70cbb62320102b28bb849686",
         },
     ];
 
     /// Ticket 051. A held jump re-applies the whole impulse on the first tick
     /// contact restores `grounded`, so extending a press across ticks the fighter
     /// is already airborne must change nothing: `set_player_control` reads
-    /// `input.jump` only as `input.jump && grounded`. This drives all five shipped
-    /// profiles at their published seeds and tick counts through the public
+    /// `input.jump` only as `input.jump && grounded`. This drives all five
+    /// pre-existing profiles at their published seeds and tick counts through the public
     /// snapshot boundary and asserts, from `snapshot` alone, that every added hold
     /// tick is airborne, that each press tick is still a grounded press, that the
     /// scripted jump ticks are exactly the contract's set, and that the jump count
@@ -6038,5 +6117,158 @@ mod tests {
             "revive_fighters must clear the release memory with the rest of the \
              fighter's transient control state"
         );
+    }
+
+    #[test]
+    fn public_match_end_replay_scores_once_then_respawns_and_freezes_gameplay() {
+        let replay = run_profile_snapshots(
+            ReplayProfile::MatchEndWaitingReplay,
+            57,
+            MATCH_END_WAITING_REPLAY_TICKS,
+        );
+        let at = |tick: u32| &replay[(tick - 1) as usize];
+        assert_eq!(
+            at(MATCH_END_DECISIVE_IMPACT_TICK)
+                .impacts
+                .last()
+                .map(|impact| (
+                    impact.owner,
+                    impact.target,
+                    impact.damage,
+                    impact.eliminated,
+                )),
+            Some((1, Some(0), 100, true))
+        );
+        assert_eq!(
+            at(MATCH_END_DECISIVE_IMPACT_TICK)
+                .flow
+                .as_ref()
+                .unwrap()
+                .phase,
+            FlowPhase::EliminationConclusion
+        );
+        assert_eq!(
+            at(MATCH_END_RESULT_TRANSITION_TICK)
+                .flow
+                .as_ref()
+                .unwrap()
+                .phase,
+            FlowPhase::BlueResultTransition
+        );
+        assert_eq!(
+            at(MATCH_END_ROUND_BLUE_TICK).flow.as_ref().unwrap().phase,
+            FlowPhase::RoundBlue
+        );
+        let waiting = at(MATCH_END_WAITING_TICK);
+        let flow = waiting.flow.as_ref().unwrap();
+        assert_eq!(flow.phase, FlowPhase::Waiting);
+        assert_eq!(flow.scores, [3, 5]);
+        assert_eq!(flow.halves, [1, 2]);
+        assert_eq!(
+            flow.loadouts,
+            [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+        );
+        assert_eq!(flow.fighter_alive, [true, true]);
+        assert!(waiting.projectiles.is_empty());
+        assert_eq!(
+            waiting
+                .players
+                .iter()
+                .map(|player| (
+                    player.id,
+                    player.x_milli,
+                    player.y_milli,
+                    player.health,
+                    player.alive,
+                    player.grounded
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (0, -520_000, -134_000, 100, true, true),
+                (1, 520_000, -134_000, 100, true, true)
+            ]
+        );
+
+        let mut authority =
+            AuthoritativeMatch::new_with_profile(57, ReplayProfile::MatchEndWaitingReplay);
+        let input = scripted_inputs_for(
+            ReplayProfile::MatchEndWaitingReplay,
+            57,
+            MATCH_END_WAITING_TICK,
+        );
+        for tick in 0..MATCH_END_WAITING_TICK {
+            authority.step([input[0][tick as usize], input[1][tick as usize]]);
+        }
+        let before = authority.snapshot();
+        for _ in 0..20 {
+            authority.step([
+                PlayerInput {
+                    move_axis: 1,
+                    fire: true,
+                    flow: Some(FlowCommand {
+                        phase_revision: before.flow.as_ref().unwrap().phase_revision,
+                        action: FlowAction::VoteYes,
+                    }),
+                    ..PlayerInput::default()
+                },
+                PlayerInput {
+                    move_axis: -1,
+                    fire: true,
+                    ..PlayerInput::default()
+                },
+            ]);
+        }
+        let after = authority.snapshot();
+        assert_eq!(after.players, before.players);
+        assert_eq!(after.projectiles, before.projectiles);
+        assert_eq!(after.flow.as_ref().unwrap().scores, [3, 5]);
+        assert_eq!(after.flow.as_ref().unwrap().phase, FlowPhase::Waiting);
+        assert_eq!(
+            after.flow.as_ref().unwrap().last_results[0],
+            ActionResult::WrongPhase
+        );
+    }
+
+    #[test]
+    fn public_ring_out_match_end_returns_the_loser_to_a_visible_waiting_spawn() {
+        let mut authority =
+            AuthoritativeMatch::new_with_profile(58, ReplayProfile::MatchEndWaitingReplay);
+        let mut observed_ring_out = false;
+        for _ in 0..1_200 {
+            authority.step([
+                PlayerInput {
+                    move_axis: -1,
+                    ..PlayerInput::default()
+                },
+                PlayerInput::default(),
+            ]);
+            let snapshot = authority.snapshot();
+            observed_ring_out |= snapshot.metrics.ring_outs > 0;
+            if snapshot.flow.as_ref().unwrap().phase == FlowPhase::Waiting {
+                assert!(observed_ring_out);
+                assert_eq!(snapshot.flow.as_ref().unwrap().scores, [3, 5]);
+                assert_eq!(
+                    snapshot
+                        .players
+                        .iter()
+                        .map(|player| {
+                            (
+                                player.x_milli,
+                                player.y_milli,
+                                player.health,
+                                player.alive,
+                                player.grounded,
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                    vec![
+                        (-520_000, -134_000, 100, true, true),
+                        (520_000, -134_000, 100, true, true)
+                    ]
+                );
+                return;
+            }
+        }
+        panic!("orange never reached the public ring-out match end");
     }
 }

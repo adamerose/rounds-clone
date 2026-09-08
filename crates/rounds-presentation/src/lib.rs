@@ -2361,7 +2361,7 @@ fn spawn_snapshot_scene(
         spawn_yellow_result(commands, meshes, materials, snapshot);
     }
 
-    if draft_replay {
+    if draft_replay || profile == ReplayProfile::MatchEndWaitingReplay {
         spawn_post_round_leadin(commands, meshes, materials, snapshot);
         spawn_flow_hud(commands, meshes, materials, snapshot);
     }
@@ -4159,6 +4159,18 @@ fn spawn_flow_hud(
             .is_some_and(|winner| round.scores[usize::from(winner)] >= 2)
     });
     let compact = ice || snapshot.hanging_entry.is_some() || full_round;
+    if flow.phase == FlowPhase::Waiting {
+        commands.spawn((
+            SceneVisual,
+            Text2d::new("WAITING"),
+            TextFont {
+                font_size: FontSize::Px(72.0),
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Transform::from_xyz(0.0, 22.0, 31.0),
+        ));
+    }
     if matches!(
         flow.phase,
         FlowPhase::CombatConclusion | FlowPhase::RematchPrompt
@@ -4235,7 +4247,8 @@ fn spawn_flow_hud(
                     round.winner == Some(player as u8)
                         && (round.phase == rounds_sim::RoundPhase::ResultTransition
                             || round.phase_tick < 105)
-                });
+                })
+                && flow.phase != FlowPhase::Waiting;
             let filled = index < flow.scores[player].saturating_sub(u8::from(award_in_flight));
             let color = if player == 0 {
                 Color::srgb_u8(255, 116, 45)
@@ -4490,14 +4503,7 @@ mod tests {
     use bevy::ecs::system::SystemState;
     use rounds_sim::{TIMBER_IMPACT_TICK, hash_snapshot, run_scripted_match};
 
-    fn draft_scene_at(tick: u32) -> World {
-        let snapshot = rounds_sim::run_profile_snapshots(
-            ReplayProfile::RematchDraftReplay,
-            rounds_sim::SOURCE_DRAFT_SEED,
-            tick,
-        )
-        .pop()
-        .unwrap();
+    fn scene_for_snapshot(snapshot: &MatchSnapshot) -> World {
         let mut world = World::new();
         world.init_resource::<Assets<Mesh>>();
         world.init_resource::<Assets<ColorMaterial>>();
@@ -4508,10 +4514,81 @@ mod tests {
         )>::new(&mut world);
         {
             let (mut commands, mut meshes, mut materials) = state.get_mut(&mut world).unwrap();
-            spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot);
+            spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
         }
         state.apply(&mut world);
         world
+    }
+
+    fn draft_scene_at(tick: u32) -> World {
+        let snapshot = rounds_sim::run_profile_snapshots(
+            ReplayProfile::RematchDraftReplay,
+            rounds_sim::SOURCE_DRAFT_SEED,
+            tick,
+        )
+        .pop()
+        .unwrap();
+        scene_for_snapshot(&snapshot)
+    }
+
+    #[test]
+    fn local_and_received_waiting_snapshots_share_the_terminal_hud() {
+        let local = rounds_sim::run_profile_match(
+            ReplayProfile::MatchEndWaitingReplay,
+            57,
+            rounds_sim::MATCH_END_WAITING_REPLAY_TICKS,
+        )
+        .0;
+        // Transport hands this same typed snapshot to presentation; the network
+        // crate separately protects its serialized round trip.
+        let received = local.clone();
+        for snapshot in [&local, &received] {
+            let mut world = scene_for_snapshot(snapshot);
+            assert_eq!(
+                world
+                    .query::<&Text2d>()
+                    .iter(&world)
+                    .filter(|text| text.0 == "WAITING")
+                    .count(),
+                1
+            );
+            let mut filled = world
+                .query::<&HudScorePip>()
+                .iter(&world)
+                .filter(|pip| pip.filled)
+                .map(|pip| (pip.player, pip.index))
+                .collect::<Vec<_>>();
+            filled.sort();
+            assert_eq!(
+                filled,
+                vec![
+                    (0, 0),
+                    (0, 1),
+                    (0, 2),
+                    (1, 0),
+                    (1, 1),
+                    (1, 2),
+                    (1, 3),
+                    (1, 4),
+                ]
+            );
+            let mut badges = world
+                .query::<&HudBadge>()
+                .iter(&world)
+                .map(|badge| (badge.player, badge.label.clone()))
+                .collect::<Vec<_>>();
+            badges.sort();
+            assert_eq!(badges, vec![(0, "Da".to_owned()), (1, "Ex".to_owned())]);
+            assert_eq!(world.query::<&CardPresentation>().iter(&world).count(), 0);
+            assert_eq!(
+                snapshot
+                    .players
+                    .iter()
+                    .filter(|player| player.alive)
+                    .count(),
+                2
+            );
+        }
     }
 
     fn assert_empty_score_and_badges(world: &mut World, expected_badges: &[(u8, &str)]) {

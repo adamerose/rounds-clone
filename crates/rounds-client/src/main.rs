@@ -34,6 +34,7 @@ struct CaptureEvidence {
     source_pts: Option<i64>,
     source_rgba_sha256: Option<&'static str>,
     source_sha256: &'static str,
+    constructed_prehistory: Option<&'static str>,
     input_trace: &'static str,
     input_trace_sha256: String,
     state_sha256: String,
@@ -215,6 +216,21 @@ fn capture_replay(
             ("block-reflection", 700),
             ("terminal-impact", profile.replay_ticks()),
         ],
+        ReplayProfile::MatchEndWaitingReplay => vec![
+            ("constructed-match-point", 0),
+            ("decisive-shot", 1),
+            (
+                "decisive-impact",
+                rounds_sim::MATCH_END_DECISIVE_IMPACT_TICK,
+            ),
+            (
+                "result-transition",
+                rounds_sim::MATCH_END_RESULT_TRANSITION_TICK,
+            ),
+            ("round-blue", rounds_sim::MATCH_END_ROUND_BLUE_TICK),
+            ("waiting-entry", rounds_sim::MATCH_END_WAITING_TICK),
+            ("waiting", profile.replay_ticks()),
+        ],
         ReplayProfile::RadialSawHalfBlueReplay => vec![
             ("arena-reveal", 0),
             ("upper-slope-traversal", 180),
@@ -391,6 +407,7 @@ fn capture_state(
         source_pts: source_binding(profile, state.tick).map(|binding| binding.0),
         source_rgba_sha256: source_binding(profile, state.tick).map(|binding| binding.1),
         source_sha256: profile.source_sha256(),
+        constructed_prehistory: profile.constructed_prehistory(),
         input_trace: profile.name(),
         input_trace_sha256: sha256(&script_bytes),
         state_sha256: state_hash.to_owned(),
@@ -435,6 +452,12 @@ fn source_timestamp(profile: ReplayProfile, tick: u32) -> String {
 }
 
 fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static str)> {
+    if profile == ReplayProfile::MatchEndWaitingReplay {
+        return (tick == profile.replay_ticks()).then_some((
+            rounds_sim::MATCH_END_WAITING_SOURCE_PTS,
+            rounds_sim::MATCH_END_WAITING_SOURCE_RGBA_SHA256,
+        ));
+    }
     if profile == ReplayProfile::RematchDraftReplay {
         return match tick {
             0 => Some((
@@ -761,6 +784,7 @@ fn local_report(profile: ReplayProfile, seed: u64, ticks: u32) -> ServerReport {
     let (state, state_hash) = run_profile_match(profile, seed, ticks);
     ServerReport {
         protocol: NETWORK_PROTOCOL,
+        constructed_prehistory: profile.constructed_prehistory().map(str::to_owned),
         clients_handshaken: 2,
         inputs_received: ticks * 2,
         progressive_snapshots: ticks,

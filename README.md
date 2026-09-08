@@ -1,7 +1,7 @@
 # ROUNDS clean-room rewrite
 
 This repository starts from the two supplied ten-minute ROUNDS recordings and builds the clone in Rust with Bevy.
-Five footage-derived slices exist: a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, the radial-saw duel through `HALF BLUE`, and the yellow-crate terminal blast through `ROUND ORANGE`.
+Six footage-derived slices exist: a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, a score-driven 3–5 match end in `WAITING`, the radial-saw duel through `HALF BLUE`, and the yellow-crate terminal blast through `ROUND ORANGE`.
 The rematch path now continues through both opening card drafts, the first two half results, the timber collapse, the deciding ice duel, the first full-round award, and the losing fighter's five-card `QUICK SHOT` draft in one match.
 Two clients drive one 60 Hz Rapier authority through sequenced local UDP input, the same rules run as a client-host, and the shared Bevy 2D scene renders visibly or to offscreen evidence frames.
 
@@ -19,6 +19,8 @@ cargo test --workspace --locked
 .\out\cargo-target\debug\rounds-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\smoke
 .\out\cargo-target\debug\rounds-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\anchors --metadata out\ticket-041\anchors.json
 .\out\cargo-target\debug\rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
+.\out\cargo-target\debug\rounds-automation.exe smoke --profile match-end-waiting-replay --seed 57 --ticks 240 --output-dir out\ticket-057\smoke
+.\out\cargo-target\debug\rounds-client.exe capture-replay --profile match-end-waiting-replay --seed 57 --ticks 240 --output-dir out\ticket-057\anchors --metadata out\ticket-057\anchors.json
 .\out\cargo-target\debug\rounds-automation.exe smoke --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --output-dir out\ticket-043\smoke
 .\out\cargo-target\debug\rounds-client.exe capture-replay --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --output-dir out\ticket-043\anchors --metadata out\ticket-043\anchors.json
 .\out\cargo-target\debug\rounds-client.exe visible --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --frames 155
@@ -58,6 +60,7 @@ Its named replay profile matches this card-modified interval without claiming ba
 The radial-saw slice adds stable authoritative moving hazards, ordinary projectile feedback, a moving painted background, and the adjacent `HALF BLUE` result handoff without claiming unobserved saw damage.
 The yellow-crate slice adds stable-ID dynamic Rapier crates, an authority-owned terminal projectile contact and blast impulse, blue elimination and orange scoring, and one private final-composite fullscreen pass for the source-proved discrete radial RGB echoes. Visible and offscreen runs use that same GPU scene and effect pass; its eleven capture anchors preserve the adjacent tick-109 combat, tick-110 result onset, and tick-111 larger result transition.
 The connected ice extension adds seventeen static polygon contours shared by collision and rendering, animated cyan/pale paint, long shadows, arena arrival/departure motion and a symmetric first-round award. Current half progress and completed rounds are separate: the source's blue/orange/blue sequence ends with halves 1–2 and rounds 0–1, with Da and Ex retained. Ordinary damage decides each fight; the ice interval adds no friction, fracture or melting rule. The source anchors and remaining visual differences belong in `docs/fidelity/ice-round-observations.md`.
+The score-driven match-end profile labels its 3–4, one-half-each prehistory as constructed, then uses one ordinary public-input projectile to award blue's fifth completed round. The existing result transition and `ROUND BLUE` envelope finish before authority enters stable `WAITING`; both fighters are respawned and revived, projectiles are cleared, and the 3–5 score plus retained builds remain visible. The later 0–0 draft is observed but not implemented because its trigger is not visible in the recordings.
 An eliminated fighter, including one that leaves the arena with health remaining, accepts no further movement, aim, block or fire input, and each fight's outcome is decided once from who remains alive. When both fighters fall on the same tick, nobody scores: halves, completed rounds and cards stay as they were, and after the usual result pause the same arena repeats without a draft. That no-award rule is provisional because neither recording shows a simultaneous elimination.
 Production reliability and Steam transport, the remaining card mechanics, other arenas, the rest of the match lifecycle, audio, and menus remain explicit gaps in `docs/fidelity/footage-coverage.md`.
 

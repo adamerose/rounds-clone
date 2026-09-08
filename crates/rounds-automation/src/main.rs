@@ -14,6 +14,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 #[serde(rename_all = "camelCase")]
 struct SmokeEvidence {
     protocol: u16,
+    constructed_prehistory: Option<&'static str>,
     transport: &'static str,
     seed: u64,
     ticks: u32,
@@ -40,6 +41,12 @@ struct SmokeEvidence {
     both_clients_observed_rematch_reset: bool,
     both_clients_observed_blue_fan_by_tick_960: bool,
     both_clients_observed_hanging_entry: bool,
+    both_clients_observed_score_driven_waiting: bool,
+    decisive_event_observed: bool,
+    final_scores: Option<[u8; 2]>,
+    final_phase: Option<FlowPhase>,
+    visible_fighters: bool,
+    retained_builds: bool,
     observed_flow_phases: Vec<FlowPhase>,
     flow_completed_with_source_loadouts: bool,
     radial_saw_motion_observed: bool,
@@ -270,6 +277,26 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     });
     let both_clients_observed_hanging_entry =
         reports.iter().all(|report| report.observed_hanging_entry);
+    let both_clients_observed_score_driven_waiting = reports
+        .iter()
+        .all(|report| report.observed_score_driven_waiting);
+    let decisive_event_observed = server_report.state.impacts.iter().any(|impact| {
+        impact.tick == rounds_sim::MATCH_END_DECISIVE_IMPACT_TICK
+            && impact.owner == 1
+            && impact.target == Some(0)
+            && impact.eliminated
+    });
+    let final_scores = server_report.state.flow.as_ref().map(|flow| flow.scores);
+    let final_phase = server_report.state.flow.as_ref().map(|flow| flow.phase);
+    let visible_fighters = server_report
+        .state
+        .players
+        .iter()
+        .all(|player| player.alive && player.health == 100);
+    let retained_builds =
+        server_report.state.flow.as_ref().is_some_and(|flow| {
+            flow.loadouts == [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+        });
     let flow_completed_with_source_loadouts =
         server_report.state.flow.as_ref().is_some_and(|flow| {
             (if ticks >= rounds_sim::HELD_HANGING_ENTRY_TICKS {
@@ -352,6 +379,12 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 || !radial_damage_observed
                 || !radial_result_onset_observed
                 || !radial_half_blue_observed))
+        || (profile == ReplayProfile::MatchEndWaitingReplay
+            && (!both_clients_observed_same_flow
+                || !both_clients_observed_score_driven_waiting
+                || !decisive_event_observed
+                || !visible_fighters
+                || !retained_builds))
         || (profile == ReplayProfile::YellowCrateTerminalBlastReplay
             && (!yellow_calm_observed
                 || !yellow_terminal_blast_observed
@@ -369,6 +402,7 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
         "{}",
         serde_json::to_string(&SmokeEvidence {
             protocol: NETWORK_PROTOCOL,
+            constructed_prehistory: profile.constructed_prehistory(),
             transport: "udp/ipv4-loopback",
             seed,
             ticks,
@@ -395,6 +429,12 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
             both_clients_observed_rematch_reset,
             both_clients_observed_blue_fan_by_tick_960,
             both_clients_observed_hanging_entry,
+            both_clients_observed_score_driven_waiting,
+            decisive_event_observed,
+            final_scores,
+            final_phase,
+            visible_fighters,
+            retained_builds,
             observed_flow_phases: reports[0].observed_flow_phases.clone(),
             flow_completed_with_source_loadouts,
             radial_saw_motion_observed,
@@ -456,6 +496,7 @@ fn inspect(arguments: &[String]) -> Result<(), String> {
     let (state, state_hash) = run_profile_match(profile, seed, ticks);
     let report = ServerReport {
         protocol: NETWORK_PROTOCOL,
+        constructed_prehistory: profile.constructed_prehistory().map(str::to_owned),
         clients_handshaken: 2,
         inputs_received: ticks * 2,
         progressive_snapshots: ticks,

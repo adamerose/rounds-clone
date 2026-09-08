@@ -410,6 +410,7 @@ pub enum FlowPhase {
     PostRoundReveal,
     PostRoundBridge,
     HangingEntry,
+    Waiting,
     TerminalMatch,
 }
 
@@ -549,40 +550,100 @@ pub struct FlowAuthority {
 }
 
 impl FlowAuthority {
+    /// Starts a fresh match without inherited score, result, or build state.
     pub fn new(seed: u64) -> Self {
+        Self::from_constructed_state(
+            seed,
+            FlowPhase::ResumedCombat,
+            [0, 0],
+            [0, 0],
+            None,
+            None,
+            [Vec::new(), Vec::new()],
+            [Vec::new(), Vec::new()],
+        )
+    }
+
+    /// Reconstructs the already-concluded 4–5 match at the beginning of the
+    /// connected rematch recording. This is historical presentation state,
+    /// not a score reached by [`Self::record_elimination`].
+    pub fn historical_rematch(seed: u64) -> Self {
+        Self::from_constructed_state(
+            seed,
+            FlowPhase::CombatConclusion,
+            [4, 5],
+            [0, 0],
+            Some(1),
+            Some(0),
+            [
+                vec![
+                    PriorBadge::Po,
+                    PriorBadge::De,
+                    PriorBadge::Th,
+                    PriorBadge::Qu,
+                    PriorBadge::Bu,
+                ],
+                vec![
+                    PriorBadge::Bu,
+                    PriorBadge::Ca,
+                    PriorBadge::Co,
+                    PriorBadge::Co,
+                    PriorBadge::Fa,
+                ],
+            ],
+            [Vec::new(), Vec::new()],
+        )
+    }
+
+    /// Constructs the source-backed 3–4, one-half-each prehistory used by the
+    /// match-end replay. The fifth point must still be earned through combat.
+    pub fn match_end_waiting_replay(seed: u64) -> Self {
+        let mut authority = Self::from_constructed_state(
+            seed,
+            FlowPhase::ResumedCombat,
+            [3, 4],
+            [1, 1],
+            None,
+            None,
+            [Vec::new(), Vec::new()],
+            [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]],
+        );
+        authority.snapshot.capabilities[0]
+            .accumulate(item_definition(ItemId::Dazzle).modifiers.unwrap());
+        authority.snapshot.capabilities[1]
+            .accumulate(item_definition(ItemId::ExplosiveBullet).modifiers.unwrap());
+        authority
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_constructed_state(
+        seed: u64,
+        phase: FlowPhase,
+        scores: [u8; 2],
+        halves: [u8; 2],
+        winner: Option<u8>,
+        eliminated: Option<u8>,
+        prior_badges: [Vec<PriorBadge>; 2],
+        loadouts: [Vec<ItemId>; 2],
+    ) -> Self {
         Self {
             snapshot: FlowSnapshot {
-                phase: FlowPhase::CombatConclusion,
+                phase,
                 phase_revision: 0,
                 phase_tick: 0,
                 active_player: None,
-                scores: [4, 5],
-                halves: [0, 0],
-                winner: Some(1),
-                eliminated: Some(0),
-                fighter_alive: [false, true],
-                prior_badges: [
-                    vec![
-                        PriorBadge::Po,
-                        PriorBadge::De,
-                        PriorBadge::Th,
-                        PriorBadge::Qu,
-                        PriorBadge::Bu,
-                    ],
-                    vec![
-                        PriorBadge::Bu,
-                        PriorBadge::Ca,
-                        PriorBadge::Co,
-                        PriorBadge::Co,
-                        PriorBadge::Fa,
-                    ],
-                ],
+                scores,
+                halves,
+                winner,
+                eliminated,
+                fighter_alive: [eliminated != Some(0), eliminated != Some(1)],
+                prior_badges,
                 rematch_votes: [RematchVote::Pending; 2],
                 offers: [source_offers(seed, 0), source_offers(seed, 1)],
                 hovered: [None, None],
                 selected: [None, None],
                 revealed: None,
-                loadouts: [Vec::new(), Vec::new()],
+                loadouts,
                 capabilities: [FighterCapabilities::default(); 2],
                 last_results: [ActionResult::None; 2],
                 accepted_actions: 0,
@@ -649,7 +710,7 @@ impl FlowAuthority {
     }
 
     pub fn advance(&mut self, commands: [Option<FlowCommand>; 2]) {
-        self.snapshot.phase_tick += 1;
+        self.snapshot.phase_tick = self.snapshot.phase_tick.saturating_add(1);
         self.snapshot.last_results = [ActionResult::None; 2];
         for (player, command) in commands.into_iter().enumerate() {
             if let Some(command) = command {
@@ -686,6 +747,19 @@ impl FlowAuthority {
                 self.transition(FlowPhase::ResumedCombat, None);
             }
             FlowPhase::RoundBlue | FlowPhase::RoundOrange if self.snapshot.phase_tick >= 139 => {
+                let winner = self
+                    .snapshot
+                    .winner
+                    .expect("a completed round records its winning fighter");
+                if self.snapshot.scores[usize::from(winner)] >= 5 {
+                    self.snapshot.fighter_alive = [true, true];
+                    self.snapshot.offers = [Vec::new(), Vec::new()];
+                    self.snapshot.hovered = [None, None];
+                    self.snapshot.selected = [None, None];
+                    self.snapshot.revealed = None;
+                    self.transition(FlowPhase::Waiting, None);
+                    return;
+                }
                 let loser = self
                     .snapshot
                     .eliminated
@@ -954,8 +1028,91 @@ mod tests {
     }
 
     #[test]
+    fn fresh_and_historical_construction_do_not_conflate_match_state() {
+        let fresh = FlowAuthority::new(SOURCE_DRAFT_SEED).snapshot();
+        assert_eq!(fresh.phase, FlowPhase::ResumedCombat);
+        assert_eq!(fresh.scores, [0, 0]);
+        assert_eq!(fresh.halves, [0, 0]);
+        assert_eq!((fresh.winner, fresh.eliminated), (None, None));
+        assert_eq!(fresh.fighter_alive, [true, true]);
+        assert!(fresh.prior_badges.iter().all(Vec::is_empty));
+        assert!(fresh.loadouts.iter().all(Vec::is_empty));
+
+        let historical = FlowAuthority::historical_rematch(SOURCE_DRAFT_SEED).snapshot();
+        assert_eq!(historical.phase, FlowPhase::CombatConclusion);
+        assert_eq!(historical.scores, [4, 5]);
+        assert_eq!(
+            (historical.winner, historical.eliminated),
+            (Some(1), Some(0))
+        );
+    }
+
+    #[test]
+    fn fifth_round_keeps_result_envelope_then_waits_stably_for_both_winner_colours() {
+        for winner in [0_u8, 1_u8] {
+            let mut flow = FlowAuthority::match_end_waiting_replay(SOURCE_DRAFT_SEED);
+            flow.snapshot.scores = if winner == 0 { [4, 3] } else { [3, 4] };
+            let retained_loadouts = flow.snapshot.loadouts.clone();
+            let retained_capabilities = flow.snapshot.capabilities;
+            assert!(flow.record_elimination(winner));
+            assert_eq!(flow.snapshot.phase, FlowPhase::EliminationConclusion);
+            assert_eq!(flow.snapshot.halves[usize::from(winner)], 2);
+            assert_eq!(flow.snapshot.scores[usize::from(winner)], 5);
+
+            let result_phase = if winner == 0 {
+                FlowPhase::OrangeResultTransition
+            } else {
+                FlowPhase::BlueResultTransition
+            };
+            let round_phase = if winner == 0 {
+                FlowPhase::RoundOrange
+            } else {
+                FlowPhase::RoundBlue
+            };
+            while flow.snapshot.phase == FlowPhase::EliminationConclusion {
+                flow.advance([None, None]);
+            }
+            assert_eq!(flow.snapshot.phase, result_phase);
+            while flow.snapshot.phase == result_phase {
+                flow.advance([None, None]);
+            }
+            assert_eq!(flow.snapshot.phase, round_phase);
+            while flow.snapshot.phase == round_phase {
+                flow.advance([None, None]);
+            }
+            assert_eq!(flow.snapshot.phase, FlowPhase::Waiting);
+            assert_eq!(flow.snapshot.fighter_alive, [true, true]);
+            assert_eq!(flow.snapshot.loadouts, retained_loadouts);
+            assert_eq!(flow.snapshot.capabilities, retained_capabilities);
+            assert_eq!(
+                (flow.snapshot.winner, flow.snapshot.eliminated),
+                (Some(winner), Some(1 - winner))
+            );
+            assert!(!flow.record_elimination(1 - winner));
+
+            let revision = flow.snapshot.phase_revision;
+            flow.advance([
+                Some(FlowCommand {
+                    phase_revision: revision,
+                    action: FlowAction::VoteYes,
+                }),
+                Some(FlowCommand {
+                    phase_revision: revision,
+                    action: FlowAction::Confirm(ItemId::Dazzle),
+                }),
+            ]);
+            assert_eq!(flow.snapshot.last_results, [ActionResult::WrongPhase; 2]);
+            assert_eq!(flow.snapshot.scores[usize::from(winner)], 5);
+            assert_eq!(flow.snapshot.phase, FlowPhase::Waiting);
+            flow.snapshot.phase_tick = u32::MAX;
+            flow.advance([None, None]);
+            assert_eq!(flow.snapshot.phase_tick, u32::MAX);
+        }
+    }
+
+    #[test]
     fn both_yes_resets_score_and_old_loadouts_but_either_no_terminates() {
-        let mut accepted = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        let mut accepted = FlowAuthority::historical_rematch(SOURCE_DRAFT_SEED);
         assert_eq!(accepted.snapshot.scores, [4, 5]);
         assert_eq!(accepted.snapshot.winner, Some(1));
         assert_eq!(accepted.snapshot.eliminated, Some(0));
@@ -998,7 +1155,7 @@ mod tests {
         assert_eq!(accepted.snapshot.prior_badges, [Vec::new(), Vec::new()]);
         assert_eq!(accepted.snapshot.loadouts, [Vec::new(), Vec::new()]);
 
-        let mut rejected = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        let mut rejected = FlowAuthority::historical_rematch(SOURCE_DRAFT_SEED);
         advance_to_prompt(&mut rejected);
         rejected.advance([
             Some(FlowCommand {
@@ -1017,7 +1174,7 @@ mod tests {
 
     #[test]
     fn action_validation_rejects_stale_duplicate_wrong_owner_and_catalog_only_confirm() {
-        let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        let mut flow = FlowAuthority::historical_rematch(SOURCE_DRAFT_SEED);
         advance_to_prompt(&mut flow);
         flow.advance([
             Some(FlowCommand {
@@ -1183,7 +1340,7 @@ mod tests {
 
     #[test]
     fn simultaneous_elimination_awards_nothing_and_repeats_the_same_combat_phase() {
-        let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        let mut flow = FlowAuthority::historical_rematch(SOURCE_DRAFT_SEED);
         assert!(!flow.record_simultaneous_elimination(), "not in combat");
         advance_to_prompt(&mut flow);
         let revision = flow.snapshot.phase_revision;
@@ -1202,6 +1359,7 @@ mod tests {
 
         let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
         flow.snapshot.halves = [1, 0];
+        flow.snapshot.scores = [3, 4];
         flow.snapshot.loadouts = [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]];
         flow.snapshot.winner = None;
         flow.snapshot.eliminated = None;
@@ -1238,7 +1396,7 @@ mod tests {
 
     fn completed_round(winner: u8) -> FlowAuthority {
         let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
-        flow.snapshot.scores = if winner == 0 { [1, 0] } else { [0, 1] };
+        flow.snapshot.scores = if winner == 0 { [4, 3] } else { [3, 4] };
         flow.snapshot.halves = if winner == 0 { [2, 1] } else { [1, 2] };
         flow.snapshot.winner = Some(winner);
         flow.snapshot.eliminated = Some(1 - winner);
@@ -1274,7 +1432,7 @@ mod tests {
             assert_eq!(flow.snapshot.halves, [0, 0]);
             assert_eq!(
                 flow.snapshot.scores,
-                if winner == 0 { [1, 0] } else { [0, 1] }
+                if winner == 0 { [4, 3] } else { [3, 4] }
             );
             assert_eq!(
                 flow.snapshot.offers[usize::from(loser)],
