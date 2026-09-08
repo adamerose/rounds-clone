@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-08T10:40:28Z
 origin: agent-proposed
 tags: ["rounds", "bevy", "fidelity", "match-flow", "arena"]
@@ -66,3 +66,5 @@ The connected rematch route currently stops on the empty bridge after orange dra
 - 2026-09-08T12:16:03Z stage verification start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Re-running the complete checks, exact-executable capture and smoke, overrun guard, direct image inspection, metadata preservation comparison and guarded monitor-4 playback for the corrected candidate.
 - 2026-09-08T12:16:03Z stage verification end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — Format, strict all-target Clippy, locked build and all 59 tests passed sequentially on the shared two-job target. Executable SHA-256 02dc65c6b8c80dcd277565f0b701cc67730f8afbb5868c8a43d4339934339003 produced all 57 anchors and a 5,941-tick two-client smoke with client, authority and received-state GPU agreement; 6,001 remained rejected. All ten state, source and gameplay fields compared across the 57 old/new anchor rows are unchanged; only the nine hanging-entry frame hashes moved. Direct 5918/5941 inspection confirms a stable backdrop and intact held scene. Guarded playback verified center (1324,-540) on monitor 4 before showing, reached `hangingEntry` age 47, and exited 0. Physical controller input remains unavailable and unclaimed.
 - 2026-09-08T12:24:14Z stage review start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a080f4-1d74-7311-af0b-5f3c1e51aaec — Reviewing the corrected full candidate after the first review's backdrop-drift return; the final metadata-only candidate retains the approved implementation tree and names this independent reviewer on its tip.
+- 2026-09-08T12:29:39Z stage review end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a080f4-1d74-7311-af0b-5f3c1e51aaec — approved candidate b2c49b4ebcd81adeec27fa0eddc1e8272bbee0a4..65e637fa821789d00dd9f49ac37038cd66d14a3d
+- 2026-09-08T12:29:39Z stage integration end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — integrated 65e637fa821789d00dd9f49ac37038cd66d14a3d as 65e637fa821789d00dd9f49ac37038cd66d14a3d
