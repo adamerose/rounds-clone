@@ -260,15 +260,34 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
     let both_clients_observed_blue_fan_by_tick_960 = reports
         .iter()
         .all(|report| report.observed_blue_fan_by_tick_960);
+    let both_clients_observed_first_loser_draft = reports.iter().all(|report| {
+        report.observed_first_loser_draft_entry
+            && report.observed_overpower_hover
+            && report.observed_quick_shot_hover
+            && report.observed_quick_shot_confirmation
+            && report.observed_post_round_bridge
+    });
     let flow_completed_with_source_loadouts =
         server_report.state.flow.as_ref().is_some_and(|flow| {
-            (if ticks >= rounds_sim::CONNECTED_FIRST_ROUND_TICKS {
+            (if ticks >= rounds_sim::FIRST_LOSER_DRAFT_TICKS {
+                flow.phase == FlowPhase::PostRoundBridge
+                    && flow.scores == [0, 1]
+                    && flow.halves == [0, 0]
+            } else if ticks >= rounds_sim::CONNECTED_FIRST_ROUND_TICKS {
                 flow.phase == FlowPhase::RoundBlue && flow.scores == [0, 1] && flow.halves == [1, 2]
             } else if ticks > rounds_sim::LEGACY_REMATCH_DRAFT_TICKS {
                 flow.phase == FlowPhase::HalfOrange && flow.halves == [1, 1]
             } else {
                 flow.phase == FlowPhase::ResumedCombat && flow.scores == [0, 0]
-            }) && flow.loadouts == [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+            }) && flow.loadouts
+                == if ticks >= rounds_sim::FIRST_LOSER_DRAFT_TICKS {
+                    [
+                        vec![ItemId::Dazzle, ItemId::QuickShot],
+                        vec![ItemId::ExplosiveBullet],
+                    ]
+                } else {
+                    [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+                }
         });
     let radial_saw_motion_observed = reports
         .iter()
@@ -304,6 +323,8 @@ fn smoke(arguments: &[String]) -> Result<(), String> {
                 || !both_clients_observed_source_terminal_state
                 || !both_clients_observed_rematch_reset
                 || !both_clients_observed_blue_fan_by_tick_960
+                || (ticks >= rounds_sim::FIRST_LOSER_DRAFT_TICKS
+                    && !both_clients_observed_first_loser_draft)
                 || !flow_completed_with_source_loadouts
                 || (ticks > rounds_sim::LEGACY_REMATCH_DRAFT_TICKS
                     && (!progressive_explosion_transition_observed

@@ -2,7 +2,7 @@
 
 This repository starts from the two supplied ten-minute ROUNDS recordings and builds the clone in Rust with Bevy.
 Five footage-derived slices exist: a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, the radial-saw duel through `HALF BLUE`, and the yellow-crate terminal blast through `ROUND ORANGE`.
-The rematch path now continues through both card drafts, the first two half results, the timber collapse, the deciding ice duel and the first full-round award in one match.
+The rematch path now continues through both opening card drafts, the first two half results, the timber collapse, the deciding ice duel, the first full-round award, and the losing fighter's five-card `QUICK SHOT` draft in one match.
 Two clients drive one 60 Hz Rapier authority through sequenced local UDP input, the same rules run as a client-host, and the shared Bevy 2D scene renders visibly or to offscreen evidence frames.
 
 ## Build and verify
@@ -25,7 +25,7 @@ cargo test --workspace --locked
 ```
 
 The smoke result proves that both client processes handshake, send monotonic input sequences, receive every progressive snapshot, agree with the authority and local host, and bind one real Bevy render to the received final state.
-The 2,400-tick rematch replay capture retains thirteen named 1280×720 anchors. The complete 5,466-tick route emits 37 anchors through the ice duel and first blue round pip. Their metadata identifies the source recording and timestamp, replay input, state, renderer, executable, and frame.
+The 2,400-tick rematch replay capture retains thirteen named 1280×720 anchors. The complete 5,893-tick route emits the existing 37 anchors plus eleven post-round draft anchors through the background-only bridge. Their metadata identifies the source recording and native PTS/RGBA identity, replay input, state, renderer, executable, and frame.
 
 
 ## Play the connected match
@@ -42,10 +42,10 @@ At `REMATCH?`, orange accepts with Y and blue with Enter. Use left/right arrows 
 | Aim up / left / down / right | I / J / K / L | Numpad 8 / 4 / 5 / 6 |
 
 Without a manual aim direction, aim follows the opponent from the latest observation. Controllers use the left stick to move, right stick to aim, south button to jump, west button to block and right trigger to fire; D-pad and south button control the draft.
-The first player to win two fights earns a full round. Either color can win both opening fights and finish there; a split sends both players into the ice arena. The result keeps the losing player's half visible, fills the winner's circle and moves the award into a completed-round HUD pip. The route stops at that result, before the next draft.
-For an automated demonstration of the full connected route, run `out/cargo-target/debug/rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 5466 --automated`.
-For the two-client development-transport check, run `out/cargo-target/debug/rounds-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 5466 --output-dir out/ticket-046/smoke`.
-Capture all 37 shared-renderer anchors with `out/cargo-target/debug/rounds-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 5466 --output-dir out/ticket-046/anchors --metadata out/ticket-046/anchors.json`. These commands extend the existing profile; smoke sessions remain bounded to 6,000 exchanged ticks.
+The first player to win two fights earns a full round. Either color can win both opening fights and finish there; a split sends both players into the ice arena. The result keeps the losing player's half visible, fills the winner's circle and moves the award into a completed-round HUD pip. When the result clears, current halves reset, completed rounds and loadouts remain, and only the completed round's loser drafts. The seed-41 route hovers `OVERPOWER`, selects `QUICK SHOT`, retains Dazzle, and accumulates a typed per-fighter projectile-speed multiplier; the other four new cards are visible but catalog-only.
+For an automated demonstration of the full connected route, run `out/cargo-target/debug/rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 5893 --automated`.
+For the two-client development-transport check, run `out/cargo-target/debug/rounds-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 5893 --output-dir out/ticket-053/smoke`.
+Capture all 48 shared-renderer entries with `out/cargo-target/debug/rounds-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 5893 --output-dir out/ticket-053/anchors --metadata out/ticket-053/anchors.json`. These commands extend the existing profile; smoke sessions remain bounded to 6,000 exchanged ticks.
 
 ## What is and is not implemented
 

@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 
 pub const REMATCH_DRAFT_TICKS: u32 = 4_540;
 pub const CONNECTED_FIRST_ROUND_TICKS: u32 = 5_466;
+pub const FIRST_LOSER_DRAFT_TICKS: u32 = 5_893;
 pub const CONNECTED_ICE_LOAD_TICK: u32 = 4_541;
 pub const CONNECTED_ICE_COMBAT_TICK: u32 = 4_601;
 pub const CONNECTED_ICE_RESULT_ONSET_TICK: u32 = 5_339;
@@ -31,6 +32,11 @@ pub enum ItemId {
     Echo,
     Lifestealer,
     Emp,
+    QuickShot,
+    ColdBullets,
+    CarefulPlanning,
+    Overpower,
+    BigBullet,
 }
 
 impl ItemId {
@@ -45,6 +51,11 @@ impl ItemId {
             Self::Echo => "Ec",
             Self::Lifestealer => "Li",
             Self::Emp => "Em",
+            Self::QuickShot => "Qu",
+            Self::ColdBullets => "Co",
+            Self::CarefulPlanning => "Ca",
+            Self::Overpower => "Ov",
+            Self::BigBullet => "Bi",
         }
     }
 }
@@ -72,6 +83,19 @@ pub struct GameplayModifiers {
     pub explosion_radius_milli: i32,
     pub explosion_impulse_milli: i32,
     pub fire_cooldown_extra_ticks: u16,
+    pub projectile_speed_factor: ProjectileSpeedFactor,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectileSpeedFactor {
+    pub milli: u16,
+}
+
+impl Default for ProjectileSpeedFactor {
+    fn default() -> Self {
+        Self { milli: 1_000 }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -162,6 +186,7 @@ pub fn item_catalog() -> Vec<ItemDefinition> {
                 explosion_radius_milli: 0,
                 explosion_impulse_milli: 0,
                 fire_cooldown_extra_ticks: 15,
+                projectile_speed_factor: ProjectileSpeedFactor::default(),
             }),
         ),
         item(
@@ -182,6 +207,7 @@ pub fn item_catalog() -> Vec<ItemDefinition> {
                 explosion_radius_milli: 150_000,
                 explosion_impulse_milli: 540_000,
                 fire_cooldown_extra_ticks: 15,
+                projectile_speed_factor: ProjectileSpeedFactor::default(),
             }),
         ),
         item(
@@ -222,7 +248,75 @@ pub fn item_catalog() -> Vec<ItemDefinition> {
             CatalogOnly,
             None,
         ),
+        item(
+            QuickShot,
+            "QUICK SHOT",
+            &["A bunch more Bullet speed", "+0.25s Reload time"],
+            Common,
+            [222, 244, 102],
+            "speed-streak-blob",
+            Implemented,
+            Some(GameplayModifiers {
+                projectile_speed_factor: ProjectileSpeedFactor { milli: 1_250 },
+                ..neutral_modifiers()
+            }),
+        ),
+        item(
+            ColdBullets,
+            "COLD BULLETS",
+            &["A bunch more Bullet slow", "+0.25s Reload time"],
+            Uncommon,
+            [92, 188, 224],
+            "snowflake-bullet",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            CarefulPlanning,
+            "CAREFUL PLANNING",
+            &["A bunch more DMG", "Lower ATKSPD", "+0.5s Reload time"],
+            Uncommon,
+            [22, 165, 190],
+            "paper-fan-blob",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Overpower,
+            "OVERPOWER",
+            &[
+                "Deal 15% of your max HP to enemies around you when you block",
+                "More HP",
+                "+0.25s Block cooldown",
+            ],
+            Rare,
+            [244, 78, 73],
+            "dark-glasses-blob",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            BigBullet,
+            "BIG BULLET",
+            &["Bigger bullets", "+0.25s Reload time"],
+            Common,
+            [226, 83, 74],
+            "oversized-red-round",
+            CatalogOnly,
+            None,
+        ),
     ]
+}
+
+fn neutral_modifiers() -> GameplayModifiers {
+    GameplayModifiers {
+        dazzle_stun_pulses: 0,
+        dazzle_stun_ticks: 0,
+        explosion_radius_milli: 0,
+        explosion_impulse_milli: 0,
+        fire_cooldown_extra_ticks: 0,
+        projectile_speed_factor: ProjectileSpeedFactor::default(),
+    }
 }
 
 #[expect(
@@ -278,6 +372,17 @@ pub fn source_offers(seed: u64, player: u8) -> Vec<ItemId> {
     offers
 }
 
+pub fn first_loser_draft_offers() -> Vec<ItemId> {
+    use ItemId::*;
+    vec![
+        QuickShot,
+        ColdBullets,
+        CarefulPlanning,
+        Overpower,
+        BigBullet,
+    ]
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FlowPhase {
@@ -300,6 +405,9 @@ pub enum FlowPhase {
     IceCombat,
     RoundBlue,
     RoundOrange,
+    PostRoundDraft,
+    PostRoundReveal,
+    PostRoundBridge,
     TerminalMatch,
 }
 
@@ -380,6 +488,31 @@ pub struct FighterCapabilities {
     pub explosion_radius_milli: i32,
     pub explosion_impulse_milli: i32,
     pub fire_cooldown_extra_ticks: u16,
+    pub projectile_speed_factor: ProjectileSpeedFactor,
+}
+
+impl FighterCapabilities {
+    fn accumulate(&mut self, modifiers: GameplayModifiers) {
+        self.dazzle_stun_pulses = self
+            .dazzle_stun_pulses
+            .saturating_add(modifiers.dazzle_stun_pulses);
+        self.dazzle_stun_ticks = self
+            .dazzle_stun_ticks
+            .saturating_add(modifiers.dazzle_stun_ticks);
+        self.explosion_radius_milli = self
+            .explosion_radius_milli
+            .saturating_add(modifiers.explosion_radius_milli);
+        self.explosion_impulse_milli = self
+            .explosion_impulse_milli
+            .saturating_add(modifiers.explosion_impulse_milli);
+        self.fire_cooldown_extra_ticks = self
+            .fire_cooldown_extra_ticks
+            .saturating_add(modifiers.fire_cooldown_extra_ticks);
+        let multiplied = u32::from(self.projectile_speed_factor.milli)
+            * u32::from(modifiers.projectile_speed_factor.milli)
+            / 1_000;
+        self.projectile_speed_factor.milli = multiplied.min(u32::from(u16::MAX)) as u16;
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -543,6 +676,22 @@ impl FlowAuthority {
             FlowPhase::ArenaTransition if self.snapshot.phase_tick >= 59 => {
                 self.transition(FlowPhase::ResumedCombat, None);
             }
+            FlowPhase::RoundBlue | FlowPhase::RoundOrange if self.snapshot.phase_tick >= 139 => {
+                let loser = self
+                    .snapshot
+                    .eliminated
+                    .expect("a completed round records its losing fighter");
+                self.snapshot.halves = [0, 0];
+                self.snapshot.offers = [Vec::new(), Vec::new()];
+                self.snapshot.offers[usize::from(loser)] = first_loser_draft_offers();
+                self.snapshot.hovered = [None, None];
+                self.snapshot.selected = [None, None];
+                self.snapshot.revealed = None;
+                self.transition(FlowPhase::PostRoundDraft, Some(loser));
+            }
+            FlowPhase::PostRoundReveal if self.snapshot.phase_tick >= 16 => {
+                self.transition(FlowPhase::PostRoundBridge, None);
+            }
             FlowPhase::EliminationConclusion
                 if self.snapshot.phase_tick
                     >= if self.snapshot.halves.iter().sum::<u8>() == 1 {
@@ -641,6 +790,9 @@ impl FlowAuthority {
             (FlowPhase::RematchPrompt, FlowAction::VoteNo) => self.vote(player, RematchVote::No),
             (FlowPhase::Draft, FlowAction::Hover(item)) => self.hover(player, item),
             (FlowPhase::Draft, FlowAction::Confirm(item)) => self.confirm(player, item),
+            (FlowPhase::PostRoundDraft, FlowAction::Hover(item)) => self.hover(player, item),
+            (FlowPhase::PostRoundDraft, FlowAction::Confirm(item)) => self.confirm(player, item),
+            (FlowPhase::PostRoundReveal, FlowAction::Confirm(item)) => self.confirm(player, item),
             _ => ActionResult::WrongPhase,
         };
         self.snapshot.last_results[index] = result;
@@ -709,15 +861,14 @@ impl FlowAuthority {
         self.snapshot.revealed = Some(item);
         self.snapshot.loadouts[index].push(item);
         if let Some(modifiers) = definition.modifiers {
-            self.snapshot.capabilities[index] = FighterCapabilities {
-                dazzle_stun_pulses: modifiers.dazzle_stun_pulses,
-                dazzle_stun_ticks: modifiers.dazzle_stun_ticks,
-                explosion_radius_milli: modifiers.explosion_radius_milli,
-                explosion_impulse_milli: modifiers.explosion_impulse_milli,
-                fire_cooldown_extra_ticks: modifiers.fire_cooldown_extra_ticks,
-            };
+            self.snapshot.capabilities[index].accumulate(modifiers);
         }
-        self.transition(FlowPhase::Reveal, Some(player));
+        let reveal = if self.snapshot.phase == FlowPhase::PostRoundDraft {
+            FlowPhase::PostRoundReveal
+        } else {
+            FlowPhase::Reveal
+        };
+        self.transition(reveal, Some(player));
         ActionResult::Accepted
     }
 
@@ -755,14 +906,28 @@ mod tests {
     }
 
     #[test]
-    fn catalog_transcribes_ten_source_offers_without_unlocking_inert_cards() {
+    fn catalog_transcribes_source_offers_without_unlocking_inert_cards() {
         let catalog = item_catalog();
-        assert_eq!(catalog.len(), 9, "Dazzle is the repeated tenth offer");
+        assert_eq!(catalog.len(), 14, "Dazzle is the repeated rematch offer");
         assert_eq!(source_offers(SOURCE_DRAFT_SEED, 0).len(), 5);
         assert_eq!(source_offers(SOURCE_DRAFT_SEED, 1).len(), 5);
         assert_eq!(
             general_implemented_offer_pool(),
-            vec![ItemId::Dazzle, ItemId::ExplosiveBullet]
+            vec![ItemId::Dazzle, ItemId::ExplosiveBullet, ItemId::QuickShot]
+        );
+        assert_eq!(
+            first_loser_draft_offers(),
+            vec![
+                ItemId::QuickShot,
+                ItemId::ColdBullets,
+                ItemId::CarefulPlanning,
+                ItemId::Overpower,
+                ItemId::BigBullet,
+            ]
+        );
+        assert_eq!(
+            item_definition(ItemId::QuickShot).rules,
+            vec!["A bunch more Bullet speed", "+0.25s Reload time"]
         );
         assert_eq!(
             item_definition(ItemId::Dazzle).rules,
@@ -1054,5 +1219,191 @@ mod tests {
         assert!(flow.accepts_combat());
         assert!(flow.record_elimination(1));
         assert_eq!(flow.snapshot.halves, [1, 1]);
+    }
+
+    fn completed_round(winner: u8) -> FlowAuthority {
+        let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        flow.snapshot.scores = if winner == 0 { [1, 0] } else { [0, 1] };
+        flow.snapshot.halves = if winner == 0 { [2, 1] } else { [1, 2] };
+        flow.snapshot.winner = Some(winner);
+        flow.snapshot.eliminated = Some(1 - winner);
+        flow.snapshot.loadouts = [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]];
+        flow.snapshot.capabilities = [FighterCapabilities::default(); 2];
+        flow.snapshot.capabilities[0]
+            .accumulate(item_definition(ItemId::Dazzle).modifiers.unwrap());
+        flow.snapshot.capabilities[1]
+            .accumulate(item_definition(ItemId::ExplosiveBullet).modifiers.unwrap());
+        flow.snapshot.hovered = [Some(ItemId::Dazzle), Some(ItemId::ExplosiveBullet)];
+        flow.snapshot.selected = [Some(ItemId::Dazzle), Some(ItemId::ExplosiveBullet)];
+        flow.transition(
+            if winner == 0 {
+                FlowPhase::RoundOrange
+            } else {
+                FlowPhase::RoundBlue
+            },
+            None,
+        );
+        for _ in 0..139 {
+            flow.advance([None, None]);
+        }
+        flow
+    }
+
+    #[test]
+    fn completed_round_opens_a_clean_loser_only_draft_in_both_colours() {
+        for winner in [0, 1] {
+            let mut flow = completed_round(winner);
+            let loser = 1 - winner;
+            assert_eq!(flow.snapshot.phase, FlowPhase::PostRoundDraft);
+            assert_eq!(flow.snapshot.active_player, Some(loser));
+            assert_eq!(flow.snapshot.halves, [0, 0]);
+            assert_eq!(
+                flow.snapshot.scores,
+                if winner == 0 { [1, 0] } else { [0, 1] }
+            );
+            assert_eq!(
+                flow.snapshot.offers[usize::from(loser)],
+                first_loser_draft_offers()
+            );
+            assert!(flow.snapshot.offers[usize::from(winner)].is_empty());
+            assert_eq!(flow.snapshot.hovered, [None, None]);
+            assert_eq!(flow.snapshot.selected, [None, None]);
+            assert_eq!(flow.snapshot.revealed, None);
+            assert_eq!(
+                flow.snapshot.loadouts,
+                [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+            );
+            assert!(!flow.record_elimination(winner));
+        }
+    }
+
+    #[test]
+    fn post_round_draft_rejections_are_state_safe_and_quick_shot_accumulates() {
+        let mut flow = completed_round(1);
+        let revision = flow.snapshot.phase_revision;
+        fn retained(
+            flow: &FlowAuthority,
+        ) -> ([u8; 2], [u8; 2], [Vec<ItemId>; 2], [FighterCapabilities; 2]) {
+            (
+                flow.snapshot.halves,
+                flow.snapshot.scores,
+                flow.snapshot.loadouts.clone(),
+                flow.snapshot.capabilities,
+            )
+        }
+        let expected = retained(&flow);
+
+        for action in [
+            FlowAction::Hover(ItemId::QuickShot),
+            FlowAction::Confirm(ItemId::QuickShot),
+        ] {
+            flow.advance([
+                None,
+                Some(FlowCommand {
+                    phase_revision: revision,
+                    action,
+                }),
+            ]);
+            assert_eq!(flow.snapshot.last_results[1], ActionResult::WrongPlayer);
+            assert_eq!(retained(&flow), expected);
+        }
+        flow.advance([
+            Some(FlowCommand {
+                phase_revision: revision - 1,
+                action: FlowAction::Hover(ItemId::QuickShot),
+            }),
+            None,
+        ]);
+        assert_eq!(flow.snapshot.last_results[0], ActionResult::Stale);
+        assert_eq!(retained(&flow), expected);
+        flow.advance([
+            Some(FlowCommand {
+                phase_revision: revision,
+                action: FlowAction::Hover(ItemId::Dazzle),
+            }),
+            None,
+        ]);
+        assert_eq!(flow.snapshot.last_results[0], ActionResult::NotOffered);
+        assert_eq!(retained(&flow), expected);
+
+        for item in [
+            ItemId::ColdBullets,
+            ItemId::CarefulPlanning,
+            ItemId::Overpower,
+            ItemId::BigBullet,
+        ] {
+            flow.advance([
+                Some(FlowCommand {
+                    phase_revision: revision,
+                    action: FlowAction::Hover(item),
+                }),
+                None,
+            ]);
+            assert_eq!(flow.snapshot.last_results[0], ActionResult::Accepted);
+            flow.advance([
+                Some(FlowCommand {
+                    phase_revision: revision,
+                    action: FlowAction::Confirm(item),
+                }),
+                None,
+            ]);
+            assert_eq!(
+                flow.snapshot.last_results[0],
+                ActionResult::UnimplementedItem
+            );
+            assert_eq!(flow.snapshot.hovered[0], Some(item));
+            assert_eq!(retained(&flow), expected);
+        }
+
+        flow.advance([
+            Some(FlowCommand {
+                phase_revision: revision,
+                action: FlowAction::Confirm(ItemId::QuickShot),
+            }),
+            None,
+        ]);
+        assert_eq!(flow.snapshot.last_results[0], ActionResult::NotHovered);
+        assert_eq!(retained(&flow), expected);
+        flow.advance([
+            Some(FlowCommand {
+                phase_revision: revision,
+                action: FlowAction::Hover(ItemId::QuickShot),
+            }),
+            None,
+        ]);
+        flow.advance([
+            Some(FlowCommand {
+                phase_revision: revision,
+                action: FlowAction::Confirm(ItemId::QuickShot),
+            }),
+            None,
+        ]);
+        assert_eq!(flow.snapshot.phase, FlowPhase::PostRoundReveal);
+        assert_eq!(
+            flow.snapshot.loadouts,
+            [
+                vec![ItemId::Dazzle, ItemId::QuickShot],
+                vec![ItemId::ExplosiveBullet]
+            ]
+        );
+        let capability = flow.snapshot.capabilities[0];
+        assert_eq!(capability.dazzle_stun_pulses, 3);
+        assert_eq!(capability.dazzle_stun_ticks, 6);
+        assert_eq!(capability.fire_cooldown_extra_ticks, 15);
+        assert!(capability.projectile_speed_factor.milli > 1_000);
+        assert_eq!(flow.snapshot.capabilities[1], expected.3[1]);
+        let reveal_revision = flow.snapshot.phase_revision;
+        flow.advance([
+            Some(FlowCommand {
+                phase_revision: reveal_revision,
+                action: FlowAction::Confirm(ItemId::QuickShot),
+            }),
+            None,
+        ]);
+        assert_eq!(flow.snapshot.last_results[0], ActionResult::Duplicate);
+        assert_eq!(
+            flow.snapshot.loadouts[0],
+            vec![ItemId::Dazzle, ItemId::QuickShot]
+        );
     }
 }

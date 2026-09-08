@@ -11,7 +11,7 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 7;
+pub const NETWORK_PROTOCOL: u16 = 8;
 pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
@@ -86,6 +86,11 @@ pub struct ClientSessionReport {
     pub observed_source_terminal_state: bool,
     pub observed_rematch_reset: bool,
     pub observed_blue_fan_by_tick_960: bool,
+    pub observed_first_loser_draft_entry: bool,
+    pub observed_overpower_hover: bool,
+    pub observed_quick_shot_hover: bool,
+    pub observed_quick_shot_confirmation: bool,
+    pub observed_post_round_bridge: bool,
     pub observed_radial_saw_motion: bool,
     pub observed_radial_damage: bool,
     pub observed_radial_result_onset: bool,
@@ -275,6 +280,11 @@ pub fn send_inputs(
     let mut observed_source_terminal_state = false;
     let mut observed_rematch_reset = false;
     let mut observed_blue_fan_by_tick_960 = false;
+    let mut observed_first_loser_draft_entry = false;
+    let mut observed_overpower_hover = false;
+    let mut observed_quick_shot_hover = false;
+    let mut observed_quick_shot_confirmation = false;
+    let mut observed_post_round_bridge = false;
     let mut first_radial_angles = None;
     let mut observed_radial_saw_motion = false;
     let mut observed_radial_damage = false;
@@ -374,6 +384,34 @@ pub fn send_inputs(
                         && flow.offers[1].len() == 5
                         && flow.hovered[1] == Some(ItemId::Dazzle)
                         && flow.selected[0] == Some(ItemId::Dazzle);
+                    observed_first_loser_draft_entry |= state.tick == 5_494
+                        && flow.phase == FlowPhase::PostRoundDraft
+                        && flow.active_player == Some(0)
+                        && flow.halves == [0, 0]
+                        && flow.scores == [0, 1]
+                        && flow.offers[0] == rounds_sim::first_loser_draft_offers()
+                        && flow.offers[1].is_empty();
+                    observed_overpower_hover |= state.tick == 5_588
+                        && flow.phase == FlowPhase::PostRoundDraft
+                        && flow.hovered[0] == Some(ItemId::Overpower);
+                    observed_quick_shot_hover |= state.tick == 5_710
+                        && flow.phase == FlowPhase::PostRoundDraft
+                        && flow.hovered[0] == Some(ItemId::QuickShot);
+                    observed_quick_shot_confirmation |= state.tick == 5_802
+                        && flow.phase == FlowPhase::PostRoundReveal
+                        && flow.loadouts
+                            == [
+                                vec![ItemId::Dazzle, ItemId::QuickShot],
+                                vec![ItemId::ExplosiveBullet],
+                            ]
+                        && flow.capabilities[0].dazzle_stun_pulses == 3
+                        && flow.capabilities[0].dazzle_stun_ticks == 6
+                        && flow.capabilities[0].fire_cooldown_extra_ticks == 15
+                        && flow.capabilities[0].projectile_speed_factor.milli > 1_000;
+                    observed_post_round_bridge |= state.tick == 5_818
+                        && flow.phase == FlowPhase::PostRoundBridge
+                        && flow.scores == [0, 1]
+                        && flow.halves == [0, 0];
                 }
                 if profile == ReplayProfile::RadialSawHalfBlueReplay {
                     let angles = state
@@ -490,6 +528,11 @@ pub fn send_inputs(
         observed_source_terminal_state,
         observed_rematch_reset,
         observed_blue_fan_by_tick_960,
+        observed_first_loser_draft_entry,
+        observed_overpower_hover,
+        observed_quick_shot_hover,
+        observed_quick_shot_confirmation,
+        observed_post_round_bridge,
         observed_radial_saw_motion,
         observed_radial_damage,
         observed_radial_result_onset,
@@ -687,7 +730,7 @@ mod tests {
     #[test]
     fn two_udp_clients_receive_the_same_complete_rematch_and_draft_flow() {
         let seed = rounds_sim::SOURCE_DRAFT_SEED;
-        let ticks = rounds_sim::CONNECTED_FIRST_ROUND_TICKS;
+        let ticks = rounds_sim::FIRST_LOSER_DRAFT_TICKS;
         let scripts = scripted_inputs_for(ReplayProfile::RematchDraftReplay, seed, ticks);
         let server = BoundServer::bind("127.0.0.1:0").unwrap();
         let address = server.local_addr().unwrap();
@@ -759,12 +802,20 @@ mod tests {
                 FlowPhase::EliminationConclusion,
                 FlowPhase::BlueResultTransition,
                 FlowPhase::RoundBlue,
+                FlowPhase::PostRoundDraft,
+                FlowPhase::PostRoundReveal,
+                FlowPhase::PostRoundBridge,
             ]
         );
         assert!(reports.iter().all(|report| {
             report.observed_source_terminal_state
                 && report.observed_rematch_reset
                 && report.observed_blue_fan_by_tick_960
+                && report.observed_first_loser_draft_entry
+                && report.observed_overpower_hover
+                && report.observed_quick_shot_hover
+                && report.observed_quick_shot_confirmation
+                && report.observed_post_round_bridge
         }));
         assert!(server_report.flow_digest.is_some());
         assert!(server_report.loadout_digest.is_some());
@@ -808,5 +859,14 @@ mod tests {
         assert!(server_report.saw_digest.len() == 64);
         assert!(server_report.combat_digest.len() == 64);
         assert_eq!(server_report.round_digest.as_ref().unwrap().len(), 64);
+    }
+
+    #[test]
+    fn network_tick_cap_still_rejects_6001() {
+        assert!(validate_tick_count(MAX_NETWORK_TICKS).is_ok());
+        assert_eq!(
+            validate_tick_count(6_001),
+            Err("network tick count must be between 1 and 6000".to_owned())
+        );
     }
 }

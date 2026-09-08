@@ -179,7 +179,9 @@ fn capture_replay(
         && !(profile == ReplayProfile::RematchDraftReplay
             && matches!(
                 ticks,
-                LEGACY_REMATCH_DRAFT_TICKS | rounds_sim::CONNECTED_FIRST_ROUND_TICKS
+                LEGACY_REMATCH_DRAFT_TICKS
+                    | rounds_sim::CONNECTED_FIRST_ROUND_TICKS
+                    | rounds_sim::FIRST_LOSER_DRAFT_TICKS
             ))
     {
         return Err(format!(
@@ -267,7 +269,7 @@ fn capture_replay(
                     ("result-only-tail", profile.replay_ticks()),
                 ]);
             }
-            if ticks == rounds_sim::CONNECTED_FIRST_ROUND_TICKS {
+            if ticks >= rounds_sim::CONNECTED_FIRST_ROUND_TICKS {
                 anchors.extend([
                     ("ice-crossfade", 4541),
                     ("ice-established", 4603),
@@ -281,6 +283,21 @@ fn capture_replay(
                     ("ice-first-result", 5339),
                     ("ice-round-blue", 5355),
                     ("ice-round-pip", 5466),
+                ]);
+            }
+            if ticks == rounds_sim::FIRST_LOSER_DRAFT_TICKS {
+                anchors.extend([
+                    ("first-round-endpoint", 5466),
+                    ("last-overlay-without-card", 5478),
+                    ("first-card-silhouette", 5479),
+                    ("last-round-overlay", 5493),
+                    ("post-round-draft", 5494),
+                    ("overpower-hover", 5588),
+                    ("quick-shot-hover", 5710),
+                    ("quick-shot-before-confirm", 5801),
+                    ("quick-shot-confirmed", 5802),
+                    ("post-round-bridge", 5818),
+                    ("bridge-endpoint", 5893),
                 ]);
             }
             anchors
@@ -343,10 +360,14 @@ fn capture_state(
         seed,
         tick: state.tick,
         anchor: anchor.to_owned(),
-        source_interval: if profile == ReplayProfile::RematchDraftReplay
-            && trace_ticks > rounds_sim::REMATCH_DRAFT_TICKS
-        {
-            "02:39.516029-04:10.615664"
+        source_interval: if profile == ReplayProfile::RematchDraftReplay {
+            if trace_ticks == rounds_sim::FIRST_LOSER_DRAFT_TICKS {
+                "02:39.516029-04:17.732302"
+            } else if trace_ticks > rounds_sim::REMATCH_DRAFT_TICKS {
+                "02:39.516029-04:10.615664"
+            } else {
+                profile.source_interval()
+            }
         } else {
             profile.source_interval()
         },
@@ -551,6 +572,46 @@ fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static st
             5466 => Some((
                 2506156642,
                 "ae4d4d943d9ec939064a0d9d4a3b08a8d6f31cb820639d297bf9caf1c5333a32",
+            )),
+            5478 => Some((
+                2508156634,
+                "15347b389c516246a5e0ce386c12d92ef52761643417424e49c8ea9fe8e91a12",
+            )),
+            5479 => Some((
+                2508323300,
+                "3b393fadaa1c251dc11d1a4a618715ba8255bb2e111c5d26bfb38fa22a4b52b0",
+            )),
+            5493 => Some((
+                2510656624,
+                "bacec49983693312b768ce1e5e2f7c86933b906f893cb2cd3c2abc8e56a5a020",
+            )),
+            5494 => Some((
+                2510823290,
+                "3334f88fc68abcaee4196a56e5cfbb2f2cfdd60995efeee43b18b564b826c8d8",
+            )),
+            5588 => Some((
+                2526489894,
+                "a8425d093602dc2d3732f7f5226bfe6cce51f5fe6259941ecfab8a97b09de65d",
+            )),
+            5710 => Some((
+                2546823146,
+                "8d5c49166d275afbcd62d45c8a0724f5037bb70404645866bb0e2cf6738ae11a",
+            )),
+            5801 => Some((
+                2561989752,
+                "c2ee6e474627462c85dadd63e98e8adf00d92f93f2328bff4fe3c0121d35dbd0",
+            )),
+            5802 => Some((
+                2562156418,
+                "26aa07b3a28a66816e1d926c8459a5aead584ac0af5fd62ba90d58c194572d35",
+            )),
+            5818 => Some((
+                2564823074,
+                "84d4c590074647e4195dcdc0c4a8e12ada5d7860ef665ab54f968aeffe162da5",
+            )),
+            5893 => Some((
+                2577323024,
+                "ccc3b4919a7988b1e14e2566814a6c540b4f9f65e4b0f49c74d25b2ba6bfbb74",
             )),
             _ => None,
         };

@@ -53,7 +53,7 @@ const JUMP_SPEED: f32 = 680.0;
 /// twenty-six measured source arcs.
 const JUMP_RELEASE_CUT: f32 = 0.30;
 const BULLET_RADIUS: f32 = 5.0;
-const BULLET_SPEED: f32 = 3_600.0;
+pub const BULLET_SPEED: f32 = 3_600.0;
 const BULLET_LIFETIME: u16 = 150;
 const FIRE_COOLDOWN: u16 = 24;
 const BLOCK_DURATION: u16 = 18;
@@ -70,6 +70,10 @@ const TIMBER_EXPLOSION_RADIUS: f32 = 520.0;
 const TIMBER_EXPLOSION_IMPULSE: f32 = 4_800.0;
 const YELLOW_EXPLOSION_RADIUS: f32 = 330.0;
 const YELLOW_EXPLOSION_IMPULSE: f32 = 2_850.0;
+
+pub fn projectile_launch_speed(capabilities: FighterCapabilities) -> f32 {
+    BULLET_SPEED * f32::from(capabilities.projectile_speed_factor.milli) / 1_000.0
+}
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -1187,7 +1191,14 @@ impl PhysicsBoundary {
             .radius
     }
 
-    fn spawn_bullet(&mut self, id: u32, owner: u8, aim: Vector, collide_with_arena: bool) {
+    fn spawn_bullet(
+        &mut self,
+        id: u32,
+        owner: u8,
+        aim: Vector,
+        launch_speed: f32,
+        collide_with_arena: bool,
+    ) {
         let shooter = &self.rapier.bodies[self.players[usize::from(owner)].body];
         let origin =
             shooter.translation() + aim * (self.player_radius(owner) + BULLET_RADIUS + 4.0);
@@ -1195,7 +1206,7 @@ impl PhysicsBoundary {
         let (body, collider) = self.rapier.insert(
             RigidBodyBuilder::dynamic()
                 .translation(origin)
-                .linvel(aim * BULLET_SPEED)
+                .linvel(aim * launch_speed)
                 .gravity_scale(0.0)
                 .ccd_enabled(true)
                 .can_sleep(false),
@@ -1749,6 +1760,7 @@ impl AuthoritativeMatch {
                     projectile_id,
                     player_id,
                     aim,
+                    projectile_launch_speed(capabilities),
                     self.profile != ReplayProfile::RadialSawHalfBlueReplay,
                 );
                 self.physics.apply_impulse(player_id, -aim * RECOIL_IMPULSE);
@@ -2155,7 +2167,9 @@ impl AuthoritativeMatch {
                 RoundPhase::ResultTransition
             }
             FlowPhase::HalfBlue => RoundPhase::HalfBlue,
-            FlowPhase::TimberTransition | FlowPhase::IceTransition => RoundPhase::ArenaTransition,
+            FlowPhase::TimberTransition | FlowPhase::IceTransition | FlowPhase::PostRoundBridge => {
+                RoundPhase::ArenaTransition
+            }
             FlowPhase::RoundBlue => RoundPhase::RoundBlue,
             FlowPhase::RoundOrange => RoundPhase::RoundOrange,
             FlowPhase::HalfOrange => RoundPhase::HalfOrange,
@@ -2341,7 +2355,7 @@ impl AuthoritativeMatch {
             })
             .collect();
         MatchSnapshot {
-            protocol: 6,
+            protocol: 7,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
@@ -2942,6 +2956,21 @@ pub fn scripted_inputs_for(
             if tick >= CONNECTED_ICE_COMBAT_TICK {
                 orange = connected_ice_input(0, tick);
                 blue = connected_ice_input(1, tick);
+                orange.flow = match tick {
+                    5_587 => Some(FlowCommand {
+                        phase_revision: 23,
+                        action: FlowAction::Hover(ItemId::Overpower),
+                    }),
+                    5_709 => Some(FlowCommand {
+                        phase_revision: 23,
+                        action: FlowAction::Hover(ItemId::QuickShot),
+                    }),
+                    5_801 => Some(FlowCommand {
+                        phase_revision: 23,
+                        action: FlowAction::Confirm(ItemId::QuickShot),
+                    }),
+                    _ => None,
+                };
             }
             scripts[0].push(orange);
             scripts[1].push(blue);
@@ -3883,7 +3912,14 @@ mod tests {
             for _ in 0..180 {
                 game.step([PlayerInput::default(); 2]);
             }
-            assert_eq!(game.snapshot().flow.unwrap().scores, rounds);
+            let draft = game.snapshot().flow.unwrap();
+            let loser = 1 - winner;
+            assert_eq!(draft.phase, FlowPhase::PostRoundDraft);
+            assert_eq!(draft.active_player, Some(loser as u8));
+            assert_eq!(draft.halves, [0, 0]);
+            assert_eq!(draft.scores, rounds);
+            assert_eq!(draft.offers[loser], first_loser_draft_offers());
+            assert!(draft.offers[winner].is_empty());
         }
     }
 
@@ -4079,6 +4115,111 @@ mod tests {
                 assert_eq!(game.snapshot().flow.unwrap().scores, [0, 1]);
             }
         }
+    }
+
+    #[test]
+    fn connected_first_loser_draft_follows_the_bound_public_input_cadence() {
+        let replay = run_profile_snapshots(
+            ReplayProfile::RematchDraftReplay,
+            SOURCE_DRAFT_SEED,
+            FIRST_LOSER_DRAFT_TICKS,
+        );
+        let at = |tick: u32| replay[(tick - 1) as usize].flow.as_ref().unwrap();
+
+        let endpoint = at(5_466);
+        assert_eq!(endpoint.phase, FlowPhase::RoundBlue);
+        assert_eq!(endpoint.halves, [1, 2]);
+        assert_eq!(endpoint.scores, [0, 1]);
+        assert_eq!(
+            endpoint.loadouts,
+            [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]]
+        );
+        assert_eq!(at(5_493).phase, FlowPhase::RoundBlue);
+
+        let entered = at(5_494);
+        assert_eq!(entered.phase, FlowPhase::PostRoundDraft);
+        assert_eq!(entered.active_player, Some(0));
+        assert_eq!(entered.halves, [0, 0]);
+        assert_eq!(entered.scores, [0, 1]);
+        assert_eq!(entered.offers[0], first_loser_draft_offers());
+        assert!(entered.offers[1].is_empty());
+        assert_eq!(entered.hovered, [None, None]);
+        assert_eq!(entered.selected, [None, None]);
+
+        assert_eq!(at(5_588).hovered[0], Some(ItemId::Overpower));
+        assert_eq!(at(5_710).hovered[0], Some(ItemId::QuickShot));
+        assert_eq!(
+            at(5_801).loadouts[0],
+            vec![ItemId::Dazzle],
+            "hover does not apply the item"
+        );
+        let confirmed = at(5_802);
+        assert_eq!(confirmed.phase, FlowPhase::PostRoundReveal);
+        assert_eq!(
+            confirmed.loadouts,
+            [
+                vec![ItemId::Dazzle, ItemId::QuickShot],
+                vec![ItemId::ExplosiveBullet]
+            ]
+        );
+        assert_eq!(confirmed.capabilities[0].dazzle_stun_pulses, 3);
+        assert_eq!(confirmed.capabilities[0].dazzle_stun_ticks, 6);
+        assert_eq!(confirmed.capabilities[0].fire_cooldown_extra_ticks, 15);
+        assert!(confirmed.capabilities[0].projectile_speed_factor.milli > 1_000);
+        assert_eq!(confirmed.capabilities[1], endpoint.capabilities[1]);
+        assert_eq!(at(5_818).phase, FlowPhase::PostRoundBridge);
+        let final_flow = at(FIRST_LOSER_DRAFT_TICKS);
+        assert_eq!(final_flow.phase, FlowPhase::PostRoundBridge);
+        assert_eq!(final_flow.scores, [0, 1]);
+        assert_eq!(final_flow.halves, [0, 0]);
+        assert_eq!(
+            replay
+                .last()
+                .unwrap()
+                .round
+                .as_ref()
+                .unwrap()
+                .completed_rounds,
+            Some([0, 1])
+        );
+    }
+
+    #[test]
+    fn projectile_speed_factor_is_typed_and_threaded_through_the_spawn_boundary() {
+        let default = FighterCapabilities::default();
+        assert_eq!(projectile_launch_speed(default), BULLET_SPEED);
+
+        let confirmed =
+            run_profile_match(ReplayProfile::RematchDraftReplay, SOURCE_DRAFT_SEED, 5_802).0;
+        let quick_shot = confirmed.flow.unwrap().capabilities[0];
+        assert!(projectile_launch_speed(quick_shot) > BULLET_SPEED);
+        assert_eq!(quick_shot.dazzle_stun_pulses, 3);
+        assert_eq!(quick_shot.dazzle_stun_ticks, 6);
+        assert_eq!(quick_shot.fire_cooldown_extra_ticks, 15);
+
+        let (mut game, previous) = connected_match_at_resumed_combat();
+        game.step([
+            PlayerInput {
+                fire: true,
+                aim_x: 1_000,
+                ..PlayerInput::default()
+            }
+            .with_progressive_observation(0, Some(&previous)),
+            PlayerInput::default().with_progressive_observation(1, Some(&previous)),
+        ]);
+        let projectile = game
+            .snapshot()
+            .projectiles
+            .into_iter()
+            .find(|projectile| projectile.owner == 0)
+            .expect("the resumed-combat input spawns orange's projectile");
+        let speed = Vector::new(
+            projectile.velocity_x_milli_per_second as f32,
+            projectile.velocity_y_milli_per_second as f32,
+        )
+        .length()
+            / 1_000.0;
+        assert!((speed - projectile_launch_speed(default)).abs() < 0.01);
     }
 
     #[test]
@@ -4490,7 +4631,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 17,
-            state_sha256: "dec5d001827bec942cd91dd9e0f92adfc23c2e212b5159af9e15fc52033f4e2e",
+            state_sha256: "5dc920df490981a15057e729f1278b83a73f338789bced109b4d08f0c80f55b1",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::RadialSawHalfBlueReplay,
@@ -4508,7 +4649,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 6,
-            state_sha256: "b12c936c6b4d0991c796497e434f128b967b7972c1f2063d1d68aa0d2406879f",
+            state_sha256: "c91ca18ef278aa06f935c0056c44d213b479a0d5e0a8da1351db38649b99dcfa",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::YellowCrateTerminalBlastReplay,
@@ -4519,7 +4660,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 0,
-            state_sha256: "5f321381ae706f43498927d584ca664323bf556c1c309399a9f9ed6df8516879",
+            state_sha256: "74bae86dc24cc1caab44c341d8fbd685b65e900a814f3e093a83e7445ee2ef1f",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::TimberCollapseReplay,
@@ -4536,7 +4677,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 5,
-            state_sha256: "f7ddbc03932e9dac0411a0f2565a388a398da23b67ba7156fa8fcea26aa74b8c",
+            state_sha256: "013e4b851317f50f7d0a5fe57ea0b24e221c04544052e6fa3ca33f2ca7ab7579",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::RematchDraftReplay,
@@ -4573,7 +4714,7 @@ mod tests {
             ],
             frozen_releases: &[(0, 4_541, 4_601)],
             jumps: 141,
-            state_sha256: "cc2dbd3ecd3034ce8a2fbd1c689f33abf98aa7a7977298dec459b5f381ef331d",
+            state_sha256: "c6afc39c856ea99e29cf5a9e5227b8b90b4699f0da8b14f72e020c1ecf08daaa",
         },
     ];
 

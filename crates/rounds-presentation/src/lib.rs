@@ -393,13 +393,13 @@ pub fn keyboard_flow_command(key: KeyCode, player: u8, flow: &FlowSnapshot) -> O
             phase_revision: flow.phase_revision,
             action: FlowAction::VoteNo,
         }),
-        KeyCode::ArrowLeft if flow.phase == FlowPhase::Draft => {
+        KeyCode::ArrowLeft if is_draft_phase(flow.phase) => {
             draft_navigation_command(player, flow, -1)
         }
-        KeyCode::ArrowRight if flow.phase == FlowPhase::Draft => {
+        KeyCode::ArrowRight if is_draft_phase(flow.phase) => {
             draft_navigation_command(player, flow, 1)
         }
-        KeyCode::Enter | KeyCode::Space if flow.phase == FlowPhase::Draft => {
+        KeyCode::Enter | KeyCode::Space if is_draft_phase(flow.phase) => {
             flow.hovered[usize::from(player)].map(|item| FlowCommand {
                 phase_revision: flow.phase_revision,
                 action: FlowAction::Confirm(item),
@@ -423,19 +423,23 @@ pub fn gamepad_flow_command(
             phase_revision: flow.phase_revision,
             action: FlowAction::VoteNo,
         }),
-        GamepadButton::DPadLeft if flow.phase == FlowPhase::Draft => {
+        GamepadButton::DPadLeft if is_draft_phase(flow.phase) => {
             draft_navigation_command(player, flow, -1)
         }
-        GamepadButton::DPadRight if flow.phase == FlowPhase::Draft => {
+        GamepadButton::DPadRight if is_draft_phase(flow.phase) => {
             draft_navigation_command(player, flow, 1)
         }
-        GamepadButton::South if flow.phase == FlowPhase::Draft => flow.hovered[usize::from(player)]
+        GamepadButton::South if is_draft_phase(flow.phase) => flow.hovered[usize::from(player)]
             .map(|item| FlowCommand {
                 phase_revision: flow.phase_revision,
                 action: FlowAction::Confirm(item),
             }),
         _ => None,
     }
+}
+
+fn is_draft_phase(phase: FlowPhase) -> bool {
+    matches!(phase, FlowPhase::Draft | FlowPhase::PostRoundDraft)
 }
 
 fn draft_navigation_command(
@@ -858,11 +862,15 @@ fn update_capture_scene_readiness(
     readiness.card_count = counts[3];
     readiness.card_art_count = counts[4];
     readiness.saw_count = counts[5];
-    let draft_face = snapshot
-        .0
-        .flow
-        .as_ref()
-        .is_some_and(|flow| matches!(flow.phase, FlowPhase::Draft | FlowPhase::Reveal));
+    let draft_face = snapshot.0.flow.as_ref().is_some_and(|flow| {
+        matches!(
+            flow.phase,
+            FlowPhase::Draft
+                | FlowPhase::Reveal
+                | FlowPhase::PostRoundDraft
+                | FlowPhase::PostRoundReveal
+        )
+    });
     let radial_face = snapshot.0.profile == rounds_sim::RADIAL_REPLAY_PROFILE;
     readiness.scene_complete = cameras.iter().count() == 1
         && readiness.visual_count > 0
@@ -1617,6 +1625,9 @@ fn spawn_snapshot_scene(
                 | FlowPhase::Reveal
                 | FlowPhase::Handoff
                 | FlowPhase::ArenaTransition
+                | FlowPhase::PostRoundDraft
+                | FlowPhase::PostRoundReveal
+                | FlowPhase::PostRoundBridge
         )
     {
         spawn_draft_scene(commands, meshes, materials, snapshot);
@@ -2336,6 +2347,7 @@ fn spawn_snapshot_scene(
     }
 
     if draft_replay {
+        spawn_post_round_leadin(commands, meshes, materials, snapshot);
         spawn_flow_hud(commands, meshes, materials, snapshot);
     }
     if !yellow_replay {
@@ -2351,6 +2363,54 @@ fn spawn_snapshot_scene(
                 }
             }
         });
+    }
+}
+
+fn spawn_post_round_leadin(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    snapshot: &MatchSnapshot,
+) {
+    let Some(flow) = &snapshot.flow else {
+        return;
+    };
+    if !matches!(flow.phase, FlowPhase::RoundBlue | FlowPhase::RoundOrange) || flow.phase_tick < 124
+    {
+        return;
+    }
+    let rise = ((flow.phase_tick - 124) as f32 / 14.0).clamp(0.0, 1.0);
+    let item = flow
+        .catalog
+        .iter()
+        .find(|item| item.id == rounds_sim::ItemId::QuickShot)
+        .expect("quick shot is registered");
+    spawn_card(
+        commands,
+        meshes,
+        materials,
+        item,
+        Vec2::new(-455.0, -250.0 + rise * 270.0),
+        -0.16,
+        flow.phase_tick >= 138,
+        false,
+        34.0,
+        CardPresentation {
+            item: rounds_sim::ItemId::QuickShot,
+            highlighted: false,
+            selected_offscreen: false,
+        },
+    );
+    if flow.phase_tick >= 138 {
+        for (index, x) in [-245.0_f32, -55.0].into_iter().enumerate() {
+            commands.spawn((
+                SceneVisual,
+                CaptureElement::Card,
+                Sprite::from_color(Color::srgb_u8(13, 16, 25), Vec2::new(157.0, 250.0)),
+                Transform::from_xyz(x, -8.0 + index as f32 * 8.0, 35.0)
+                    .with_rotation(Quat::from_rotation_z(-0.06 + index as f32 * 0.08)),
+            ));
+        }
     }
 }
 
@@ -3014,14 +3074,18 @@ fn spawn_draft_scene(
     commands.spawn((
         SceneVisual,
         Sprite::from_color(
-            Color::srgba(0.005, 0.025, 0.05, 0.90 * fade_alpha),
+            if flow.phase == FlowPhase::PostRoundBridge {
+                Color::srgba(0.025, 0.13, 0.28, 0.96)
+            } else {
+                Color::srgba(0.005, 0.025, 0.05, 0.90 * fade_alpha)
+            },
             Vec2::new(1_280.0, 720.0),
         ),
         Transform::from_xyz(0.0, 0.0, 25.0),
     ));
     if matches!(
         flow.phase,
-        FlowPhase::ArenaFade | FlowPhase::ArenaTransition
+        FlowPhase::ArenaFade | FlowPhase::ArenaTransition | FlowPhase::PostRoundBridge
     ) {
         return;
     }
@@ -3046,12 +3110,14 @@ fn spawn_draft_scene(
         .unwrap_or(2);
     let focus = (focused_index as f32 - 2.0) / 2.0;
     let reveal_pose = if flow.revealed.is_some() { 1.0 } else { 0.0 };
-    let confirmation_progress = if flow.phase == FlowPhase::Reveal {
-        (flow.phase_tick as f32 / 18.0).clamp(0.0, 1.0)
-    } else {
-        0.0
-    };
-    let confirmation_settled = flow.phase == FlowPhase::Reveal && flow.phase_tick >= 12;
+    let confirmation_progress =
+        if matches!(flow.phase, FlowPhase::Reveal | FlowPhase::PostRoundReveal) {
+            (flow.phase_tick as f32 / 18.0).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+    let confirmation_settled = matches!(flow.phase, FlowPhase::Reveal | FlowPhase::PostRoundReveal)
+        && flow.phase_tick >= 12;
     let breathe = (snapshot.tick as f32 * 0.045).sin() * 5.0;
     commands.spawn((
         SceneVisual,
@@ -3141,7 +3207,7 @@ fn spawn_draft_scene(
             .expect("offered item registered");
         let centered = index as f32 - 2.0;
         let selected_offscreen = confirmation_settled && flow.revealed == Some(*item_id);
-        let highlighted = if flow.phase == FlowPhase::Reveal {
+        let highlighted = if matches!(flow.phase, FlowPhase::Reveal | FlowPhase::PostRoundReveal) {
             !confirmation_settled && flow.revealed == Some(*item_id)
         } else {
             hovered == Some(*item_id)
@@ -3167,6 +3233,15 @@ fn spawn_draft_scene(
                 selected_offscreen,
             },
         );
+        if flow.phase == FlowPhase::PostRoundDraft && flow.phase_tick < 60 && index >= 3 {
+            commands.spawn((
+                SceneVisual,
+                Sprite::from_color(Color::srgba_u8(10, 13, 22, 245), Vec2::new(157.0, 250.0)),
+                Transform::from_xyz(x, y, 70.0 + index as f32)
+                    .with_rotation(Quat::from_rotation_z(angle))
+                    .with_scale(Vec3::splat(0.92)),
+            ));
+        }
     }
 }
 
@@ -3665,6 +3740,155 @@ fn spawn_card_art(
                 );
             }
         }
+        "speed-streak-blob" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(12.0, 55.0),
+                27.0,
+                color,
+                z + 0.2,
+                true,
+            );
+            for y in [38.0_f32, 55.0, 72.0] {
+                spawn_art_bar(
+                    commands,
+                    position,
+                    angle,
+                    scale,
+                    Vec2::new(-30.0, y),
+                    Vec2::new(42.0, 5.0),
+                    0.0,
+                    color,
+                    z,
+                    false,
+                );
+            }
+        }
+        "snowflake-bullet" => {
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                Vec2::new(58.0, 12.0),
+                0.0,
+                color,
+                z + 0.2,
+                true,
+            );
+            for x in [-38.0_f32, 38.0] {
+                for tilt in [
+                    0.0_f32,
+                    std::f32::consts::FRAC_PI_3,
+                    -std::f32::consts::FRAC_PI_3,
+                ] {
+                    spawn_art_bar(
+                        commands,
+                        position,
+                        angle,
+                        scale,
+                        Vec2::new(x, 55.0),
+                        Vec2::new(28.0, 3.0),
+                        tilt,
+                        color,
+                        z,
+                        false,
+                    );
+                }
+            }
+        }
+        "paper-fan-blob" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-18.0, 45.0),
+                25.0,
+                color,
+                z,
+                true,
+            );
+            for (x, tilt) in [(-22.0_f32, -0.25_f32), (0.0, 0.0), (22.0, 0.25)] {
+                spawn_art_bar(
+                    commands,
+                    position,
+                    angle,
+                    scale,
+                    Vec2::new(x, 69.0),
+                    Vec2::new(30.0, 43.0),
+                    tilt,
+                    Color::srgba_u8(210, 246, 250, alpha),
+                    z + 0.2,
+                    false,
+                );
+            }
+        }
+        "dark-glasses-blob" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                31.0,
+                color,
+                z,
+                true,
+            );
+            for x in [-15.0_f32, 15.0] {
+                spawn_art_bar(
+                    commands,
+                    position,
+                    angle,
+                    scale,
+                    Vec2::new(x, 62.0),
+                    Vec2::new(24.0, 13.0),
+                    0.0,
+                    dark,
+                    z + 0.2,
+                    false,
+                );
+            }
+        }
+        "oversized-red-round" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                42.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-12.0, 69.0),
+                9.0,
+                Color::srgba_u8(255, 184, 164, alpha),
+                z + 0.2,
+                false,
+            );
+        }
         unknown => panic!("unregistered card art key {unknown}"),
     }
 }
@@ -3930,10 +4154,22 @@ fn spawn_flow_hud(
         let badges = flow.prior_badges[player]
             .iter()
             .map(|badge| badge.label())
-            .chain(flow.loadouts[player].iter().map(|item| item.short_badge()));
-        for (index, badge) in badges.enumerate() {
+            .chain(flow.loadouts[player].iter().map(|item| item.short_badge()))
+            .collect::<Vec<_>>();
+        let badge_count = badges.len();
+        let badge_x = |index: usize| {
+            if matches!(
+                flow.phase,
+                FlowPhase::PostRoundDraft | FlowPhase::PostRoundReveal | FlowPhase::PostRoundBridge
+            ) {
+                612.0 - (badge_count - 1 - index) as f32 * 37.0
+            } else {
+                612.0 - index as f32 * 37.0
+            }
+        };
+        for (index, badge) in badges.into_iter().enumerate() {
             if compact {
-                let center = Vec2::new(612.0 - index as f32 * 37.0, 332.0 - player as f32 * 40.0);
+                let center = Vec2::new(badge_x(index), 332.0 - player as f32 * 40.0);
                 for (offset, size) in [
                     (Vec2::new(-16.0, 0.0), Vec2::new(1.0, 32.0)),
                     (Vec2::new(16.0, 0.0), Vec2::new(1.0, 32.0)),
@@ -3972,7 +4208,7 @@ fn spawn_flow_hud(
                 }),
                 Transform::from_xyz(
                     if compact {
-                        612.0 - index as f32 * 37.0
+                        badge_x(index)
                     } else {
                         552.0 + (index % 3) as f32 * 34.0
                     },
@@ -4276,6 +4512,21 @@ mod tests {
         assert_eq!(keyboard, controller);
         assert_eq!(keyboard.phase_revision, flow.phase_revision);
         assert!(matches!(keyboard.action, FlowAction::Hover(_)));
+        let post = rounds_sim::run_profile_match(
+            ReplayProfile::RematchDraftReplay,
+            rounds_sim::SOURCE_DRAFT_SEED,
+            5_710,
+        )
+        .0;
+        let post_flow = post.flow.as_ref().unwrap();
+        assert_eq!(
+            keyboard_flow_command(KeyCode::ArrowRight, 0, post_flow),
+            gamepad_flow_command(GamepadButton::DPadRight, 0, post_flow)
+        );
+        assert_eq!(
+            keyboard_flow_command(KeyCode::Enter, 0, post_flow),
+            gamepad_flow_command(GamepadButton::South, 0, post_flow)
+        );
         let mut keys = ButtonInput::default();
         for key in [
             KeyCode::KeyA,
@@ -4407,6 +4658,48 @@ mod tests {
                 .all(|card| !card.highlighted)
         );
         assert_empty_score_and_badges(&mut blue_confirmed, &[(0, "Da"), (1, "Ex")]);
+
+        let mut overpower = draft_scene_at(5_588);
+        assert!(card_state(&mut overpower, ItemId::Overpower).highlighted);
+        let mut quick_shot = draft_scene_at(5_710);
+        assert!(card_state(&mut quick_shot, ItemId::QuickShot).highlighted);
+        let mut before = draft_scene_at(5_801);
+        let mut before_badges = before
+            .query::<&HudBadge>()
+            .iter(&before)
+            .map(|badge| (badge.player, badge.label.clone()))
+            .collect::<Vec<_>>();
+        before_badges.sort();
+        assert_eq!(
+            before_badges,
+            vec![(0, "Da".to_owned()), (1, "Ex".to_owned())]
+        );
+        let mut confirmed = draft_scene_at(5_802);
+        let mut confirmed_badges = confirmed
+            .query::<&HudBadge>()
+            .iter(&confirmed)
+            .map(|badge| (badge.player, badge.label.clone()))
+            .collect::<Vec<_>>();
+        confirmed_badges.sort();
+        assert_eq!(
+            confirmed_badges,
+            vec![
+                (0, "Da".to_owned()),
+                (0, "Qu".to_owned()),
+                (1, "Ex".to_owned())
+            ]
+        );
+        let mut bridge = draft_scene_at(5_818);
+        assert_eq!(bridge.query::<&CardPresentation>().iter(&bridge).count(), 0);
+        assert_eq!(
+            bridge
+                .query::<&HudScorePip>()
+                .iter(&bridge)
+                .filter(|pip| pip.filled)
+                .map(|pip| (pip.player, pip.index))
+                .collect::<Vec<_>>(),
+            vec![(1, 0)]
+        );
         let connected = rounds_sim::run_profile_snapshots(
             ReplayProfile::RematchDraftReplay,
             rounds_sim::SOURCE_DRAFT_SEED,
