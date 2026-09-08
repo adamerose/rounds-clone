@@ -1596,12 +1596,11 @@ fn spawn_snapshot_scene(
     if yellow_replay || ice_scene {
         spawn_yellow_paper(commands, meshes, materials, snapshot.tick, ice_scene);
     } else if !radial_replay {
-        let drift = snapshot.tick as f32 * 0.035;
         for (index, x) in [-520.0_f32, -260.0, 0.0, 260.0, 520.0]
             .into_iter()
             .enumerate()
         {
-            let offset = (drift + index as f32 * 1.7).sin() * 28.0;
+            let offset = backdrop_panel_offset(snapshot.tick, index, hanging_scene);
             commands.spawn((
                 SceneVisual,
                 Sprite::from_color(
@@ -2380,6 +2379,13 @@ fn spawn_snapshot_scene(
             }
         });
     }
+}
+
+fn backdrop_panel_offset(tick: u32, index: usize, held_hanging_entry: bool) -> f32 {
+    if held_hanging_entry {
+        return 0.0;
+    }
+    (tick as f32 * 0.035 + index as f32 * 1.7).sin() * 28.0
 }
 
 fn spawn_post_round_leadin(
@@ -4538,6 +4544,19 @@ mod tests {
             .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(badges, expected);
+    }
+
+    #[test]
+    fn held_hanging_backdrop_does_not_drift_behind_measured_object_entry() {
+        for index in 0..5 {
+            assert_eq!(backdrop_panel_offset(5_894, index, true), 0.0);
+            assert_eq!(backdrop_panel_offset(5_918, index, true), 0.0);
+            assert_eq!(backdrop_panel_offset(5_941, index, true), 0.0);
+        }
+        assert_ne!(
+            backdrop_panel_offset(5_918, 0, false),
+            backdrop_panel_offset(5_941, 0, false)
+        );
     }
 
     #[test]
