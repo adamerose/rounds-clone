@@ -11,7 +11,7 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 10;
+pub const NETWORK_PROTOCOL: u16 = 11;
 pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
 
@@ -683,11 +683,19 @@ mod tests {
     use std::thread;
 
     #[test]
-    fn waiting_phase_round_trips_and_the_previous_protocol_is_rejected() {
+    fn new_match_offer_rows_round_trip_and_the_previous_protocol_is_rejected() {
         let encoded = serde_json::to_vec(&FlowPhase::Waiting).unwrap();
         assert_eq!(
             serde_json::from_slice::<FlowPhase>(&encoded).unwrap(),
             FlowPhase::Waiting
+        );
+        let draft = rounds_sim::run_new_match_draft(57).0;
+        let encoded = serde_json::to_vec(&draft).unwrap();
+        let decoded = serde_json::from_slice::<MatchSnapshot>(&encoded).unwrap();
+        assert_eq!(decoded, draft);
+        assert_eq!(
+            decoded.flow.as_ref().unwrap().offers,
+            rounds_sim::new_match_source_offers()
         );
         assert!(validate_protocol(NETWORK_PROTOCOL).is_ok());
         assert_eq!(

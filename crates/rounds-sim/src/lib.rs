@@ -55,6 +55,10 @@ pub const MATCH_END_DECISIVE_IMPACT_TICK: u32 = 17;
 pub const MATCH_END_RESULT_TRANSITION_TICK: u32 = 44;
 pub const MATCH_END_ROUND_BLUE_TICK: u32 = 60;
 pub const MATCH_END_WAITING_TICK: u32 = 199;
+pub const NEW_MATCH_DRAFT_FADE_TICKS: u32 = 150;
+pub const NEW_MATCH_DRAFT_SOURCE_PTS: i64 = 2_039_991_840;
+pub const NEW_MATCH_DRAFT_SOURCE_RGBA_SHA256: &str =
+    "7f8703810079f5beef741953d896175d70ee5602fe997b37be3349308c218da0";
 
 const PLAYER_RADIUS: f32 = 22.0;
 const RUN_SPEED: f32 = 220.0;
@@ -1684,6 +1688,34 @@ impl AuthoritativeMatch {
         Ok(())
     }
 
+    /// Applies a non-player match-lifecycle request. Player inputs cannot reach
+    /// this boundary; the external policy that chooses when to call it belongs
+    /// to a later host, lobby, or readiness implementation.
+    pub fn request_lifecycle(&mut self, request: LifecycleRequest) -> LifecycleResult {
+        let Some(flow) = &mut self.flow else {
+            return LifecycleResult::WrongPhase;
+        };
+        let result = flow.request_lifecycle(request);
+        if result == LifecycleResult::Accepted {
+            self.clear_projectiles();
+            self.explosions.clear();
+            self.impacts.clear();
+            self.physics.respawn_players();
+            self.arena_entry_from_milli = None;
+            self.revive_fighters();
+            for entity in self.player_entities {
+                self.world
+                    .entity_mut(entity)
+                    .get_mut::<PlayerState>()
+                    .expect("player state")
+                    .grounded = true;
+            }
+            self.winner = None;
+            self.sync_round_from_flow();
+        }
+        result
+    }
+
     pub fn step(&mut self, inputs: [PlayerInput; 2]) {
         self.tick += 1;
         if self.flow.is_none()
@@ -2162,18 +2194,7 @@ impl AuthoritativeMatch {
 
     /// Repeats the current fight in the same arena after a no-award result.
     fn repeat_fight_in_place(&mut self) {
-        for entity in self
-            .projectile_entities
-            .values()
-            .copied()
-            .collect::<Vec<_>>()
-        {
-            self.world.despawn(entity);
-        }
-        for id in self.projectile_entities.keys().copied().collect::<Vec<_>>() {
-            self.physics.remove_bullet(id);
-        }
-        self.projectile_entities.clear();
+        self.clear_projectiles();
         self.physics.respawn_players();
         self.arena_entry_from_milli = None;
         self.revive_fighters();
@@ -2183,18 +2204,7 @@ impl AuthoritativeMatch {
     /// Makes the concluded match source-visible without changing its arena,
     /// awarded score, winner, or retained build state.
     fn enter_match_waiting(&mut self) {
-        for entity in self
-            .projectile_entities
-            .values()
-            .copied()
-            .collect::<Vec<_>>()
-        {
-            self.world.despawn(entity);
-        }
-        for id in self.projectile_entities.keys().copied().collect::<Vec<_>>() {
-            self.physics.remove_bullet(id);
-        }
-        self.projectile_entities.clear();
+        self.clear_projectiles();
         self.physics.respawn_players();
         self.arena_entry_from_milli = None;
         self.revive_fighters();
@@ -2205,6 +2215,21 @@ impl AuthoritativeMatch {
                 .expect("player state")
                 .grounded = true;
         }
+    }
+
+    fn clear_projectiles(&mut self) {
+        for entity in self
+            .projectile_entities
+            .values()
+            .copied()
+            .collect::<Vec<_>>()
+        {
+            self.world.despawn(entity);
+        }
+        for id in self.projectile_entities.keys().copied().collect::<Vec<_>>() {
+            self.physics.remove_bullet(id);
+        }
+        self.projectile_entities.clear();
     }
 
     fn begin_result_if_due(&mut self) {
@@ -2513,7 +2538,7 @@ impl AuthoritativeMatch {
             })
             .collect();
         MatchSnapshot {
-            protocol: 9,
+            protocol: 10,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
@@ -3608,6 +3633,34 @@ pub fn run_profile_match(profile: ReplayProfile, seed: u64, ticks: u32) -> (Matc
     let snapshot = run_profile_snapshots(profile, seed, ticks)
         .pop()
         .unwrap_or_else(|| AuthoritativeMatch::new_with_profile(seed, profile).snapshot());
+    let state_hash = hash_snapshot(&snapshot);
+    (snapshot, state_hash)
+}
+
+/// Reaches the delivered stable match-end endpoint, applies the explicit
+/// non-player lifecycle request, and advances through the ordinary fade into
+/// orange's first draft. This is evidence for the boundary, not an extension
+/// of `match-end-waiting-replay`'s terminal input trace.
+pub fn run_new_match_draft(seed: u64) -> (MatchSnapshot, String) {
+    let scripts = scripted_inputs_for(
+        ReplayProfile::MatchEndWaitingReplay,
+        seed,
+        MATCH_END_WAITING_REPLAY_TICKS,
+    );
+    let mut simulation =
+        AuthoritativeMatch::new_with_profile(seed, ReplayProfile::MatchEndWaitingReplay);
+    for (&orange, &blue) in scripts[0].iter().zip(&scripts[1]) {
+        simulation.step([orange, blue]);
+    }
+    assert_eq!(
+        simulation.request_lifecycle(LifecycleRequest::BeginNewMatch),
+        LifecycleResult::Accepted,
+        "the delivered endpoint must be Waiting"
+    );
+    for _ in 0..NEW_MATCH_DRAFT_FADE_TICKS {
+        simulation.step([PlayerInput::default(); 2]);
+    }
+    let snapshot = simulation.snapshot();
     let state_hash = hash_snapshot(&snapshot);
     (snapshot, state_hash)
 }
@@ -5422,7 +5475,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 17,
-            state_sha256: "90a93bd4fd2effcd78626b59a05a96473a83b92942f8766a4a630bfe32e50671",
+            state_sha256: "893b333b6d6f5a593dbc92fbd1391ebe08d3e21d1ab6a5b531ab7ae67445fd15",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::RadialSawHalfBlueReplay,
@@ -5440,7 +5493,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 6,
-            state_sha256: "42700b3383c1d22fadd2d5e6c0bab32ebc6ab505c87f4ad49dc821c13c3600bb",
+            state_sha256: "12f4d0f85538f6e5f3b4a1a9d3bceb1d71cd8e6bd87c57ad9a3a3dcf4255c2cf",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::YellowCrateTerminalBlastReplay,
@@ -5451,7 +5504,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 0,
-            state_sha256: "f2c34be96331138bf07945db1c70b5ca9138d71ee0d48045c193c7908703c43e",
+            state_sha256: "b4b899db7ab193e21044890449e9b77ab5bc4257a6495a89cf520ac19ce3a661",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::TimberCollapseReplay,
@@ -5468,7 +5521,7 @@ mod tests {
             extended_holds: &[],
             frozen_releases: &[],
             jumps: 5,
-            state_sha256: "dc547472a81528d07dd2fb0f1c07374ade31e0bae3537cabeac45a77f4c4e120",
+            state_sha256: "0502a08fd2589cdd3ee19d9228ae9c961f95082fd1ffe6bdee2104bebe12193a",
         },
         ScriptedJumpContract {
             profile: ReplayProfile::RematchDraftReplay,
@@ -5505,7 +5558,7 @@ mod tests {
             ],
             frozen_releases: &[(0, 4_541, 4_601)],
             jumps: 141,
-            state_sha256: "8dc4339d7271d1a1947e40db5437561fbfca263d70cbb62320102b28bb849686",
+            state_sha256: "b53f8df49dcbd8bcca631cc50da47f566da3a3e18bf88fa12a351a88cb57cc19",
         },
     ];
 
@@ -5666,6 +5719,55 @@ mod tests {
                 contract.state_sha256,
                 "{profile:?} final stateHash"
             );
+        }
+    }
+
+    #[test]
+    fn prior_terminal_hashes_are_recovered_by_removing_only_the_protocol_and_catalog_additions() {
+        for (profile, seed, ticks, prior_hash) in [
+            (
+                ReplayProfile::TealDuelReplay,
+                38,
+                TEAL_REPLAY_TICKS,
+                "90a93bd4fd2effcd78626b59a05a96473a83b92942f8766a4a630bfe32e50671",
+            ),
+            (
+                ReplayProfile::RadialSawHalfBlueReplay,
+                42,
+                RADIAL_REPLAY_TICKS,
+                "42700b3383c1d22fadd2d5e6c0bab32ebc6ab505c87f4ad49dc821c13c3600bb",
+            ),
+            (
+                ReplayProfile::YellowCrateTerminalBlastReplay,
+                43,
+                YELLOW_REPLAY_TICKS,
+                "f2c34be96331138bf07945db1c70b5ca9138d71ee0d48045c193c7908703c43e",
+            ),
+            (
+                ReplayProfile::TimberCollapseReplay,
+                40,
+                REPLAY_TICKS,
+                "dc547472a81528d07dd2fb0f1c07374ade31e0bae3537cabeac45a77f4c4e120",
+            ),
+            (
+                ReplayProfile::RematchDraftReplay,
+                SOURCE_DRAFT_SEED,
+                CONNECTED_FIRST_ROUND_TICKS,
+                "8dc4339d7271d1a1947e40db5437561fbfca263d70cbb62320102b28bb849686",
+            ),
+            (
+                ReplayProfile::MatchEndWaitingReplay,
+                57,
+                MATCH_END_WAITING_REPLAY_TICKS,
+                "eb1cdc060cacc736899de4ee8bbf856384edcc6942736911904587ee0ed3549b",
+            ),
+        ] {
+            let mut snapshot = run_profile_match(profile, seed, ticks).0;
+            snapshot.protocol = 9;
+            if let Some(flow) = &mut snapshot.flow {
+                flow.catalog.truncate(14);
+            }
+            assert_eq!(hash_snapshot(&snapshot), prior_hash, "{profile:?}");
         }
     }
 
@@ -6270,5 +6372,136 @@ mod tests {
             }
         }
         panic!("orange never reached the public ring-out match end");
+    }
+
+    #[test]
+    fn public_lifecycle_begins_a_serializable_fresh_orange_draft_from_waiting() {
+        let mut authority =
+            AuthoritativeMatch::new_with_profile(57, ReplayProfile::MatchEndWaitingReplay);
+        let inputs = scripted_inputs_for(
+            ReplayProfile::MatchEndWaitingReplay,
+            57,
+            MATCH_END_WAITING_TICK,
+        );
+        for tick in 0..MATCH_END_WAITING_TICK {
+            authority.step([inputs[0][tick as usize], inputs[1][tick as usize]]);
+        }
+        let waiting = authority.snapshot();
+        assert_eq!(waiting.flow.as_ref().unwrap().phase, FlowPhase::Waiting);
+        assert_eq!(waiting.flow.as_ref().unwrap().scores, [3, 5]);
+        assert!(waiting.projectiles.is_empty());
+        let session_tick = waiting.tick;
+        let session_metrics = waiting.metrics.clone();
+
+        assert_eq!(
+            authority.request_lifecycle(LifecycleRequest::BeginNewMatch),
+            LifecycleResult::Accepted
+        );
+        let reset = authority.snapshot();
+        let flow = reset.flow.as_ref().unwrap();
+        assert_eq!(flow.phase, FlowPhase::ArenaFade);
+        assert_eq!(flow.scores, [0, 0]);
+        assert_eq!(flow.halves, [0, 0]);
+        assert_eq!((flow.winner, flow.eliminated), (None, None));
+        assert!(flow.prior_badges.iter().all(Vec::is_empty));
+        assert!(flow.loadouts.iter().all(Vec::is_empty));
+        assert_eq!(flow.capabilities, [FighterCapabilities::default(); 2]);
+        assert_eq!(flow.offers, new_match_source_offers());
+        assert!(reset.projectiles.is_empty());
+        assert!(reset.impacts.is_empty());
+        assert!(reset.explosions.is_empty());
+        assert_eq!(reset.winner, None);
+        assert_eq!(reset.tick, session_tick);
+        assert_eq!(reset.metrics, session_metrics);
+        assert_eq!(reset.round.as_ref().unwrap().completed_rounds, Some([0, 0]));
+        assert_eq!(
+            reset
+                .players
+                .iter()
+                .map(|player| (
+                    player.x_milli,
+                    player.y_milli,
+                    player.health,
+                    player.alive,
+                    player.grounded,
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (-520_000, -134_000, 100, true, true),
+                (520_000, -134_000, 100, true, true)
+            ]
+        );
+        let before_repeat = reset.clone();
+        assert_eq!(
+            authority.request_lifecycle(LifecycleRequest::BeginNewMatch),
+            LifecycleResult::WrongPhase
+        );
+        assert_eq!(authority.snapshot(), before_repeat);
+
+        for _ in 0..10 {
+            authority.step([
+                PlayerInput {
+                    move_axis: 1,
+                    fire: true,
+                    ..PlayerInput::default()
+                },
+                PlayerInput {
+                    move_axis: -1,
+                    fire: true,
+                    ..PlayerInput::default()
+                },
+            ]);
+        }
+        let inert_fade = authority.snapshot();
+        assert!(inert_fade.projectiles.is_empty());
+        assert_eq!(inert_fade.players, reset.players);
+        for _ in 10..150 {
+            authority.step([PlayerInput::default(); 2]);
+        }
+        let draft = authority.snapshot();
+        let flow = draft.flow.as_ref().unwrap();
+        assert_eq!(flow.phase, FlowPhase::Draft);
+        assert_eq!(flow.active_player, Some(0));
+        assert_eq!(flow.offers, new_match_source_offers());
+        assert_eq!(flow.hovered[0], Some(ItemId::SteadyShot));
+        assert_eq!(draft.protocol, 10);
+        let encoded = serde_json::to_vec(&draft).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<MatchSnapshot>(&encoded).unwrap(),
+            draft
+        );
+
+        let revision = flow.phase_revision;
+        authority.step([
+            PlayerInput {
+                flow: Some(FlowCommand {
+                    phase_revision: revision,
+                    action: FlowAction::Hover(ItemId::Homing),
+                }),
+                ..PlayerInput::default()
+            },
+            PlayerInput::default(),
+        ]);
+        let hovered = authority.snapshot();
+        assert_eq!(
+            hovered.flow.as_ref().unwrap().last_results[0],
+            ActionResult::Accepted
+        );
+        authority.step([
+            PlayerInput {
+                flow: Some(FlowCommand {
+                    phase_revision: revision,
+                    action: FlowAction::Confirm(ItemId::Homing),
+                }),
+                ..PlayerInput::default()
+            },
+            PlayerInput::default(),
+        ]);
+        let rejected = authority.snapshot();
+        let flow = rejected.flow.as_ref().unwrap();
+        assert_eq!(flow.last_results[0], ActionResult::UnimplementedItem);
+        assert_eq!(flow.phase, FlowPhase::Draft);
+        assert!(flow.loadouts.iter().all(Vec::is_empty));
+        assert_eq!(flow.capabilities, [FighterCapabilities::default(); 2]);
     }
 }

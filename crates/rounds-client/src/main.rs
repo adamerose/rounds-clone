@@ -12,7 +12,7 @@ use rounds_sim::{
     YELLOW_LAST_COMBAT_TICK, YELLOW_LOCAL_BURST_TICK, YELLOW_PEAK_ECHO_TICK, YELLOW_REPLAY_TICKS,
     YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, YELLOW_TRAILS_TICK, arena_digest,
     combat_digest, dynamic_body_digest, flow_digest, loadout_digest, round_digest,
-    run_profile_match, run_profile_snapshots, saw_digest, scripted_inputs_for,
+    run_new_match_draft, run_profile_match, run_profile_snapshots, saw_digest, scripted_inputs_for,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -71,6 +71,7 @@ fn run() -> Result<(), String> {
     let profile = argument(&arguments, "--profile", ReplayProfile::default())?;
     match mode {
         "capture" => capture(&arguments, profile, seed, ticks),
+        "capture-new-match-draft" => capture_new_match_draft(&arguments, seed),
         "capture-replay" => capture_replay(&arguments, profile, seed, ticks),
         "local" => print_json(&local_report(profile, seed, ticks)),
         "visible" => {
@@ -101,9 +102,17 @@ fn run() -> Result<(), String> {
                 "state": state,
             }))
         }
+        "visible-new-match-draft" => {
+            let state = run_new_match_draft(seed).0;
+            run_visible(vec![state.clone(); 120])?;
+            print_json(&serde_json::json!({
+                "stateSha256": rounds_sim::hash_snapshot(&state),
+                "state": state,
+            }))
+        }
         "remote" => remote(&arguments, profile, seed, ticks),
         _ => Err(
-            "usage: rounds-client [local|remote|capture|capture-replay|visible|visible-flow] [options]"
+            "usage: rounds-client [local|remote|capture|capture-replay|capture-new-match-draft|visible|visible-flow|visible-new-match-draft] [options]"
                 .to_owned(),
         ),
     }
@@ -166,6 +175,24 @@ fn capture(
     reject_path_aliases(&[("--output", &output), ("--metadata", &metadata)])?;
     let (state, state_hash) = run_profile_match(profile, seed, ticks);
     let evidence = capture_state(&state, &state_hash, &output, seed, ticks, "single", None)?;
+    write_metadata(&metadata, &evidence)?;
+    print_json(&evidence)
+}
+
+fn capture_new_match_draft(arguments: &[String], seed: u64) -> Result<(), String> {
+    let output = path_argument(arguments, "--output")?;
+    let metadata = path_argument(arguments, "--metadata")?;
+    reject_path_aliases(&[("--output", &output), ("--metadata", &metadata)])?;
+    let (state, state_hash) = run_new_match_draft(seed);
+    let evidence = capture_state(
+        &state,
+        &state_hash,
+        &output,
+        seed,
+        state.tick,
+        "new-match-draft",
+        None,
+    )?;
     write_metadata(&metadata, &evidence)?;
     print_json(&evidence)
 }
@@ -372,8 +399,34 @@ fn capture_state(
     live_client_id: Option<u8>,
 ) -> Result<CaptureEvidence, String> {
     let profile = state.profile.parse::<ReplayProfile>()?;
-    let scripts = scripted_inputs_for(profile, seed, trace_ticks);
-    let script_bytes = serde_json::to_vec(&scripts).map_err(|error| error.to_string())?;
+    let new_match_draft = anchor == "new-match-draft";
+    let scripts = scripted_inputs_for(
+        profile,
+        seed,
+        if new_match_draft {
+            rounds_sim::MATCH_END_WAITING_REPLAY_TICKS
+        } else {
+            trace_ticks
+        },
+    );
+    let script_bytes = if new_match_draft {
+        serde_json::to_vec(&serde_json::json!({
+            "profileInputs": scripts,
+            "lifecycle": "beginNewMatch",
+            "fadeTicks": rounds_sim::NEW_MATCH_DRAFT_FADE_TICKS,
+        }))
+    } else {
+        serde_json::to_vec(&scripts)
+    }
+    .map_err(|error| error.to_string())?;
+    let source = if new_match_draft {
+        Some((
+            rounds_sim::NEW_MATCH_DRAFT_SOURCE_PTS,
+            rounds_sim::NEW_MATCH_DRAFT_SOURCE_RGBA_SHA256,
+        ))
+    } else {
+        source_binding(profile, state.tick)
+    };
     let resolved_output = resolved_path(output)?;
     let frame = render_png(state, output)?;
     let executable = env::current_exe().map_err(|error| error.to_string())?;
@@ -390,7 +443,9 @@ fn capture_state(
         seed,
         tick: state.tick,
         anchor: anchor.to_owned(),
-        source_interval: if profile == ReplayProfile::RematchDraftReplay {
+        source_interval: if new_match_draft {
+            "03:23.999184"
+        } else if profile == ReplayProfile::RematchDraftReplay {
             if trace_ticks == rounds_sim::HELD_HANGING_ENTRY_TICKS {
                 "02:39.516029-04:18.532299"
             } else if trace_ticks == rounds_sim::FIRST_LOSER_DRAFT_TICKS {
@@ -403,12 +458,16 @@ fn capture_state(
         } else {
             profile.source_interval()
         },
-        source_timestamp: source_timestamp(profile, state.tick),
-        source_pts: source_binding(profile, state.tick).map(|binding| binding.0),
-        source_rgba_sha256: source_binding(profile, state.tick).map(|binding| binding.1),
+        source_timestamp: source_timestamp(profile, state.tick, source),
+        source_pts: source.map(|binding| binding.0),
+        source_rgba_sha256: source.map(|binding| binding.1),
         source_sha256: profile.source_sha256(),
         constructed_prehistory: profile.constructed_prehistory(),
-        input_trace: profile.name(),
+        input_trace: if new_match_draft {
+            "explicit-begin-new-match"
+        } else {
+            profile.name()
+        },
         input_trace_sha256: sha256(&script_bytes),
         state_sha256: state_hash.to_owned(),
         dynamic_body_sha256: dynamic_body_digest(state),
@@ -432,8 +491,12 @@ fn capture_state(
     })
 }
 
-fn source_timestamp(profile: ReplayProfile, tick: u32) -> String {
-    if let Some((pts, _)) = source_binding(profile, tick) {
+fn source_timestamp(
+    profile: ReplayProfile,
+    tick: u32,
+    source: Option<(i64, &'static str)>,
+) -> String {
+    if let Some((pts, _)) = source {
         let micros = (pts + 5) / 10;
         return format!(
             "{:02}:{:02}.{:06}",

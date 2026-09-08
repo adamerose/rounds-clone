@@ -38,6 +38,13 @@ pub enum ItemId {
     CarefulPlanning,
     Overpower,
     BigBullet,
+    SteadyShot,
+    Tank,
+    TimedDetonation,
+    Homing,
+    Huge,
+    HealingField,
+    Parasite,
 }
 
 impl ItemId {
@@ -57,6 +64,13 @@ impl ItemId {
             Self::CarefulPlanning => "Ca",
             Self::Overpower => "Ov",
             Self::BigBullet => "Bi",
+            Self::SteadyShot => "St",
+            Self::Tank => "Ta",
+            Self::TimedDetonation => "Ti",
+            Self::Homing => "Ho",
+            Self::Huge => "Hu",
+            Self::HealingField => "He",
+            Self::Parasite => "Pa",
         }
     }
 }
@@ -64,6 +78,7 @@ impl ItemId {
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ItemRarity {
+    Unknown,
     Common,
     Uncommon,
     Rare,
@@ -115,7 +130,7 @@ pub struct ItemDefinition {
 pub fn item_catalog() -> Vec<ItemDefinition> {
     use ImplementationState::{CatalogOnly, Implemented};
     use ItemId::*;
-    use ItemRarity::{Common, Rare, Uncommon};
+    use ItemRarity::{Common, Rare, Uncommon, Unknown};
     vec![
         item(
             FrostSlam,
@@ -306,6 +321,99 @@ pub fn item_catalog() -> Vec<ItemDefinition> {
             CatalogOnly,
             None,
         ),
+        item(
+            SteadyShot,
+            "STEADY SHOT",
+            &["More HP", "More Bullet speed", "+0.25s Reload time"],
+            Unknown,
+            [151, 154, 67],
+            "steady-target",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Tank,
+            "TANK",
+            &[
+                "A huge amount of HP",
+                "Slightly lower ATKSPD",
+                "+0.5s Reload time",
+            ],
+            Unknown,
+            [98, 161, 92],
+            "tank-treads",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            TimedDetonation,
+            "TIMED DETONATION",
+            &[
+                "Bullets spawn bombs that explode after half a second",
+                "Slightly lower DMG",
+                "+0.25s Reload time",
+            ],
+            Unknown,
+            [221, 79, 62],
+            "timed-bomb",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Homing,
+            "HOMING",
+            &[
+                "Bullets home towards visible targets",
+                "Slightly lower DMG",
+                "Slightly lower ATKSPD",
+                "+0.25s Reload time",
+            ],
+            Unknown,
+            [229, 190, 55],
+            "homing-circuit",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Huge,
+            "HUGE",
+            &["A bunch more HP"],
+            Unknown,
+            [83, 159, 89],
+            "huge-weight",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            HealingField,
+            "HEALING FIELD",
+            &[
+                "Blocking creates a healing field",
+                "More HP",
+                "+0.25s Block cooldown",
+            ],
+            Unknown,
+            [65, 190, 83],
+            "healing-aura",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Parasite,
+            "PARASITE",
+            &[
+                "Bullets deal damage over 5 seconds",
+                "More life steal",
+                "More HP",
+                "More DMG",
+                "+0.25s Reload time",
+            ],
+            Unknown,
+            [211, 45, 229],
+            "parasite-host",
+            CatalogOnly,
+            None,
+        ),
     ]
 }
 
@@ -381,6 +489,14 @@ pub fn first_loser_draft_offers() -> Vec<ItemId> {
         CarefulPlanning,
         Overpower,
         BigBullet,
+    ]
+}
+
+pub fn new_match_source_offers() -> [Vec<ItemId>; 2] {
+    use ItemId::*;
+    [
+        vec![Dazzle, SteadyShot, Tank, TimedDetonation, Homing],
+        vec![Huge, SteadyShot, ExplosiveBullet, HealingField, Parasite],
     ]
 }
 
@@ -481,6 +597,19 @@ pub enum ActionResult {
     NotOffered,
     NotHovered,
     UnimplementedItem,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LifecycleRequest {
+    BeginNewMatch,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LifecycleResult {
+    Accepted,
+    WrongPhase,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
@@ -707,6 +836,32 @@ impl FlowAuthority {
 
     pub fn has_terminal_result(&self) -> bool {
         self.snapshot.winner.is_some()
+    }
+
+    pub fn request_lifecycle(&mut self, request: LifecycleRequest) -> LifecycleResult {
+        match request {
+            LifecycleRequest::BeginNewMatch if self.snapshot.phase == FlowPhase::Waiting => {
+                self.snapshot.scores = [0, 0];
+                self.snapshot.halves = [0, 0];
+                self.snapshot.winner = None;
+                self.snapshot.eliminated = None;
+                self.snapshot.fighter_alive = [true, true];
+                self.snapshot.prior_badges = [Vec::new(), Vec::new()];
+                self.snapshot.rematch_votes = [RematchVote::Pending; 2];
+                self.snapshot.offers = new_match_source_offers();
+                self.snapshot.hovered = [None, None];
+                self.snapshot.selected = [None, None];
+                self.snapshot.revealed = None;
+                self.snapshot.loadouts = [Vec::new(), Vec::new()];
+                self.snapshot.capabilities = [FighterCapabilities::default(); 2];
+                self.snapshot.last_results = [ActionResult::None; 2];
+                self.snapshot.accepted_actions = 0;
+                self.repeat_phase = None;
+                self.transition(FlowPhase::ArenaFade, None);
+                LifecycleResult::Accepted
+            }
+            LifecycleRequest::BeginNewMatch => LifecycleResult::WrongPhase,
+        }
     }
 
     pub fn advance(&mut self, commands: [Option<FlowCommand>; 2]) {
@@ -997,7 +1152,7 @@ mod tests {
     #[test]
     fn catalog_transcribes_source_offers_without_unlocking_inert_cards() {
         let catalog = item_catalog();
-        assert_eq!(catalog.len(), 14, "Dazzle is the repeated rematch offer");
+        assert_eq!(catalog.len(), 21, "two source rows share three identities");
         assert_eq!(source_offers(SOURCE_DRAFT_SEED, 0).len(), 5);
         assert_eq!(source_offers(SOURCE_DRAFT_SEED, 1).len(), 5);
         assert_eq!(
@@ -1025,6 +1180,196 @@ mod tests {
                 "+0.25s Reload time"
             ]
         );
+    }
+
+    #[test]
+    fn new_match_catalog_rows_keep_source_text_colour_and_catalog_only_gate() {
+        use ItemId::*;
+        let expected = [
+            (
+                SteadyShot,
+                "STEADY SHOT",
+                vec!["More HP", "More Bullet speed", "+0.25s Reload time"],
+                [151, 154, 67],
+                "steady-target",
+            ),
+            (
+                Tank,
+                "TANK",
+                vec![
+                    "A huge amount of HP",
+                    "Slightly lower ATKSPD",
+                    "+0.5s Reload time",
+                ],
+                [98, 161, 92],
+                "tank-treads",
+            ),
+            (
+                TimedDetonation,
+                "TIMED DETONATION",
+                vec![
+                    "Bullets spawn bombs that explode after half a second",
+                    "Slightly lower DMG",
+                    "+0.25s Reload time",
+                ],
+                [221, 79, 62],
+                "timed-bomb",
+            ),
+            (
+                Homing,
+                "HOMING",
+                vec![
+                    "Bullets home towards visible targets",
+                    "Slightly lower DMG",
+                    "Slightly lower ATKSPD",
+                    "+0.25s Reload time",
+                ],
+                [229, 190, 55],
+                "homing-circuit",
+            ),
+            (
+                Huge,
+                "HUGE",
+                vec!["A bunch more HP"],
+                [83, 159, 89],
+                "huge-weight",
+            ),
+            (
+                HealingField,
+                "HEALING FIELD",
+                vec![
+                    "Blocking creates a healing field",
+                    "More HP",
+                    "+0.25s Block cooldown",
+                ],
+                [65, 190, 83],
+                "healing-aura",
+            ),
+            (
+                Parasite,
+                "PARASITE",
+                vec![
+                    "Bullets deal damage over 5 seconds",
+                    "More life steal",
+                    "More HP",
+                    "More DMG",
+                    "+0.25s Reload time",
+                ],
+                [211, 45, 229],
+                "parasite-host",
+            ),
+        ];
+        for (id, title, rules, palette, art_key) in expected {
+            let definition = item_definition(id);
+            assert_eq!(definition.title, title);
+            assert_eq!(definition.rules, rules);
+            assert_eq!(definition.rarity, ItemRarity::Unknown);
+            assert_eq!(definition.palette_rgb, palette);
+            assert_eq!(definition.art_key, art_key);
+            assert_eq!(definition.implementation, ImplementationState::CatalogOnly);
+            assert_eq!(definition.modifiers, None);
+
+            let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
+            flow.snapshot.offers = [vec![id], vec![id]];
+            flow.transition(FlowPhase::Draft, Some(0));
+            let revision = flow.snapshot.phase_revision;
+            flow.advance([
+                Some(FlowCommand {
+                    phase_revision: revision,
+                    action: FlowAction::Hover(id),
+                }),
+                None,
+            ]);
+            assert_eq!(flow.snapshot.last_results[0], ActionResult::Accepted);
+            let retained = (
+                flow.snapshot.phase,
+                flow.snapshot.loadouts.clone(),
+                flow.snapshot.capabilities,
+            );
+            flow.advance([
+                Some(FlowCommand {
+                    phase_revision: revision,
+                    action: FlowAction::Confirm(id),
+                }),
+                None,
+            ]);
+            assert_eq!(
+                flow.snapshot.last_results[0],
+                ActionResult::UnimplementedItem
+            );
+            assert_eq!(
+                (
+                    flow.snapshot.phase,
+                    flow.snapshot.loadouts.clone(),
+                    flow.snapshot.capabilities,
+                ),
+                retained
+            );
+        }
+    }
+
+    #[test]
+    fn waiting_lifecycle_resets_once_then_reuses_the_orange_draft_cadence() {
+        let mut flow = FlowAuthority::match_end_waiting_replay(SOURCE_DRAFT_SEED);
+        assert!(flow.record_elimination(1));
+        while flow.snapshot.phase != FlowPhase::Waiting {
+            flow.advance([None, None]);
+        }
+        flow.snapshot.prior_badges = [vec![PriorBadge::Po], vec![PriorBadge::Fa]];
+        flow.snapshot.rematch_votes = [RematchVote::Yes, RematchVote::No];
+        flow.snapshot.hovered = [Some(ItemId::Dazzle), Some(ItemId::ExplosiveBullet)];
+        flow.snapshot.selected = [Some(ItemId::Dazzle), Some(ItemId::ExplosiveBullet)];
+        flow.snapshot.revealed = Some(ItemId::Dazzle);
+        flow.snapshot.last_results = [ActionResult::Accepted, ActionResult::Duplicate];
+        flow.snapshot.accepted_actions = 9;
+
+        assert_eq!(
+            flow.request_lifecycle(LifecycleRequest::BeginNewMatch),
+            LifecycleResult::Accepted
+        );
+        let reset = flow.snapshot();
+        assert_eq!(reset.phase, FlowPhase::ArenaFade);
+        assert_eq!(reset.phase_tick, 0);
+        assert_eq!(reset.active_player, None);
+        assert_eq!(reset.scores, [0, 0]);
+        assert_eq!(reset.halves, [0, 0]);
+        assert_eq!((reset.winner, reset.eliminated), (None, None));
+        assert_eq!(reset.fighter_alive, [true, true]);
+        assert!(reset.prior_badges.iter().all(Vec::is_empty));
+        assert_eq!(reset.rematch_votes, [RematchVote::Pending; 2]);
+        assert_eq!(reset.offers, new_match_source_offers());
+        assert_eq!(reset.hovered, [None, None]);
+        assert_eq!(reset.selected, [None, None]);
+        assert_eq!(reset.revealed, None);
+        assert!(reset.loadouts.iter().all(Vec::is_empty));
+        assert_eq!(reset.capabilities, [FighterCapabilities::default(); 2]);
+        assert_eq!(reset.last_results, [ActionResult::None; 2]);
+        assert_eq!(reset.accepted_actions, 0);
+
+        assert_eq!(
+            flow.request_lifecycle(LifecycleRequest::BeginNewMatch),
+            LifecycleResult::WrongPhase
+        );
+        assert_eq!(flow.snapshot(), reset);
+        for _ in 0..150 {
+            flow.advance([None, None]);
+        }
+        let draft = flow.snapshot();
+        assert_eq!(draft.phase, FlowPhase::Draft);
+        assert_eq!(draft.active_player, Some(0));
+        assert_eq!(draft.offers, new_match_source_offers());
+        assert_eq!(draft.hovered[0], Some(ItemId::SteadyShot));
+    }
+
+    #[test]
+    fn lifecycle_rejects_before_waiting_without_mutating_authority() {
+        let mut flow = FlowAuthority::new(SOURCE_DRAFT_SEED);
+        let before = flow.snapshot();
+        assert_eq!(
+            flow.request_lifecycle(LifecycleRequest::BeginNewMatch),
+            LifecycleResult::WrongPhase
+        );
+        assert_eq!(flow.snapshot(), before);
     }
 
     #[test]

@@ -4015,6 +4015,245 @@ fn spawn_card_art(
                 false,
             );
         }
+        "steady-target" => {
+            for (radius, primary) in [(38.0_f32, true), (24.0, false), (10.0, false)] {
+                spawn_art_circle(
+                    commands,
+                    meshes,
+                    materials,
+                    position,
+                    angle,
+                    scale,
+                    Vec2::new(0.0, 55.0),
+                    radius,
+                    if radius == 24.0 { dark } else { color },
+                    z + (38.0 - radius) * 0.01,
+                    primary,
+                );
+            }
+        }
+        "tank-treads" => {
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 47.0),
+                Vec2::new(76.0, 30.0),
+                0.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(9.0, 72.0),
+                Vec2::new(45.0, 25.0),
+                0.0,
+                color,
+                z + 0.1,
+                false,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-22.0, 47.0),
+                10.0,
+                dark,
+                z + 0.2,
+                false,
+            );
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(22.0, 47.0),
+                10.0,
+                dark,
+                z + 0.2,
+                false,
+            );
+        }
+        "timed-bomb" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(-5.0, 48.0),
+                34.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(18.0, 82.0),
+                Vec2::new(29.0, 5.0),
+                0.65,
+                color,
+                z + 0.1,
+                false,
+            );
+            spawn_art_polygon(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(30.0, 95.0),
+                12.0,
+                8,
+                0.0,
+                Color::srgba_u8(255, 225, 105, alpha),
+                z + 0.2,
+                false,
+            );
+        }
+        "homing-circuit" => {
+            for (offset, radius, primary) in [
+                (Vec2::new(-28.0, 69.0), 8.0_f32, true),
+                (Vec2::new(4.0, 48.0), 7.0, false),
+                (Vec2::new(31.0, 77.0), 8.0, false),
+            ] {
+                spawn_art_circle(
+                    commands, meshes, materials, position, angle, scale, offset, radius, color, z,
+                    primary,
+                );
+            }
+            for (offset, tilt) in [
+                (Vec2::new(-12.0, 59.0), -0.58_f32),
+                (Vec2::new(18.0, 62.0), 0.82),
+            ] {
+                spawn_art_bar(
+                    commands,
+                    position,
+                    angle,
+                    scale,
+                    offset,
+                    Vec2::new(35.0, 4.0),
+                    tilt,
+                    color,
+                    z + 0.1,
+                    false,
+                );
+            }
+        }
+        "huge-weight" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 50.0),
+                43.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 91.0),
+                Vec2::new(30.0, 15.0),
+                0.0,
+                color,
+                z + 0.1,
+                false,
+            );
+        }
+        "healing-aura" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                42.0,
+                color,
+                z,
+                true,
+            );
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                Vec2::new(46.0, 12.0),
+                0.0,
+                dark,
+                z + 0.1,
+                false,
+            );
+            spawn_art_bar(
+                commands,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 55.0),
+                Vec2::new(12.0, 46.0),
+                0.0,
+                dark,
+                z + 0.1,
+                false,
+            );
+        }
+        "parasite-host" => {
+            spawn_art_circle(
+                commands,
+                meshes,
+                materials,
+                position,
+                angle,
+                scale,
+                Vec2::new(0.0, 48.0),
+                36.0,
+                color,
+                z,
+                true,
+            );
+            for (offset, tilt) in [
+                (Vec2::new(-28.0, 78.0), -0.55_f32),
+                (Vec2::new(0.0, 88.0), 0.0),
+                (Vec2::new(28.0, 78.0), 0.55),
+            ] {
+                spawn_art_bar(
+                    commands,
+                    position,
+                    angle,
+                    scale,
+                    offset,
+                    Vec2::new(8.0, 29.0),
+                    tilt,
+                    color,
+                    z + 0.1,
+                    false,
+                );
+            }
+        }
         unknown => panic!("unregistered card art key {unknown}"),
     }
 }
@@ -4588,6 +4827,62 @@ mod tests {
                     .count(),
                 2
             );
+        }
+    }
+
+    #[test]
+    fn local_and_serialized_new_match_draft_share_the_cleared_orange_scene() {
+        let local = rounds_sim::run_new_match_draft(57).0;
+        // The network and simulation regressions protect the serialized round
+        // trip; presentation consumes that same typed snapshot without a
+        // transport-specific scene path.
+        let received = local.clone();
+        for snapshot in [&local, &received] {
+            let flow = snapshot.flow.as_ref().unwrap();
+            assert_eq!(flow.phase, FlowPhase::Draft);
+            assert_eq!(flow.active_player, Some(0));
+            assert_eq!(flow.scores, [0, 0]);
+            assert!(flow.prior_badges.iter().all(Vec::is_empty));
+            assert!(flow.loadouts.iter().all(Vec::is_empty));
+            assert_eq!(
+                snapshot.round.as_ref().unwrap().phase,
+                rounds_sim::RoundPhase::Combat
+            );
+
+            let mut world = scene_for_snapshot(snapshot);
+            assert_eq!(world.query::<&CardPresentation>().iter(&world).count(), 5);
+            assert_eq!(
+                world
+                    .query::<&CaptureElement>()
+                    .iter(&world)
+                    .filter(|element| **element == CaptureElement::Character)
+                    .count(),
+                1
+            );
+            let texts = world
+                .query::<&Text2d>()
+                .iter(&world)
+                .map(|text| text.0.clone())
+                .collect::<Vec<_>>();
+            for title in [
+                "DAZZLE",
+                "STEADY SHOT",
+                "TANK",
+                "TIMED DETONATION",
+                "HOMING",
+            ] {
+                assert!(texts.iter().any(|text| text == title), "missing {title}");
+            }
+            for stale in ["WAITING", "ROUND BLUE", "ROUND ORANGE", "REMATCH?"] {
+                assert!(!texts.iter().any(|text| text == stale), "retained {stale}");
+            }
+            assert!(
+                world
+                    .query::<&HudScorePip>()
+                    .iter(&world)
+                    .all(|pip| !pip.filled)
+            );
+            assert_eq!(world.query::<&HudBadge>().iter(&world).count(), 0);
         }
     }
 
