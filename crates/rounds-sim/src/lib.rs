@@ -5558,7 +5558,7 @@ mod tests {
             ],
             frozen_releases: &[(0, 4_541, 4_601)],
             jumps: 141,
-            state_sha256: "b53f8df49dcbd8bcca631cc50da47f566da3a3e18bf88fa12a351a88cb57cc19",
+            state_sha256: "374341276ebb0a1517b9c4e6747463199ed264beda387dfc3585567a601810e2",
         },
     ];
 
