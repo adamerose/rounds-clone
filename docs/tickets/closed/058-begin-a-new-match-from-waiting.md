@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-09-08T15:58:37Z
 origin: agent-proposed
 tags: ["rounds", "bevy", "match-flow", "draft", "fidelity"]
@@ -73,3 +73,5 @@ Ticket 057 can now reach the source's terminal `WAITING` state, but the authorit
 - 2026-09-09T07:55:28Z stage review start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a0852a-62fe-7c62-8737-c1b5e50d2c2e — Fresh independent binding review of exact full candidate `de0d8bc86f35f83b0763968c9e2696c75efc4a90..90d479200a5eaebcf525c73e4001f0f7f7e0e573`, including implementation, corrected local-versus-wire lifecycle wording, source, executable attribution, all retained artifacts, preservation and focused public regressions.
 - 2026-09-09T08:07:23Z stage review end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a0852a-62fe-7c62-8737-c1b5e50d2c2e — APPROVE with no findings: exact executable and 101 artifacts bind, 100 anchors and 700 invariant comparisons reproduce, source and rendered draft inspect correctly, focused lifecycle/presentation/network gates pass, and the lifecycle result is accurately documented as local and unserialized.
 - 2026-09-15T01:19:46Z stage review start session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a0a2a5-9390-75a2-83aa-cf437906ead0 — Fresh delivery-metadata review after the release-matched closer safely refused the already-paired final review marker; verifying that the approved implementation remains unchanged and this unmatched marker supplies the current guarded close contract.
+- 2026-09-15T01:22:48Z stage review end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a/01a0a2a5-9390-75a2-83aa-cf437906ead0 — approved candidate de0d8bc86f35f83b0763968c9e2696c75efc4a90..0ff27e9c978813b2a35faf92504647fe1b3f89af
+- 2026-09-15T01:22:48Z stage integration end session codex:01a07f87-97d0-7751-825a-29e87e8fe64a — integrated 0ff27e9c978813b2a35faf92504647fe1b3f89af as 0ff27e9c978813b2a35faf92504647fe1b3f89af
