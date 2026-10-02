@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 owner: codex:01a0fae4-9ad3-7631-b794-b2470f74a6a4
 created: 2026-09-07T16:03:21Z
 origin: system-detected
@@ -21,6 +21,12 @@ split-from: [49]
 # Fit airborne traversal with the shared control coefficient
 
 The existing airborne control coefficient converges too slowly and leaves the clone far short of source-observed horizontal travel. Correct the single shared coefficient and retime public replay inputs where needed, while preserving source-observed events and openly retaining any residual the source measurements cannot resolve.
+
+## Blocked
+
+The isolated 0.39 candidate passes the new public 74-tick travel check (3.88 native pixels RMS, 0.56 at the endpoint) but fails the fixed replay and no-worse anchor requirements. With the published input intervals, the connected match remains in `IceCombat` at the source-bound 5339 result and 5941 hanging endpoint, radial remains in combat at its 909 result, and teal loses its terminal hit. Fifteen simulation and four network tests fail. At yellow tick 80, a fresh decode of source PTS 4233483066/RGBA `d57dbd7ea73ba1d2e9c6c6fd37281629c0ee897aa52a29f6e81fb6cf532112bd` places blue near (1112.5,155.5); current 0.08 capture is (1123,156), while 0.39 is (1208,156), about 85 native pixels worse than before against an eight-pixel maximum regression. The full seven-profile 0.08 baseline and four affected candidate capture sets are retained under the ticket 052 worktree's ignored `out/ticket-052/`.
+
+No physics change, replay retiming or updated expectation is published. The next admission must establish whether ordinary movement and jump input intervals can restore every fixed source event and all changed anchors under the one shared coefficient, or identify a separate source-backed cause correction. Goal 59's delegation covers reversible choices; this is a reproduced contract failure, not an open request for Adam to choose an option.
 
 ## Outcome
 
