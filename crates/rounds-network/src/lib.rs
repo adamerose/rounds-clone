@@ -977,6 +977,45 @@ mod tests {
     }
 
     #[test]
+    fn two_udp_clients_share_the_lime_arena_and_stable_traversal_endpoint() {
+        let seed = 59;
+        let profile = ReplayProfile::LimeModularArenaReplay;
+        let ticks = rounds_sim::LIME_MODULAR_REPLAY_TICKS;
+        let scripts = scripted_inputs_for(profile, seed, ticks);
+        let server = BoundServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_thread = thread::spawn(move || server.run(seed, ticks, profile).unwrap());
+        let clients = scripts
+            .into_iter()
+            .enumerate()
+            .map(|(client_id, inputs)| {
+                thread::spawn(move || {
+                    send_inputs(address, client_id as u8, seed, profile, &inputs).unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let reports = clients
+            .into_iter()
+            .map(|client| client.join().unwrap())
+            .collect::<Vec<_>>();
+        let server_report = server_thread.join().unwrap();
+
+        assert_eq!(reports[0].final_report, reports[1].final_report);
+        assert_eq!(reports[0].final_report, server_report);
+        assert_eq!(server_report.state.arena.len(), 33);
+        assert_eq!(
+            server_report.arena_digest,
+            "2a1a0fd5dcba20f0759e7d908235cd76bc7547503dede2ce599eb3b546715a8b"
+        );
+        assert!(server_report.state.players.iter().all(|player| {
+            player.grounded
+                && player.alive
+                && (300_000..325_000).contains(&player.x_milli.abs())
+                && (45_000..65_000).contains(&player.y_milli)
+        }));
+    }
+
+    #[test]
     fn network_tick_cap_still_rejects_6001() {
         assert!(validate_tick_count(MAX_NETWORK_TICKS).is_ok());
         assert_eq!(

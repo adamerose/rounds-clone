@@ -262,6 +262,9 @@ struct HangingBodyVisual(u16);
 struct HangingSquareVisual(u16);
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+struct LimeSurfaceVisual(u8);
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 struct HangingLinkVisual {
     body: u16,
     segment: u8,
@@ -1556,6 +1559,7 @@ fn spawn_snapshot_scene(
     let draft_replay = profile == ReplayProfile::RematchDraftReplay;
     let radial_replay = profile == ReplayProfile::RadialSawHalfBlueReplay;
     let yellow_replay = profile == ReplayProfile::YellowCrateTerminalBlastReplay;
+    let lime_replay = profile == ReplayProfile::LimeModularArenaReplay;
     let ice_scene = snapshot.arena.iter().any(|surface| surface.id >= 40);
     let hanging_scene = snapshot.hanging_entry.is_some();
     let fighter_scale = if ice_scene || hanging_scene {
@@ -1575,6 +1579,8 @@ fn spawn_snapshot_scene(
         Sprite::from_color(
             if radial_replay {
                 Color::srgb_u8(188, 238, 229)
+            } else if lime_replay {
+                Color::srgb_u8(2, 43, 49)
             } else if yellow_replay {
                 Color::srgb_u8(2, 43, 54)
             } else if ice_scene || hanging_scene {
@@ -1593,7 +1599,7 @@ fn spawn_snapshot_scene(
         ),
         Transform::from_xyz(0.0, 0.0, -100.0),
     ));
-    if yellow_replay || ice_scene {
+    if yellow_replay || ice_scene || lime_replay {
         spawn_yellow_paper(commands, meshes, materials, snapshot.tick, ice_scene);
     } else if !radial_replay {
         for (index, x) in [-520.0_f32, -260.0, 0.0, 260.0, 520.0]
@@ -1669,6 +1675,10 @@ fn spawn_snapshot_scene(
         let width = surface.width_milli as f32 / 1_000.0;
         let height = surface.height_milli as f32 / 1_000.0;
         let rotation = surface.rotation_milliradians as f32 / 1_000.0;
+        if lime_replay {
+            spawn_lime_surface(commands, meshes, materials, surface, snapshot.tick);
+            continue;
+        }
         if ice_scene {
             spawn_ice_surface(commands, meshes, materials, surface, snapshot.tick);
             continue;
@@ -2378,6 +2388,165 @@ fn spawn_snapshot_scene(
                 }
             }
         });
+    }
+}
+
+fn spawn_lime_surface(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    surface: &rounds_sim::ArenaSurfaceSnapshot,
+    tick: u32,
+) {
+    let center = Vec2::new(surface.center_x_milli as f32, surface.center_y_milli as f32) / 1_000.0;
+    let width = surface.width_milli as f32 / 1_000.0;
+    let height = surface.height_milli as f32 / 1_000.0;
+    let rotation = Rot2::radians(surface.rotation_milliradians as f32 / 1_000.0);
+    let outline = if surface.outline_milli.len() >= 3 {
+        surface
+            .outline_milli
+            .iter()
+            .map(|point| {
+                center + rotation * (Vec2::new(point[0] as f32, point[1] as f32) / 1_000.0)
+            })
+            .collect::<Vec<_>>()
+    } else {
+        vec![
+            center + Vec2::new(-width * 0.5, -height * 0.5),
+            center + Vec2::new(width * 0.5, -height * 0.5),
+            center + Vec2::new(width * 0.5, height * 0.5),
+            center + Vec2::new(-width * 0.5, height * 0.5),
+        ]
+    };
+    let mut levels = outline.iter().map(|point| point.y).collect::<Vec<_>>();
+    levels.sort_by(f32::total_cmp);
+    levels.dedup();
+    let mut triangles = Vec::new();
+    for band in levels.windows(2) {
+        let middle = (band[0] + band[1]) * 0.5;
+        let mut crossings = outline
+            .iter()
+            .zip(outline.iter().cycle().skip(1))
+            .take(outline.len())
+            .filter(|(a, b)| (a.y < middle && b.y > middle) || (b.y < middle && a.y > middle))
+            .map(|(a, b)| {
+                let x_at = |y| a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y);
+                (x_at(middle), x_at(band[0]), x_at(band[1]))
+            })
+            .collect::<Vec<_>>();
+        crossings.sort_by(|a, b| a.0.total_cmp(&b.0));
+        for pair in crossings.as_chunks::<2>().0 {
+            let bottom_left = Vec2::new(pair[0].1, band[0]);
+            let bottom_right = Vec2::new(pair[1].1, band[0]);
+            let top_left = Vec2::new(pair[0].2, band[1]);
+            let top_right = Vec2::new(pair[1].2, band[1]);
+            triangles.extend([
+                [bottom_left, bottom_right, top_right],
+                [bottom_left, top_right, top_left],
+            ]);
+        }
+    }
+
+    let top = *levels.last().unwrap();
+    let top_edge = outline.iter().filter(|point| (point.y - top).abs() < 0.001);
+    let shadow_left = Vec2::new(
+        top_edge
+            .clone()
+            .map(|point| point.x)
+            .fold(f32::INFINITY, f32::min),
+        top,
+    );
+    let shadow_right = Vec2::new(
+        top_edge
+            .map(|point| point.x)
+            .fold(f32::NEG_INFINITY, f32::max),
+        top,
+    );
+    let light = Vec2::new(0.0, 760.0);
+    let shadow_end = |point: Vec2| {
+        let direction = point - light;
+        point + direction * ((-520.0 - point.y) / direction.y)
+    };
+    let far_left = shadow_end(shadow_left);
+    let far_right = shadow_end(shadow_right);
+    for triangle in [
+        [shadow_left, far_left, far_right],
+        [shadow_left, far_right, shadow_right],
+    ] {
+        spawn_triangle(
+            commands,
+            meshes,
+            materials,
+            triangle,
+            Color::srgb_u8(0, 2, 29),
+            -40.0,
+        );
+    }
+
+    let phase = (tick as f32 / rounds_sim::LIME_MODULAR_REPLAY_TICKS as f32)
+        .clamp(0.0, 1.0)
+        .powf(1.55);
+    let (base, facets) = if surface.id < 18 {
+        (
+            Color::srgb_u8(
+                (5.0 + phase * 160.0) as u8,
+                (214.0 + phase * 40.0) as u8,
+                (211.0 - phase * 193.0) as u8,
+            ),
+            [
+                Color::srgba_u8(142, 255, 202, 65),
+                Color::srgba_u8(0, 184, 219, 55),
+                Color::srgba_u8(255, 255, 214, 42),
+            ],
+        )
+    } else {
+        (
+            Color::srgb_u8(
+                (68.0 + phase * 37.0) as u8,
+                (72.0 + phase * 55.0) as u8,
+                (65.0 - phase * 35.0) as u8,
+            ),
+            [
+                Color::srgba_u8(139, 146, 83, 38),
+                Color::srgba_u8(27, 60, 69, 34),
+                Color::srgba_u8(196, 205, 121, 24),
+            ],
+        )
+    };
+    for &triangle in &triangles {
+        commands.spawn((
+            SceneVisual,
+            LimeSurfaceVisual(surface.id),
+            Mesh2d(meshes.add(Triangle2d::new(triangle[0], triangle[1], triangle[2]))),
+            MeshMaterial2d(materials.add(base)),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        ));
+    }
+    let extent = width.hypot(height);
+    for (facet, color) in facets.into_iter().enumerate() {
+        let angle = 0.55 + facet as f32 * 1.13 + surface.id as f32 * 0.37 + tick as f32 * 0.002;
+        let direction = Vec2::from_angle(angle);
+        let normal = direction.perp();
+        let offset = radial_brush_noise(u32::from(surface.id), facet as u32, 59);
+        let origin = center + normal * offset * extent * 0.22;
+        let paint = [
+            origin - direction * extent * 0.72 - normal * extent * 0.16,
+            origin + direction * extent * 0.65,
+            origin - direction * extent * 0.18 + normal * extent * 0.24,
+        ];
+        for triangle in &triangles {
+            let clipped = clip_ice_paint(&paint, triangle);
+            for index in 1..clipped.len().saturating_sub(1) {
+                spawn_triangle(
+                    commands,
+                    meshes,
+                    materials,
+                    [clipped[0], clipped[index], clipped[index + 1]],
+                    color,
+                    0.5 + facet as f32 * 0.01,
+                );
+            }
+        }
     }
 }
 
@@ -4828,6 +4997,28 @@ mod tests {
                 2
             );
         }
+    }
+
+    #[test]
+    fn lime_renderer_consumes_all_authoritative_surfaces_without_draft_ui() {
+        let snapshot = rounds_sim::run_profile_match(
+            ReplayProfile::LimeModularArenaReplay,
+            59,
+            rounds_sim::LIME_MODULAR_REPLAY_TICKS,
+        )
+        .0;
+        let mut world = scene_for_snapshot(&snapshot);
+        let mut ids = world
+            .query::<&LimeSurfaceVisual>()
+            .iter(&world)
+            .map(|visual| visual.0)
+            .collect::<Vec<_>>();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids, (0..33).collect::<Vec<_>>());
+        assert!(world.query::<&SceneVisual>().iter(&world).count() > 300);
+        assert_eq!(world.query::<&CardPresentation>().iter(&world).count(), 0);
+        assert_eq!(world.query::<&HudBadge>().iter(&world).count(), 0);
     }
 
     #[test]

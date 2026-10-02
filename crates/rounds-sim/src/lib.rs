@@ -59,6 +59,10 @@ pub const NEW_MATCH_DRAFT_FADE_TICKS: u32 = 150;
 pub const NEW_MATCH_DRAFT_SOURCE_PTS: i64 = 2_039_991_840;
 pub const NEW_MATCH_DRAFT_SOURCE_RGBA_SHA256: &str =
     "7f8703810079f5beef741953d896175d70ee5602fe997b37be3349308c218da0";
+pub const LIME_MODULAR_REPLAY_TICKS: u32 = 360;
+pub const LIME_MODULAR_REPLAY_PROFILE: &str = "lime-modular-arena-replay";
+pub const LIME_MODULAR_SOURCE_INTERVAL: &str = "03:34.015811-03:40.015787";
+pub const LIME_MODULAR_SOURCE_START_PTS: i64 = 2_140_158_106;
 
 const PLAYER_RADIUS: f32 = 22.0;
 const RUN_SPEED: f32 = 220.0;
@@ -97,6 +101,7 @@ pub enum ReplayProfile {
     TealDuelReplay,
     RematchDraftReplay,
     MatchEndWaitingReplay,
+    LimeModularArenaReplay,
     RadialSawHalfBlueReplay,
     YellowCrateTerminalBlastReplay,
     #[default]
@@ -109,6 +114,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => TEAL_REPLAY_PROFILE,
             Self::RematchDraftReplay => REMATCH_DRAFT_PROFILE,
             Self::MatchEndWaitingReplay => MATCH_END_WAITING_REPLAY_PROFILE,
+            Self::LimeModularArenaReplay => LIME_MODULAR_REPLAY_PROFILE,
             Self::RadialSawHalfBlueReplay => RADIAL_REPLAY_PROFILE,
             Self::YellowCrateTerminalBlastReplay => YELLOW_REPLAY_PROFILE,
             Self::TimberCollapseReplay => REPLAY_PROFILE,
@@ -120,6 +126,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => TEAL_REPLAY_TICKS,
             Self::RematchDraftReplay => REMATCH_DRAFT_TICKS,
             Self::MatchEndWaitingReplay => MATCH_END_WAITING_REPLAY_TICKS,
+            Self::LimeModularArenaReplay => LIME_MODULAR_REPLAY_TICKS,
             Self::RadialSawHalfBlueReplay => RADIAL_REPLAY_TICKS,
             Self::YellowCrateTerminalBlastReplay => YELLOW_REPLAY_TICKS,
             Self::TimberCollapseReplay => REPLAY_TICKS,
@@ -131,6 +138,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => TEAL_SOURCE_INTERVAL,
             Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_INTERVAL,
             Self::MatchEndWaitingReplay => MATCH_END_WAITING_SOURCE_INTERVAL,
+            Self::LimeModularArenaReplay => LIME_MODULAR_SOURCE_INTERVAL,
             Self::RadialSawHalfBlueReplay => RADIAL_SOURCE_INTERVAL,
             Self::YellowCrateTerminalBlastReplay => YELLOW_SOURCE_INTERVAL,
             Self::TimberCollapseReplay => SOURCE_INTERVAL,
@@ -142,6 +150,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => TEAL_SOURCE_SHA256,
             Self::RematchDraftReplay => SOURCE_SHA256,
             Self::MatchEndWaitingReplay => TEAL_SOURCE_SHA256,
+            Self::LimeModularArenaReplay => TEAL_SOURCE_SHA256,
             Self::RadialSawHalfBlueReplay => TEAL_SOURCE_SHA256,
             Self::YellowCrateTerminalBlastReplay => SOURCE_SHA256,
             Self::TimberCollapseReplay => SOURCE_SHA256,
@@ -153,6 +162,7 @@ impl ReplayProfile {
             Self::TealDuelReplay => 2_250,
             Self::RematchDraftReplay => REMATCH_DRAFT_SOURCE_START_HUNDREDTHS,
             Self::MatchEndWaitingReplay => 19_602,
+            Self::LimeModularArenaReplay => 21_402,
             Self::RadialSawHalfBlueReplay => 23_204,
             Self::YellowCrateTerminalBlastReplay => 42_201,
             Self::TimberCollapseReplay => 20_600,
@@ -168,11 +178,12 @@ impl std::str::FromStr for ReplayProfile {
             TEAL_REPLAY_PROFILE => Ok(Self::TealDuelReplay),
             REMATCH_DRAFT_PROFILE => Ok(Self::RematchDraftReplay),
             MATCH_END_WAITING_REPLAY_PROFILE => Ok(Self::MatchEndWaitingReplay),
+            LIME_MODULAR_REPLAY_PROFILE => Ok(Self::LimeModularArenaReplay),
             RADIAL_REPLAY_PROFILE => Ok(Self::RadialSawHalfBlueReplay),
             YELLOW_REPLAY_PROFILE => Ok(Self::YellowCrateTerminalBlastReplay),
             REPLAY_PROFILE => Ok(Self::TimberCollapseReplay),
             _ => Err(format!(
-                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, {MATCH_END_WAITING_REPLAY_PROFILE}, {RADIAL_REPLAY_PROFILE}, {YELLOW_REPLAY_PROFILE}, or {REPLAY_PROFILE}"
+                "unsupported replay profile {value}; expected {TEAL_REPLAY_PROFILE}, {REMATCH_DRAFT_PROFILE}, {MATCH_END_WAITING_REPLAY_PROFILE}, {LIME_MODULAR_REPLAY_PROFILE}, {RADIAL_REPLAY_PROFILE}, {YELLOW_REPLAY_PROFILE}, or {REPLAY_PROFILE}"
             )),
         }
     }
@@ -743,26 +754,24 @@ impl PhysicsBoundary {
         let platforms = arena_for_profile(profile)
             .iter()
             .map(|surface| {
+                let shape = collider_for_surface(surface);
                 let (_, collider) = rapier.insert(
                     RigidBodyBuilder::fixed().translation(Vector::new(
                         surface.center_x_milli as f32 / 1_000.0,
                         surface.center_y_milli as f32 / 1_000.0,
                     )),
-                    ColliderBuilder::cuboid(
-                        surface.width_milli as f32 / 2_000.0,
-                        surface.height_milli as f32 / 2_000.0,
-                    )
-                    .rotation(surface.rotation_milliradians as f32 / 1_000.0)
-                    .friction(0.92)
-                    .restitution(0.02)
-                    .collision_groups(groups(
-                        Group::GROUP_3,
-                        Group::GROUP_1
-                            | Group::GROUP_2
-                            | Group::GROUP_4
-                            | Group::GROUP_5
-                            | DYNAMIC_GROUP,
-                    )),
+                    shape
+                        .rotation(surface.rotation_milliradians as f32 / 1_000.0)
+                        .friction(0.92)
+                        .restitution(0.02)
+                        .collision_groups(groups(
+                            Group::GROUP_3,
+                            Group::GROUP_1
+                                | Group::GROUP_2
+                                | Group::GROUP_4
+                                | Group::GROUP_5
+                                | DYNAMIC_GROUP,
+                        )),
                 );
                 collider
             })
@@ -772,6 +781,7 @@ impl PhysicsBoundary {
             ReplayProfile::TealDuelReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
             ReplayProfile::RematchDraftReplay => [(-500.0, -150.0, 0_u8), (500.0, -150.0, 1_u8)],
             ReplayProfile::MatchEndWaitingReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
+            ReplayProfile::LimeModularArenaReplay => [(-405.0, -58.0, 0_u8), (405.0, -58.0, 1_u8)],
             ReplayProfile::RadialSawHalfBlueReplay => [(-285.0, 118.0, 0_u8), (285.0, 118.0, 1_u8)],
             ReplayProfile::YellowCrateTerminalBlastReplay => {
                 [(220.0, 292.0, 0_u8), (570.0, 292.0, 1_u8)]
@@ -2957,6 +2967,78 @@ pub fn yellow_crate_arena() -> &'static [ArenaSurfaceSnapshot] {
     &ARENA
 }
 
+/// Static source-measured geometry from the first complete lime arena view.
+/// Pixel coordinates use the native 1280x720 frame; one pixel is one world unit.
+pub fn lime_modular_arena() -> &'static [ArenaSurfaceSnapshot] {
+    static ARENA: std::sync::OnceLock<Vec<ArenaSurfaceSnapshot>> = std::sync::OnceLock::new();
+    ARENA.get_or_init(|| {
+        const LIME: [u8; 3] = [45, 232, 199];
+        const OLIVE: [u8; 3] = [76, 81, 67];
+        let mut arena = Vec::with_capacity(33);
+        for (id, x) in [42, 312, 582, 852, 1122].into_iter().enumerate() {
+            arena.push(outlined_surface_from_pixels(
+                id as u8,
+                &[
+                    [x, 365],
+                    [x + 116, 365],
+                    [x + 116, 393],
+                    [x + 90, 419],
+                    [x + 76, 419],
+                    [x + 76, 522],
+                    [x + 40, 522],
+                    [x + 40, 419],
+                    [x + 26, 419],
+                    [x, 393],
+                ],
+                LIME,
+            ));
+        }
+        for (id, x) in [217, 495, 747, 1027].into_iter().enumerate() {
+            arena.push(outlined_surface_from_pixels(
+                5 + id as u8,
+                &[[x, 441], [x + 36, 441], [x + 36, 579], [x, 579]],
+                LIME,
+            ));
+        }
+        for (id, x) in [45, 315, 585, 855, 1125].into_iter().enumerate() {
+            arena.push(outlined_surface_from_pixels(
+                9 + id as u8,
+                &[
+                    [x + 36, 611],
+                    [x + 73, 611],
+                    [x + 73, 647],
+                    [x + 109, 647],
+                    [x + 109, 686],
+                    [x + 73, 686],
+                    [x + 73, 720],
+                    [x + 36, 720],
+                    [x + 36, 686],
+                    [x, 686],
+                    [x, 647],
+                    [x + 36, 647],
+                ],
+                LIME,
+            ));
+        }
+        for (id, x) in [217, 495, 747, 1027].into_iter().enumerate() {
+            arena.push(outlined_surface_from_pixels(
+                14 + id as u8,
+                &[[x, 693], [x + 36, 693], [x + 36, 720], [x, 720]],
+                LIME,
+            ));
+        }
+        for (column, center_x) in [100, 370, 640, 910, 1180].into_iter().enumerate() {
+            let first = 18 + column as u8 * 3;
+            arena.extend([
+                surface(first, center_x - 640, 49, 37, 37, OLIVE),
+                surface(first + 1, center_x - 661, 14, 38, 37, OLIVE),
+                surface(first + 2, center_x - 619, 14, 38, 37, OLIVE),
+            ]);
+        }
+        arena
+    })
+}
+
 pub fn ice_arena() -> &'static [ArenaSurfaceSnapshot] {
     static ARENA: std::sync::OnceLock<Vec<ArenaSurfaceSnapshot>> = std::sync::OnceLock::new();
     ARENA.get_or_init(|| {
@@ -3168,10 +3250,56 @@ pub fn arena_for_profile(profile: ReplayProfile) -> &'static [ArenaSurfaceSnapsh
         ReplayProfile::TealDuelReplay => teal_arena(),
         ReplayProfile::RematchDraftReplay => draft_arena(),
         ReplayProfile::MatchEndWaitingReplay => teal_arena(),
+        ReplayProfile::LimeModularArenaReplay => lime_modular_arena(),
         ReplayProfile::RadialSawHalfBlueReplay => radial_saw_arena(),
         ReplayProfile::YellowCrateTerminalBlastReplay => yellow_crate_arena(),
         ReplayProfile::TimberCollapseReplay => timber_arena(),
     }
+}
+
+fn outlined_surface_from_pixels(
+    id: u8,
+    contour: &[[i32; 2]],
+    color: [u8; 3],
+) -> ArenaSurfaceSnapshot {
+    let min_x = contour.iter().map(|point| point[0]).min().unwrap();
+    let max_x = contour.iter().map(|point| point[0]).max().unwrap();
+    let min_y = contour.iter().map(|point| point[1]).min().unwrap();
+    let max_y = contour.iter().map(|point| point[1]).max().unwrap();
+    let center_x = (min_x + max_x) / 2;
+    let center_y = (min_y + max_y) / 2;
+    let mut result = surface(
+        id,
+        center_x - 640,
+        360 - center_y,
+        max_x - min_x,
+        max_y - min_y,
+        color,
+    );
+    result.outline_milli = contour
+        .iter()
+        .rev()
+        .map(|point| [(point[0] - center_x) * 1_000, (center_y - point[1]) * 1_000])
+        .collect();
+    result
+}
+
+fn collider_for_surface(surface: &ArenaSurfaceSnapshot) -> ColliderBuilder {
+    if surface.outline_milli.len() < 3 {
+        return ColliderBuilder::cuboid(
+            surface.width_milli as f32 / 2_000.0,
+            surface.height_milli as f32 / 2_000.0,
+        );
+    }
+    let vertices = surface
+        .outline_milli
+        .iter()
+        .map(|point| Vector::new(point[0] as f32 / 1_000.0, point[1] as f32 / 1_000.0))
+        .collect::<Vec<_>>();
+    let edges = (0..vertices.len())
+        .map(|index| [index as u32, ((index + 1) % vertices.len()) as u32])
+        .collect::<Vec<_>>();
+    ColliderBuilder::convex_decomposition(&vertices, &edges)
 }
 
 const fn surface(
@@ -3327,7 +3455,29 @@ pub fn scripted_inputs_for(
         Vec::with_capacity(ticks as usize),
     ];
     for tick in 0..ticks {
-        if profile == ReplayProfile::MatchEndWaitingReplay {
+        if profile == ReplayProfile::LimeModularArenaReplay {
+            let orange_movement = if (12..68).contains(&tick) {
+                1
+            } else if (68..74).contains(&tick) {
+                -1
+            } else {
+                0
+            };
+            let blue_movement = -orange_movement;
+            scripts[0].push(PlayerInput {
+                move_axis: orange_movement,
+                aim_x: 1_000,
+                jump: (0..34).contains(&tick) || tick == 52 || (54..88).contains(&tick),
+                ..PlayerInput::default()
+            });
+            scripts[1].push(PlayerInput {
+                move_axis: blue_movement,
+                aim_x: -1_000,
+                jump: (0..34).contains(&tick) || tick == 52 || (54..88).contains(&tick),
+                ..PlayerInput::default()
+            });
+            continue;
+        } else if profile == ReplayProfile::MatchEndWaitingReplay {
             scripts[0].push(PlayerInput {
                 aim_x: 1_000,
                 ..PlayerInput::default()
@@ -3898,6 +4048,95 @@ mod tests {
                 .iter()
                 .all(|player| player.x_milli > 300_000 && player.y_milli > -100_000)
         );
+    }
+
+    #[test]
+    fn lime_modular_geometry_binds_every_measured_surface() {
+        let arena = lime_modular_arena();
+        assert_eq!(arena.len(), 33);
+        assert_eq!(
+            arena.iter().map(|surface| surface.id).collect::<Vec<_>>(),
+            (0..33).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            arena
+                .iter()
+                .map(|surface| surface.outline_milli.len())
+                .collect::<Vec<_>>(),
+            [
+                10, 10, 10, 10, 10, 4, 4, 4, 4, 12, 12, 12, 12, 12, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0
+            ]
+        );
+        let snapshot =
+            AuthoritativeMatch::new_with_profile(59, ReplayProfile::LimeModularArenaReplay)
+                .snapshot();
+        assert_eq!(
+            arena_digest(&snapshot),
+            "2a1a0fd5dcba20f0759e7d908235cd76bc7547503dede2ce599eb3b546715a8b"
+        );
+        assert!(snapshot.dynamic_bodies.is_empty());
+        assert!(snapshot.constraints.is_empty());
+    }
+
+    #[test]
+    fn lime_public_route_leaves_both_fighters_supported_on_upper_modules() {
+        let replay = run_profile_snapshots(
+            ReplayProfile::LimeModularArenaReplay,
+            59,
+            LIME_MODULAR_REPLAY_TICKS,
+        );
+        let first = &replay[0];
+        assert!(first.players[0].x_milli < -390_000);
+        assert!(first.players[1].x_milli > 390_000);
+        assert!(first.players.iter().all(|player| player.alive));
+        let settled = &replay[179];
+        assert!(settled.players.iter().all(|player| {
+            player.grounded
+                && player.alive
+                && (300_000..325_000).contains(&player.x_milli.abs())
+                && (45_000..65_000).contains(&player.y_milli)
+        }));
+        let terminal = replay.last().unwrap();
+        assert_eq!(arena_digest(first), arena_digest(terminal));
+        assert_eq!(terminal.metrics.jumps, 4);
+        assert_eq!(terminal.metrics.ring_outs, 0);
+        assert!(terminal.players.iter().all(|player| {
+            player.grounded
+                && player.alive
+                && (300_000..325_000).contains(&player.x_milli.abs())
+                && (45_000..65_000).contains(&player.y_milli)
+        }));
+
+        let nominal = terminal
+            .players
+            .iter()
+            .map(|player| [player.x_milli, player.y_milli])
+            .collect::<Vec<_>>();
+        for suppress_jump in [false, true] {
+            let mut simulation =
+                AuthoritativeMatch::new_with_profile(59, ReplayProfile::LimeModularArenaReplay);
+            let mut scripts = scripted_inputs_for(
+                ReplayProfile::LimeModularArenaReplay,
+                59,
+                LIME_MODULAR_REPLAY_TICKS,
+            );
+            for input in scripts.iter_mut().flatten() {
+                if suppress_jump {
+                    input.jump = false;
+                } else {
+                    input.move_axis = 0;
+                }
+            }
+            for (&orange, &blue) in scripts[0].iter().zip(&scripts[1]) {
+                simulation.step([orange, blue]);
+            }
+            let perturbed = simulation.snapshot();
+            assert!(perturbed.players.iter().enumerate().any(|(index, player)| {
+                (player.x_milli - nominal[index][0]).abs() > 50_000
+                    || (player.y_milli - nominal[index][1]).abs() > 50_000
+            }));
+        }
     }
 
     #[test]

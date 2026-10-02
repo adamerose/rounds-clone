@@ -258,6 +258,13 @@ fn capture_replay(
             ("waiting-entry", rounds_sim::MATCH_END_WAITING_TICK),
             ("waiting", profile.replay_ticks()),
         ],
+        ReplayProfile::LimeModularArenaReplay => vec![
+            ("arena-reveal", 0),
+            ("left-spawn-departure", 60),
+            ("interior-upper-traversal", 120),
+            ("settled-traversal", 240),
+            ("late-stable-overview", profile.replay_ticks()),
+        ],
         ReplayProfile::RadialSawHalfBlueReplay => vec![
             ("arena-reveal", 0),
             ("upper-slope-traversal", 180),
@@ -515,6 +522,27 @@ fn source_timestamp(
 }
 
 fn source_binding(profile: ReplayProfile, tick: u32) -> Option<(i64, &'static str)> {
+    if profile == ReplayProfile::LimeModularArenaReplay {
+        return match tick {
+            0 => Some((
+                rounds_sim::LIME_MODULAR_SOURCE_START_PTS,
+                "45791458e4a1012ddd693922b4593b8d8e8662de2fc91e4a23a2cb7c55426d83",
+            )),
+            120 => Some((
+                2_160_158_026,
+                "bc0e3ef3c9ba21242dfe5df456489de9f31ba47ee6a54b2e27366583869e7cc8",
+            )),
+            240 => Some((
+                2_180_157_946,
+                "4669599d2e1e37c6cd7b7c4971613c720a847c965841ab02c2cd4c7a7c167c4e",
+            )),
+            rounds_sim::LIME_MODULAR_REPLAY_TICKS => Some((
+                2_200_157_866,
+                "ae61a7f854309c7b126f3fcc4950ac437ac17d9e013b1813786e1ecc9f949193",
+            )),
+            _ => None,
+        };
+    }
     if profile == ReplayProfile::MatchEndWaitingReplay {
         return (tick == profile.replay_ticks()).then_some((
             rounds_sim::MATCH_END_WAITING_SOURCE_PTS,
@@ -988,4 +1016,36 @@ fn optional_path_argument(arguments: &[String], name: &str) -> Option<PathBuf> {
 
 fn path_argument(arguments: &[String], name: &str) -> Result<PathBuf, String> {
     optional_path_argument(arguments, name).ok_or_else(|| format!("missing {name}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lime_capture_anchors_bind_the_four_exact_source_frames() {
+        let profile = ReplayProfile::LimeModularArenaReplay;
+        assert_eq!(
+            [0, 120, 240, 360].map(|tick| source_binding(profile, tick)),
+            [
+                Some((
+                    2_140_158_106,
+                    "45791458e4a1012ddd693922b4593b8d8e8662de2fc91e4a23a2cb7c55426d83"
+                )),
+                Some((
+                    2_160_158_026,
+                    "bc0e3ef3c9ba21242dfe5df456489de9f31ba47ee6a54b2e27366583869e7cc8"
+                )),
+                Some((
+                    2_180_157_946,
+                    "4669599d2e1e37c6cd7b7c4971613c720a847c965841ab02c2cd4c7a7c167c4e"
+                )),
+                Some((
+                    2_200_157_866,
+                    "ae61a7f854309c7b126f3fcc4950ac437ac17d9e013b1813786e1ecc9f949193"
+                )),
+            ]
+        );
+        assert_eq!(source_binding(profile, 60), None);
+    }
 }
