@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-02T16:19:26Z
 origin: agent-proposed
 tags: ["rounds", "completion", "research"]
@@ -43,3 +43,4 @@ Determine whether the hanging gun-dot changes are visibility effects or persiste
 
 - 2026-10-02T16:19:26Z stage design start session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Shaped from the completed independent Astra planning batch for goal59; no implementation claim.
 - 2026-10-02T16:19:26Z stage design end session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Idea contract ready for separate fresh-context admission.
+- 2026-10-02T16:37:42Z Fresh independent admission codex:01a0fd6c-3364-7f72-92e7-fa7a645e8def at risk2: ADMIT unchanged after byte-hashed immutable exports and retained comparison PNGs resolved read-only filesystem access. Dependency67 suffices; source68 is optional. Research keeps visibility separate from resource-state claims and accepts uncertainty. No human decision remains. Result .ivy/runs/astra-burst-20261002-1602/admit71-revised-final.md. Executing worker records this admission and its rationale in docs/decisions.md with the reviewed candidate. Admission delivers no gameplay coverage.
