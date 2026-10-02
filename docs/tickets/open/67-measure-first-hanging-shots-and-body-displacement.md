@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-02T06:02:47Z
 origin: agent-proposed
 tags: ["rounds", "product-fidelity", "research", "combat"]
@@ -36,7 +36,7 @@ The measured hanging landing prefix stops before firing and suspended-body motio
 
 ## Evidence required
 
-- Recalculate source SHA, re-decode the stop identity and every cited combat/motion anchor, and retain the exact decoder command, native PTS and packed-RGBA hashes under ignored out/ticket-N.
+- Recalculate source SHA, re-decode the stop identity and every cited combat/motion anchor, and retain the exact decoder command, native PTS and packed-RGBA hashes under ignored out/ticket-067.
 - Inspect adjacent frames around every proposed onset and provide last-absent/first-present bounds where exact onset is uncertain. Keep fighter/bar/body/square measurements and projectile/burst identification reproducible; label occluded or ambiguous objects rather than continuing guessed identities.
 - The proposed next playable contract states the interval and stop event, necessary authoritative mechanics, public-input route, snapshot/render seams, source-comparison tolerances and remaining uncertainties. Explain whether its no-reload scope is supported or whether a measured shot/ammunition dependency requires separate admission.
 - Update the coverage link without marking play implemented. Complete the ticket and decision records, release-matched ticket validation and git diff --check, then obtain fresh independent exact-range review. Preserve verified bound evidence at root before exact worktree removal.
@@ -45,3 +45,5 @@ The measured hanging landing prefix stops before firing and suspended-body motio
 
 - 2026-10-02T06:02:47Z stage design start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Framing the source prerequisite after the measured hanging landing, with no product or build work.
 - 2026-10-02T06:02:47Z stage design end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Idea bounds adjacent-frame shot and displacement evidence through 262 seconds; fresh admission remains required.
+
+- 2026-10-02T06:06:24Z Fresh other-family admission claude:1f8503f4-b6e5-4f30-894b-f95e08951866 ADMIT at risk 3 under goal 59 delegation; about 160 native frames, exact source identities, source-only inference limits and disjoint no-Cargo/no-GPU research accepted. Worker uses out/ticket-067 and the delivered pinned decoder method; report absent one-sided firing without extending the bound.
