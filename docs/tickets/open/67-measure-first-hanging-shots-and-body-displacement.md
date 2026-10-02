@@ -54,3 +54,4 @@ The measured hanging landing prefix stops before firing and suspended-body motio
 - 2026-10-02T06:29:54Z stage implement start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — Write finite source record, unresolved coverage link and goal 59 choice.
 - 2026-10-02T06:30:42Z stage implement end session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — Wrote source-bound combat record, unresolved coverage link and delegated reversible choice; ticket check and diff check pass.
 - 2026-10-02T06:30:46Z stage review start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — Submit exact documentation candidate and ignored source evidence for fresh independent Claude review.
+- 2026-10-02T06:37:37Z stage review end session claude:97854e71-1503-4b19-92da-d3ac33aed6bb — Changes required: projectile reversal, orange white glow, and observed 3–2–3 gun dots omitted; full report in out/ticket-067/review.json. Independent re-decode unavailable to reviewer.
