@@ -47,6 +47,48 @@ Adam — [source session](http://ivy.localhost/sessions/01a0fa96-a468-7332-92f6-
 
 > Finish the game
 
+## Handoff — operator ended this chat on 2026-10-02
+
+Adam instructed: “persist progress to repo, we're ending this chat”. This is a saved continuation point, not completion. The full GOAL.md contract remains unchanged and open. The root orchestrator releases goal ownership and pauses its app goal; it launches no replacement orchestrator or worker. The already dispatched native workers remain running to finish their authorized tickets. Recheck their authoritative ticket records and native processes before resuming; do not duplicate them.
+
+### Delivered on main
+
+- 61 repaired executable paths and CI caller configuration; delivery receipt a00aae032f682026865bd30a94b2f6c2ec3a71fb.
+- 60 delivered source-measured lime arena collision and rendering, seven replay profiles, 77 passing tests, two-client agreement and monitor-4 captures; receipt e821072c3dd2203a0c0d3fe8fb63d7269ffaa2d1.
+- 63 serialized renderer tests and cancelled obsolete CI runs without weakening timeouts; receipt 53bb889ec2f21713aec6710a18a83c34105a4d7c. Hosted run 36965148093 succeeded with tests, lint, build, smoke and capture.
+- 64 delivered bounded active hanging-arena source measurements, not its gameplay continuation; receipt 4f735d5a3a9e48c3ee77a67b20443f3791ee0e47. Source identities and 15 retained frames are under out/ticket-064. Its former shutdown hang ended naturally with exit 0.
+
+### Existing workers at 2026-10-02T07:20:10Z
+
+- 65: codex:01a0fb1c-d003-7d61-9ac5-a753c63e075f, process 51964, unified-exec handle 98245. Worktree .ivy/worktrees/065-play-through-live-input-and-progressive-network-snapshots; log .ivy/runs/worker-65-console.log; final report .ivy/runs/worker-65-final.txt. It owns the sole Cargo/GPU/render/visible slot until closure or blockage. Candidate 3d53df3f902cdf044251a38de86f4089064305c6 was awaiting independent exact-range review. Latest worker report says format, strict Clippy, locked build, all 86 workspace tests, scripted smoke/capture and both 600-tick visible live modes passed. Authority/client and client-host runs checked presented hashes and terminal acknowledgements. The 36,060-tick test was fast simulation/encoding, not a 601-second wall-clock play claim; maximum encoded datagram was 9,051 bytes. These are controlled direct-IP development modes, with no Steam, prediction, interpolation, rollback, authentication or complete source-match claim. Poll the existing process and read its ticket before treating any candidate as delivered.
+- 67: codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9, process 64636, unified-exec handle 22027. Worktree .ivy/worktrees/067; log .ivy/runs/worker-67-console.log; final .ivy/runs/worker-67-final.txt. It owns the one headless decoder slot through review. Candidate HEAD at handoff is 924408a9b5973815596cff2768e7e732d146bd87, clean at inspection. The independent re-decode matched all 164 frame hashes. Review required projectile reversal, orange white glow, a second gun-dot drop persisting through the first burst, and orange's free-hand ball turning dark during the glow. The worker was correcting the last two observations and requesting renewed review. Research only, through the first recording's 262-second cap; neither card semantics nor hanging combat is implemented by this ticket.
+
+### Resume order
+
+1. Re-read 65 and 67 on main with the installed ticket helper. A final report alone does not prove process termination. If a native worker ended with its ticket still unclosed/unblocked, resume that same native session; never start a replacement owner. Do not start any new Cargo or decoder owner while the respective existing worker remains active.
+2. After 65 releases the build/render slot, resume 52 in the same owning native session codex:01a0fae4-9ad3-7631-b794-b2470f74a6a4 and dirty preserved worktree .ivy/worktrees/052-fit-airborne-control (old HEAD 7f01c644f9ada4fc01807cafff652db7a5490040). Its risk-5 correction contract is re-admitted, READY. Reconcile current main and reproduce the default 0.08 baseline before implementing the 0.39 AIR_CONTROL fit. Unchanged replay inputs failed; authorized finite movement/jump/ordinary-aim retiming was not yet tried. Consultation and admission are .ivy/runs/consult-52-retiming.json and admission-52-retiming.json. Diagnose reversal/re-jump through public snapshots before editing input rows. Preserve every source-bound fire/hit/explosion/elimination/result tick; retain all 105 quantitative anchors, all seven profiles including standalone timber, aggregate no-worse and individual +8px gates. No profile physics, teleports, poses or per-tick dithering. Run the full checks and fresh exact-range review.
+3. 66 is READY, depends on 52,55,64,65. It only extends connected hanging movement/jump from held tick 5941 to first inner-body landing at 5987. It does not deliver firing, ammunition, reload or later hanging combat. Read its admitted source contact and support distinctions; visible feet touchdown is not solver contact.
+4. 68 is READY, depends on 60,67. Once 67 releases the decoder, a future orchestrator may dispatch its source-only second-recording WAITING/reset/draft/Homing/Parasite investigation over native PTS 2000158666 through at most 2300000000. One FFmpeg process, at most two threads, sparse retained frames. Printed card text, badge ownership and ordinary hits do not prove homing, damage-over-time or life steal.
+5. 49 remains BLOCKED on 52 and needs renewed admission for its actual ice short-hop route after 52 delivers. 62 is only a low-value documentation inventory idea.
+
+### Remaining completion gaps and retained evidence
+
+Neither complete approximately 600-second recording is reproduced. The first connected route stops at tick 5941/source 258.5 seconds; the second has isolated Teal/Lime/Radial/Yellow routes. Later arenas and contact classes, 18 of 21 catalogue card rules, source-wide audio/presentation, complete match cadence/reset behavior and production online work remain open. Existing block/reflection code must not be mistaken for an entirely absent mechanic. QuickShot reload/magnitude is unresolved; source gun dots and glow are observations, not recovered hidden state.
+
+Reference identity and native PTS are authoritative in reference/manifest.json. Evidence is retained under out/ticket-060, out/ticket-064, out/ticket-065 and out/ticket-067. Never delete .claude/worktrees/project-continuation-88fd8b: it retains unique raw source evidence. Old .ivy/worktrees/048-first-loser-draft and 056-weapon-reload remain preserved experimental candidates, not main deliveries.
+
+Cargo stays at two jobs using the prepared ignored out/cargo-target; do not launch concurrent Cargo builds or start a fresh target casually. Every visible window must be hidden until its exact window is moved to monitor 4 (index 3) and verified before showing; native evidence checks its center there. Preserve all existing root-checkout human dirt, including AGENTS.md, journals, .claude/, CLAUDE.md and ivy.yaml. Root run ledger: .ivy/runs/autonomy-01a0fa96-a468-7332-92f6-c36c3908e4b9.jsonl.
+
+### Unpublished incident journal preserved for follow-up
+
+The isolated coordinator .ivy/worktrees/059-autonomy-coordinator has only an uncommitted docs/design-docs/postmortems.md journal delta; its HEAD is 78b429ca24d5ba0adc48e5388d280febcbf6aa8c. Preserve it and reconcile the journal through fresh review before integration; do not overwrite the separate human-edited root journal. The facts below are also persisted here so ending this chat cannot lose them:
+
+- Consultant claude:ec3a5e86-dddb-44ea-8d8e-65c42a64dff2 reported a broad environment-name query printed IVY_UPDATES_TOKEN and IVY_DISCORD_TOKEN values into its native transcript. Root read only result JSON and did not reproduce secret values; external transmission/use is unproven. No rotation was performed because it requires authority outside this repository. Future native session discovery uses exact nonsecret fields or returned JSON session_id, never environment enumeration.
+- Worker 64 finished delivery but lingered in MCP shutdown after its final report. Its process later ended naturally and handle returned exit 0 at 2026-10-02T05:58:53Z. A completed ticket and a terminated process are different observations.
+- Automatic approval review rejected optional deletion of redundant ignored evidence copies and the root-out Cargo junction with “blocked by policy”. Those paths were retained; do not circumvent the rejection. This residue is not a failed game check.
+
+Remote main's ticket scan at handoff found no guard-session lines to judge. docs/postmortems.md is absent on remote main; the existing local file is human-owned dirt. No new guard judgment was invented. Last observed provider headroom was Claude five-hour 86%, reset about 07:59:59 UTC; check current limits before dispatching fresh review work.
+
 ## Work log
 
 - 2026-10-02T03:13:11Z stage design start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Shaping the autonomy goal against GOAL.md and both supplied recordings after read-only runtime and backlog assessment.
