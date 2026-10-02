@@ -51,3 +51,4 @@ Current evidence: rounds-server/src/main.rs binds127.0.0.1; rounds-client remote
 ## Work log
 
 - 2026-10-02T04:56:22Z stage research start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Identify actual live online-play gaps in current supported commands while movement and source workers continue.
+- 2026-10-02T05:00:37Z stage research end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Current network authority already owns the right two-input fixed-step seam; missing live input/snapshot pumping and received-state scene are concrete. Other-provider consult69403 running. Contract must support at least36011 ticks for600.17-second recording (prefer explicit source-derived601-second bound36060), not inherit the6000-tick smoke cap. Scripted smoke cap/API can remain separate; default bind remainsloopback, nonlocal bindexplicit, no deployment or firewall change. Fresh admission awaits minimal lifecycle/shutdown design.
