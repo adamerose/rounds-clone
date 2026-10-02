@@ -70,3 +70,4 @@ Adam — this goal's initiating request:
 - 2026-10-02T05:23:25Z stage review end session claude:5e4051be-49e7-49b7-973f-8377fb2c8cde — Confirmed prefix and late source hashes; changes required for bar centers, orange/401 corner versus support and late tilt. Full report out/ticket-064/review-3.json.
 - 2026-10-02T05:23:33Z stage correction start session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Re-measure every green bar, inspect 18 after-stop frames, and limit 401 to observed corner/side contact.
 - 2026-10-02T05:24:50Z stage correction end session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Tip 1e09fc8 corrects all green bars by pixel row, limits 401 to corner/side contact, and records after-stop tilt; 15 hash rows and ticket check pass.
+- 2026-10-02T05:25:01Z stage review start session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Fresh read-only review exact range 377902c..1e09fc8 with original source and corrected bar/contact record.
