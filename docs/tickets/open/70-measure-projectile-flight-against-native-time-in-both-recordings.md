@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-02T15:44:47Z
 origin: agent-proposed
 tags: ["rounds", "fidelity", "research", "projectiles"]
@@ -54,3 +54,4 @@ Adam — [goal coordinator](http://ivy.localhost/sessions/codex/01a0fd03-d222-7c
 - 2026-10-02T15:44:47Z stage design start session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Consultation exposed the missing elapsed-time and camera check; split source preflight from a future general weapon implementation.
 - 2026-10-02T15:44:47Z stage design end session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Idea only, awaiting independent admission and corrected source ticket 68; no model value or product change admitted.
 - 2026-10-02T16:17:03Z Fresh independent admission by codex:01a0fd5d-898c-7e92-a91f-ed4bed64148e returned one ambiguity: shared functional form versus shared parameters. Clarified per-shot initial conditions, eligible non-Homing versus unmodified weapons, shared gravity/drag tests and non-identifiability. Risk4 and dependency68 unchanged; renewed admission pending.
+- 2026-10-02T16:24:53Z Fresh independent admission codex:01a0fd5d-898c-7e92-a91f-ed4bed64148e ADMIT at risk4 after reading the complete revised contract at57b203f594197c07254f531fa78e8d42a4784d20. No operator decision remains. Native-time/camera uncertainty, per-shot initial conditions, shared-parameter hypotheses and negative-result acceptance are explicit. Dependency68 still gates execution. Admission result .ivy/runs/astra-burst-20261002-1602/admit70-revised-final.md. Executing worker must carry this admission decision and rationale into docs/decisions.md with its reviewed source candidate; scheduler does not implement or review that candidate.
