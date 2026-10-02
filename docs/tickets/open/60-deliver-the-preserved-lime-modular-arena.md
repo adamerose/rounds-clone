@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-02T03:14:51Z
 origin: human-request
 tags: ["rounds", "bevy", "arenas", "fidelity", "recovery"]
