@@ -39,3 +39,4 @@ The Windows workflow builds with the repository's configured out/cargo-target bu
 
 - 2026-10-02T03:14:55Z stage design start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Read .cargo/config.toml and .github/workflows/ci.yml; both final executable paths omit the configured out/cargo-target prefix.
 - 2026-10-02T03:14:55Z stage design end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Shaped a caller-only correction that preserves all required verification and build resources.
+- 2026-10-02T03:18:32Z stage review end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9/claude-fdd0516c-4bec-42ce-915b-04f480c1cfa2 — Fresh other-family admission ADMIT at risk 2 with no blocking findings; build exact candidate before smoke/capture to avoid stale shared-target binaries.
