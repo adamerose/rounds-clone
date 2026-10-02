@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a0fd88-a330-7d80-b318-f9828d465482
+status: closed
 created: 2026-10-02T16:19:26Z
 origin: agent-proposed
 tags: ["rounds", "completion", "research"]
@@ -49,3 +48,5 @@ Measure the loose lime arena caps already visible in retained source frames. The
 - 2026-10-02T16:38:41Z Fresh independent admission codex:01a0fd6c-3363-7ab0-83b9-b1880fa616a7 at risk3: ADMIT after native timebase provenance correction; complete bounded retained-frame measurements, uncertainty and negative findings remain supported. Dependencies60,68 are retained; execution waits for corrected68 delivery. No human decision remains. Result .ivy/runs/astra-burst-20261002-1602/admit72-revised-final.md. Executing worker records this admission and its rationale in docs/decisions.md with the reviewed candidate. Admission delivers no gameplay coverage.
 - 2026-10-02T17:06:16Z stage review start session codex:01a0fd93-4863-7a63-a0b1-144a663ae1e3 — Fresh independent Astra high-effort exact-range review
 - 2026-10-02T17:22:20Z Independent source review requested correction of three orange face landmarks beyond the stated ±5 px bound. Corrected PTS2259157630,2261657620,2264324276 against native originals; all cap fits and registrations unchanged. Complete finding: root out/ticket-072/candidate-a4e1edc/review-final.txt. Revised full-range review pending.
+- 2026-10-02T17:27:18Z stage review end session codex:01a0fd93-4863-7a63-a0b1-144a663ae1e3 — approved candidate d5a42d09d194f6b4e415bda60f71fbcb3a449caf..49897708833966b90809e8abc775085e64690eb0
+- 2026-10-02T17:27:18Z stage integration end session codex:01a0fd88-a330-7d80-b318-f9828d465482 — integrated 49897708833966b90809e8abc775085e64690eb0 as fea16da8b4568e3b3d25441a9f340f44b0bedb02
