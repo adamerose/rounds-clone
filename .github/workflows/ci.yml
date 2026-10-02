@@ -25,6 +25,6 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
       - name: Two-client authoritative smoke
-        run: target/debug/rounds-automation smoke --seed 38 --ticks 180
+        run: out/cargo-target/debug/rounds-automation smoke --profile teal-duel-replay --seed 38 --ticks 180
       - name: Deterministic capture
-        run: target/debug/rounds-client capture --seed 38 --ticks 30 --output out/ticket-038-frame.png --metadata out/ticket-038-frame.json
+        run: out/cargo-target/debug/rounds-client capture --seed 38 --ticks 30 --output out/ticket-038-frame.png --metadata out/ticket-038-frame.json
