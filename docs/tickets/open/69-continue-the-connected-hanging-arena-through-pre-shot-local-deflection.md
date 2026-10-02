@@ -53,3 +53,4 @@ Adam — [source session](http://ivy.localhost/sessions/01a0fd03-d222-7cf2-a225-
 ## Work log
 
 - 2026-10-02T14:41:09Z stage design start session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Shaped the next playable pre-shot continuation from independently delivered 67 and bounded read-only planning; 66 remains a prerequisite.
+- 2026-10-02T14:42:09Z stage design end session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Complete idea scopes general movement/local-deflection through last pre-muzzle source frame; source causal uncertainty is explicit and full comparison/public-boundary evidence remains binding.
