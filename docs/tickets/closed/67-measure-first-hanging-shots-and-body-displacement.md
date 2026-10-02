@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9
+status: closed
 created: 2026-10-02T06:02:47Z
 origin: agent-proposed
 tags: ["rounds", "product-fidelity", "research", "combat"]
@@ -74,3 +73,5 @@ The measured hanging landing prefix stops before firing and suspended-body motio
 - 2026-10-02T08:07:42Z stage correction start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — correct blue arc onset boundary and comparison
 - 2026-10-02T08:09:54Z stage correction end session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — arc first-visible and adjacent comparison corrected
 - 2026-10-02T08:09:57Z stage review start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — request fresh independent exact-range review after arc correction
+- 2026-10-02T08:21:57Z stage review end session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9/01a0fbb0-18cf-7e91-a27a-f5513c1166e6 — approved candidate 9bca6de45570f85f43e5c3e47feacc2939dc7033..d61a9beeb29d498794b176e4c86f348ce77b4d67
+- 2026-10-02T08:21:57Z stage integration end session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — integrated d61a9beeb29d498794b176e4c86f348ce77b4d67 as 5cf6d4690a1a60cf83b1faafa89092ce8d89ecd6
