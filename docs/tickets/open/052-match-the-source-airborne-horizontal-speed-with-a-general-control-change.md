@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 owner: codex:01a0fae4-9ad3-7631-b794-b2470f74a6a4
 created: 2026-09-07T16:03:21Z
 origin: system-detected
@@ -68,6 +68,15 @@ All Outcome and Evidence required limits above remain binding. No first failing 
 - Exact executable SHA256: client ddc680b64ac0918a76e8316731b21fddacdaaff8b360399e47d94f5c44186d62; server a25fbe052892e948ca5cfb822f5fe3aaee9dc6bcb1a545788730e577ed187ab9; automation5083a20f259d40138aa25f6c029e66691394b1dc01dd955dd5b50422ef4d1f98. The22-file build-input manifest and all command outputs are retained with the captures.
 - Evidence index: `docs/fidelity/air-control-fit.md`; root `out/ticket-052-continuation/` contains195 byte-verified final artifacts. Complete native decodes, traces, comparison scripts and rejected experiments remain in `.ivy/worktrees/052-fit-airborne-control-continuation/out/ticket-052-continuation/`. Preserve both052 worktrees and `.claude/worktrees/project-continuation-88fd8b`; no source assets or build trees are added to product files. Root human edits remain intact.
 - Fresh independent exact-range review remains the publication gate. Claude session100% and Fable weekly90% required the explicitly authorized isolated Astra CLI fallback; reviewer bootstrap identity is codex:01a0fdac-e1d0-7302-b4c1-bd3b555be38f. No paid usage or reset credits are used. This ticket does not complete goal59.
+
+
+## Blocked
+
+The implementation and all required verification gates pass. The only remaining gate is fresh independent exact-range review. The final provider-headroom read reports Claude session100%, Fable weekly90%, and Codex weekly100% (Codex observation2026-10-02T17:43:42.878Z). Installed Ivy model guidance says to move new work to the other family at90%; neither family has admitted headroom. Adam explicitly forbids paid usage and reset credits. The identity-only Astra bootstrap issued no review verdict, and no exact-range review or automatic-review rejection is claimed.
+
+Preserve the clean unpublished candidate `2565608c3999c591a7f8d5da413346332b25b4c3`, range `c5b19cab19d661ec4247e8171d6c99d5a830c05a..2565608c3999c591a7f8d5da413346332b25b4c3`, in `.ivy/worktrees/052-fit-airborne-control-continuation`. Its22 compiled input files and three executable bytes remain identical after current-main documentation reconciliation; all88 tests, seven inspect/smoke profiles,105 final captures, source gates and monitor4 run pass. Original pre-reconciliation candidate59176b513788af9ffec86f7f793b49502a0795f0 remains reachable at `refs/ivy/retained/052-air-control-59176b5`. No code was published.
+
+Next action: when included provider headroom is available, resume a fresh non-author CLI exact-range review of this verified candidate against this unchanged contract, reconcile any newer main bytes, fix supported findings and perform guarded closure/publication. No product decision or relaxed source threshold is needed. This is a review-resource boundary, not source-fit infeasibility. Block only52; goal59 and ticket049 remain open. Headroom evidence is `out/ticket-052-continuation/review/headroom-before-exact-review.json` in the preserved continuation, with final artifacts copied to root `out/ticket-052-continuation`.
 
 
 ## Work log
