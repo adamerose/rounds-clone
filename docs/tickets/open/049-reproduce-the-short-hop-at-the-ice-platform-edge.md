@@ -21,6 +21,8 @@ In the source, blue crosses the ice arena in the air: it jumps off the right out
 
 ## Blocked
 
+Goal 59 delegates the earlier human decision about shared movement. Ticket 052 is now admitted and running with one shared airborne coefficient of 0.39; its public-input and source-anchor checks still have to pass before this route can be reconsidered. This ticket remains blocked on that delivery. Recheck the bounds below against the reviewed 052 tip before admission; none of this ticket's source identities, event ticks or traversal bounds is waived. The measurements below describe the earlier 0.08 baseline.
+
 Ticket 050's jump-release cut has landed, and the three bounds below were re-measured across it through a scratch probe on the public `step`/`snapshot` route with the shipped ice rows untouched. The full record is `out/ticket-050/delivery2-049-bounds.md` with the retained trace `out/ticket-050/delivery2-049-bound1-trace.txt` and the other `delivery2-*` files. The arc-shape residual is gone; what is left is horizontal reach alone.
 
 1. **Bound 1 is reached.** With the cut, blue is grounded on contour 44 right of its right wall at world **(331.25, 91.22)** on tick 4688, **0.38 px** from the source's own (331.5, 91.5), where the uncut arc left blue at world y ≥ 107 — 19.0 px too high and 23.8 px out of contact. The recipe holds jump from 4663 and releases at 4675, eleven ticks after take-off while blue is airborne and rising, so the cut lowers the apex to 104.56 and the fall lands on the wall. **152 of the 342 (press, release) recipes searched reach the band**, so the wall take-off is no longer a needle.
