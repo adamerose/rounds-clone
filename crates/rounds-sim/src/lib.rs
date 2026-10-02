@@ -4068,6 +4068,134 @@ mod tests {
                 0, 0, 0, 0, 0, 0, 0, 0, 0
             ]
         );
+        // Pixel bounds measured across the four exact source frames. Check
+        // both the authoritative records and Rapier's fixed colliders.
+        let physics = PhysicsBoundary::new(ReplayProfile::LimeModularArenaReplay);
+        assert_eq!(physics.platforms.len(), arena.len());
+        for (surface, handle) in arena.iter().zip(&physics.platforms) {
+            let (left, top, right, bottom) = match surface.id {
+                0..=4 => {
+                    let x = [42, 312, 582, 852, 1122][surface.id as usize];
+                    (x as f32, 365.0, (x + 116) as f32, 522.0)
+                }
+                5..=8 => {
+                    let x = [217, 495, 747, 1027][(surface.id - 5) as usize];
+                    (x as f32, 441.0, (x + 36) as f32, 579.0)
+                }
+                9..=13 => {
+                    let x = [45, 315, 585, 855, 1125][(surface.id - 9) as usize];
+                    (x as f32, 611.0, (x + 109) as f32, 720.0)
+                }
+                14..=17 => {
+                    let x = [217, 495, 747, 1027][(surface.id - 14) as usize];
+                    (x as f32, 693.0, (x + 36) as f32, 720.0)
+                }
+                18..=32 => {
+                    let center = [100, 370, 640, 910, 1180][((surface.id - 18) / 3) as usize];
+                    match (surface.id - 18) % 3 {
+                        0 => (center as f32 - 18.5, 292.5, center as f32 + 18.5, 329.5),
+                        1 => (center as f32 - 40.0, 327.5, center as f32 - 2.0, 364.5),
+                        _ => (center as f32 + 2.0, 327.5, center as f32 + 40.0, 364.5),
+                    }
+                }
+                _ => unreachable!(),
+            };
+            let bounds = |world_left: f32, world_bottom: f32, world_right: f32, world_top: f32| {
+                [
+                    640.0 + world_left,
+                    360.0 - world_top,
+                    640.0 + world_right,
+                    360.0 - world_bottom,
+                ]
+            };
+            let half_width = surface.width_milli as f32 / 2_000.0;
+            let half_height = surface.height_milli as f32 / 2_000.0;
+            let center_x = surface.center_x_milli as f32 / 1_000.0;
+            let center_y = surface.center_y_milli as f32 / 1_000.0;
+            let snapshot_bounds = bounds(
+                center_x - half_width,
+                center_y - half_height,
+                center_x + half_width,
+                center_y + half_height,
+            );
+            let collider = &physics.rapier.colliders[*handle];
+            let aabb = collider.compute_aabb();
+            let collider_bounds = bounds(aabb.mins.x, aabb.mins.y, aabb.maxs.x, aabb.maxs.y);
+            for (actual, measured) in [snapshot_bounds, collider_bounds]
+                .into_iter()
+                .flat_map(|values| values.into_iter().zip([left, top, right, bottom]))
+            {
+                assert!(
+                    (actual - measured).abs() <= 2.0,
+                    "surface {} edge {actual} differs from measured {measured}",
+                    surface.id
+                );
+            }
+            let measured_vertices: Vec<[f32; 2]> = match surface.id {
+                0..=4 => {
+                    let x = left;
+                    [
+                        [0, 365],
+                        [116, 365],
+                        [116, 393],
+                        [90, 419],
+                        [76, 419],
+                        [76, 522],
+                        [40, 522],
+                        [40, 419],
+                        [26, 419],
+                        [0, 393],
+                    ]
+                    .map(|[dx, y]| [x + dx as f32, y as f32])
+                    .to_vec()
+                }
+                5..=8 | 14..=17 => vec![[left, top], [right, top], [right, bottom], [left, bottom]],
+                9..=13 => {
+                    let x = left;
+                    [
+                        [36, 611],
+                        [73, 611],
+                        [73, 647],
+                        [109, 647],
+                        [109, 686],
+                        [73, 686],
+                        [73, 720],
+                        [36, 720],
+                        [36, 686],
+                        [0, 686],
+                        [0, 647],
+                        [36, 647],
+                    ]
+                    .map(|[dx, y]| [x + dx as f32, y as f32])
+                    .to_vec()
+                }
+                _ => Vec::new(),
+            };
+            let mut actual_vertices = surface
+                .outline_milli
+                .iter()
+                .map(|[x, y]| {
+                    [
+                        640.0 + (surface.center_x_milli + x) as f32 / 1_000.0,
+                        360.0 - (surface.center_y_milli + y) as f32 / 1_000.0,
+                    ]
+                })
+                .collect::<Vec<_>>();
+            let sort =
+                |a: &[f32; 2], b: &[f32; 2]| a[0].total_cmp(&b[0]).then(a[1].total_cmp(&b[1]));
+            let mut measured_vertices = measured_vertices;
+            actual_vertices.sort_by(sort);
+            measured_vertices.sort_by(sort);
+            assert_eq!(actual_vertices.len(), measured_vertices.len());
+            for (actual, measured) in actual_vertices.iter().zip(measured_vertices.iter()) {
+                assert!(
+                    (actual[0] - measured[0]).abs() <= 2.0
+                        && (actual[1] - measured[1]).abs() <= 2.0,
+                    "surface {} contour {actual:?} differs from measured {measured:?}",
+                    surface.id
+                );
+            }
+        }
         let snapshot =
             AuthoritativeMatch::new_with_profile(59, ReplayProfile::LimeModularArenaReplay)
                 .snapshot();
@@ -4081,6 +4209,19 @@ mod tests {
 
     #[test]
     fn lime_public_route_leaves_both_fighters_supported_on_upper_modules() {
+        let mut shelf =
+            AuthoritativeMatch::new_with_profile(59, ReplayProfile::LimeModularArenaReplay);
+        for _ in 0..30 {
+            shelf.step([PlayerInput::default(); 2]);
+        }
+        let shelf = shelf.snapshot();
+        assert!(shelf.players.iter().all(|player| {
+            player.grounded
+                && player.alive
+                && (400_000..410_000).contains(&player.x_milli.abs())
+                && (-65_000..-55_000).contains(&player.y_milli)
+        }));
+
         let replay = run_profile_snapshots(
             ReplayProfile::LimeModularArenaReplay,
             59,
