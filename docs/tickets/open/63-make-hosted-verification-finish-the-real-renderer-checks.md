@@ -45,3 +45,4 @@ Hosted Windows CI fails three real renderer tests before it reaches the correcte
 
 - 2026-10-02T03:44:36Z stage research start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Read authoritative failed Actions logs and the shared renderer device-wait boundary after ticket61 published its caller correction.
 - 2026-10-02T03:44:36Z stage research end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Identified the exact two-second poll timeout failure and twelve simultaneous hosted runs; root cause remains to be established without weakening the fifteen-second readiness contract.
+- 2026-10-02T03:50:01Z stage review start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Requesting fresh independent admission of renderer failure diagnosis/full hosted verification and native duplicate-CI suppression, including explicit partial publication only while hosted evidence remains undelivered.
