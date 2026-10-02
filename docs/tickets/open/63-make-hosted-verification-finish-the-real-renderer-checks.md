@@ -1,6 +1,7 @@
 ---
 format: 3
 status: ready
+owner: codex:01a0fad0-777c-7a50-ab66-2bdbb95628fc
 created: 2026-10-02T03:44:36Z
 origin: system-detected
 tags: ["rounds", "ci", "rendering", "verification"]
@@ -8,6 +9,7 @@ value: 8
 risk: 4
 sessions:
   - codex:01a0fa96-a468-7332-92f6-c36c3908e4b9
+  - codex:01a0fad0-777c-7a50-ab66-2bdbb95628fc
 execution: unattended
 parent: 59
 depends-on: [61]
