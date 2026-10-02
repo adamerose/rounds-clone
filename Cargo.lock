@@ -4538,6 +4538,7 @@ dependencies = [
  "rounds-network",
  "rounds-sim",
  "serde",
+ "serde_json",
  "sha2",
 ]
 

@@ -787,6 +787,7 @@ pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), Stri
         .add_systems(
             Update,
             (
+                poll_live_snapshot,
                 advance_live_scene,
                 verify_live_monitor_show,
                 submit_live_input,
@@ -1186,6 +1187,15 @@ fn advance_interactive_scene(
     }
 }
 
+fn poll_live_snapshot(mut live: ResMut<LivePresentation>) {
+    if let Some((snapshot, hash)) = live.handle.latest()
+        && live.displayed_hash.as_deref() != Some(hash.as_str())
+    {
+        live.displayed_hash = Some(hash);
+        live.displayed_snapshot = Some(snapshot);
+    }
+}
+
 fn advance_live_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -1201,15 +1211,19 @@ fn advance_live_scene(
         ),
         With<Camera2d>,
     >,
-    mut live: ResMut<LivePresentation>,
+    live: Res<LivePresentation>,
+    mut rendered_hash: Local<Option<String>>,
 ) {
-    let Some((snapshot, hash)) = live.handle.latest() else {
+    let Some(snapshot) = live.displayed_snapshot.as_ref() else {
         return;
     };
-    if live.displayed_hash.as_deref() == Some(hash.as_str()) {
+    let Some(hash) = live.displayed_hash.as_ref() else {
+        return;
+    };
+    if rendered_hash.as_ref() == Some(hash) {
         return;
     }
-    let (transform, bloom, chromatic, lens) = camera_state(&snapshot);
+    let (transform, bloom, chromatic, lens) = camera_state(snapshot);
     if let Ok((
         mut camera_transform,
         mut camera_bloom,
@@ -1222,7 +1236,7 @@ fn advance_live_scene(
         *camera_bloom = bloom;
         *camera_chromatic = chromatic;
         *camera_lens = lens;
-        *camera_echo = radial_echo_settings(&snapshot);
+        *camera_echo = radial_echo_settings(snapshot);
     } else {
         commands.spawn((
             Camera2d,
@@ -1231,19 +1245,18 @@ fn advance_live_scene(
             bloom,
             chromatic,
             lens,
-            radial_echo_settings(&snapshot),
+            radial_echo_settings(snapshot),
         ));
     }
     for entity in &visuals {
         commands.entity(entity).despawn();
     }
-    spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot);
+    spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
     println!(
         "{{\"event\":\"presented\",\"tick\":{},\"hash\":\"{}\"}}",
         snapshot.tick, hash
     );
-    live.displayed_hash = Some(hash);
-    live.displayed_snapshot = Some(snapshot);
+    *rendered_hash = Some(hash.clone());
 }
 
 fn verify_live_monitor_show(
@@ -5138,7 +5151,117 @@ fn spawn_triangle(
 mod tests {
     use super::*;
     use bevy::ecs::system::SystemState;
+    use rounds_network::{LiveClient, LiveServer};
     use rounds_sim::{TIMBER_IMPACT_TICK, hash_snapshot, run_scripted_match};
+    use std::thread;
+
+    #[test]
+    fn windowless_live_bevy_input_stays_in_its_slot_and_needs_a_new_snapshot_to_advance() {
+        let profile = ReplayProfile::RematchDraftReplay;
+        let seed = rounds_sim::SOURCE_DRAFT_SEED;
+        let ticks = 360;
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let trace =
+            std::env::temp_dir().join(format!("rounds-bevy-input-{}.json", std::process::id()));
+        let server_trace = trace.clone();
+        let authority = thread::spawn(move || {
+            server
+                .run(seed, ticks, profile, Some(&server_trace))
+                .unwrap()
+        });
+        let first = LiveClient::connect(address, 0, seed, profile).unwrap();
+        let second = LiveClient::connect(address, 1, seed, profile).unwrap();
+        let handle = first.handle();
+        let first = thread::spawn(move || first.run(ticks).unwrap());
+        let second = thread::spawn(move || second.run(ticks).unwrap());
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .init_resource::<ButtonInput<KeyCode>>()
+            .insert_resource(VisibleLifetime {
+                frames: u32::MAX,
+                shown: true,
+            })
+            .insert_resource(LivePresentation {
+                handle: handle.clone(),
+                player: 0,
+                displayed_hash: None,
+                displayed_snapshot: None,
+            })
+            .add_systems(Update, (poll_live_snapshot, submit_live_input).chain());
+        let until = Instant::now() + Duration::from_secs(7);
+        while handle.latest().is_none_or(|(state, _)| {
+            state
+                .flow
+                .as_ref()
+                .is_none_or(|flow| flow.phase != FlowPhase::RematchPrompt)
+        }) {
+            assert!(
+                Instant::now() < until,
+                "authority never reached rematch prompt"
+            );
+            thread::sleep(Duration::from_millis(2));
+        }
+        app.update();
+        {
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.press(KeyCode::KeyA);
+            keys.press(KeyCode::KeyY);
+        }
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .clear_just_pressed(KeyCode::KeyY);
+        for _ in 0..3 {
+            app.update();
+        }
+        thread::sleep(Duration::from_millis(80));
+        let mut pad = Gamepad::default();
+        pad.analog_mut().set(GamepadAxis::LeftStickX, 1.0);
+        pad.digital_mut().press(GamepadButton::West);
+        app.world_mut().spawn(pad);
+        app.update();
+        thread::sleep(Duration::from_millis(80));
+        app.update();
+
+        assert_eq!(first.join().unwrap().result, "completed");
+        assert_eq!(second.join().unwrap().result, "completed");
+        assert_eq!(authority.join().unwrap().result, "completed");
+        app.update();
+        let displayed_tick = app
+            .world()
+            .resource::<LivePresentation>()
+            .displayed_snapshot
+            .as_ref()
+            .unwrap()
+            .tick;
+        for _ in 0..3 {
+            app.update();
+            assert_eq!(
+                app.world()
+                    .resource::<LivePresentation>()
+                    .displayed_snapshot
+                    .as_ref()
+                    .unwrap()
+                    .tick,
+                displayed_tick
+            );
+        }
+        let rows: Vec<serde_json::Value> =
+            serde_json::from_slice(&std::fs::read(&trace).unwrap()).unwrap();
+        std::fs::remove_file(trace).unwrap();
+        assert!(rows.iter().any(|row| row["inputs"][0]["move_axis"] == -1));
+        assert!(rows.iter().any(|row| row["inputs"][0]["move_axis"] == 1));
+        assert!(rows.iter().any(|row| row["inputs"][0]["block"] == true));
+        assert!(rows.iter().all(|row| row["inputs"][1]["move_axis"] == 0));
+        assert_eq!(
+            rows.iter()
+                .filter(|row| !row["inputs"][0]["flow"].is_null())
+                .count(),
+            1
+        );
+    }
 
     fn scene_for_snapshot(snapshot: &MatchSnapshot) -> World {
         let mut world = World::new();

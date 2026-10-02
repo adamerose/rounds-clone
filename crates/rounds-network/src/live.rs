@@ -88,10 +88,6 @@ enum ServerPacket {
         ack: [u64; 2],
         state: Box<MatchSnapshot>,
     },
-    End {
-        session: u64,
-        reason: String,
-    },
 }
 
 fn encode<T: Serialize>(packet: &T) -> Result<Vec<u8>, String> {
@@ -117,14 +113,17 @@ fn send<T: Serialize>(
 
 fn recv<T: for<'a> Deserialize<'a>>(
     socket: &UdpSocket,
+    invalid_datagrams: &mut u32,
 ) -> Result<Option<(T, SocketAddr, usize)>, String> {
     let mut bytes = vec![0; MAX_DATAGRAM];
     match socket.recv_from(&mut bytes) {
-        Ok((length, address)) => {
-            let packet = serde_json::from_slice(&bytes[..length])
-                .map_err(|error| format!("decode live packet: {error}"))?;
-            Ok(Some((packet, address, length)))
-        }
+        Ok((length, address)) => match serde_json::from_slice(&bytes[..length]) {
+            Ok(packet) => Ok(Some((packet, address, length))),
+            Err(_) => {
+                *invalid_datagrams = invalid_datagrams.saturating_add(1);
+                Ok(None)
+            }
+        },
         Err(error)
             if matches!(
                 error.kind(),
@@ -168,6 +167,7 @@ pub struct LiveServerReport {
     pub late_ticks: u32,
     pub max_sent_datagram: usize,
     pub max_received_datagram: usize,
+    pub invalid_datagrams: u32,
     pub elapsed_ms: u128,
     pub trace_sha256: String,
 }
@@ -182,6 +182,7 @@ pub struct LiveClientReport {
     pub received: Vec<(u32, String)>,
     pub max_sent_datagram: usize,
     pub max_received_datagram: usize,
+    pub invalid_datagrams: u32,
 }
 
 pub struct LiveServer {
@@ -233,8 +234,11 @@ impl LiveServer {
         let join_until = Instant::now() + JOIN_WINDOW;
         let mut max_received = 0;
         let mut max_sent = 0;
+        let mut invalid_datagrams = 0;
         while peers.iter().any(Option::is_none) && Instant::now() < join_until {
-            if let Some((packet, sender, size)) = recv::<ClientPacket>(&self.socket)? {
+            if let Some((packet, sender, size)) =
+                recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
+            {
                 max_received = max_received.max(size);
                 if let ClientPacket::Hello {
                     protocol,
@@ -291,7 +295,9 @@ impl LiveServer {
                 std::thread::sleep(Duration::from_millis(150));
             }
             while Instant::now() < next_tick {
-                if let Some((packet, sender, size)) = recv::<ClientPacket>(&self.socket)? {
+                if let Some((packet, sender, size)) =
+                    recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
+                {
                     max_received = max_received.max(size);
                     if let Some(id) = peers.iter().position(|peer| *peer == sender) {
                         match packet {
@@ -438,7 +444,7 @@ impl LiveServer {
                 },
                 sender,
                 size,
-            )) = recv::<ClientPacket>(&self.socket)?
+            )) = recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
             {
                 max_received = max_received.max(size);
                 if received == session
@@ -465,6 +471,7 @@ impl LiveServer {
             late_ticks,
             max_sent_datagram: max_sent,
             max_received_datagram: max_received,
+            invalid_datagrams,
             elapsed_ms: elapsed.as_millis(),
             trace_sha256,
         })
@@ -519,6 +526,7 @@ pub struct LiveClient {
     handle: LiveClientHandle,
     max_sent: usize,
     max_received: usize,
+    invalid_datagrams: u32,
 }
 
 impl LiveClient {
@@ -553,6 +561,7 @@ impl LiveClient {
         let mut resend = Instant::now();
         let mut max_sent = 0;
         let mut max_received = 0;
+        let mut invalid_datagrams = 0;
         let session = loop {
             if Instant::now() >= until {
                 return Err(
@@ -563,7 +572,9 @@ impl LiveClient {
                 max_sent = max_sent.max(send(&socket, authority, &hello)?);
                 resend = Instant::now() + TERMINAL_INTERVAL;
             }
-            if let Some((packet, sender, size)) = recv::<ServerPacket>(&socket)? {
+            if let Some((packet, sender, size)) =
+                recv::<ServerPacket>(&socket, &mut invalid_datagrams)?
+            {
                 if sender != authority {
                     continue;
                 }
@@ -597,6 +608,7 @@ impl LiveClient {
             }))),
             max_sent,
             max_received,
+            invalid_datagrams,
         })
     }
 
@@ -655,7 +667,9 @@ impl LiveClient {
                 )?);
                 next_send = Instant::now() + SEND_INTERVAL;
             }
-            if let Some((packet, sender, size)) = recv::<ServerPacket>(&self.socket)? {
+            if let Some((packet, sender, size)) =
+                recv::<ServerPacket>(&self.socket, &mut self.invalid_datagrams)?
+            {
                 if sender != self.authority {
                     continue;
                 }
@@ -730,9 +744,6 @@ impl LiveClient {
                             ));
                         }
                     }
-                    ServerPacket::End { session, reason } if session == self.session => {
-                        return Ok(self.report(&reason, last_tick, last_hash, received));
-                    }
                     _ => {}
                 }
             }
@@ -755,6 +766,7 @@ impl LiveClient {
             received,
             max_sent_datagram: self.max_sent,
             max_received_datagram: self.max_received,
+            invalid_datagrams: self.invalid_datagrams,
         }
     }
 }
@@ -821,9 +833,20 @@ mod tests {
             serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
         fs::remove_file(trace_path).unwrap();
         let mut replay = AuthoritativeMatch::new_with_profile(seed, profile);
+        let mut without_live_movement = AuthoritativeMatch::new_with_profile(seed, profile);
         for row in &trace {
             replay.step(row.inputs);
             assert_eq!(hash_snapshot(&replay.snapshot()), row.hash);
+            let mut unmoved = row.inputs;
+            for input in &mut unmoved {
+                input.move_axis = 0;
+            }
+            without_live_movement.step(unmoved);
+        }
+        let final_positions = replay.snapshot().players;
+        let unmoved_positions = without_live_movement.snapshot().players;
+        for id in 0..2 {
+            assert_ne!(final_positions[id].x_milli, unmoved_positions[id].x_milli);
         }
         for (id, report) in reports.iter().enumerate() {
             let first_change = trace
@@ -1215,6 +1238,29 @@ mod tests {
     }
 
     #[test]
+    fn vanished_peer_reaches_bounded_silence_results_without_leave() {
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let authority =
+            thread::spawn(move || server.run(38, 300, ReplayProfile::TimberCollapseReplay, None));
+        let vanished =
+            LiveClient::connect(address, 0, 38, ReplayProfile::TimberCollapseReplay).unwrap();
+        let survivor =
+            LiveClient::connect(address, 1, 38, ReplayProfile::TimberCollapseReplay).unwrap();
+        drop(vanished);
+        let survivor = thread::spawn(move || survivor.run(300).unwrap());
+        assert!(
+            authority
+                .join()
+                .unwrap()
+                .unwrap_err()
+                .starts_with("peer_silent: client 0")
+        );
+        assert_eq!(survivor.join().unwrap().result, "authority_silent");
+        assert!(LiveServer::bind(address).is_ok());
+    }
+
+    #[test]
     fn old_session_input_from_a_current_peer_is_ignored() {
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
         let address = server.local_addr().unwrap();
@@ -1234,6 +1280,11 @@ mod tests {
                 )
                 .unwrap()
         });
+        let old_protocol = br#"{"kind":"hello","protocol":11,"clientId":0,"seed":38,"profile":"timber-collapse-replay"}"#;
+        UdpSocket::bind("127.0.0.1:0")
+            .unwrap()
+            .send_to(old_protocol, address)
+            .unwrap();
         let peers = (0..2_u8)
             .map(|id| {
                 let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
@@ -1263,7 +1314,7 @@ mod tests {
                         },
                         _,
                         _,
-                    )) = recv::<ServerPacket>(&socket).unwrap()
+                    )) = recv::<ServerPacket>(&socket, &mut 0).unwrap()
                         && client_id == id
                         && echoed == nonce
                     {
@@ -1275,6 +1326,11 @@ mod tests {
             .collect::<Vec<_>>();
         let session = peers[0].2;
         assert_eq!(session, peers[1].2);
+        peers[0].1.send_to(old_protocol, address).unwrap();
+        UdpSocket::bind("127.0.0.1:0")
+            .unwrap()
+            .send_to(old_protocol, address)
+            .unwrap();
         send(
             &peers[0].1,
             address,
@@ -1315,7 +1371,7 @@ mod tests {
                     },
                     _,
                     _,
-                )) = recv::<ServerPacket>(socket).unwrap()
+                )) = recv::<ServerPacket>(socket, &mut 0).unwrap()
                 {
                     send(
                         socket,
@@ -1332,7 +1388,9 @@ mod tests {
                 }
             }
         }
-        assert_eq!(authority.join().unwrap().result, "completed");
+        let report = authority.join().unwrap();
+        assert_eq!(report.result, "completed");
+        assert!(report.invalid_datagrams >= 3);
         let trace: Vec<AppliedTick> =
             serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
         fs::remove_file(trace_path).unwrap();
@@ -1364,10 +1422,12 @@ mod tests {
                 },
                 sender,
                 _,
-            ) = recv::<ClientPacket>(&fake).unwrap().unwrap()
+            ) = recv::<ClientPacket>(&fake, &mut 0).unwrap().unwrap()
             else {
                 panic!("expected hello")
             };
+            fake.send_to(br#"{"kind":"welcome","protocol":11,"clientId":0}"#, sender)
+                .unwrap();
             send(
                 &fake,
                 sender,
@@ -1398,7 +1458,9 @@ mod tests {
         });
         let client =
             LiveClient::connect(address, 0, 38, ReplayProfile::TimberCollapseReplay).unwrap();
-        assert_eq!(client.run(3).unwrap().result, "validation_failure");
+        let report = client.run(3).unwrap();
+        assert_eq!(report.result, "validation_failure");
+        assert!(report.invalid_datagrams >= 1);
         authority.join().unwrap();
     }
 
