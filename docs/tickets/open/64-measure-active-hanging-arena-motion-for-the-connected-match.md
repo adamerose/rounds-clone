@@ -62,3 +62,4 @@ Adam — this goal's initiating request:
 - 2026-10-02T05:03:19Z stage review end session claude:006446ca-b1f0-45e0-90bb-ba5f80c56785 — Changes required: evidence access denied, plus no-shot basis, movement dependency and onset wording; full report out/ticket-064/review.json.
 - 2026-10-02T05:04:31Z stage correction start session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Address no-shot basis with all 37 adjacent prefix frames, source-fit movement prerequisite and onset wording; reopen full review with evidence access.
 - 2026-10-02T05:04:48Z stage correction end session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Inspected every prefix frame; documented no visible shot/HUD change, speed prerequisite and bounded onset in exact tip 0476348.
+- 2026-10-02T05:05:00Z stage review start session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Fresh CLI context reviews exact corrected range 377902c..0476348 with evidence access.
