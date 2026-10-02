@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-02T16:19:26Z
 origin: agent-proposed
 tags: ["rounds", "completion", "research"]
@@ -44,3 +44,4 @@ Measure the loose lime arena caps already visible in retained source frames. The
 - 2026-10-02T16:19:26Z stage design start session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Shaped from the completed independent Astra planning batch for goal59; no implementation claim.
 - 2026-10-02T16:19:26Z stage design end session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Idea contract ready for separate fresh-context admission.
 - 2026-10-02T16:29:58Z Independent admission codex:01a0fd6c-3363-7ab0-83b9-b1880fa616a7 returned one provenance error: reference/manifest.json identifies recordings but does not state native timebase. Corrected the citation to retained source metadata and published observations. Risk3 and dependencies60,68 unchanged; renewed admission pending.
+- 2026-10-02T16:38:41Z Fresh independent admission codex:01a0fd6c-3363-7ab0-83b9-b1880fa616a7 at risk3: ADMIT after native timebase provenance correction; complete bounded retained-frame measurements, uncertainty and negative findings remain supported. Dependencies60,68 are retained; execution waits for corrected68 delivery. No human decision remains. Result .ivy/runs/astra-burst-20261002-1602/admit72-revised-final.md. Executing worker records this admission and its rationale in docs/decisions.md with the reviewed candidate. Admission delivers no gameplay coverage.
