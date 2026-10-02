@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 created: 2026-09-07T16:03:21Z
 origin: system-detected
 tags: ["product-fidelity", "movement", "bevy"]
@@ -19,10 +19,6 @@ split-from: [49]
 # Fit airborne traversal with the shared control coefficient
 
 The existing airborne control coefficient converges too slowly and leaves the clone far short of source-observed horizontal travel. Correct the single shared coefficient and retime public replay inputs where needed, while preserving source-observed events and openly retaining any residual the source measurements cannot resolve.
-
-## Blocked
-
-Adam's ivy:autonomy delegation for goal 59 resolves the previous choice to pursue a reversible general control correction and recapture affected evidence. This amended contract awaits fresh admission before implementation; there is no remaining human decision in its former three questions.
 
 ## Outcome
 
@@ -59,3 +55,4 @@ Adam's ivy:autonomy delegation for goal 59 resolves the previous choice to pursu
 
 - 2026-10-02T03:31:27Z stage design start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Under goal59 delegation, reconsidered the old human-decision blocker and consulted the source-track/control recurrence before choosing a reversible fit.
 - 2026-10-02T03:31:27Z stage design end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Amended to the single0.39 coefficient, public contact-free comparison, numeric no-worse anchor evidence, preserved observed events and explicitly open top/ground-speed residuals; fresh admission remains required.
+- 2026-10-02T03:46:35Z stage review end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9/claude-a8beb1b5-5fc5-4f26-8034-cc503ee72714 — Fresh other-family ADMIT at risk5 under goal59 standing delegation after resumed consult; start the public held-direction comparison near zero horizontal velocity, judge reversal against the model recurrence, permit ordinary aim adjustments while fixed source fire/event ticks remain fixed, preserve retained source tracks at .claude/worktrees/project-continuation-88fd8b/out, and wait for dependency60 before implementing.
