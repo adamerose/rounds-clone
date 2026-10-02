@@ -10,6 +10,7 @@ sessions:
   - codex:01a073e9-17ec-7170-933a-0e18a071972d
   - claude:96849848-e6ec-488e-b4ac-b113acc49f8a
 execution: unattended
+parent: 59
 depends-on: [46, 50, 52]
 supersedes: []
 split-from: []
