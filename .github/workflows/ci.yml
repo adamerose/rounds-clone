@@ -6,7 +6,14 @@ on:
       - '**'
     tags:
       - '**'
+    paths-ignore:
+      - 'docs/tickets/**'
+      - 'docs/decisions.md'
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -23,6 +30,8 @@ jobs:
       - name: Build
         run: cargo build --workspace --locked
       - name: Test
+        env:
+          RUST_TEST_THREADS: '1'
         run: cargo test --workspace --locked
       - name: Two-client authoritative smoke
         run: out/cargo-target/debug/rounds-automation smoke --profile teal-duel-replay --seed 38 --ticks 180
