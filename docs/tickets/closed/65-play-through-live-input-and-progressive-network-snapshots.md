@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a0fb1c-d003-7d61-9ac5-a753c63e075f
+status: closed
 created: 2026-10-02T04:56:22Z
 origin: system-detected
 tags: ["rounds", "multiplayer", "online", "bevy"]
@@ -80,3 +79,5 @@ Adam — this goal's initiating request:
 - 2026-10-02T08:02:58Z stage verify end session codex:01a0fb1c-d003-7d61-9ac5-a753c63e075f — Corrected fmt, strict Clippy, locked build and 88 serial workspace tests pass; focused malformed-peer and Bevy live input tests pass. Both corrected 600-tick CLI modes completed with trace-checked progressive presentation, OS-verified monitor-4 centers, terminal acks, 59.63/59.97 Hz mean and 445/362 late ticks; out/ticket-065/live-proof-summary.json. Windows screen grabs failed in corrected run; earlier exact-scene cropped captures and retained scripted offscreen capture remain. Native keys/controllers, nonlocal bind and paced maximum were unavailable.
 - 2026-10-02T08:03:02Z stage review start session codex:01a0fb1c-d003-7d61-9ac5-a753c63e075f — Commit correction and request fresh other-family read-only review of complete exact range, prior blockers, corrected tests and native evidence.
 - 2026-10-02T08:14:26Z stage review end session codex:01a0fb1c-d003-7d61-9ac5-a753c63e075f — Fresh independent Claude session 1e81535f-bd6f-49e1-8459-5b4cf57662ee APPROVE exact 5b9f344..821c5bd, all three prior blockers corrected; nonblocking performance, UX and screenshot availability notes retained at out/ticket-065/review-result-corrected.json.
+- 2026-10-02T08:37:29Z stage review end session claude:85c7b1a8-471c-4cd2-bf63-7311c02f17ad — approved candidate 0803044436c694b71cf2c151bf00af73b1af30ea..485cb476f73d40fb6d1566838c5102d78eeeabd2
+- 2026-10-02T08:37:29Z stage integration end session codex:01a0fb1c-d003-7d61-9ac5-a753c63e075f — integrated 485cb476f73d40fb6d1566838c5102d78eeeabd2 as 485cb476f73d40fb6d1566838c5102d78eeeabd2
