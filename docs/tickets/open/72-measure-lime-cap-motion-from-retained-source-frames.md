@@ -28,7 +28,7 @@ Measure the loose lime arena caps already visible in retained source frames. The
 ## Decisions
 
 - Wait for corrected source ticket68 to close. Reuse original PNGs and metadata retained under root out/ticket-068; no new decode, Cargo, GPU or visible window. Movement52 and weapon/card implementations are not dependencies.
-- Use the second recording identity and native timebase from reference/manifest.json. Cap IDs may be borrowed from the delivered geometry only when correspondence is visually defensible. Stop an identity track or mark it ambiguous across occlusion.
+- Use the second recording identity from reference/manifest.json and its native timebase of 1/10,000,000 second from the retained source metadata under root out/ticket-068, corroborated by the published corrected source observations. Cap IDs may be borrowed from the delivered geometry only when correspondence is visually defensible. Stop an identity track or mark it ambiguous across occlusion.
 - Measure camera registration from independently stationary pedestal edges, not moving caps or fighters. Visible overlap is not proof of support/contact, and contact does not recover an impulse.
 - Do not infer mass, friction, restitution, suspension, velocity or a rule for every cap from sparse motion of two assemblies. Preserve the validity of the existing earlier six-second static fixture.
 - Keep derived evidence in ignored out/ticket-NNN; publish source rationale and coverage links only. No proprietary media bytes enter product assets and no gameplay coverage is marked delivered.
@@ -43,3 +43,4 @@ Measure the loose lime arena caps already visible in retained source frames. The
 
 - 2026-10-02T16:19:26Z stage design start session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Shaped from the completed independent Astra planning batch for goal59; no implementation claim.
 - 2026-10-02T16:19:26Z stage design end session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Idea contract ready for separate fresh-context admission.
+- 2026-10-02T16:29:58Z Independent admission codex:01a0fd6c-3363-7ab0-83b9-b1880fa616a7 returned one provenance error: reference/manifest.json identifies recordings but does not state native timebase. Corrected the citation to retained source metadata and published observations. Risk3 and dependencies60,68 unchanged; renewed admission pending.
