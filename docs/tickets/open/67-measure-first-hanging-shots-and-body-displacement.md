@@ -1,6 +1,7 @@
 ---
 format: 3
 status: ready
+owner: codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9
 created: 2026-10-02T06:02:47Z
 origin: agent-proposed
 tags: ["rounds", "product-fidelity", "research", "combat"]
@@ -8,6 +9,7 @@ value: 8
 risk: 3
 sessions:
   - codex:01a0fa96-a468-7332-92f6-c36c3908e4b9
+  - codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9
 execution: unattended
 parent: 59
 depends-on: [64]
