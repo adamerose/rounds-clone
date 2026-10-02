@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a0fad0-777c-7a50-ab66-2bdbb95628fc
+status: closed
 created: 2026-10-02T03:44:36Z
 origin: system-detected
 tags: ["rounds", "ci", "rendering", "verification"]
@@ -61,3 +60,5 @@ Hosted Windows CI fails three real renderer tests before it reaches the correcte
 - 2026-10-02T04:34:35Z Published independently approved candidate 208bf0729c0e64dbe4b8b2b18abf8beb70af6a4f to main as genuine partial delivery. Undelivered contract outcome: completed successful full hosted Windows job on this range or a main descendant. Retaining exact worktree and ticket ownership while the run finishes; no hosted success is claimed.
 - 2026-10-02T04:49:07Z stage verify start session codex:01a0fad0-777c-7a50-ab66-2bdbb95628fc — Evaluating full hosted Windows run 36965148093 on published reviewed tip 208bf0729c0e64dbe4b8b2b18abf8beb70af6a4f.
 - 2026-10-02T04:49:19Z stage verify end session codex:01a0fad0-777c-7a50-ab66-2bdbb95628fc — Hosted run 36965148093 job 110707162971 completed success at 2026-10-02T04:47:59Z: format, strict Clippy, locked build, full tests with all 10 presentation tests including three former poll failures, two-client smoke and deterministic capture passed. The full hosted outcome is delivered.
+- 2026-10-02T04:49:48Z stage review end session claude:e2dfe7f5-b8e3-4ef4-8b25-1cc2b207df68 — approved candidate 5cdcc863490c542de62fbc9e16a1516d6938c269..208bf0729c0e64dbe4b8b2b18abf8beb70af6a4f
+- 2026-10-02T04:49:48Z stage integration end session codex:01a0fad0-777c-7a50-ab66-2bdbb95628fc — integrated 208bf0729c0e64dbe4b8b2b18abf8beb70af6a4f as 208bf0729c0e64dbe4b8b2b18abf8beb70af6a4f
