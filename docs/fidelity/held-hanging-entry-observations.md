@@ -16,7 +16,7 @@ This record binds ticket 055's held arena entry to `reference/MedalTVRounds20260
 | 5918 | 24 | 2581489674 | `689ded32c34af48aba5a00c725bd8a08356c48ad66cf4c73c475fa2bb532ccd4` | All 21 square centers are within about one pixel of nominal. |
 | 5940 | 46 | 2585156326 | `5c8995a6ca0f0af7a38a2e4973b7ce1ca208fb18395201a1194db1cb4788c1cb` | Both fighters remain at their held scene poses. |
 | 5941 | 47 | 2585322992 | `f90f451ed5bf928b6ea04a3a5fdf1623278063ff043dd67127e7cd9f43ce3067` | Last retained held observation. |
-| 5942 | excluded | 2585489658 | `2431300ec77cc8f0fb4783d42aef07cacc9719b08e4bbc8537e5b1a8bf1d84a3` | Adjacent departure witness; active motion begins with about two frames of onset uncertainty. |
+| 5942 | excluded | 2585489658 | `2431300ec77cc8f0fb4783d42aef07cacc9719b08e4bbc8537e5b1a8bf1d84a3` | Adjacent departure witness; exact input or simulation onset is unknown. |
 
 The 5940 and 5942 packed hashes come from the same retained 37-frame native decode and must be reverified before they become delivery evidence. Their inclusion here fixes the intended source identity; it does not claim a new decode in ticket 055's creating session.
 
