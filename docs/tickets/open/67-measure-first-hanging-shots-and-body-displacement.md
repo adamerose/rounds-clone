@@ -73,3 +73,4 @@ The measured hanging landing prefix stops before firing and suspended-body motio
 - 2026-10-02T08:07:39Z stage review end session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — Claude a4d3afbb found arc onset three native frames early
 - 2026-10-02T08:07:42Z stage correction start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — correct blue arc onset boundary and comparison
 - 2026-10-02T08:09:54Z stage correction end session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — arc first-visible and adjacent comparison corrected
+- 2026-10-02T08:09:57Z stage review start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — request fresh independent exact-range review after arc correction
