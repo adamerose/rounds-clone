@@ -1191,3 +1191,7 @@ The first CLI resume failed before sampling because it attempted to resume a `gp
 ## 2026-10-02 — Ticket 67 reviewer removed broad temporary-file patterns
 
 An independent reviewer used `C:\tmp` for temporary frame crops, then reported deleting `C:\tmp\*.png` and `*67*.py` without first checking which files those patterns matched. This was outside the repository and outside the reviewer's read-only assignment. The reviewer could not establish whether other files were present or affected. No further cleanup was attempted. Later reviews must use a unique directory under the ticket's retained evidence path and remove only files they created.
+
+## 2026-10-02 — Optional browser MCP unavailable during autonomy launches
+
+Native Codex launch probes and both resumed workers reported that chrome-devtools closed its connection during MCP initialization. The model launch probes still returned PROBE_OK, and the workers started through their supported headless source and simulation commands. No required browser evidence has passed by implication. The run uses the existing public Bevy inspection/capture paths and monitor-4 native presentation checks; it does not retry the same MCP handshake or replace required renderer evidence with a browser claim. The startup messages and worker identities are retained under .ivy/runs. An unavailable optional server therefore does not stop independent source measurement or product implementation.
