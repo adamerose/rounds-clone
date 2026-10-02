@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a0fd08-8de5-7b03-bbf4-52cc17e0b8f7
+status: closed
 created: 2026-10-02T06:13:57Z
 origin: agent-proposed
 tags: ["rounds", "product-fidelity", "research", "cards", "match-flow"]
@@ -68,3 +67,5 @@ The second recording shows a fresh match with Ho / Pa badges on the lime arena, 
 - 2026-10-02T16:18:58Z stage verify end session codex:01a0fd08-8de5-7b03-bbf4-52cc17e0b8f7 — Read-only rerun passed source/decoderSHA,1042 PNG hashes,976 uniquePTS,133 citations,nine prior anchors and native cap. Recomputed98 projectile components and119 bar frames plus pose fits; generated outputs byte-identical to retained originals. Retargeted five-file content hashes, ticket validator and staged/unstaged diff checks pass. Evidence remains433331220bytes/1216files; no new source decode.
 - 2026-10-02T16:19:44Z stage review start session codex:01a0fd65-ff91-7182-a9d0-418ac1e0154f — Fresh read-only Astra CLI context reviews complete corrected source range. Claude bootstrap07f7f1c2-9dd9-439a-aa51-4966cb5bce95 hit session cap before review despite cached headroom; installed model rules permit this recorded same-family fallback. No paid/reset credits. Exact findings and metadata retained at .ivy/runs/source68-full-worker-20261002; no authoring, builds, GUI or decoding.
 - 2026-10-02T16:36:25Z Independent Astra review codex:01a0fd65-ff91-7182-a9d0-418ac1e0154f APPROVE exact8fc66555b9ddc52c72e97adefab9404b33b815c6..277cbc9f87914671496927092c8d06d8bf88d418; full findings .ivy/runs/source68-full-worker-20261002/review-final.txt. All earlier findings resolved; original-PNG visual checks and independent hash/fit/bar/pose validation passed. Recorded same-family fallback after Claude cap. Reviewer noted initial session-environment filtering before reading the stricter contract; native bootstrap metadata independently verified identity and no credentials were inspected. Before/after inventories match; no review artifacts/processes remain. Research approval closes no gameplay/card gap.
+- 2026-10-02T16:42:37Z stage review end session codex:01a0fd65-ff91-7182-a9d0-418ac1e0154f — approved candidate 8fc66555b9ddc52c72e97adefab9404b33b815c6..9201895147059826060e51fa40a2a4aaaa583235
+- 2026-10-02T16:42:37Z stage integration end session codex:01a0fd08-8de5-7b03-bbf4-52cc17e0b8f7 — integrated 9201895147059826060e51fa40a2a4aaaa583235 as e97b280c5ce2dd7d5488e7942ff3d29a4e7da6d3
