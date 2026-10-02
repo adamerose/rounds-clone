@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a0faf2-6ae0-7df0-b427-a74271f729e3
+status: closed
 created: 2026-10-02T04:44:32Z
 origin: agent-proposed
 tags: ["rounds", "product-fidelity", "physics", "research"]
@@ -72,3 +71,5 @@ Adam — this goal's initiating request:
 - 2026-10-02T05:24:50Z stage correction end session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Tip 1e09fc8 corrects all green bars by pixel row, limits 401 to corner/side contact, and records after-stop tilt; 15 hash rows and ticket check pass.
 - 2026-10-02T05:25:01Z stage review start session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Fresh read-only review exact range 377902c..1e09fc8 with original source and corrected bar/contact record.
 - 2026-10-02T05:29:59Z stage integration start session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — Fresh review claude:398b81f5-4d8f-4fbb-8a21-fb283a49f418 APPROVE exact 377902c..1e09fc8; source hashes and bar/body measurements reproduced; nonblocking later401 support note in out/ticket-064/review-4.json.
+- 2026-10-02T05:30:29Z stage review end session claude:398b81f5-4d8f-4fbb-8a21-fb283a49f418 — approved candidate 377902c0514a09a2b6d85f2e3f07612281c3458f..d08ba19abb2f5be06ff0d9f766e0e8b605173d43
+- 2026-10-02T05:30:29Z stage integration end session codex:01a0faf2-6ae0-7df0-b427-a74271f729e3 — integrated d08ba19abb2f5be06ff0d9f766e0e8b605173d43 as 8aed6efc033d5a54dc4bd18b8234cce1b7df96c1
