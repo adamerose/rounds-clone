@@ -1187,3 +1187,7 @@ The parent's staged diff check found a trailing space on line 21 of the newly ad
 ## 2026-09-08 — Ticket 053's first CLI resume used an incompatible model override
 
 The first CLI resume failed before sampling because it attempted to resume a `gpt-5.6-sol` thread as `gpt-6-astra`, and the installed CLI rejected Astra as requiring a newer version. No candidate bytes changed during that failed attempt; the correction resumed in the owning session and exact worktree without the incompatible override.
+
+## 2026-10-02 — Ticket 67 reviewer removed broad temporary-file patterns
+
+An independent reviewer used `C:\tmp` for temporary frame crops, then reported deleting `C:\tmp\*.png` and `*67*.py` without first checking which files those patterns matched. This was outside the repository and outside the reviewer's read-only assignment. The reviewer could not establish whether other files were present or affected. No further cleanup was attempted. Later reviews must use a unique directory under the ticket's retained evidence path and remove only files they created.
