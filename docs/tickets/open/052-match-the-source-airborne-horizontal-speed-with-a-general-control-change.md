@@ -1,6 +1,7 @@
 ---
 format: 3
 status: ready
+owner: codex:01a0fae4-9ad3-7631-b794-b2470f74a6a4
 created: 2026-09-07T16:03:21Z
 origin: system-detected
 tags: ["product-fidelity", "movement", "bevy"]
