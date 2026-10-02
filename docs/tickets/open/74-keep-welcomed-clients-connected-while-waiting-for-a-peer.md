@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-02T16:19:26Z
 origin: agent-proposed
 tags: ["rounds", "completion", "implementation"]
@@ -44,3 +44,4 @@ The live server allows five seconds for both players to join, but the first welc
 
 - 2026-10-02T16:19:26Z stage design start session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Shaped from the completed independent Astra planning batch for goal59; no implementation claim.
 - 2026-10-02T16:19:26Z stage design end session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — Idea contract ready for separate fresh-context admission.
+- 2026-10-02T16:29:58Z Fresh independent admission codex:01a0fd6c-3364-7ce1-9a79-6871e54c967f ADMIT unchanged at risk3, dependency65, with no operator decision. The five-second peer join window conflicts with the welcomed client three-second silence timer. Explicit startup/running states, real UDP timing regression, bounded loss behavior and port reuse bound the correction. The executing worker records this admission in docs/decisions.md with its reviewed candidate. Native verification waits for the assigned shared resource slot; no executed reproduction or game delivery is claimed by admission.
