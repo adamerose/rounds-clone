@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 created: 2026-09-07T16:03:21Z
 origin: system-detected
 tags: ["product-fidelity", "movement", "bevy"]
@@ -21,12 +21,6 @@ split-from: [49]
 
 The existing airborne control coefficient converges too slowly and leaves the clone far short of source-observed horizontal travel. Correct the single shared coefficient and retime public replay inputs where needed, while preserving source-observed events and openly retaining any residual the source measurements cannot resolve.
 
-## Blocked
-
-The isolated 0.39 candidate passes the new public 74-tick travel check (3.88 native pixels RMS, 0.56 at the endpoint) but fails the fixed replay and no-worse anchor requirements. With the published input intervals, the connected match remains in `IceCombat` at the source-bound 5339 result and 5941 hanging endpoint, radial remains in combat at its 909 result, and teal loses its terminal hit. Fifteen simulation and four network tests fail. At yellow tick 80, a fresh decode of source PTS 4233483066/RGBA `d57dbd7ea73ba1d2e9c6c6fd37281629c0ee897aa52a29f6e81fb6cf532112bd` places blue near (1112.5,155.5); current 0.08 capture is (1123,156), while 0.39 is (1208,156), about 85 native pixels worse than before against an eight-pixel maximum regression. The full seven-profile 0.08 baseline and four affected candidate capture sets are retained under the ticket 052 worktree's ignored `out/ticket-052/`.
-
-No physics change, replay retiming or updated expectation is published. The next admission must establish whether ordinary movement and jump input intervals can restore every fixed source event and all changed anchors under the one shared coefficient, or identify a separate source-backed cause correction. Goal 59's delegation covers reversible choices; this is a reproduced contract failure, not an open request for Adam to choose an option.
-
 ## Outcome
 
 - The shared airborne control coefficient changes from 0.08 to the consulted fit 0.39 in every arena; grounded control, RUN_SPEED, fighter damping, gravity, jump/release, projectile and combat rules remain unchanged.
@@ -44,6 +38,7 @@ No physics change, replay retiming or updated expectation is published. The next
 - Dependency60 ensures the baseline includes the recovered lime profile. Input retiming may enable the already-shipped jump release cut; rerun its public regression rather than assuming vertical traces remain identical.
 - If source outcomes or the numeric source-comparison limits cannot be restored within this single-constant scope, record the exact failing boundary and return this ticket to blocked for a separately admitted cause correction. Do not import the coupled archived048/056 physics changes or relax an acceptance check.
 
+- Fresh admission claude:aeb3172c-84ce-4b5e-b779-7305f4d69850 approves this correction experiment, not feasibility or implementation. After ticket 65 releases the slot, reconcile the existing dirty candidate with current main and recapture the 0.08 baseline there, or prove every anchor identical. Confirm the reversal and re-jump hypotheses through public snapshots before changing rows or expectations. The internal tick-531 assertion stays unless a fresh native PTS/hash decode bounds the source cloud onset; the existing cloud anchor and fixed fire/terminal sequence stay binding. Rerun stale evidence at the exact candidate and rewrite unpublished pause records to match actual outcomes. Only the complete seven-profile contract is deliverable.
 ## Evidence required
 
 - Before editing, independently verify the retained source track identities and measure a reproducible public-input airborne response with the shipped0.08 coefficient; retain the command, inputs, elapsed-tick alignment, native/world scale and failing displacement/RMS evidence.
@@ -81,3 +76,5 @@ All Outcome and Evidence required limits above remain binding. No first failing 
 - 2026-10-02T05:22:24Z stage verify end session codex:01a0fae4-9ad3-7631-b794-b2470f74a6a4 — Re-decoded 119 ice frames with all 99 retained track identities and yellow tick80 exact RGBA identity; public 0.08 trace failed at 35.60px RMS/53.40px endpoint and 0.39 passed at 3.88px/0.56px with 12-tick reversal. Current baseline captured 105 anchors including lime; 29 candidate anchors show yellow blue worsens about85px. Format, Clippy and locked build passed; full tests failed (15 simulation, 4 network), with rematch IceCombat at5339/5941 and radial combat at909. Ticket blocked, candidate unpublished, evidence preserved in isolated worktree; visible run, full candidate recapture and exact-range review unavailable because required gates fail.
 
 - 2026-10-02T05:54:09Z stage design end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Read-only other-family consultation challenged the unchanged-input failure and supplied finite yellow/radial correction hypotheses; original source-event and no-worse acceptance remains unchanged. Fresh admission pending, and worker 65 retains the sole build/render slot.
+
+- 2026-10-02T05:56:24Z Fresh other-family admission claude:aeb3172c-84ce-4b5e-b779-7305f4d69850 ADMIT at risk 5 under goal 59 standing delegation; finite correction plan retains the full contract, requires current-main baseline and public hypothesis checks, and keeps source-bound event ticks fixed. Ticket ready for the same worker after worker 65 releases the build/render slot.
