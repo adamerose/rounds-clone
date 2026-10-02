@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 bevy.workspace = true
 png.workspace = true
+rounds-network = { path = "../rounds-network" }
 rounds-sim = { path = "../rounds-sim" }
 serde.workspace = true
 sha2.workspace = true

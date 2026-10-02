@@ -9,7 +9,7 @@ No interval is unclassified.
 
 | Slice | Outcome | Status |
 |---|---|---|
-| `S0-foundation` | Bevy ECS fixed ticks, two-player scripted input, movement, jump, fire, block, hits, UDP client-host and headless authority, bounded state, deterministic PNG capture | implemented scaffold; not fidelity evidence |
+| `S0-foundation` | Bevy ECS fixed ticks, two-player scripted input, movement, jump, fire, block, hits, bounded direct-IP UDP authority/client-host development sessions, bounded state, deterministic PNG capture | implemented scaffold; not fidelity evidence |
 | `S1-flow-draft` | reproduce card offers, readable card faces, player reveal, pick input, inter-round handoff, waiting and rematch screens | opening rematch/two-draft, first loser-only post-round draft, score-driven `WAITING`, and the explicit fresh-match reset into orange's observed offer row are implemented; the trigger that ends `WAITING` remains unresolved |
 | `S2-static-duel` | reproduce base locomotion, aim, gun, block, health, death and a footage-matched static arena end to end | first sub-slice implemented at recording `1460e670…15f9` 00:22.50–00:35.60; connected ice duel added at recording `453954a7…a18c` PTS 2351990592–2506156642; standalone lime modular traversal added at recording `1460e670…15f9` PTS 2140158106–2200157866; remaining static duels unresolved |
 | `S3-arena-motion` | reproduce suspended, rotating, sliding and articulated arena pieces with authoritative networked physics | first suspended-weight and released-joint sub-slice implemented at recording `453954a7…a18c` 03:26.00–03:50.00; remaining arena motion unresolved |
@@ -17,7 +17,7 @@ No interval is unclassified.
 | `S5-card-combat` | reproduce every visible named card and its stacked combat interaction across rounds | Dazzle, Explosive Bullet and Quick Shot's typed launch-speed seam implemented; eighteen other transcribed cards remain catalog-only, and their mechanics plus Quick Shot magnitude/reload remain unresolved |
 | `S6-match` | reproduce round, half, score, color handoff, match completion and rematch cadence | first-to-five match completion is authority-driven and source-bound at 3–5 `WAITING`; a typed non-player request performs the observed fresh reset, while its unseen trigger and remaining round cadence stay unresolved |
 | `S7-presentation` | reproduce characters, lighting, camera, shake, trails, hit-stop, chromatic/radial effects, particles, text and audio | first static-duel, explosive-collapse, connected ice/first-round and lime modular visual sub-slices implemented in the shared scene, along with ticket 042's radial-saw scene and ticket 043's yellow-crate scene; audio, hit-stop, and remaining presentation unresolved |
-| `S8-online` | replace the localhost scripted UDP scaffold with production online prediction, interpolation, reconciliation and eventual Steam transport | unresolved fidelity gap; Steam is not implemented |
+| `S8-online` | replace the controlled direct-IP UDP development adapter with production online prediction, interpolation, reconciliation and eventual Steam transport | controlled direct-IP live input, progressive received-state presentation and client-host are implemented; Steam and production online transport remain unresolved |
 
 The first `S2-static-duel` interval retains the `S0-foundation` process boundaries but replaces their placeholder physics, renderer, and batch transport.
 Later slices add the remaining flow, cards, arena behavior, production online work, and presentation visible in their owned intervals.

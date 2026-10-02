@@ -1,7 +1,7 @@
-use rounds_network::{NETWORK_PROTOCOL, ServerReport, send_inputs};
+use rounds_network::{LiveClient, LiveServer, NETWORK_PROTOCOL, ServerReport, send_inputs};
 use rounds_presentation::{
     FRAME_HEIGHT, FRAME_WIDTH, RENDERER_IDENTITY, YellowFrameSignature, frame_sha256, render_png,
-    run_interactive_visible, run_visible, yellow_frame_signature,
+    run_interactive_visible, run_live_visible, run_visible, yellow_frame_signature,
 };
 use rounds_sim::{
     CONNECTED_BLUE_RESULT_ONSET_TICK, CONNECTED_HALF_BLUE_TAIL_TICK, CONNECTED_HALF_BLUE_TICK,
@@ -18,6 +18,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 #[derive(Serialize)]
@@ -111,10 +112,82 @@ fn run() -> Result<(), String> {
             }))
         }
         "remote" => remote(&arguments, profile, seed, ticks),
+        "join" => join(&arguments, profile, seed, ticks),
+        "host" => host(&arguments, profile, seed, ticks),
         _ => Err(
-            "usage: rounds-client [local|remote|capture|capture-replay|capture-new-match-draft|visible|visible-flow|visible-new-match-draft] [options]"
+            "usage: rounds-client [local|remote|join|host|capture|capture-replay|capture-new-match-draft|visible|visible-flow|visible-new-match-draft] [options]"
                 .to_owned(),
         ),
+    }
+}
+
+fn join(arguments: &[String], profile: ReplayProfile, seed: u64, ticks: u32) -> Result<(), String> {
+    let address = string_argument(arguments, "--address")?;
+    let client_id = argument(arguments, "--client", 0_u8)?;
+    run_live_client(address, client_id, profile, seed, ticks)
+}
+
+fn host(arguments: &[String], profile: ReplayProfile, seed: u64, ticks: u32) -> Result<(), String> {
+    let bind = argument(arguments, "--bind", "127.0.0.1".to_owned())?;
+    let port = argument(arguments, "--port", 0_u16)?;
+    let client_id = argument(arguments, "--client", 0_u8)?;
+    let trace = optional_path_argument(arguments, "--trace");
+    let server = LiveServer::bind(socket_address(&bind, port)?)?;
+    let address = server.local_addr()?;
+    let peer_address = host_peer_address(address);
+    println!("{{\"event\":\"listening\",\"address\":\"{address}\"}}");
+    let authority = std::thread::spawn(move || server.run(seed, ticks, profile, trace.as_deref()));
+    let client = run_live_client(&peer_address.to_string(), client_id, profile, seed, ticks);
+    let authority = authority
+        .join()
+        .map_err(|_| "live authority thread panicked".to_owned())?;
+    let authority = authority?;
+    print_json(&authority)?;
+    client?;
+    if authority.result == "completed" {
+        Ok(())
+    } else {
+        Err(format!("live authority {}", authority.result))
+    }
+}
+
+fn run_live_client(
+    address: &str,
+    client_id: u8,
+    profile: ReplayProfile,
+    seed: u64,
+    ticks: u32,
+) -> Result<(), String> {
+    let client = LiveClient::connect(address, client_id, seed, profile)?;
+    let handle = client.handle();
+    let close = handle.clone();
+    let network = std::thread::spawn(move || client.run(ticks));
+    let presentation = run_live_visible(handle, client_id);
+    close.close();
+    let report = network
+        .join()
+        .map_err(|_| "live client thread panicked".to_owned())?;
+    let report = report?;
+    print_json(&report)?;
+    presentation?;
+    if report.result == "completed" {
+        Ok(())
+    } else {
+        Err(format!("live client {}", report.result))
+    }
+}
+
+fn socket_address(bind: &str, port: u16) -> Result<SocketAddr, String> {
+    format!("{bind}:{port}")
+        .parse()
+        .map_err(|error| format!("invalid --bind {bind}: {error}"))
+}
+
+fn host_peer_address(address: SocketAddr) -> SocketAddr {
+    if address.ip().is_loopback() || address.ip().is_unspecified() {
+        SocketAddr::from(([127, 0, 0, 1], address.port()))
+    } else {
+        address
     }
 }
 

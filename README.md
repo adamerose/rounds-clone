@@ -3,7 +3,7 @@
 This repository starts from the two supplied ten-minute ROUNDS recordings and builds the clone in Rust with Bevy.
 Seven footage-derived slices exist: a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, a score-driven 3–5 match end in `WAITING`, a standalone lime modular arena traversal, the radial-saw duel through `HALF BLUE`, and the yellow-crate terminal blast through `ROUND ORANGE`.
 The rematch path now continues through both opening card drafts, the first two half results, the timber collapse, the deciding ice duel, the first full-round award, and the losing fighter's five-card `QUICK SHOT` draft in one match.
-Two clients drive one 60 Hz Rapier authority through sequenced local UDP input, the same rules run as a client-host, and the shared Bevy 2D scene renders visibly or to offscreen evidence frames.
+Two clients drive one 60 Hz Rapier authority over controlled direct-IP UDP development sessions. A dedicated authority defaults to loopback, and a host uses that same authority loop while its own player connects through a separate UDP socket. The shared Bevy 2D scene renders the newest validated received snapshot.
 
 ## Build and verify
 
@@ -53,6 +53,18 @@ The first player to win two fights earns a full round. Either color can win both
 For an automated demonstration of the full connected route, run `out/cargo-target/debug/rounds-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 5941 --automated`.
 For the two-client development-transport check, run `out/cargo-target/debug/rounds-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/smoke`.
 Capture all 57 shared-renderer entries with `out/cargo-target/debug/rounds-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/anchors --metadata out/ticket-055/anchors.json`. These commands extend the existing profile; smoke sessions remain bounded to 6,000 exchanged ticks.
+
+## Play a live development session
+
+Run the authority, then start one client for each slot. The dedicated server binds loopback unless `--bind` explicitly selects another IPv4 address.
+
+```powershell
+.\out\cargo-target\debug\rounds-server.exe dedicated --port 41000 --ticks 18000
+.\out\cargo-target\debug\rounds-client.exe join --address 127.0.0.1:41000 --client 0 --ticks 18000
+.\out\cargo-target\debug\rounds-client.exe join --address 127.0.0.1:41000 --client 1 --ticks 18000
+```
+
+`rounds-client host --port 41000 --client 0 --ticks 18000` starts the same authority on a joined thread and connects its own player over UDP; join it with `rounds-client join --address 127.0.0.1:41000 --client 1 --ticks 18000`. Live sessions accept positive bounds through 36,060 ticks. Joining is bounded to five seconds, peer silence to three seconds, and terminal delivery to two seconds; reports distinguish a completed simulation from missing terminal acknowledgements. Short held-control taps can be lost before a send or in transit, and large JSON snapshots may use IP fragmentation. These are controlled direct-IP development sessions: there is no Steam transport, matchmaking, NAT traversal, authentication, prediction, interpolation, rollback, or lag compensation claim.
 
 ## What is and is not implemented
 

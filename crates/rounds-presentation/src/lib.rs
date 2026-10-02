@@ -29,9 +29,10 @@ use bevy::{
         view::screenshot::{Screenshot, ScreenshotCaptured},
     },
     shader::Shader,
-    window::{ExitCondition, Monitor, OnMonitor, PrimaryWindow},
+    window::{ExitCondition, Monitor, OnMonitor, PrimaryWindow, WindowClosed},
     winit::WinitPlugin,
 };
+use rounds_network::LiveClientHandle;
 use rounds_sim::{
     AuthoritativeMatch, DynamicBodyShape, FlowAction, FlowCommand, FlowPhase, FlowSnapshot,
     ItemDefinition, ItemId, MatchSnapshot, PlayerInput, ReplayProfile, scripted_inputs_for,
@@ -312,6 +313,14 @@ struct InteractiveAuthority {
     tick_budget: f64,
     pending_flow: [Option<FlowCommand>; 2],
     final_state: std::sync::mpsc::SyncSender<MatchSnapshot>,
+}
+
+#[derive(Resource)]
+struct LivePresentation {
+    handle: LiveClientHandle,
+    player: u8,
+    displayed_hash: Option<String>,
+    displayed_snapshot: Option<MatchSnapshot>,
 }
 
 impl Drop for InteractiveAuthority {
@@ -744,6 +753,54 @@ pub fn run_interactive_visible(
         .map_err(|error| format!("receive final interactive state: {error}"))
 }
 
+/// Presents only the newest state accepted from an authority. Input is sent to
+/// the assigned client slot; this function never owns a simulation.
+pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), String> {
+    if player > 1 {
+        return Err(format!("player {player} is outside 0..=1"));
+    }
+    let closer = handle.clone();
+    let result = App::new()
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: None,
+                exit_condition: ExitCondition::DontExit,
+                ..default()
+            }),
+            SharedScenePlugin,
+        ))
+        .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
+        .insert_resource(LivePresentation {
+            handle,
+            player,
+            displayed_hash: None,
+            displayed_snapshot: None,
+        })
+        .init_resource::<VisibleWindowRequested>()
+        .init_resource::<MonitorDiscovery>()
+        .insert_resource(VisibleLifetime {
+            frames: u32::MAX,
+            shown: false,
+        })
+        .add_systems(Update, create_monitor_four_window)
+        .add_systems(Update, close_live_window)
+        .add_systems(
+            Update,
+            (
+                advance_live_scene,
+                verify_live_monitor_show,
+                submit_live_input,
+            )
+                .chain(),
+        )
+        .run();
+    closer.close();
+    result
+        .is_success()
+        .then_some(())
+        .ok_or_else(|| "live client exited before verifying the project display".to_owned())
+}
+
 fn create_monitor_four_window(
     mut commands: Commands,
     monitors: Query<(Entity, &Monitor)>,
@@ -1126,6 +1183,178 @@ fn advance_interactive_scene(
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &scene.0);
     if authority.tick >= authority.limit {
         lifetime.frames = 3;
+    }
+}
+
+fn advance_live_scene(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    visuals: Query<Entity, With<SceneVisual>>,
+    mut cameras: Query<
+        (
+            &mut Transform,
+            &mut Bloom,
+            &mut ChromaticAberration,
+            &mut LensDistortion,
+            &mut RadialEchoSettings,
+        ),
+        With<Camera2d>,
+    >,
+    mut live: ResMut<LivePresentation>,
+) {
+    let Some((snapshot, hash)) = live.handle.latest() else {
+        return;
+    };
+    if live.displayed_hash.as_deref() == Some(hash.as_str()) {
+        return;
+    }
+    let (transform, bloom, chromatic, lens) = camera_state(&snapshot);
+    if let Ok((
+        mut camera_transform,
+        mut camera_bloom,
+        mut camera_chromatic,
+        mut camera_lens,
+        mut camera_echo,
+    )) = cameras.single_mut()
+    {
+        *camera_transform = transform;
+        *camera_bloom = bloom;
+        *camera_chromatic = chromatic;
+        *camera_lens = lens;
+        *camera_echo = radial_echo_settings(&snapshot);
+    } else {
+        commands.spawn((
+            Camera2d,
+            Hdr,
+            transform,
+            bloom,
+            chromatic,
+            lens,
+            radial_echo_settings(&snapshot),
+        ));
+    }
+    for entity in &visuals {
+        commands.entity(entity).despawn();
+    }
+    spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot);
+    println!(
+        "{{\"event\":\"presented\",\"tick\":{},\"hash\":\"{}\"}}",
+        snapshot.tick, hash
+    );
+    live.displayed_hash = Some(hash);
+    live.displayed_snapshot = Some(snapshot);
+}
+
+fn verify_live_monitor_show(
+    mut primary: Single<(&mut Window, &OnMonitor), With<PrimaryWindow>>,
+    monitors: Query<&Monitor>,
+    live: Res<LivePresentation>,
+    mut lifetime: ResMut<VisibleLifetime>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if lifetime.shown || live.displayed_snapshot.is_none() {
+        return;
+    }
+    let monitor = monitors
+        .get(primary.1.0)
+        .expect("primary window did not report its monitor");
+    if !is_project_display(monitor) {
+        eprintln!(
+            "primary window was not associated with the configured project display; window remained hidden"
+        );
+        exit.write(AppExit::error());
+        return;
+    }
+    let WindowPosition::At(position) = primary.0.position else {
+        eprintln!("native window position was unavailable; window remained hidden");
+        exit.write(AppExit::error());
+        return;
+    };
+    let center = position + primary.0.physical_size().as_ivec2() / 2;
+    let display_min = monitor.physical_position;
+    let display_max = display_min + monitor.physical_size().as_ivec2();
+    if !center.cmpge(display_min).all() || !center.cmplt(display_max).all() {
+        eprintln!("native window center {center:?} was outside monitor 4; window remained hidden");
+        exit.write(AppExit::error());
+        return;
+    }
+    primary.0.visible = true;
+    lifetime.shown = true;
+    println!(
+        "{{\"event\":\"windowPlacementVerified\",\"width\":{},\"height\":{},\"x\":{},\"y\":{},\"centerX\":{},\"centerY\":{}}}",
+        monitor.physical_width,
+        monitor.physical_height,
+        monitor.physical_position.x,
+        monitor.physical_position.y,
+        center.x,
+        center.y
+    );
+}
+
+fn submit_live_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    gamepads: Query<&Gamepad>,
+    lifetime: Res<VisibleLifetime>,
+    live: Res<LivePresentation>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if let Some(result) = live.handle.result() {
+        if result != "completed" || lifetime.shown {
+            exit.write(if result == "completed" {
+                AppExit::Success
+            } else {
+                AppExit::error()
+            });
+        }
+        return;
+    }
+    if !lifetime.shown {
+        return;
+    }
+    let gamepad = gamepads.iter().next();
+    let input = gamepad.map_or_else(
+        || keyboard_combat_input(&keys, live.player),
+        gamepad_combat_input,
+    );
+    live.handle.set_held(input);
+    let Some(flow) = live
+        .displayed_snapshot
+        .as_ref()
+        .and_then(|snapshot| snapshot.flow.as_ref())
+    else {
+        return;
+    };
+    for key in keys.get_just_pressed().copied() {
+        if let Some(command) = keyboard_flow_command(key, live.player, flow)
+            && let Err(error) = live.handle.push_flow(command)
+        {
+            eprintln!("submit keyboard flow command: {error}");
+            exit.write(AppExit::error());
+            return;
+        }
+    }
+    if let Some(gamepad) = gamepad {
+        for button in gamepad.get_just_pressed().copied() {
+            if let Some(command) = gamepad_flow_command(button, live.player, flow)
+                && let Err(error) = live.handle.push_flow(command)
+            {
+                eprintln!("submit controller flow command: {error}");
+                exit.write(AppExit::error());
+                return;
+            }
+        }
+    }
+}
+
+fn close_live_window(
+    mut closed: MessageReader<WindowClosed>,
+    live: Res<LivePresentation>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if closed.read().next().is_some() {
+        live.handle.close();
+        exit.write(AppExit::Success);
     }
 }
 
@@ -5282,6 +5511,23 @@ mod tests {
             (-1, -1_000, 1_000)
         );
         assert!(combat.jump && combat.fire && !combat.aim_at_opponent);
+        keys.press(KeyCode::ArrowRight);
+        let other_slot = keyboard_combat_input(&keys, 1);
+        assert_eq!(other_slot.move_axis, 1);
+        assert!(!other_slot.jump && !other_slot.fire);
+        assert_eq!(
+            keys.get_just_pressed()
+                .filter(|key| **key == KeyCode::ArrowRight)
+                .filter_map(|key| keyboard_flow_command(*key, 0, flow))
+                .count(),
+            1
+        );
+        keys.clear_just_pressed(KeyCode::ArrowRight);
+        assert!(
+            !keys
+                .get_just_pressed()
+                .any(|key| *key == KeyCode::ArrowRight)
+        );
         assert!(gamepad_combat_input(&Gamepad::default()).aim_at_opponent);
         let mut pad = Gamepad::default();
         pad.analog_mut().set(GamepadAxis::LeftStickX, -1.0);

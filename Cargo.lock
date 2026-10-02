@@ -4535,6 +4535,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "png",
+ "rounds-network",
  "rounds-sim",
  "serde",
  "sha2",

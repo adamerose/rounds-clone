@@ -11,6 +11,11 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
+mod live;
+pub use live::{
+    LiveClient, LiveClientHandle, LiveClientReport, LiveServer, LiveServerReport, MAX_LIVE_TICKS,
+};
+
 pub const NETWORK_PROTOCOL: u16 = 11;
 pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM_BYTES: usize = 65_507;
