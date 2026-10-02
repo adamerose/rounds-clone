@@ -1,6 +1,7 @@
 ---
 format: 3
 status: ready
+owner: codex:01a0fd03-d222-7cf2-a225-29c243f2337e
 created: 2026-09-07T16:03:21Z
 origin: system-detected
 tags: ["product-fidelity", "movement", "bevy"]
@@ -10,6 +11,7 @@ sessions:
   - claude:96849848-e6ec-488e-b4ac-b113acc49f8a
   - codex:01a0fa96-a468-7332-92f6-c36c3908e4b9
   - codex:01a0fae4-9ad3-7631-b794-b2470f74a6a4
+  - codex:01a0fd03-d222-7cf2-a225-29c243f2337e
 execution: unattended
 parent: 59
 depends-on: [50, 60]
