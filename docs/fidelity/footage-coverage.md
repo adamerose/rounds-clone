@@ -68,8 +68,8 @@ Source: `reference/MedalTVRounds20260903165304088.mp4`, duration `600.13` second
 | 03:50–04:00 | elimination and HALF ORANGE through PTS 2351823926, then incoming ice and first traversal | connected S2/S5/S6/S7 route implemented, less the ice traversal: a gap of 95.3 px right and 35.8 px lower at the bound 4786 anchor, per blocked ticket 049; unobserved ice reactions and production S8 unresolved |
 | 04:00–04:10 | ice duel, close terminal burst, adjacent undimmed/result frames at PTS 2484823394/2484990060, then ROUND BLUE | connected S2/S5/S6/S7 route implemented; remaining S4 and production S8 unresolved |
 | 04:10–04:20 | first blue round pip, loser-only five-card fan, bridge, and held hanging-arena entry through PTS 2585322992 | S1/S6 and held-entry S2/S5/S7 implemented; suspension, control release, combat, Quick Shot reload/ammunition and source-fitted speed, four visible card effects, later rounds, audio and production S8 unresolved |
-| 04:20–04:30 | hanging-column arena duel | held entry implemented through tick 5941; active S2/S3/S5/S7/S8 behavior unresolved |
-| 04:30–04:40 | hanging-column movement and combat | S2, S3, S5, S7, S8 |
+| 04:20–04:30 | hanging-column arena duel; active source frames measured after PTS 2585322992 | held entry implemented through tick 5941; active S2/S3/S5/S7/S8 behavior unresolved; see `active-hanging-arena-observations.md` for measured movement and local body deflection |
+| 04:30–04:40 | hanging-column movement and combat; still active at PTS 2799988800 | S2, S3, S5, S7, S8 unresolved; no result or draft observed by the measurement bound |
 | 04:40–04:50 | `COMBINE` card presentation | S1, S5, S7 |
 | 04:50–05:00 | `SCAVENGER` draft choice | S1, S5, S7 |
 | 05:00–05:10 | `HALF BLUE` result overlay | S6, S7 |

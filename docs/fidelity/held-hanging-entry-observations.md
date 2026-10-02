@@ -57,3 +57,5 @@ At age 8 the visible upper-square centers are approximately 675.5, 765.5, 855.5,
 ## Boundary of the evidence
 
 This record supports a held scene and its presentation only. It does not select when ordinary control truly begins, a suspension topology, mass, inertia, collision role, actor support, jump behavior, ammunition/reload, projectile calibration, damage, or the later tick-5954 combat pose. Those questions require their own admitted contracts.
+
+The following active frames through the 280-second bound are measured in [active hanging-arena observations](active-hanging-arena-observations.md). That record does not change this held-entry implementation boundary.
