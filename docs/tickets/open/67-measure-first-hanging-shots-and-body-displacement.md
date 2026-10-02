@@ -49,3 +49,4 @@ The measured hanging landing prefix stops before firing and suspended-body motio
 - 2026-10-02T06:02:47Z stage design end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Idea bounds adjacent-frame shot and displacement evidence through 262 seconds; fresh admission remains required.
 
 - 2026-10-02T06:06:24Z Fresh other-family admission claude:1f8503f4-b6e5-4f30-894b-f95e08951866 ADMIT at risk 3 under goal 59 delegation; about 160 native frames, exact source identities, source-only inference limits and disjoint no-Cargo/no-GPU research accepted. Worker uses out/ticket-067 and the delivered pinned decoder method; report absent one-sided firing without extending the bound.
+- 2026-10-02T06:10:10Z stage research start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — Reverify source and stop identity, then decode adjacent native frames through 262 seconds.
