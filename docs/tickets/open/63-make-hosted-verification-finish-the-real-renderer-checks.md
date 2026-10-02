@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-02T03:44:36Z
 origin: system-detected
 tags: ["rounds", "ci", "rendering", "verification"]
@@ -23,7 +23,7 @@ Hosted Windows CI fails three real renderer tests before it reaches the correcte
 
 - Required format, strict Clippy, locked build, complete locked workspace tests, two-client smoke and deterministic capture execute successfully on the existing Windows hosted configuration, with all renderer tests still enabled.
 - Every rendered frame uses the shared Bevy GPU scene and still waits for complete scene/pipeline/screenshot readiness; invalid frames and actual device failures remain errors.
-- Ticket-only pushes and superseded pushes do not start redundant complete product builds. Product Rust, Cargo configuration/lock/toolchain, assets, and CI changes still trigger the whole required verification; pull-request verification remains available without opening a PR for this run.
+- Ticket-only pushes do not start redundant complete product builds; native concurrency cancels superseded runs in the same workflow/ref. Product Rust, Cargo configuration/lock/toolchain, assets, and CI changes still trigger the whole required verification; pull-request verification remains available without opening a PR for this run.
 
 ## Decisions
 
@@ -46,3 +46,5 @@ Hosted Windows CI fails three real renderer tests before it reaches the correcte
 - 2026-10-02T03:44:36Z stage research start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Read authoritative failed Actions logs and the shared renderer device-wait boundary after ticket61 published its caller correction.
 - 2026-10-02T03:44:36Z stage research end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Identified the exact two-second poll timeout failure and twelve simultaneous hosted runs; root cause remains to be established without weakening the fifteen-second readiness contract.
 - 2026-10-02T03:50:01Z stage review start session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9 — Requesting fresh independent admission of renderer failure diagnosis/full hosted verification and native duplicate-CI suppression, including explicit partial publication only while hosted evidence remains undelivered.
+
+- 2026-10-02T04:05:21Z stage review end session codex:01a0fa96-a468-7332-92f6-c36c3908e4b9/claude-9ffe0981-58b2-428c-99b1-d354e4a4f75d — ADMIT at risk4 with no blockers. Folded in the clarification that concurrency cancels obsolete same-ref runs. Use a paths-ignore denylist for docs/tickets/** and docs/decisions.md only, preserve branch/tag/PR coverage, accept a successful full main run containing the approved range, and prove the concurrent-renderer hypothesis before changing scheduling or wait semantics. Hosted evidence may use the explicitly authorized partial-delivery path.
