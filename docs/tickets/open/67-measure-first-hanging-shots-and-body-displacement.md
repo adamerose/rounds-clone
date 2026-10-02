@@ -63,3 +63,4 @@ The measured hanging landing prefix stops before firing and suspended-body motio
 - 2026-10-02T07:19:50Z stage correction end session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — Added second sustained orange dot drop, dark held ball, corrected glow tail and softened 401 onset; 32 hashes, ticket check and diff check pass.
 - 2026-10-02T07:19:54Z stage review start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — Fresh reviewer checks exact full corrected range and retained source evidence.
 - 2026-10-02T07:23:17Z stage review end session claude:92b98132-9045-4a02-9c18-b99a6c9b49a2 — Prior corrections and 32 hashes confirmed; changes required for orange rise/red splash at body 402, still visible at first-burst stop; full report out/ticket-067/review-3.json.
+- 2026-10-02T07:23:22Z stage correction start session codex:01a0fb39-66a8-7601-99ac-6a2c759a7ef9 — Bound red contact-splash pair and orange vertical departure without assigning a wall-jump or hit rule.
