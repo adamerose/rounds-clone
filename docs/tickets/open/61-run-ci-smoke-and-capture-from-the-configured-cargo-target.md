@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-02T03:14:55Z
 origin: system-detected
 tags: ["rounds", "ci", "verification"]
