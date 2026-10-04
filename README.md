@@ -1,9 +1,11 @@
-# ROUNDS clean-room rewrite
+# ROUNDS clone
 
-This repository starts from the two supplied ten-minute ROUNDS recordings and builds the clone in Rust with Bevy.
-Seven footage-derived slices exist: a teal duel, an explosive timber collapse, the blue 4–5 victory through rematch and two-player card draft into upgraded combat, a score-driven 3–5 match end in `WAITING`, a standalone lime modular arena traversal, the radial-saw duel through `HALF BLUE`, and the yellow-crate terminal blast through `ROUND ORANGE`.
-The rematch path now continues through both opening card drafts, the first two half results, the timber collapse, the deciding ice duel, the first full-round award, and the losing fighter's five-card `QUICK SHOT` draft in one match.
-Two clients drive one 60 Hz Rapier authority over controlled direct-IP UDP development sessions. A dedicated authority defaults to loopback, and a host uses that same authority loop while its own player connects through a separate UDP socket. The shared Bevy 2D scene renders the newest validated received snapshot.
+A game for Adam and his friends that starts from the feel of ROUNDS (fast 1v1 physics duels with a card draft for the round loser) and grows into their own improved version, possibly released on Steam under an original name.
+It is a clean-room Rust, Bevy and Rapier implementation; see `GOAL.md` for the purpose and `docs/roadmap.md` for what comes next.
+
+Today the code contains seven footage-derived scenes rather than a general match: teal duel, timber collapse, the rematch/draft/ice route, match end, lime arena, radial saw, and yellow crate.
+Two clients drive one 60 Hz Rapier authority over direct-IP UDP development sessions, with no prediction yet.
+The commands below exercise those scenes; roadmap milestone M1 replaces them with an ordinary match.
 
 ## Build and verify
 

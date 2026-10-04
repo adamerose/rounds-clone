@@ -665,3 +665,19 @@ Ticket 72 records independent admission by `codex:01a0fd6c-3363-7ab0-83b9-b1880f
 Under Adam's delegated goal authority, this worker chooses retained-PNG measurement only, explicit registration against independent pedestal silhouettes, and a stopped center-cap identity track once blue obscures it. The alternatives were decoding dense missing boundaries without the assigned resource slot, guessing hidden poses/constants from sparse samples, or treating the later disturbed caps as invalidating the earlier static fixture. The chosen method is reversible research: originals and all earlier worktrees remain intact, derived evidence lives at root `out/ticket-072`, and the six-second fixture is unchanged. Right-cap continuation is probable, not a continuous engine identity; center reappearance remains unassigned. A proposed later physics contract may use separate square bodies as a reconstruction, without converting overlap into contact or adding an all-cap rule. No product coverage or goal completion is claimed.
 
 Both provider headrooms were checked before reviewer launch (`out/ticket-072/review-launch-headroom.json`). Claude's session is 100% used, resetting at 19:10 UTC; its weekly Fable bucket is 90%. Codex's ordinary weekly subscription was 85% used at the read. A fresh independent native Astra high-effort reviewer, `codex:01a0fd93-4863-7a63-a0b1-144a663ae1e3`, is the explicitly authorized same-family fallback. Alternatives were waiting for Claude's reset or consuming paid/reset credits; no credits are bought or consumed and no reasoning/review deadline is imposed. Worker and reviewer remain separate contexts, and only an exact-range approval can authorize publication.
+
+## 2026-10-04 — Build a game the group plays, not a replay of two recordings
+
+Adam restated the project's purpose: he and his friends love ROUNDS for its fun and its look, it is no longer developed, and he wants his own version the group can keep improving and might release on Steam as his own game.
+That replaces the 2026-09-03 goal of reproducing both supplied recordings as complete online matches, and the 2026-08-29 rule that the game must never intentionally diverge from ROUNDS.
+
+The 2026-09-03 goal answered a real failure: the Godot prototype drifted into an invented `RICOCHET` identity that did not feel like ROUNDS (see the 2026-08-29 postmortem on internal consistency gates).
+Frame-matching two recordings guarded against that drift, but after about 610 commits it produced seven footage slices instead of a game: rules branch on `ReplayProfile`, draft offers are lists copied from the videos, three cards work, and recent tickets measure gun-dot occlusion and arena-cap poses.
+Feel fidelity to ROUNDS stays the baseline for movement, combat and flow; the recordings and `docs/fidelity/` become tuning references, and success is judged by play sessions.
+
+Selling a close copy under the ROUNDS name, Landfall's card names or its trade dress is a legal risk that clean-room code does not remove, so the game keeps those names replaceable in data and needs an original identity before any public release.
+This partly restores the reasoning of the 2026-08-14 original-identity decision, deferred until Adam chooses a name.
+
+Rust, Bevy and Rapier stay: a third engine restart would discard working physics, networking and rendering, and nothing observed shows the engine is the obstacle.
+The next work removes footage profiles in favour of general arenas, cards and match flow (`docs/roadmap.md` M1), then tests online feel at real latency before choosing prediction or rollback (M2).
+GOAL.md, the README introduction, the architecture introduction and `docs/roadmap.md` change with this entry.
