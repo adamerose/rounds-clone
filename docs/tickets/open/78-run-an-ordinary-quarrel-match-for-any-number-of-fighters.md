@@ -23,22 +23,22 @@ This ticket replaces all of that with one general match flow driven by a match c
 
 - A match config (fighter count, target score, offer size, run-it-back limit, seed) replaces `ReplayProfile`; fighters are a list, not two fixed slots, and 1v1 is the shipped setting.
 - A match goes: every fighter picks one card from their own offer; then fights, each on a random arena from `assets/arenas/` that does not repeat until all have been used; the last fighter standing scores a point; every fighter who did not win the fight picks one card from their own seeded offer; the first to the target score wins.
-- If every remaining fighter dies at once, nobody scores or picks, and the next fight starts on a new arena.
-- At match end, everyone can vote to run it back with their cards kept and the target raised, at most twice; otherwise a new match starts from no cards.
+- A fight never ends in a tie: if the last fighters die on the same tick, a coin flip seeded from the match decides who scores, identically on every client.
+- At match end, everyone can vote to run it back with their cards kept and the target raised from 5 to 10, then 15, at most twice; otherwise a new match starts from no cards.
 - Offers are drawn from the card pool in data, so new cards appear in offers without code changes.
 - A short recorded-input replay plays an ordinary match through these general rules as a regression check.
 - `ReplayProfile`, the historical-rematch setup, the fixed offer lists, the ROUNDS card catalog and the capture-anchor tests that only served them are deleted.
 
 ## Decisions
 
-- Defaults: first to five points, five cards per offer, run-it-back raises the target by three, at most two run-backs (Adam, 2026-10-04 and 2026-10-05; tunable in the config).
+- Defaults: first to five points, five cards per offer, run-backs raise the target to 10 and then 15, at most two run-backs (Adam, 2026-10-04 and 2026-10-05; tunable in the config).
 - Only fighters who did not win a fight pick; in 1v1 that is the loser (Adam, 2026-10-04).
 - A new random arena every fight, as in ROUNDS (Adam, 2026-10-04).
 - Offers are seeded from the match seed so a replay reproduces them.
 
 ## Evidence required
 
-- Sim tests cover: opening pick, a point per fight, loser pick, simultaneous death, first to the target, run-it-back keeping cards and raising the target, the run-back limit, and arena rotation without repeats.
+- Sim tests cover: opening pick, a point per fight, loser pick, a same-tick double death resolved by the seeded coin flip, first to the target, run-it-back keeping cards and raising the target, the run-back limit, and arena rotation without repeats.
 - A sim test runs a three-fighter match to its end.
 - The recorded-input replay reaches a draft and a match end and produces the same result on two runs.
 - A headless two-client smoke over UDP plays an ordinary match through at least one draft.
@@ -51,6 +51,12 @@ Adam — this session, 2026-10-04:
 > i want to go back to only the loser gets to pick an upgrade, but lets scrap the best of 3 round thing.
 
 > keep it quick but allow a way to optionally continue, or cycle, without complete reset, a few times (not infinitely)
+
+Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-8fd1-3a061e17847f), 2026-10-05:
+
+> that should never happen. or flip a coin. dont tie
+
+> running it back should be 5,10,15
 
 ## Work log
 
