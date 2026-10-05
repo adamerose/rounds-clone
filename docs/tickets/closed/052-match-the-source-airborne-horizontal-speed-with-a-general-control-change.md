@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: closed
 created: 2026-09-07T16:03:21Z
 origin: system-detected
 tags: ["product-fidelity", "movement", "bevy"]
