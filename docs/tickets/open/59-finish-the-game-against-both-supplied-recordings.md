@@ -1,7 +1,6 @@
 ---
 format: 3
 status: ready
-owner: codex:01a0fd03-d222-7cf2-a225-29c243f2337e
 created: 2026-10-02T03:13:11Z
 origin: human-request
 tags: ["rounds", "autonomy", "autonomy-goal", "completion"]
