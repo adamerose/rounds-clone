@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:55:57Z
 origin: human-request
 tags: ["quarrel", "mvp", "network", "steam"]
@@ -9,7 +9,7 @@ sessions:
   - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
 execution: unattended
 parent: 75
-depends-on: [81]
+depends-on: [81, 83]
 supersedes: []
 split-from: []
 ---
@@ -35,8 +35,8 @@ Steam's lobbies and relay network solve that and match where the game is heading
 ## Evidence required
 
 - Tests run the match over the transport interface with an in-memory loopback, showing the Steam path uses the same match code as UDP.
-- With Steam running on this machine, the client initialises Steam, creates a lobby and shows the invite flow; recorded with a capture taken on monitor 4.
-- With Steam not running, the client starts and the online-Steam option explains that Steam is needed.
+- If Steam is already running and signed in when the work is done, the worker shows lobby creation and the invite overlay in a game window verified on monitor 4; otherwise it records that, and this check joins Adam's first play session with the two-home test in #75.
+- With Steam unavailable (not running, or initialisation forced to fail by a test setting), the client starts and the online-Steam option explains that Steam is needed.
 - The two-home friend test is part of the MVP's first play session and is checked by Adam, not by the worker.
 
 ## Chat excerpts
