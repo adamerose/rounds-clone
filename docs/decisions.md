@@ -738,3 +738,8 @@ The earlier map research avoided community names; the new catalogue includes the
 Adam ruled out tied fights: when the last fighters die on the same tick, a coin flip seeded from the match decides the point, so every client agrees on it.
 Running it back raises the target from 5 to 10, then 15, at most twice.
 Online play between homes moves into the MVP (M1) instead of following it, because the group mostly plays 1v1 online; it covers responsive play at realistic latency, compact snapshots and Steam networking with friend invites and no port forwarding.
+
+## 2026-10-05 — Run #75 admits #76 to #84
+
+An independent contract check found missing dependencies (#82 on #78, #83 on #79, #84 on #83), an undefined card format between #78 and #80, and Steam and controller evidence a worker could not produce unattended; the tickets were fixed and admitted.
+Delegated for run #75: a run-back needs every fighter to vote yes, and any no starts a new match from no cards; the alternative, a majority vote, could force a player into a longer match they did not want.
