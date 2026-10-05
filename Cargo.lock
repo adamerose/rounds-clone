@@ -4293,7 +4293,6 @@ dependencies = [
  "quarrel-sim",
  "serde",
  "serde_json",
- "sha2",
 ]
 
 [[package]]
@@ -4314,9 +4313,7 @@ dependencies = [
  "png",
  "quarrel-network",
  "quarrel-sim",
- "serde",
  "serde_json",
- "sha2",
 ]
 
 [[package]]

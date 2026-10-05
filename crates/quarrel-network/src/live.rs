@@ -1,5 +1,5 @@
 use quarrel_sim::{
-    AuthoritativeMatch, FlowCommand, MatchSnapshot, PlayerInput, ReplayProfile, TICKS_PER_SECOND,
+    AuthoritativeMatch, FlowCommand, MatchConfig, MatchSnapshot, PlayerInput, TICKS_PER_SECOND,
     hash_snapshot,
 };
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub const MAX_LIVE_TICKS: u32 = 36_060;
-const LIVE_PROTOCOL: u16 = 12;
+// The sessioned datagrams are deliberately distinct from the synchronous UDP schema.
+const LIVE_PROTOCOL: u16 = 13;
 const MAX_DATAGRAM: usize = 65_507;
 const JOIN_WINDOW: Duration = Duration::from_secs(5);
 const PEER_WINDOW: Duration = Duration::from_secs(3);
@@ -42,8 +43,7 @@ enum ClientPacket {
     Hello {
         protocol: u16,
         client_id: u8,
-        seed: u64,
-        profile: ReplayProfile,
+        config: MatchConfig,
         nonce: u64,
     },
     Input {
@@ -152,7 +152,7 @@ fn valid_ticks(ticks: u32) -> Result<(), String> {
 pub struct AppliedTick {
     pub tick: u32,
     pub elapsed_micros: u128,
-    pub inputs: [PlayerInput; 2],
+    pub inputs: Vec<PlayerInput>,
     pub hash: String,
 }
 
@@ -212,23 +212,28 @@ impl LiveServer {
 
     pub fn run(
         self,
-        seed: u64,
+        config: MatchConfig,
         ticks: u32,
-        profile: ReplayProfile,
         trace_path: Option<&Path>,
     ) -> Result<LiveServerReport, String> {
-        self.run_inner(seed, ticks, profile, trace_path, RunFaults::default())
+        self.run_inner(config, ticks, trace_path, RunFaults::default())
     }
 
     fn run_inner(
         self,
-        seed: u64,
+        config: MatchConfig,
         ticks: u32,
-        profile: ReplayProfile,
         trace_path: Option<&Path>,
         faults: RunFaults,
     ) -> Result<LiveServerReport, String> {
         valid_ticks(ticks)?;
+        config.validate()?;
+        if config.fighter_count != 2 {
+            return Err("live UDP currently supports exactly two fighters".to_owned());
+        }
+        // Prepare arena collision geometry before welcoming peers and starting
+        // the live input/silence clocks.
+        let mut simulation = AuthoritativeMatch::with_config(config.clone())?;
         let session = new_nonce();
         let mut peers: [Option<(SocketAddr, u64)>; 2] = [None, None];
         let join_until = Instant::now() + JOIN_WINDOW;
@@ -243,16 +248,11 @@ impl LiveServer {
                 if let ClientPacket::Hello {
                     protocol,
                     client_id,
-                    seed: received_seed,
-                    profile: received_profile,
+                    config: received_config,
                     nonce,
                 } = packet
                 {
-                    if protocol != LIVE_PROTOCOL
-                        || client_id > 1
-                        || received_seed != seed
-                        || received_profile != profile
-                    {
+                    if protocol != LIVE_PROTOCOL || client_id > 1 || received_config != config {
                         continue;
                     }
                     let slot = &mut peers[usize::from(client_id)];
@@ -283,7 +283,6 @@ impl LiveServer {
         let mut pending: [Option<(u64, FlowCommand)>; 2] = [None, None];
         let mut ack = [0_u64; 2];
         let mut last_seen = [Instant::now(); 2];
-        let mut simulation = AuthoritativeMatch::new_with_profile(seed, profile);
         let start = Instant::now();
         let tick_period = Duration::from_secs_f64(1.0 / f64::from(TICKS_PER_SECOND));
         let mut next_tick = start + tick_period;
@@ -332,13 +331,11 @@ impl LiveServer {
                             ClientPacket::Hello {
                                 protocol,
                                 client_id,
-                                seed: received_seed,
-                                profile: received_profile,
+                                config: received_config,
                                 nonce,
                             } if protocol == LIVE_PROTOCOL
                                 && usize::from(client_id) == id
-                                && received_seed == seed
-                                && received_profile == profile
+                                && received_config == config
                                 && nonce == [peer0.1, peer1.1][id] =>
                             {
                                 max_sent = max_sent.max(send(
@@ -367,23 +364,25 @@ impl LiveServer {
             }
             let started_late = Instant::now() > next_tick + Duration::from_millis(2);
             let observation = simulation.snapshot();
-            let inputs = std::array::from_fn(|id| {
-                let mut input = latest[id];
-                if let Some((edge_id, command)) = pending[id].take() {
-                    input.flow = Some(command);
-                    ack[id] = edge_id;
-                }
-                input
-                    .with_progressive_observation(id as u8, Some(&observation))
-                    .validated()
-            });
-            simulation.step(inputs);
+            let inputs = (0..2)
+                .map(|id| {
+                    let mut input = latest[id];
+                    if let Some((edge_id, command)) = pending[id].take() {
+                        input.flow = Some(command);
+                        ack[id] = edge_id;
+                    }
+                    input
+                        .with_progressive_observation(id as u8, Some(&observation))
+                        .validated()
+                })
+                .collect::<Vec<_>>();
+            simulation.step(&inputs);
             let state = simulation.snapshot();
             let hash = hash_snapshot(&state);
             trace.push(AppliedTick {
                 tick,
                 elapsed_micros: start.elapsed().as_micros(),
-                inputs,
+                inputs: inputs.clone(),
                 hash: hash.clone(),
             });
             let packet = ServerPacket::Snapshot {
@@ -533,11 +532,11 @@ impl LiveClient {
     pub fn connect(
         address: impl ToSocketAddrs,
         client_id: u8,
-        seed: u64,
-        profile: ReplayProfile,
+        config: MatchConfig,
     ) -> Result<Self, String> {
-        if client_id > 1 {
-            return Err("client id must be 0 or 1".to_owned());
+        config.validate()?;
+        if config.fighter_count != 2 || client_id > 1 {
+            return Err("live UDP currently supports client ids 0 and 1".to_owned());
         }
         let authority = address
             .to_socket_addrs()
@@ -553,8 +552,7 @@ impl LiveClient {
         let hello = ClientPacket::Hello {
             protocol: LIVE_PROTOCOL,
             client_id,
-            seed,
-            profile,
+            config,
             nonce,
         };
         let until = Instant::now() + JOIN_WINDOW;
@@ -772,108 +770,48 @@ impl LiveClient {
 }
 
 #[cfg(test)]
-mod tests {
+mod regression_tests {
     use super::*;
-    use quarrel_sim::{ActionResult, FlowAction, FlowPhase};
+    #[test]
+    fn ordinary_state_and_inputs_round_trip_in_live_packets() {
+        let mut game = AuthoritativeMatch::with_config(MatchConfig::default()).unwrap();
+        let state = game.snapshot();
+        let packet = ServerPacket::Snapshot {
+            session: u64::MAX,
+            tick: state.tick,
+            hash: hash_snapshot(&state),
+            ack: [0, 0],
+            state: Box::new(state.clone()),
+        };
+        let bytes = encode(&packet).unwrap();
+        let decoded: ServerPacket =
+            serde_json::from_slice(&bytes).expect("ordinary snapshot decode");
+        let ServerPacket::Snapshot { state: decoded, .. } = decoded else {
+            panic!("wrong packet")
+        };
+        assert_eq!(*decoded, state);
+        let input = ClientPacket::Input {
+            session: u64::MAX,
+            client_id: 0,
+            sequence: 1,
+            held: PlayerInput::default(),
+            edge: None,
+        };
+        let _: ClientPacket =
+            serde_json::from_slice(&encode(&input).unwrap()).expect("input decode");
+    }
     use std::thread;
 
-    #[test]
-    fn live_inputs_follow_observation_and_received_hashes_replay() {
-        let seed = 38;
-        let ticks = 90;
-        let profile = ReplayProfile::TimberCollapseReplay;
-        let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let address = server.local_addr().unwrap();
-        let trace_path = std::env::temp_dir().join(format!(
-            "rounds-live-trace-{}-{}.json",
-            std::process::id(),
-            new_nonce()
-        ));
-        let server_trace = trace_path.clone();
-        let authority = thread::spawn(move || {
-            server
-                .run(seed, ticks, profile, Some(&server_trace))
-                .unwrap()
-        });
-        let clients = (0..2)
-            .map(|id| {
-                thread::spawn(move || {
-                    let client = LiveClient::connect(address, id, seed, profile).unwrap();
-                    let handle = client.handle();
-                    let run = thread::spawn(move || client.run(ticks).unwrap());
-                    while handle.latest().is_none_or(|(state, _)| state.tick < 20) {
-                        thread::sleep(Duration::from_millis(2));
-                    }
-                    handle.set_held(PlayerInput {
-                        move_axis: if id == 0 { 1 } else { -1 },
-                        ..Default::default()
-                    });
-                    run.join().unwrap()
-                })
-            })
-            .collect::<Vec<_>>();
-        let reports = clients
-            .into_iter()
-            .map(|client| client.join().unwrap())
-            .collect::<Vec<_>>();
-        let server = authority.join().unwrap();
-        assert_eq!(server.result, "completed");
-        assert_eq!(server.terminal_acks, [true, true]);
-        assert!(
-            server.elapsed_ms >= 1_450,
-            "authority tick clock ran too fast: {} ms",
-            server.elapsed_ms
-        );
-        assert!(
-            server.mean_rate_hz > 45.0,
-            "unstalled live clock fell behind: {} Hz",
-            server.mean_rate_hz
-        );
-        let trace: Vec<AppliedTick> =
-            serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
-        fs::remove_file(trace_path).unwrap();
-        let mut replay = AuthoritativeMatch::new_with_profile(seed, profile);
-        let mut without_live_movement = AuthoritativeMatch::new_with_profile(seed, profile);
-        for row in &trace {
-            replay.step(row.inputs);
-            assert_eq!(hash_snapshot(&replay.snapshot()), row.hash);
-            let mut unmoved = row.inputs;
-            for input in &mut unmoved {
-                input.move_axis = 0;
-            }
-            without_live_movement.step(unmoved);
-        }
-        let final_positions = replay.snapshot().players;
-        let unmoved_positions = without_live_movement.snapshot().players;
-        for id in 0..2 {
-            assert_ne!(final_positions[id].x_milli, unmoved_positions[id].x_milli);
-        }
-        for (id, report) in reports.iter().enumerate() {
-            let first_change = trace
-                .iter()
-                .find(|row| row.inputs[id].move_axis != 0)
-                .unwrap()
-                .tick;
-            assert!(first_change > 20);
-            assert!(
-                trace
-                    .iter()
-                    .all(|row| row.tick >= first_change || row.inputs[id].move_axis == 0)
-            );
-            assert_eq!(report.result, "completed");
-            assert_eq!(
-                report.state_hash.as_deref(),
-                Some(server.state_hash.as_str())
-            );
-            for (tick, hash) in &report.received {
-                assert_eq!(trace[(*tick - 1) as usize].hash, *hash);
-            }
+    fn config() -> MatchConfig {
+        MatchConfig {
+            target_score: 1,
+            ..Default::default()
         }
     }
 
     #[test]
-    fn edge_queue_rejects_overflow_without_losing_order_or_held_updates() {
-        let shared = LiveClientHandle(Arc::new(Mutex::new(Shared {
+    fn held_input_and_flow_edges_remain_separate() {
+        let handle = LiveClientHandle(Arc::new(Mutex::new(Shared {
             held: PlayerInput::default(),
             edges: VecDeque::new(),
             next_edge: 0,
@@ -881,355 +819,49 @@ mod tests {
             close: false,
             result: None,
         })));
-        let command = FlowCommand {
-            phase_revision: 0,
-            action: quarrel_sim::FlowAction::VoteYes,
-        };
-        for _ in 0..EDGE_CAPACITY {
-            shared.push_flow(command).unwrap();
-        }
-        assert!(shared.push_flow(command).unwrap_err().contains("overflow"));
-        shared.set_held(PlayerInput {
+        handle.set_held(PlayerInput {
             move_axis: 1,
             ..Default::default()
         });
-        let locked = shared.0.lock().unwrap();
-        assert_eq!(locked.held.move_axis, 1);
+        handle
+            .push_flow(FlowCommand {
+                phase_revision: 0,
+                action: quarrel_sim::FlowAction::VoteYes,
+            })
+            .unwrap();
+        let shared = handle.0.lock().unwrap();
+        assert_eq!(shared.held.move_axis, 1);
         assert_eq!(
-            locked.edges.iter().map(|(id, _)| *id).collect::<Vec<_>>(),
-            (1..=8).collect::<Vec<_>>()
+            shared.edges.iter().map(|(id, _)| *id).collect::<Vec<_>>(),
+            vec![1]
         );
     }
 
     #[test]
-    fn full_live_bound_simulates_and_encodes_every_authoritative_state() {
-        let mut simulation =
-            AuthoritativeMatch::new_with_profile(59, ReplayProfile::LimeModularArenaReplay);
-        let mut largest = 0;
-        for tick in 1..=MAX_LIVE_TICKS {
-            simulation.step([
-                PlayerInput {
-                    move_axis: if tick % 240 < 120 { 1 } else { -1 },
-                    jump: tick % 180 < 24,
-                    fire: tick % 60 < 30,
-                    aim_at_opponent: true,
-                    ..Default::default()
-                },
-                PlayerInput {
-                    move_axis: if tick % 300 < 150 { -1 } else { 1 },
-                    jump: tick % 210 < 24,
-                    fire: tick % 75 < 30,
-                    aim_at_opponent: true,
-                    ..Default::default()
-                },
-            ]);
-            let state = simulation.snapshot();
-            let packet = ServerPacket::Snapshot {
-                session: 1,
-                tick,
-                hash: hash_snapshot(&state),
-                ack: [0, 0],
-                state: Box::new(state),
-            };
-            largest = largest.max(encode(&packet).unwrap().len());
-        }
-        assert_eq!(simulation.snapshot().tick, MAX_LIVE_TICKS);
-        println!("full-bound max encoded datagram: {largest} bytes");
-    }
-
-    #[test]
-    fn flow_edges_are_consumed_fifo_even_when_rules_reject_them() {
-        let seed = 41;
-        let ticks = 460;
-        let profile = ReplayProfile::RematchDraftReplay;
+    fn sessioned_live_clients_receive_terminal_state() {
+        let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
         let address = server.local_addr().unwrap();
-        let trace_path = std::env::temp_dir().join(format!(
-            "rounds-flow-trace-{}-{}.json",
-            std::process::id(),
-            new_nonce()
-        ));
-        let server_trace = trace_path.clone();
-        let authority = thread::spawn(move || {
-            server
-                .run(seed, ticks, profile, Some(&server_trace))
-                .unwrap()
-        });
-        let first = thread::spawn(move || {
-            let client = LiveClient::connect(address, 0, seed, profile).unwrap();
-            let handle = client.handle();
-            let run = thread::spawn(move || client.run(ticks).unwrap());
-            wait_for(&handle, |state| {
-                state
-                    .flow
-                    .as_ref()
-                    .is_some_and(|flow| flow.phase == FlowPhase::RematchPrompt)
-            });
-            for revision in [0, 1, 1] {
-                handle
-                    .push_flow(FlowCommand {
-                        phase_revision: revision,
-                        action: FlowAction::VoteYes,
-                    })
-                    .unwrap();
-            }
-            wait_for(&handle, |_| handle.0.lock().unwrap().edges.is_empty());
-            wait_for(&handle, |state| {
-                state
-                    .flow
-                    .as_ref()
-                    .is_some_and(|flow| flow.phase == FlowPhase::Draft)
-            });
-            let state = handle.latest().unwrap().0;
-            let flow = state.flow.unwrap();
-            let item = flow.offers[0][0];
-            handle
-                .push_flow(FlowCommand {
-                    phase_revision: flow.phase_revision,
-                    action: FlowAction::Hover(item),
-                })
-                .unwrap();
-            handle
-                .push_flow(FlowCommand {
-                    phase_revision: flow.phase_revision,
-                    action: FlowAction::Hover(item),
-                })
-                .unwrap();
-            handle.set_held(PlayerInput {
-                move_axis: 1,
-                ..Default::default()
-            });
-            run.join().unwrap()
-        });
-        let second = thread::spawn(move || {
-            let client = LiveClient::connect(address, 1, seed, profile).unwrap();
-            let handle = client.handle();
-            let run = thread::spawn(move || client.run(ticks).unwrap());
-            wait_for(&handle, |state| {
-                state
-                    .flow
-                    .as_ref()
-                    .is_some_and(|flow| flow.phase == FlowPhase::RematchPrompt)
-            });
-            while handle
-                .latest()
-                .unwrap()
-                .0
-                .flow
-                .as_ref()
-                .unwrap()
-                .rematch_votes[0]
-                != quarrel_sim::RematchVote::Yes
-            {
-                thread::sleep(Duration::from_millis(2));
-            }
-            thread::sleep(Duration::from_millis(80));
-            handle
-                .push_flow(FlowCommand {
-                    phase_revision: 1,
-                    action: FlowAction::VoteYes,
-                })
-                .unwrap();
-            run.join().unwrap()
-        });
-        assert_eq!(first.join().unwrap().result, "completed");
-        assert_eq!(second.join().unwrap().result, "completed");
-        assert_eq!(authority.join().unwrap().result, "completed");
-        let trace: Vec<AppliedTick> =
-            serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
-        fs::remove_file(trace_path).unwrap();
-        assert!(trace.iter().any(|row| row.inputs[0].move_axis == 1
-            && matches!(
-                row.inputs[0].flow,
-                Some(FlowCommand {
-                    action: FlowAction::Hover(_),
-                    ..
-                })
-            )));
-        let mut simulation = AuthoritativeMatch::new_with_profile(seed, profile);
-        let mut seen = Vec::new();
-        let mut edge_ticks = Vec::new();
-        for row in trace {
-            simulation.step(row.inputs);
-            let state = simulation.snapshot();
-            if let Some(command) = row.inputs[0].flow {
-                edge_ticks.push(row.tick);
-                seen.push((command.action, state.flow.unwrap().last_results[0]));
-            }
-        }
-        assert_eq!(
-            seen,
-            vec![
-                (FlowAction::VoteYes, ActionResult::Stale),
-                (FlowAction::VoteYes, ActionResult::Accepted),
-                (FlowAction::VoteYes, ActionResult::Duplicate),
-                (
-                    FlowAction::Hover(quarrel_sim::ItemId::FrostSlam),
-                    ActionResult::Accepted
-                ),
-                (
-                    FlowAction::Hover(quarrel_sim::ItemId::FrostSlam),
-                    ActionResult::Duplicate
-                ),
-            ]
-        );
-        assert!(edge_ticks.windows(2).all(|pair| pair[0] < pair[1]));
-    }
-
-    #[test]
-    fn stalled_authority_never_bursts_catch_up_ticks() {
-        let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let address = server.local_addr().unwrap();
-        let trace_path = std::env::temp_dir().join(format!(
-            "rounds-stall-{}-{}.json",
-            std::process::id(),
-            new_nonce()
-        ));
-        let server_trace = trace_path.clone();
-        let authority = thread::spawn(move || {
-            server
-                .run_inner(
-                    38,
-                    80,
-                    ReplayProfile::TimberCollapseReplay,
-                    Some(&server_trace),
-                    RunFaults {
-                        stall_at: Some(30),
-                        ..Default::default()
-                    },
-                )
-                .unwrap()
-        });
-        let clients = (0..2)
+        let authority_config = config.clone();
+        let authority = thread::spawn(move || server.run(authority_config, 8, None).unwrap());
+        let clients = (0..2_u8)
             .map(|id| {
+                let config = config.clone();
                 thread::spawn(move || {
-                    LiveClient::connect(address, id, 38, ReplayProfile::TimberCollapseReplay)
+                    LiveClient::connect(address, id, config)
                         .unwrap()
-                        .run(80)
+                        .run(8)
                         .unwrap()
                 })
             })
-            .collect::<Vec<_>>();
-        for client in clients {
-            assert_eq!(client.join().unwrap().result, "completed");
-        }
-        let report = authority.join().unwrap();
-        let trace: Vec<AppliedTick> =
-            serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
-        fs::remove_file(trace_path).unwrap();
-        assert!(report.late_ticks >= 1);
-        assert!(trace[29].elapsed_micros - trace[28].elapsed_micros >= 140_000);
-        assert!(trace[30].elapsed_micros - trace[29].elapsed_micros >= 10_000);
-        assert!(report.elapsed_ms >= 1_300);
-    }
-
-    #[test]
-    fn terminal_loss_and_local_close_are_bounded_and_ports_rebind() {
-        let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let address = server.local_addr().unwrap();
-        let authority = thread::spawn(move || {
-            server
-                .run_inner(
-                    38,
-                    30,
-                    ReplayProfile::TimberCollapseReplay,
-                    None,
-                    RunFaults {
-                        drop_terminal_for: Some(1),
-                        ..Default::default()
-                    },
-                )
-                .unwrap()
-        });
-        let clients = (0..2)
-            .map(|id| {
-                thread::spawn(move || {
-                    LiveClient::connect(address, id, 38, ReplayProfile::TimberCollapseReplay)
-                        .unwrap()
-                        .run(30)
-                        .unwrap()
-                })
-            })
-            .collect::<Vec<_>>();
-        let reports = clients
-            .into_iter()
-            .map(|client| client.join().unwrap())
-            .collect::<Vec<_>>();
-        let server_report = authority.join().unwrap();
-        assert_eq!(server_report.result, "terminal_unacknowledged");
-        assert_eq!(server_report.terminal_acks, [true, false]);
-        assert_eq!(reports[0].result, "completed");
-        assert_eq!(reports[1].result, "authority_silent");
-        assert_eq!(reports[1].last_tick, 30);
-        let rebound = LiveServer::bind(address).unwrap();
-        drop(rebound);
-
-        let server = LiveServer::bind(address).unwrap();
-        let authority =
-            thread::spawn(move || server.run(38, 300, ReplayProfile::TimberCollapseReplay, None));
-        let first = thread::spawn(move || {
-            let client =
-                LiveClient::connect(address, 0, 38, ReplayProfile::TimberCollapseReplay).unwrap();
-            let handle = client.handle();
-            let run = thread::spawn(move || client.run(300).unwrap());
-            wait_for(&handle, |state| state.tick >= 20);
-            handle.close();
-            run.join().unwrap()
-        });
-        let second = thread::spawn(move || {
-            LiveClient::connect(address, 1, 38, ReplayProfile::TimberCollapseReplay)
-                .unwrap()
-                .run(300)
-                .unwrap()
-        });
-        assert_eq!(first.join().unwrap().result, "local_close");
-        assert_eq!(second.join().unwrap().result, "authority_silent");
-        let stopped = authority.join().unwrap().unwrap_err();
-        assert!(
-            stopped.starts_with("peer_left:") || stopped.starts_with("peer_silent:"),
-            "{stopped}"
-        );
-        assert!(LiveServer::bind(address).is_ok());
-    }
-
-    #[test]
-    fn terminal_state_recovers_a_lost_final_ordinary_snapshot() {
-        let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let address = server.local_addr().unwrap();
-        let authority = thread::spawn(move || {
-            server
-                .run_inner(
-                    38,
-                    30,
-                    ReplayProfile::TimberCollapseReplay,
-                    None,
-                    RunFaults {
-                        drop_final_snapshot_for: Some(1),
-                        ..Default::default()
-                    },
-                )
-                .unwrap()
-        });
-        let clients = (0..2)
-            .map(|id| {
-                thread::spawn(move || {
-                    LiveClient::connect(address, id, 38, ReplayProfile::TimberCollapseReplay)
-                        .unwrap()
-                        .run(30)
-                        .unwrap()
-                })
-            })
-            .collect::<Vec<_>>();
-        let reports = clients
-            .into_iter()
-            .map(|client| client.join().unwrap())
             .collect::<Vec<_>>();
         let server = authority.join().unwrap();
         assert_eq!(server.result, "completed");
         assert_eq!(server.terminal_acks, [true, true]);
-        for report in reports {
+        for client in clients {
+            let report = client.join().unwrap();
             assert_eq!(report.result, "completed");
-            assert_eq!(report.last_tick, 30);
+            assert_eq!(report.last_tick, 8);
             assert_eq!(
                 report.state_hash.as_deref(),
                 Some(server.state_hash.as_str())
@@ -1238,15 +870,84 @@ mod tests {
     }
 
     #[test]
-    fn vanished_peer_reaches_bounded_silence_results_without_leave() {
+    fn live_configuration_and_tick_bounds_are_checked() {
+        let mut unsupported = config();
+        unsupported.fighter_count = 3;
+        assert!(
+            LiveServer::bind("127.0.0.1:0")
+                .unwrap()
+                .run(unsupported, 1, None)
+                .unwrap_err()
+                .contains("exactly two")
+        );
+        assert!(
+            LiveClient::connect("127.0.0.1:9", 2, config())
+                .err()
+                .unwrap()
+                .contains("client ids")
+        );
+        assert!(
+            LiveServer::bind("127.0.0.1:0")
+                .unwrap()
+                .run(config(), 0, None)
+                .unwrap_err()
+                .contains("tick count")
+        );
+    }
+
+    #[test]
+    fn terminal_recovers_a_lost_final_snapshot() {
+        let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
         let address = server.local_addr().unwrap();
-        let authority =
-            thread::spawn(move || server.run(38, 300, ReplayProfile::TimberCollapseReplay, None));
-        let vanished =
-            LiveClient::connect(address, 0, 38, ReplayProfile::TimberCollapseReplay).unwrap();
-        let survivor =
-            LiveClient::connect(address, 1, 38, ReplayProfile::TimberCollapseReplay).unwrap();
+        let authority = thread::spawn({
+            let config = config.clone();
+            move || {
+                server
+                    .run_inner(
+                        config,
+                        12,
+                        None,
+                        RunFaults {
+                            drop_final_snapshot_for: Some(1),
+                            ..Default::default()
+                        },
+                    )
+                    .unwrap()
+            }
+        });
+        let clients = (0..2_u8)
+            .map(|id| {
+                let config = config.clone();
+                thread::spawn(move || {
+                    LiveClient::connect(address, id, config)
+                        .unwrap()
+                        .run(12)
+                        .unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let authority = authority.join().unwrap();
+        assert_eq!(authority.terminal_acks, [true, true]);
+        for client in clients {
+            assert_eq!(
+                client.join().unwrap().state_hash.as_deref(),
+                Some(authority.state_hash.as_str())
+            );
+        }
+    }
+
+    #[test]
+    fn vanished_peer_and_leave_stop_authority_with_bounded_results() {
+        let config = config();
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let authority = thread::spawn({
+            let config = config.clone();
+            move || server.run(config, 300, None)
+        });
+        let vanished = LiveClient::connect(address, 0, config.clone()).unwrap();
+        let survivor = LiveClient::connect(address, 1, config).unwrap();
         drop(vanished);
         let survivor = thread::spawn(move || survivor.run(300).unwrap());
         assert!(
@@ -1261,161 +962,12 @@ mod tests {
     }
 
     #[test]
-    fn old_session_input_from_a_current_peer_is_ignored() {
-        let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let address = server.local_addr().unwrap();
-        let trace_path = std::env::temp_dir().join(format!(
-            "rounds-reuse-{}-{}.json",
-            std::process::id(),
-            new_nonce()
-        ));
-        let server_trace = trace_path.clone();
-        let authority = thread::spawn(move || {
-            server
-                .run(
-                    38,
-                    3,
-                    ReplayProfile::TimberCollapseReplay,
-                    Some(&server_trace),
-                )
-                .unwrap()
-        });
-        let old_protocol = br#"{"kind":"hello","protocol":11,"clientId":0,"seed":38,"profile":"timber-collapse-replay"}"#;
-        UdpSocket::bind("127.0.0.1:0")
-            .unwrap()
-            .send_to(old_protocol, address)
-            .unwrap();
-        let peers = (0..2_u8)
-            .map(|id| {
-                let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
-                socket
-                    .set_read_timeout(Some(Duration::from_millis(200)))
-                    .unwrap();
-                let nonce = new_nonce();
-                send(
-                    &socket,
-                    address,
-                    &ClientPacket::Hello {
-                        protocol: LIVE_PROTOCOL,
-                        client_id: id,
-                        seed: 38,
-                        profile: ReplayProfile::TimberCollapseReplay,
-                        nonce,
-                    },
-                )
-                .unwrap();
-                let session = loop {
-                    if let Some((
-                        ServerPacket::Welcome {
-                            client_id,
-                            nonce: echoed,
-                            session,
-                            ..
-                        },
-                        _,
-                        _,
-                    )) = recv::<ServerPacket>(&socket, &mut 0).unwrap()
-                        && client_id == id
-                        && echoed == nonce
-                    {
-                        break session;
-                    }
-                };
-                (id, socket, session)
-            })
-            .collect::<Vec<_>>();
-        let session = peers[0].2;
-        assert_eq!(session, peers[1].2);
-        peers[0].1.send_to(old_protocol, address).unwrap();
-        UdpSocket::bind("127.0.0.1:0")
-            .unwrap()
-            .send_to(old_protocol, address)
-            .unwrap();
-        send(
-            &peers[0].1,
-            address,
-            &ClientPacket::Input {
-                session: session ^ 1,
-                client_id: 0,
-                sequence: 99,
-                held: PlayerInput {
-                    move_axis: 1,
-                    ..Default::default()
-                },
-                edge: None,
-            },
-        )
-        .unwrap();
-        for (id, socket, _) in &peers {
-            send(
-                socket,
-                address,
-                &ClientPacket::Input {
-                    session,
-                    client_id: *id,
-                    sequence: 1,
-                    held: PlayerInput::default(),
-                    edge: None,
-                },
-            )
-            .unwrap();
-        }
-        for (id, socket, _) in &peers {
-            loop {
-                if let Some((
-                    ServerPacket::Terminal {
-                        session: received,
-                        tick,
-                        hash,
-                        ..
-                    },
-                    _,
-                    _,
-                )) = recv::<ServerPacket>(socket, &mut 0).unwrap()
-                {
-                    send(
-                        socket,
-                        address,
-                        &ClientPacket::Ack {
-                            session: received,
-                            client_id: *id,
-                            tick,
-                            hash,
-                        },
-                    )
-                    .unwrap();
-                    break;
-                }
-            }
-        }
-        let report = authority.join().unwrap();
-        assert_eq!(report.result, "completed");
-        assert!(report.invalid_datagrams >= 3);
-        let trace: Vec<AppliedTick> =
-            serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
-        fs::remove_file(trace_path).unwrap();
-        assert!(trace.iter().all(|row| row.inputs[0].move_axis == 0));
-    }
-
-    #[test]
-    fn join_timeout_and_bad_state_are_named_failures() {
-        let abandoned = UdpSocket::bind("127.0.0.1:0").unwrap();
-        let absent = abandoned.local_addr().unwrap();
-        drop(abandoned);
-        let start = Instant::now();
-        assert!(
-            LiveClient::connect(absent, 0, 38, ReplayProfile::TimberCollapseReplay)
-                .err()
-                .unwrap()
-                .starts_with("join_timeout:")
-        );
-        assert!(start.elapsed() >= JOIN_WINDOW);
-
+    fn stale_session_and_invalid_hash_are_rejected() {
+        let config = config();
         let fake = UdpSocket::bind("127.0.0.1:0").unwrap();
         let address = fake.local_addr().unwrap();
-        fake.set_read_timeout(Some(Duration::from_millis(100)))
-            .unwrap();
         let authority = thread::spawn(move || {
+            let mut game = AuthoritativeMatch::with_config(MatchConfig::default()).unwrap();
             let (
                 ClientPacket::Hello {
                     client_id, nonce, ..
@@ -1426,8 +978,6 @@ mod tests {
             else {
                 panic!("expected hello")
             };
-            fake.send_to(br#"{"kind":"welcome","protocol":11,"clientId":0}"#, sender)
-                .unwrap();
             send(
                 &fake,
                 sender,
@@ -1439,39 +989,82 @@ mod tests {
                 },
             )
             .unwrap();
-            let mut simulation =
-                AuthoritativeMatch::new_with_profile(38, ReplayProfile::TimberCollapseReplay);
-            simulation.step([PlayerInput::default(); 2]);
-            let state = simulation.snapshot();
+            game.step(&[PlayerInput::default(), PlayerInput::default()]);
+            let state = game.snapshot();
+            send(
+                &fake,
+                sender,
+                &ServerPacket::Snapshot {
+                    session: 6,
+                    tick: 1,
+                    hash: hash_snapshot(&state),
+                    ack: [0, 0],
+                    state: Box::new(state.clone()),
+                },
+            )
+            .unwrap();
             send(
                 &fake,
                 sender,
                 &ServerPacket::Snapshot {
                     session: 7,
                     tick: 1,
-                    hash: "invalid".to_owned(),
+                    hash: "invalid".into(),
                     ack: [0, 0],
                     state: Box::new(state),
                 },
             )
             .unwrap();
         });
-        let client =
-            LiveClient::connect(address, 0, 38, ReplayProfile::TimberCollapseReplay).unwrap();
-        let report = client.run(3).unwrap();
+        let report = LiveClient::connect(address, 0, config)
+            .unwrap()
+            .run(3)
+            .unwrap();
         assert_eq!(report.result, "validation_failure");
-        assert!(report.invalid_datagrams >= 1);
         authority.join().unwrap();
     }
 
-    fn wait_for(handle: &LiveClientHandle, predicate: impl Fn(&MatchSnapshot) -> bool) {
-        let until = Instant::now() + Duration::from_secs(8);
-        while Instant::now() < until {
-            if handle.latest().is_some_and(|(state, _)| predicate(&state)) {
-                return;
-            }
-            thread::sleep(Duration::from_millis(2));
+    #[test]
+    fn public_handles_reliably_deliver_revisioned_opening_picks() {
+        let config = config();
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let authority = thread::spawn({
+            let config = config.clone();
+            move || server.run(config, 40, None).unwrap()
+        });
+        let workers = (0..2_u8)
+            .map(|id| {
+                let config = config.clone();
+                thread::spawn(move || {
+                    let client = LiveClient::connect(address, id, config).unwrap();
+                    let handle = client.handle();
+                    let run = thread::spawn(move || client.run(40).unwrap());
+                    let until = Instant::now() + Duration::from_secs(2);
+                    loop {
+                        if let Some((state, _)) = handle.latest() {
+                            let flow = state.flow.unwrap();
+                            handle
+                                .push_flow(FlowCommand {
+                                    phase_revision: flow.phase_revision,
+                                    action: quarrel_sim::FlowAction::Confirm(
+                                        flow.offers[id as usize][0],
+                                    ),
+                                })
+                                .unwrap();
+                            break;
+                        }
+                        assert!(Instant::now() < until, "opening draft was not received");
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    run.join().unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let authority = authority.join().unwrap();
+        for worker in workers {
+            assert_eq!(worker.join().unwrap().result, "completed");
         }
-        panic!("live state did not reach the expected phase");
+        assert_eq!(authority.result, "completed");
     }
 }

@@ -1,11 +1,13 @@
 # QUARREL (working title)
 
-A spiritual successor to ROUNDS for Adam and his friends, and later Steam: fast physics duels and build variety like ROUNDS, with its own mechanics, cards and identity.
-It is a clean-room Rust, Bevy and Rapier implementation; see `GOAL.md` for the purpose, `docs/game-design.md` for the design pillars and `docs/roadmap.md` for what comes next.
+A spiritual successor to ROUNDS for Adam and his friends, built in Rust with Bevy and Rapier.
+See `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md` for the intended game.
 
-Today the code contains seven footage-derived scenes rather than a general match: teal duel, timber collapse, the rematch/draft/ice route, match end, lime arena, radial saw, and yellow crate.
-Two clients drive one 60 Hz Rapier authority over direct-IP UDP development sessions, with no prediction yet.
-The commands below exercise those scenes; roadmap milestone M1 replaces them with an ordinary match.
+An ordinary match starts with every fighter picking one card. Each fight awards one point to the last fighter standing, then everyone who did not win picks another card.
+If the last fighters die together, the match seed decides the point. Arena files are shuffled and used without repeats until every arena has been used.
+The default is two fighters, first to five points and five cards per offer.
+At match end, every fighter chooses run it back or new match, sees everyone's choice, and can change theirs until everyone agrees.
+Running it back keeps scores and cards and raises the target to ten, then fifteen; a new match clears scores and cards.
 
 ## Build and verify
 
@@ -13,76 +15,69 @@ The commands below exercise those scenes; roadmap milestone M1 replaces them wit
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo build --workspace --locked
-cargo test --workspace --locked
-.\out\cargo-target\debug\quarrel-automation.exe smoke --seed 38 --ticks 786 --output-dir out\ticket-039\smoke
-.\out\cargo-target\debug\quarrel-automation.exe inspect --seed 38 --ticks 786
-.\out\cargo-target\debug\quarrel-client.exe capture-replay --seed 38 --ticks 786 --output-dir out\ticket-039\anchors --metadata out\ticket-039\anchors.json
-.\out\cargo-target\debug\quarrel-client.exe visible --seed 38 --ticks 786 --frames 180
-.\out\cargo-target\debug\quarrel-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\smoke
-.\out\cargo-target\debug\quarrel-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out\ticket-041\anchors --metadata out\ticket-041\anchors.json
-.\out\cargo-target\debug\quarrel-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
-.\out\cargo-target\debug\quarrel-automation.exe smoke --profile match-end-waiting-replay --seed 57 --ticks 240 --output-dir out\ticket-057\smoke
-.\out\cargo-target\debug\quarrel-client.exe capture-replay --profile match-end-waiting-replay --seed 57 --ticks 240 --output-dir out\ticket-057\anchors --metadata out\ticket-057\anchors.json
-.\out\cargo-target\debug\quarrel-client.exe capture-new-match-draft --seed 57 --output out\ticket-058\new-match-draft.png --metadata out\ticket-058\new-match-draft.json
-.\out\cargo-target\debug\quarrel-client.exe visible-new-match-draft --seed 57
-.\out\cargo-target\debug\quarrel-automation.exe inspect --profile lime-modular-arena-replay --seed 59 --ticks 360
-.\out\cargo-target\debug\quarrel-client.exe capture-replay --profile lime-modular-arena-replay --seed 59 --ticks 360 --output-dir out\ticket-060\anchors --metadata out\ticket-060\anchors.json
-.\out\cargo-target\debug\quarrel-client.exe visible --profile lime-modular-arena-replay --seed 59 --ticks 360 --frames 360
-.\out\cargo-target\debug\quarrel-automation.exe smoke --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --output-dir out\ticket-043\smoke
-.\out\cargo-target\debug\quarrel-client.exe capture-replay --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --output-dir out\ticket-043\anchors --metadata out\ticket-043\anchors.json
-.\out\cargo-target\debug\quarrel-client.exe visible --profile yellow-crate-terminal-blast-replay --seed 43 --ticks 155 --frames 155
+cargo test --workspace --locked -- --test-threads=1
+out/cargo-target/debug/quarrel-automation smoke --seed 38 --ticks 1200
+out/cargo-target/debug/quarrel-client capture --seed 38 --ticks 30 --output out/frame.png
 ```
 
-The smoke result proves that both client processes handshake, send monotonic input sequences, receive every progressive snapshot, agree with the authority and local host, and bind one real Bevy render to the received final state.
-The 2,400-tick rematch replay capture retains thirteen named 1280×720 anchors. The complete 5,941-tick route emits 57 anchors: the previous 48 through the loser draft and bridge plus nine held hanging-arena entry anchors. Their metadata identifies the source recording and native PTS/RGBA identity, replay input, state, renderer, executable, and frame.
+Cargo uses two jobs and the reusable `out/cargo-target` directory from `.cargo/config.toml`.
+The smoke runs an authority and two UDP clients through ordinary drafts, checking progressive snapshots and final state agreement.
+`assets/replays/ordinary-match.json` contains player inputs for a short ordinary match; the simulation tests replay it twice and compare every snapshot.
+Use `quarrel-client replay --input assets/replays/ordinary-match.json` to print its final authority snapshot.
 
-
-## Play the connected match
-
-Run `out/cargo-target/debug/quarrel-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 18000` for a bounded five-minute local session. The window starts hidden and appears only after verifying the project's monitor-4 placement.
-At `REMATCH?`, orange accepts with Y and blue with Enter. Use left/right arrows and Enter to choose each player's card. The opening fans can confirm only Dazzle and Explosive Bullet; Quick Shot's projectile-speed capability is added later by the loser draft. The same match carries those cards through the fights needed to finish the first round.
-
-| Input | Orange | Blue |
-|---|---|---|
-| Move | A / D | Left / Right |
-| Jump | W | Up |
-| Block | S | Down |
-| Fire | Space | Enter |
-| Aim up / left / down / right | I / J / K / L | Numpad 8 / 4 / 5 / 6 |
-
-Without a manual aim direction, aim follows the opponent from the latest observation. Controllers use the left stick to move, right stick to aim, south button to jump, west button to block and right trigger to fire; D-pad and south button control the draft.
-The first player to win two fights earns a full round. Either color can win both opening fights and finish there; a split sends both players into the ice arena. The result keeps the losing player's half visible, fills the winner's circle and moves the award into a completed-round HUD pip. When the result clears, current halves reset, completed rounds and loadouts remain, and only the completed round's loser drafts. The seed-41 route hovers `OVERPOWER`, selects `QUICK SHOT`, retains Dazzle, and accumulates a typed per-fighter projectile-speed multiplier; the other four new cards are visible but catalog-only.
-For an automated demonstration of the full connected route, run `out/cargo-target/debug/quarrel-client.exe visible-flow --profile rematch-draft-replay --seed 41 --ticks 5941 --automated`.
-For the two-client development-transport check, run `out/cargo-target/debug/quarrel-automation.exe smoke --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/smoke`.
-Capture all 57 shared-renderer entries with `out/cargo-target/debug/quarrel-client.exe capture-replay --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/anchors --metadata out/ticket-055/anchors.json`. These commands extend the existing profile; smoke sessions remain bounded to 6,000 exchanged ticks.
-
-## Play a live development session
-
-Run the authority, then start one client for each slot. The dedicated server binds loopback unless `--bind` explicitly selects another IPv4 address.
+## Play locally
 
 ```powershell
-.\out\cargo-target\debug\quarrel-server.exe dedicated --port 41000 --ticks 18000
-.\out\cargo-target\debug\quarrel-client.exe join --address 127.0.0.1:41000 --client 0 --ticks 18000
-.\out\cargo-target\debug\quarrel-client.exe join --address 127.0.0.1:41000 --client 1 --ticks 18000
+out/cargo-target/debug/quarrel-client visible-flow --seed 38 --ticks 18000
 ```
 
-`quarrel-client host --port 41000 --client 0 --ticks 18000` starts the same authority on a joined thread and connects its own player over UDP; join it with `quarrel-client join --address 127.0.0.1:41000 --client 1 --ticks 18000`. Live sessions accept positive bounds through 36,060 ticks. Joining is bounded to five seconds, peer silence to three seconds, and terminal delivery to two seconds; reports distinguish a completed simulation from missing terminal acknowledgements. If a peer disappears without sending `Leave`, the authority reports `peer_silent` and the surviving client reports `authority_silent` after its own three-second window. Short held-control taps can be lost before a send or in transit, and large JSON snapshots may use IP fragmentation. These are controlled direct-IP development sessions: there is no Steam transport, matchmaking, NAT traversal, authentication, prediction, interpolation, rollback, or lag compensation claim.
+Project windows open hidden and appear only after placement on monitor four is verified.
 
-## What is and is not implemented
+| Input | Fighter one | Fighter two |
+|---|---|---|
+| Move or navigate draft | A / D | Left / Right |
+| Jump | W | Up |
+| Block | S | Down |
+| Fire or confirm card | Space | Enter |
+| Aim up / left / down / right | I / J / K / L | Numpad 8 / 4 / 5 / 6 |
+| Run it back / new match | Y / N | K / L |
 
-The rematch slice adds an authoritative blue winner and orange elimination, the exact prior-card badges, explicit accepted-rematch reset, phase revisions, per-player votes, seeded five-card offers, active-player validation, typed persistent loadouts, Dazzle stun pulses, Explosive Bullet impacts, item-specific card art and pose response, and a source-timed return to combat.
-The catalog contains 21 definitions. Dazzle, Explosive Bullet, and Quick Shot are implemented; the other eighteen definitions are catalog-only and cannot be confirmed. The separate general implemented-offer pool contains those three implemented entries, but it does not drive the fixed source-shaped offer lists.
-The teal slice has stable Bevy ECS identities, Rapier bodies and contacts behind a private boundary, static stepped geometry, movement and air control, jumping, aiming, recoil, CCD bullets, reflection, damage-scaled knockback, a terminal upper-right impact, one winner, a real Bevy renderer, and live authoritative snapshots.
-Jump height is variable in every arena: letting go of jump while airborne and still rising cuts the remaining upward speed to 30 %, so a held jump rises 116.86 px over 23 ticks and a jump let go of eleven ticks after take-off rises 85.12 px over 14 ticks. Holding jump changes nothing, and a release read on a grounded tick does nothing whatever the vertical speed. Letting go while stunned or eliminated counts as letting go on that tick, so being stunned mid-jump never cuts the jump short once the stun wears off. No shipped replay script exercises the cut yet — every scripted release falls on a grounded or already-falling tick, which is why all 73 capture anchors are byte-identical across the change — so the first deliberate use of it will be the ice route ticket 049 owns.
-Ring-out remains a separately tested simulation capability; the named replay ends before the result transition and records no ring-out.
-Its named replay profile matches this card-modified interval without claiming base-game constants.
-The radial-saw slice adds stable authoritative moving hazards, ordinary projectile feedback, a moving painted background, and the adjacent `HALF BLUE` result handoff without claiming unobserved saw damage.
-The yellow-crate slice adds stable-ID dynamic Rapier crates, an authority-owned terminal projectile contact and blast impulse, blue elimination and orange scoring, and one private final-composite fullscreen pass for the source-proved discrete radial RGB echoes. Visible and offscreen runs use that same GPU scene and effect pass; its eleven capture anchors preserve the adjacent tick-109 combat, tick-110 result onset, and tick-111 larger result transition.
-The connected ice extension adds seventeen static polygon contours shared by collision and rendering, animated cyan/pale paint, long shadows, arena arrival/departure motion and a symmetric first-round award. Current half progress and completed rounds are separate: the source's blue/orange/blue sequence ends with halves 1–2 and rounds 0–1, with Da and Ex retained. Ordinary damage decides each fight; the ice interval adds no friction, fracture or melting rule. The source anchors and remaining visual differences belong in `docs/fidelity/ice-round-observations.md`.
-The standalone lime modular arena adds 33 fixed source-measured surfaces: five upper pedestal contours with three-block caps, four narrow intermediate shelves, five lower crosses and four frame-edge stems. The same stable contours feed Rapier and the shared renderer; public inputs move both fighters from the observed spawn shelves onto interior upper caps, while deep shadows and the cyan-to-lime facet cycle remain presentation only. It deliberately carries no Homing or Parasite badge or mechanic. The exact source identities and geometry fixture are in `docs/fidelity/lime-modular-arena-observations.md`.
-The score-driven match-end profile labels its 3–4, one-half-each prehistory as constructed, then uses one ordinary public-input projectile to award blue's fifth completed round. The existing result transition and `ROUND BLUE` envelope finish before authority enters stable `WAITING`; both fighters are respawned and revived, projectiles are cleared, and the 3–5 score plus retained builds remain visible. A separate non-player lifecycle request can then clear the concluded match and reuse the ordinary arena fade for orange's first 0–0 draft. Its caller remains deliberately unspecified because the recording does not show whether time, host input, peer readiness, or another event ended `WAITING`.
-An eliminated fighter, including one that leaves the arena with health remaining, accepts no further movement, aim, block or fire input, and each fight's outcome is decided once from who remains alive. When both fighters fall on the same tick, nobody scores: halves, completed rounds and cards stay as they were, and after the usual result pause the same arena repeats without a draft. That no-award rule is provisional because neither recording shows a simultaneous elimination.
-Production reliability and Steam transport, the remaining card mechanics, other arenas, the rest of the match lifecycle, audio, and menus remain explicit gaps in `docs/fidelity/footage-coverage.md`.
+Controllers use the left stick to move, right stick to aim, south button to jump, west button to block and right trigger to fire.
+D-pad and south button choose a card. At match end, south chooses run it back and east chooses a new match.
+
+## Live development sessions
+
+```powershell
+out/cargo-target/debug/quarrel-server dedicated --port 41000 --ticks 18000
+out/cargo-target/debug/quarrel-client join --address 127.0.0.1:41000 --client 0 --ticks 18000
+out/cargo-target/debug/quarrel-client join --address 127.0.0.1:41000 --client 1 --ticks 18000
+```
+
+Direct-IP UDP development sessions use one authority. Steam invitations and prediction are later MVP tickets.
+
+## Card data and match configuration
+
+Cards are RON files under `assets/cards/`. Add a file to put another card in the pool; no Rust enum or offer list needs changing.
+Every file has a unique string `id`, a `name`, a one-sentence `description` and `stat_changes`:
+
+```ron
+(
+    id: "stamina",
+    name: "Stamina",
+    description: "Gain 20 health.",
+    stat_changes: (health: 20),
+)
+```
+
+The placeholder format supports added health, added shot damage, added movement speed in world units per second, and a projectile-speed multiplier in thousandths.
+Omitted changes are neutral. Taking the same card again stacks its changes; an offer contains no repeated card.
+The five original placeholder stat cards are replaced and the format extended by ticket 80.
+Set `QUARREL_CARD_DIR` to select a different pool. Empty pools, duplicate IDs and offers larger than the pool are rejected.
+
+`MatchConfig` controls fighter count, target score, offer size, run-back limit and seed.
+The simulation accepts one to 255 fighters; two is the shipped setting. Arenas provide spawn points and additional fighters receive deterministic positions within the frame.
+CLI configuration uses `--fighters`, `--target-score`, `--offer-size`, `--run-it-back-limit` and `--seed`.
+Arena authoring and previews are documented in `docs/design-docs/arena-data.html`.
 
 ## Recover the retired prototype
 

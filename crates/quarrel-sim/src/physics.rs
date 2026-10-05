@@ -1,713 +1,339 @@
 use super::*;
-#[derive(Component, Clone, Copy)]
-struct PlayerState {
-    id: u8,
-    aim: Vector,
-    health: u16,
-    fire_cooldown: u16,
-    block_ticks: u16,
-    hit_flash_ticks: u8,
-    grounded: bool,
-    /// Last tick's jump input, so `step` can see the tick it is let go of. It
-    /// follows the input on every tick the authority reads it, whether or not
-    /// control runs for this fighter, and is cleared with the rest of the
-    /// transient control state on a revive. Authority-internal: it reaches no
-    /// serialised projection.
-    jump_held: bool,
-    alive: bool,
-    stun_ticks: u16,
-    stun_pulses_remaining: u8,
-    stun_pulse_cooldown: u8,
-}
+use bevy_rapier2d::rapier::prelude::{ImpulseJointHandle, RopeJointBuilder};
+use std::collections::BTreeSet;
 
 #[derive(Component, Clone, Copy)]
-struct ProjectileState {
-    id: u32,
-    owner: u8,
-    dazzle_pulses: u8,
-    dazzle_stun_ticks: u16,
-    explosive_radius_milli: i32,
-    explosive_impulse_milli: i32,
+pub(crate) struct PlayerState {
+    pub(crate) id: u8,
+    pub(crate) aim: Vector,
+    pub(crate) health: u16,
+    pub(crate) fire_cooldown: u16,
+    pub(crate) block_ticks: u16,
+    pub(crate) hit_flash_ticks: u8,
+    pub(crate) grounded: bool,
+    pub(crate) jump_held: bool,
+    pub(crate) alive: bool,
+    pub(crate) stun_ticks: u16,
+    pub(crate) stun_pulses_remaining: u8,
 }
-
-#[derive(Clone, Copy)]
-struct PendingRadialHit {
-    target: u8,
-    direction: Vector,
-}
-
 #[derive(Component, Clone, Copy)]
-struct DynamicBodyState {
-    id: u16,
-    shape: DynamicBodyShape,
-    width: f32,
-    height: f32,
-    radius: f32,
-    face_rgb: [u8; 3],
-    mass: f32,
-    friction: f32,
-    restitution: f32,
+pub(crate) struct ProjectileState {
+    pub(crate) id: u32,
+    pub(crate) owner: u8,
+    pub(crate) dazzle_pulses: u8,
+    pub(crate) dazzle_stun_ticks: u16,
+    pub(crate) explosive_radius_milli: i32,
 }
-
-#[derive(Component, Clone, Copy)]
-struct ConstraintState {
-    id: u16,
-    body_a: Option<u16>,
-    body_b: u16,
-    kind: ConstraintKind,
-    anchor: Vector,
-    active: bool,
-}
-
-#[derive(Component, Clone, Copy)]
-struct SawState {
-    id: u16,
-    radius: f32,
-    teeth: u8,
-    initial_position: Vector,
-    initial_angle: f32,
-    angular_velocity: f32,
-}
-
 #[derive(Clone, Copy)]
 struct PlayerPhysics {
     body: RigidBodyHandle,
     collider: ColliderHandle,
 }
-
 #[derive(Clone, Copy)]
 struct BulletPhysics {
     body: RigidBodyHandle,
     collider: ColliderHandle,
     previous: Vector,
-    previous_velocity: Vector,
     lifetime: u16,
 }
 
-#[derive(Clone, Copy)]
-struct DynamicBodyPhysics {
-    body: RigidBodyHandle,
-    collider: ColliderHandle,
-}
-
-#[derive(Clone, Copy)]
-struct ConstraintPhysics {
-    handle: ImpulseJointHandle,
-    release_on_explosion: bool,
-    active: bool,
-}
-
-#[derive(Clone, Copy)]
-struct SawPhysics {
-    body: RigidBodyHandle,
-    collider: ColliderHandle,
-}
-
-#[derive(Clone, Copy)]
-struct SawDefinition {
-    id: u16,
-    position: Vector,
-    radius: f32,
-    teeth: u8,
-    initial_angle: f32,
-    angular_velocity: f32,
-}
-
-fn radial_saw_definitions() -> Vec<SawDefinition> {
-    saw_definitions(
-        &ArenaDefinition::load(&default_arena_directory().join("radial-saw.ron"))
-            .expect("radial saw arena must load"),
-    )
-}
-fn saw_definitions(arena: &ArenaDefinition) -> Vec<SawDefinition> {
-    arena
-        .legacy_saws
-        .iter()
-        .map(|s| SawDefinition {
-            id: s.id,
-            position: Vector::from(s.position),
-            radius: s.radius,
-            teeth: s.teeth,
-            initial_angle: s.initial_angle,
-            angular_velocity: s.angular_velocity,
-        })
-        .collect()
-}
-
-#[derive(Clone, Copy)]
-struct DynamicBodyDefinition {
-    id: u16,
-    shape: DynamicBodyShape,
-    position: Vector,
-    rotation: f32,
-    width: f32,
-    height: f32,
-    radius: f32,
-    face_rgb: [u8; 3],
-    mass: f32,
-    friction: f32,
-    restitution: f32,
-}
-
-fn legacy_body_definitions(file: &str) -> Vec<DynamicBodyDefinition> {
-    body_definitions(
-        &ArenaDefinition::load(&default_arena_directory().join(file))
-            .expect("legacy body arena must load"),
-    )
-}
-fn body_definitions(arena: &ArenaDefinition) -> Vec<DynamicBodyDefinition> {
-    arena
-        .legacy_bodies
-        .iter()
-        .map(|b| DynamicBodyDefinition {
-            id: b.id,
-            shape: b.shape,
-            position: Vector::from(b.position),
-            rotation: b.rotation,
-            width: b.width,
-            height: b.height,
-            radius: b.radius,
-            face_rgb: b.face_rgb,
-            mass: b.mass,
-            friction: b.friction,
-            restitution: b.restitution,
-        })
-        .collect()
-}
-fn timber_body_definitions() -> Vec<DynamicBodyDefinition> {
-    legacy_body_definitions("timber.ron")
-}
-fn yellow_crate_definitions() -> Vec<DynamicBodyDefinition> {
-    legacy_body_definitions("yellow-crate.ron")
-}
-
-struct PhysicsBoundary {
+pub(crate) struct PhysicsBoundary {
     rapier: RapierWorld,
-    players: [PlayerPhysics; 2],
-    /// Current arena spawn positions, reused when a fight repeats in place.
-    spawns: [Vector; 2],
+    players: Vec<PlayerPhysics>,
+    spawns: Vec<Vector>,
     platforms: Vec<ColliderHandle>,
-    retired_platforms: Vec<ColliderHandle>,
-    timber_anchor: Option<RigidBodyHandle>,
+    surface_colliders: BTreeMap<Vec<[i32; 2]>, ColliderBuilder>,
+    object_bodies: BTreeMap<u16, (RigidBodyHandle, ColliderHandle, ArenaKind)>,
+    object_before_velocity: BTreeMap<u16, Vector>,
+    object_contacts: BTreeSet<(u16, u8)>,
+    arena_chains: BTreeMap<u16, ImpulseJointHandle>,
+    arena_anchors: Vec<RigidBodyHandle>,
     bullets: BTreeMap<u32, BulletPhysics>,
-    dynamic_bodies: BTreeMap<u16, DynamicBodyPhysics>,
-    constraints: BTreeMap<u16, ConstraintPhysics>,
-    saws: BTreeMap<u16, SawPhysics>,
 }
-
 impl PhysicsBoundary {
-    fn new(profile: ReplayProfile) -> Self {
-        let arena =
-            ArenaDefinition::load(&default_arena_directory().join(profile_arena_filename(profile)))
-                .expect("profile arena must load");
-        Self::new_with_definition(profile, &arena)
-    }
-    fn new_with_definition(profile: ReplayProfile, arena: &ArenaDefinition) -> Self {
+    pub(crate) fn new(fighter_count: usize, arena: &ArenaDefinition) -> Self {
         let mut rapier = RapierWorld::new();
         rapier.gravity = Vector::new(0.0, -1_500.0);
         rapier.integration_parameters.dt = 1.0 / TICKS_PER_SECOND as f32;
         rapier.integration_parameters.max_ccd_substeps = 4;
         rapier.integration_parameters.normalized_max_linear_velocity = 5_000.0;
-
-        let platforms = arena
-            .surfaces
+        let platforms = Vec::new();
+        let spawns = distributed_spawns(fighter_count, arena);
+        let players = spawns
             .iter()
-            .map(|surface| {
-                let shape = collider_for_surface(surface);
-                let (_, collider) = rapier.insert(
-                    RigidBodyBuilder::fixed().translation(Vector::new(
-                        surface.center_x_milli as f32 / 1_000.0,
-                        surface.center_y_milli as f32 / 1_000.0,
-                    )),
-                    shape
-                        .rotation(surface.rotation_milliradians as f32 / 1_000.0)
-                        .friction(0.92)
-                        .restitution(0.02)
-                        .collision_groups(groups(
-                            Group::GROUP_3,
-                            Group::GROUP_1
-                                | Group::GROUP_2
-                                | Group::GROUP_4
-                                | Group::GROUP_5
-                                | DYNAMIC_GROUP,
-                        )),
+            .map(|spawn| {
+                let (body, collider) = rapier.insert(
+                    RigidBodyBuilder::dynamic()
+                        .translation(*spawn)
+                        .linear_damping(0.7)
+                        .angular_damping(8.0)
+                        .lock_rotations()
+                        .ccd_enabled(true)
+                        .can_sleep(false),
+                    ColliderBuilder::ball(PLAYER_RADIUS)
+                        .density(0.004)
+                        .friction(0.55)
+                        .restitution(0.05),
                 );
-                collider
+                PlayerPhysics { body, collider }
             })
-            .collect::<Vec<_>>();
-
-        let player_spawns = [0u8, 1u8].map(|id| {
-            let [x, y] = arena.spawns[usize::from(id).min(arena.spawns.len() - 1)];
-            (x, y, id)
-        });
-        let players = player_spawns.map(|(x, y, id)| {
-            let (membership, filter) = if id == 0 {
-                (
-                    Group::GROUP_1,
-                    Group::GROUP_2 | Group::GROUP_3 | Group::GROUP_5 | DYNAMIC_GROUP,
-                )
-            } else {
-                (
-                    Group::GROUP_2,
-                    Group::GROUP_1 | Group::GROUP_3 | Group::GROUP_4 | DYNAMIC_GROUP,
-                )
-            };
-            let (body, collider) = rapier.insert(
-                RigidBodyBuilder::dynamic()
-                    .translation(Vector::new(x, y))
-                    .gravity_scale(
-                        if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
-                            0.0
-                        } else {
-                            1.0
-                        },
-                    )
-                    .linear_damping(0.7)
-                    .angular_damping(8.0)
-                    .lock_rotations()
-                    .ccd_enabled(true)
-                    .can_sleep(false),
-                ColliderBuilder::ball(PLAYER_RADIUS)
-                    .density(if profile != ReplayProfile::TealDuelReplay {
-                        0.02
-                    } else {
-                        0.004
-                    })
-                    .friction(0.55)
-                    .restitution(0.05)
-                    .collision_groups(groups(membership, filter)),
-            );
-            PlayerPhysics { body, collider }
-        });
-
-        let mut boundary = Self {
+            .collect();
+        Self {
             rapier,
             players,
-            spawns: player_spawns.map(|(x, y, _)| Vector::new(x, y)),
+            spawns,
             platforms,
-            retired_platforms: Vec::new(),
-            timber_anchor: None,
+            surface_colliders: BTreeMap::new(),
+            object_bodies: BTreeMap::new(),
+            object_before_velocity: BTreeMap::new(),
+            object_contacts: BTreeSet::new(),
+            arena_chains: BTreeMap::new(),
+            arena_anchors: Vec::new(),
             bullets: BTreeMap::new(),
-            dynamic_bodies: BTreeMap::new(),
-            constraints: BTreeMap::new(),
-            saws: BTreeMap::new(),
-        };
-        if profile == ReplayProfile::TimberCollapseReplay {
-            boundary.insert_timber_structure(arena);
-        }
-        if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
-            boundary.insert_yellow_crates(arena);
-        }
-        if profile == ReplayProfile::RadialSawHalfBlueReplay {
-            boundary.insert_radial_saws(arena);
-        }
-        boundary
-    }
-
-    fn insert_radial_saws(&mut self, arena: &ArenaDefinition) {
-        for definition in saw_definitions(arena) {
-            let (body, collider) = self.rapier.insert(
-                RigidBodyBuilder::kinematic_velocity_based()
-                    .translation(definition.position)
-                    .rotation(definition.initial_angle)
-                    .angvel(definition.angular_velocity)
-                    .can_sleep(false),
-                ColliderBuilder::cuboid(definition.radius * 0.57, definition.radius * 0.57)
-                    .friction(0.0)
-                    .restitution(0.85)
-                    .collision_groups(groups(SAW_GROUP, Group::NONE)),
-            );
-            self.saws
-                .insert(definition.id, SawPhysics { body, collider });
         }
     }
-
-    fn reset_saw(&mut self, id: u16, position: Vector, angle: f32, angular_velocity: f32) {
-        let physics = self
-            .saws
-            .get(&id)
-            .expect("radial saw registry remains complete");
-        let body = &mut self.rapier.bodies[physics.body];
-        body.set_translation(position, true);
-        body.set_rotation(Rotation::new(angle), true);
-        body.set_linvel(Vector::ZERO, true);
-        body.set_angvel(angular_velocity, true);
-        self.rapier
-            .bodies
-            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
-    }
-
-    fn saw_pose(&self, id: u16) -> Option<(Vector, f32, f32)> {
-        self.saws.get(&id).map(|physics| {
-            let body = &self.rapier.bodies[physics.body];
-            let collider = &self.rapier.colliders[physics.collider];
-            (
-                collider.position().translation,
-                collider.position().rotation.angle(),
-                body.angvel(),
-            )
-        })
-    }
-
-    fn insert_timber_structure(&mut self, arena: &ArenaDefinition) {
-        let anchor = self.rapier.insert_body(RigidBodyBuilder::fixed());
-        self.timber_anchor = Some(anchor);
-        for definition in body_definitions(arena) {
-            let body_builder = RigidBodyBuilder::dynamic()
-                .translation(definition.position)
-                .rotation(definition.rotation)
-                .linear_damping(1.1)
-                .angular_damping(1.6)
-                .ccd_enabled(true);
-            let collider_builder = match definition.shape {
-                DynamicBodyShape::Timber | DynamicBodyShape::Crate => {
-                    ColliderBuilder::cuboid(definition.width * 0.5, definition.height * 0.5)
-                }
-                DynamicBodyShape::Weight => ColliderBuilder::ball(definition.radius),
-            }
-            .density(if definition.shape == DynamicBodyShape::Weight {
-                0.008
-            } else {
-                0.0045
-            })
-            .friction(definition.friction)
-            .restitution(definition.restitution)
-            .collision_groups(groups(
-                DYNAMIC_GROUP,
-                Group::GROUP_1
-                    | Group::GROUP_2
-                    | Group::GROUP_3
-                    | Group::GROUP_4
-                    | Group::GROUP_5
-                    | DYNAMIC_GROUP,
-            ));
-            let (body, collider) = self.rapier.insert(body_builder, collider_builder);
-            self.dynamic_bodies
-                .insert(definition.id, DynamicBodyPhysics { body, collider });
-
-            let (constraint_id, joint, release_on_explosion): (u16, GenericJoint, bool) =
-                match definition.shape {
-                    DynamicBodyShape::Timber | DynamicBodyShape::Crate => (
-                        definition.id,
-                        FixedJointBuilder::new()
-                            .local_anchor1(definition.position)
-                            .local_anchor2(Vector::ZERO)
-                            .build()
-                            .into(),
-                        true,
-                    ),
-                    DynamicBodyShape::Weight => {
-                        let anchor_position = Vector::new(definition.position.x, 330.0);
-                        (
-                            1_000 + definition.id,
-                            RopeJointBuilder::new(anchor_position.distance(definition.position))
-                                .local_anchor1(anchor_position)
-                                .local_anchor2(Vector::ZERO)
-                                .build()
-                                .into(),
-                            false,
-                        )
-                    }
-                };
-            let handle = self.rapier.impulse_joints.insert(anchor, body, joint, true);
-            self.constraints.insert(
-                constraint_id,
-                ConstraintPhysics {
-                    handle,
-                    release_on_explosion,
-                    active: true,
-                },
-            );
-        }
-    }
-
-    fn load_ice_arena(&mut self, arena: &ArenaDefinition) {
-        for constraint in std::mem::take(&mut self.constraints).into_values() {
-            self.rapier.impulse_joints.remove(constraint.handle, true);
-        }
-        for body in std::mem::take(&mut self.dynamic_bodies).into_values() {
-            self.rapier.remove_body(body.body);
-        }
-        if let Some(anchor) = self.timber_anchor.take() {
-            self.rapier.remove_body(anchor);
-        }
-        for collider in self
-            .platforms
-            .drain(..)
-            .chain(self.retired_platforms.drain(..))
-        {
-            if let Some(body) = self.rapier.colliders[collider].parent() {
+    pub(crate) fn replace_arena(&mut self, arena: &ArenaDefinition) {
+        for handle in self.platforms.drain(..) {
+            if let Some(body) = self.rapier.colliders[handle].parent() {
                 self.rapier.remove_body(body);
             }
         }
-        for id in self.bullets.keys().copied().collect::<Vec<_>>() {
-            self.remove_bullet(id);
+        for (_, (body, _, _)) in std::mem::take(&mut self.object_bodies) {
+            self.rapier.remove_body(body);
         }
+        for anchor in self.arena_anchors.drain(..) {
+            self.rapier.remove_body(anchor);
+        }
+        self.arena_chains.clear();
+        self.object_before_velocity.clear();
+        self.object_contacts.clear();
+        // Arena assets are authored in pixels; Rapier's joint tolerances are metres.
+        self.rapier.integration_parameters.length_unit = 100.0;
         self.platforms = arena
             .surfaces
             .iter()
             .map(|surface| {
-                let vertices = surface
-                    .outline_milli
-                    .iter()
-                    .map(|p| Vector::new(p[0] as f32 / 1_000.0, p[1] as f32 / 1_000.0))
-                    .collect::<Vec<_>>();
-                let edges = (0..vertices.len())
-                    .map(|i| [i as u32, ((i + 1) % vertices.len()) as u32])
-                    .collect::<Vec<_>>();
-                let shape = ColliderBuilder::convex_decomposition(&vertices, &edges);
                 self.rapier
                     .insert(
                         RigidBodyBuilder::fixed().translation(Vector::new(
                             surface.center_x_milli as f32 / 1_000.0,
                             surface.center_y_milli as f32 / 1_000.0,
                         )),
-                        shape
-                            .rotation(surface.rotation_milliradians as f32 / 1_000.0)
-                            .friction(0.92)
-                            .restitution(0.02)
-                            .collision_groups(groups(
-                                Group::GROUP_3,
-                                Group::GROUP_1
-                                    | Group::GROUP_2
-                                    | Group::GROUP_4
-                                    | Group::GROUP_5
-                                    | DYNAMIC_GROUP,
-                            )),
+                        if surface.outline_milli.len() < 3 {
+                            collider_for_surface(surface)
+                        } else {
+                            self.surface_colliders
+                                .entry(surface.outline_milli.clone())
+                                .or_insert_with(|| collider_for_surface(surface))
+                                .clone()
+                        }
+                        .rotation(surface.rotation_milliradians as f32 / 1_000.0)
+                        .friction(0.92)
+                        .restitution(0.02),
                     )
                     .1
             })
             .collect();
-        self.spawns =
-            std::array::from_fn(|i| Vector::from(arena.spawns[i.min(arena.spawns.len() - 1)]));
-        self.respawn_players();
-        for player in self.players {
-            self.rapier.colliders[player.collider].set_shape(SharedShape::ball(12.0));
-        }
-    }
-
-    fn load_held_hanging_entry(&mut self) {
-        for constraint in std::mem::take(&mut self.constraints).into_values() {
-            self.rapier.impulse_joints.remove(constraint.handle, true);
-        }
-        for body in std::mem::take(&mut self.dynamic_bodies).into_values() {
-            self.rapier.remove_body(body.body);
-        }
-        if let Some(anchor) = self.timber_anchor.take() {
-            self.rapier.remove_body(anchor);
-        }
-        for collider in self
-            .platforms
-            .drain(..)
-            .chain(self.retired_platforms.drain(..))
-        {
-            if let Some(body) = self.rapier.colliders[collider].parent() {
-                self.rapier.remove_body(body);
-            }
-        }
-        for id in self.bullets.keys().copied().collect::<Vec<_>>() {
-            self.remove_bullet(id);
-        }
-        self.spawns = [Vector::new(-405.0, 53.0), Vector::new(405.0, 87.0)];
-        self.respawn_players();
-    }
-
-    fn load_timber_arena(&mut self, arena: &ArenaDefinition) {
-        // Keep the established Rapier insertion order for the connected timber
-        // contacts. These colliders cannot collide; ice loading removes them.
-        for collider in self.platforms.drain(..) {
-            self.rapier.colliders[collider].set_collision_groups(groups(Group::NONE, Group::NONE));
-            self.retired_platforms.push(collider);
-        }
-        let bullet_ids = self.bullets.keys().copied().collect::<Vec<_>>();
-        for id in bullet_ids {
-            self.remove_bullet(id);
-        }
-        self.platforms = arena
-            .surfaces
-            .iter()
-            .map(|surface| {
-                let (_, collider) = self.rapier.insert(
-                    RigidBodyBuilder::fixed().translation(Vector::new(
-                        surface.center_x_milli as f32 / 1_000.0,
-                        surface.center_y_milli as f32 / 1_000.0,
-                    )),
-                    ColliderBuilder::cuboid(
-                        surface.width_milli as f32 / 2_000.0,
-                        surface.height_milli as f32 / 2_000.0,
-                    )
-                    .friction(0.92)
-                    .restitution(0.02)
-                    .collision_groups(groups(
-                        Group::GROUP_3,
-                        Group::GROUP_1
-                            | Group::GROUP_2
-                            | Group::GROUP_4
-                            | Group::GROUP_5
-                            | DYNAMIC_GROUP,
-                    )),
-                );
-                collider
-            })
-            .collect();
-        self.spawns =
-            std::array::from_fn(|i| Vector::from(arena.spawns[i.min(arena.spawns.len() - 1)]));
-        self.respawn_players();
-        self.insert_timber_structure(arena);
-        self.rapier
-            .bodies
-            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
-    }
-
-    /// Returns both fighters to the current arena spawns at rest.
-    fn respawn_players(&mut self) {
-        for (id, position) in self.spawns.into_iter().enumerate() {
-            let body = &mut self.rapier.bodies[self.players[id].body];
-            body.set_translation(position, true);
-            body.set_linvel(Vector::ZERO, true);
-        }
-        self.rapier
-            .bodies
-            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
-    }
-
-    fn insert_yellow_crates(&mut self, arena: &ArenaDefinition) {
-        for definition in body_definitions(arena) {
-            let (body, collider) = self.rapier.insert(
-                RigidBodyBuilder::dynamic()
-                    .translation(definition.position)
-                    .rotation(definition.rotation)
-                    .linear_damping(0.36)
-                    .angular_damping(0.28)
-                    .additional_mass(definition.mass)
-                    .ccd_enabled(true),
-                ColliderBuilder::cuboid(definition.width * 0.5, definition.height * 0.5)
-                    .density(0.002)
-                    .friction(definition.friction)
-                    .restitution(definition.restitution)
-                    .collision_groups(groups(
-                        DYNAMIC_GROUP,
-                        Group::GROUP_1
-                            | Group::GROUP_2
-                            | Group::GROUP_3
-                            | Group::GROUP_4
-                            | Group::GROUP_5
-                            | DYNAMIC_GROUP,
-                    )),
-            );
-            self.dynamic_bodies
-                .insert(definition.id, DynamicBodyPhysics { body, collider });
-        }
-    }
-
-    fn release_explosion_constraints(&mut self) -> Vec<u16> {
-        let mut released = Vec::new();
-        for (id, constraint) in &mut self.constraints {
-            if constraint.release_on_explosion && constraint.active {
-                let _ = self.rapier.impulse_joints.remove(constraint.handle, true);
-                constraint.active = false;
-                released.push(*id);
-            }
-        }
-        released
-    }
-
-    fn apply_radial_explosion(&mut self, center: Vector, radius: f32, strength: f32) -> u32 {
-        let mut count = 0;
-        for body in self.dynamic_bodies.values() {
-            let rigid_body = &mut self.rapier.bodies[body.body];
-            let offset = rigid_body.translation() - center;
-            let distance = offset.length();
-            if distance >= radius {
+        for object in &arena.objects {
+            if matches!(object.kind, ArenaKind::Background) {
                 continue;
             }
-            let direction = (offset + Vector::new(0.0, 80.0)).normalize_or_zero();
-            let impulse = direction * strength * (1.0 - distance / radius).max(0.12);
-            rigid_body.apply_impulse(impulse, true);
-            rigid_body.apply_torque_impulse(
-                impulse.x.signum() * strength * 0.004 * (1.0 - distance / radius),
+            let loose = matches!(
+                object.kind,
+                ArenaKind::Loose
+                    | ArenaKind::Breakable { loose: true }
+                    | ArenaKind::Saw { loose: true, .. }
+            );
+            let builder = if object.motion.is_some()
+                || matches!(object.kind, ArenaKind::Saw { loose: false, .. })
+            {
+                RigidBodyBuilder::kinematic_position_based()
+            } else if loose {
+                RigidBodyBuilder::dynamic()
+            } else {
+                RigidBodyBuilder::fixed()
+            };
+            let (body, collider) = self.rapier.insert(
+                builder
+                    .translation(Vector::from(object.position))
+                    .rotation(object.rotation)
+                    .ccd_enabled(true),
+                object
+                    .shape
+                    .collider()
+                    .mass(object.mass)
+                    .friction(0.8)
+                    .restitution(0.08),
+            );
+            self.object_bodies
+                .insert(object.id, (body, collider, object.kind.clone()));
+            self.object_before_velocity.insert(object.id, Vector::ZERO);
+            self.platforms.push(collider);
+        }
+        for chain in &arena.chains {
+            let a = if let Some(id) = chain.body_a {
+                self.object_bodies[&id].0
+            } else {
+                let anchor = self
+                    .rapier
+                    .insert_body(RigidBodyBuilder::fixed().translation(Vector::from(chain.anchor)));
+                self.arena_anchors.push(anchor);
+                anchor
+            };
+            let handle = self.rapier.impulse_joints.insert(
+                a,
+                self.object_bodies[&chain.body_b].0,
+                RopeJointBuilder::new(chain.length),
                 true,
             );
-            rigid_body.wake_up(true);
-            count += 1;
+            self.arena_chains.insert(chain.id, handle);
         }
-        count
+        self.spawns = distributed_spawns(self.players.len(), arena);
+        self.reset();
     }
-
-    fn dynamic_body_pose(&self, id: u16) -> Option<(Vector, f32, Vector, f32, bool)> {
-        self.dynamic_bodies.get(&id).map(|physics| {
-            let body = &self.rapier.bodies[physics.body];
+    pub(crate) fn object_pose(&self, id: u16) -> Option<(Vector, Vector, f32, ArenaKind)> {
+        self.object_bodies.get(&id).map(|(body, _, kind)| {
+            let body = &self.rapier.bodies[*body];
             (
                 body.translation(),
-                body.rotation().angle(),
                 body.linvel(),
-                body.angvel(),
-                body.is_sleeping(),
+                body.rotation().angle(),
+                kind.clone(),
             )
         })
     }
-
-    fn dynamic_contact_counts(&self) -> (u32, u32) {
-        let bodies = self.dynamic_bodies.values().collect::<Vec<_>>();
-        let mut body_contacts = 0;
-        for left in 0..bodies.len() {
-            for right in left + 1..bodies.len() {
-                if self
+    pub(crate) fn chain_active(&self, id: u16) -> bool {
+        self.arena_chains.contains_key(&id)
+    }
+    pub(crate) fn object_contacts(&mut self) -> Vec<(u16, u8, u16)> {
+        let mut next = BTreeSet::new();
+        let mut damage = Vec::new();
+        for (&object, (body, collider, kind)) in &self.object_bodies {
+            for (fighter, player) in self.players.iter().enumerate() {
+                if !self
                     .rapier
-                    .contact_pair(bodies[left].collider, bodies[right].collider)
+                    .contact_pair(*collider, player.collider)
                     .is_some_and(|pair| pair.has_any_active_contact())
                 {
-                    body_contacts += 1;
+                    continue;
+                }
+                let key = (object, fighter as u8);
+                next.insert(key);
+                if self.object_contacts.contains(&key) {
+                    continue;
+                }
+                let speed = (self.object_before_velocity[&object]
+                    - self.rapier.bodies[player.body].linvel())
+                .length();
+                let amount = if matches!(kind, ArenaKind::Saw { .. }) {
+                    35
+                } else if self.rapier.bodies[*body].is_dynamic() && speed > 180.0 {
+                    ((speed - 180.0) * self.rapier.colliders[*collider].mass() * 0.15)
+                        .clamp(1.0, 100.0) as u16
+                } else {
+                    0
+                };
+                if amount > 0 {
+                    damage.push((object, fighter as u8, amount));
                 }
             }
         }
-        let fighter_contacts = self
-            .players
-            .iter()
-            .flat_map(|player| {
-                bodies.iter().filter(move |body| {
-                    self.rapier
-                        .contact_pair(player.collider, body.collider)
-                        .is_some_and(|pair| pair.has_any_active_contact())
-                })
-            })
-            .count() as u32;
-        (body_contacts, fighter_contacts)
+        self.object_contacts = next;
+        damage
     }
-
-    fn bullet_dynamic_contact(&self, id: u32) -> Option<(u16, Vector)> {
+    pub(crate) fn bullet_object_contact(&self, id: u32) -> Option<(u16, Vector)> {
         let bullet = self.bullets.get(&id)?;
-        self.dynamic_bodies.iter().find_map(|(body_id, body)| {
-            let pair = self.rapier.contact_pair(bullet.collider, body.collider)?;
-            if !pair.has_any_active_contact() {
-                return None;
-            }
-            pair.manifolds.iter().find_map(|manifold| {
-                let contact = manifold.data.solver_contacts.first()?;
-                let (first, second) = manifold
-                    .data
-                    .solver_contact_world_points(contact, &self.rapier.bodies);
-                Some((
-                    *body_id,
-                    if pair.collider1 == bullet.collider {
-                        second
-                    } else {
-                        first
-                    },
-                ))
+        self.object_bodies
+            .iter()
+            .find_map(|(&object, (_, collider, _))| {
+                self.rapier
+                    .contact_pair(bullet.collider, *collider)
+                    .is_some_and(|pair| pair.has_any_active_contact())
+                    .then(|| {
+                        (
+                            object,
+                            self.rapier.bodies[bullet.body].linvel()
+                                * self.rapier.colliders[bullet.collider].mass(),
+                        )
+                    })
             })
-        })
     }
-
-    /// `released` is the fighter's own held-to-released transition on this tick,
-    /// decided by the caller from the input it read, so a release the fighter
-    /// could not act on is never carried forward to a later tick.
-    fn set_player_control(
+    pub(crate) fn remove_object(&mut self, id: u16, chains: &[ArenaChain]) {
+        let Some((body, collider, _)) = self.object_bodies.remove(&id) else {
+            return;
+        };
+        self.platforms.retain(|handle| *handle != collider);
+        self.object_before_velocity.remove(&id);
+        self.object_contacts.retain(|(object, _)| *object != id);
+        for chain in chains
+            .iter()
+            .filter(|chain| chain.body_a == Some(id) || chain.body_b == id)
+        {
+            if let Some(handle) = self.arena_chains.remove(&chain.id) {
+                self.rapier.impulse_joints.remove(handle, true);
+            }
+        }
+        self.rapier.remove_body(body);
+    }
+    pub(crate) fn apply_object_impulse(&mut self, id: u16, impulse: Vector) {
+        if let Some((body, _, _)) = self.object_bodies.get(&id) {
+            self.rapier.bodies[*body].apply_impulse(impulse, true);
+        }
+    }
+    pub(crate) fn update_arena_motion(&mut self, arena: &ArenaDefinition, tick: u32) {
+        let time = tick as f32 / TICKS_PER_SECOND as f32;
+        for object in &arena.objects {
+            let Some((body, _, kind)) = self.object_bodies.get(&object.id) else {
+                continue;
+            };
+            self.object_before_velocity
+                .insert(object.id, self.rapier.bodies[*body].linvel());
+            if object.motion.is_none() && !matches!(kind, ArenaKind::Saw { loose: false, .. }) {
+                continue;
+            }
+            let mut position = Vector::from(object.position);
+            let mut angle = object.rotation;
+            if let ArenaKind::Saw {
+                angular_velocity, ..
+            } = kind
+            {
+                angle += angular_velocity * time;
+            }
+            if let Some(motion) = &object.motion {
+                if !motion.path.is_empty() {
+                    let phase = (time / motion.period_seconds).fract() * motion.path.len() as f32;
+                    let i = phase.floor() as usize;
+                    let t = phase.fract();
+                    position += Vector::from(motion.path[i]) * (1.0 - t)
+                        + Vector::from(motion.path[(i + 1) % motion.path.len()]) * t;
+                }
+                angle += motion.angular_velocity * time;
+            }
+            let body = &mut self.rapier.bodies[*body];
+            body.set_next_kinematic_translation(position);
+            body.set_next_kinematic_rotation(Rotation::new(angle));
+        }
+    }
+    pub(crate) fn reset(&mut self) {
+        for (player, spawn) in self.players.iter().zip(&self.spawns) {
+            let body = &mut self.rapier.bodies[player.body];
+            body.set_translation(*spawn, true);
+            body.set_linvel(Vector::ZERO, true);
+        }
+        for (_, bullet) in std::mem::take(&mut self.bullets) {
+            self.rapier.remove_body(bullet.body);
+        }
+        self.rapier
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
+    }
+    pub(crate) fn set_player_control(
         &mut self,
         id: u8,
         input: PlayerInput,
         grounded: bool,
         released: bool,
+        movement_bonus: u16,
     ) -> bool {
         let body = &mut self.rapier.bodies[self.players[usize::from(id)].body];
         let mut velocity = body.linvel();
@@ -718,13 +344,10 @@ impl PhysicsBoundary {
         } else {
             AIR_CONTROL
         };
+        let speed = RUN_SPEED + f32::from(movement_bonus);
         if grounded || input.move_axis != 0 {
-            velocity.x += (f32::from(input.move_axis) * RUN_SPEED - velocity.x) * control;
+            velocity.x += (f32::from(input.move_axis) * speed - velocity.x) * control;
         }
-        // A jump the fighter lets go of stops rising. The cut fires once, on the
-        // tick the input goes from held to released, and only while the fighter
-        // is off the ground and still going up; a release read on a grounded tick
-        // does nothing at all, whatever the vertical velocity.
         if released && !grounded && velocity.y > 0.0 {
             velocity.y *= JUMP_RELEASE_CUT;
         }
@@ -735,39 +358,20 @@ impl PhysicsBoundary {
         body.set_linvel(velocity, true);
         jumped
     }
-
-    fn player_radius(&self, id: u8) -> f32 {
-        self.rapier.colliders[self.players[usize::from(id)].collider]
-            .shape()
-            .as_ball()
-            .expect("fighter circle")
-            .radius
-    }
-
-    fn spawn_bullet(
-        &mut self,
-        id: u32,
-        owner: u8,
-        aim: Vector,
-        launch_speed: f32,
-        collide_with_arena: bool,
-    ) {
+    pub(crate) fn spawn_bullet(&mut self, id: u32, owner: u8, aim: Vector, speed: f32) {
         let shooter = &self.rapier.bodies[self.players[usize::from(owner)].body];
-        let origin =
-            shooter.translation() + aim * (self.player_radius(owner) + BULLET_RADIUS + 4.0);
-        let (membership, filter) = bullet_groups(owner, collide_with_arena);
+        let origin = shooter.translation() + aim * (PLAYER_RADIUS + BULLET_RADIUS + 4.0);
         let (body, collider) = self.rapier.insert(
             RigidBodyBuilder::dynamic()
                 .translation(origin)
-                .linvel(aim * launch_speed)
+                .linvel(aim * speed)
                 .gravity_scale(0.0)
                 .ccd_enabled(true)
                 .can_sleep(false),
             ColliderBuilder::ball(BULLET_RADIUS)
                 .density(0.0005)
                 .friction(0.0)
-                .restitution(0.8)
-                .collision_groups(groups(membership, filter)),
+                .restitution(0.8),
         );
         self.bullets.insert(
             id,
@@ -775,118 +379,69 @@ impl PhysicsBoundary {
                 body,
                 collider,
                 previous: origin,
-                previous_velocity: aim * launch_speed,
                 lifetime: BULLET_LIFETIME,
             },
         );
     }
-
-    fn apply_impulse(&mut self, player: u8, impulse: Vector) {
+    pub(crate) fn apply_impulse(&mut self, player: u8, impulse: Vector) {
         self.rapier.bodies[self.players[usize::from(player)].body].apply_impulse(impulse, true);
     }
-
-    fn step(&mut self) {
+    pub(crate) fn step(&mut self) {
         for bullet in self.bullets.values_mut() {
             bullet.previous = self.rapier.bodies[bullet.body].translation();
-            bullet.previous_velocity = self.rapier.bodies[bullet.body].linvel();
             bullet.lifetime = bullet.lifetime.saturating_sub(1);
         }
         self.rapier.step();
     }
-
-    fn player_pose(&self, id: u8) -> (Vector, Vector) {
+    pub(crate) fn player_pose(&self, id: u8) -> (Vector, Vector) {
         let body = &self.rapier.bodies[self.players[usize::from(id)].body];
         (body.translation(), body.linvel())
     }
-
-    fn player_grounded(&self, id: u8) -> bool {
+    pub(crate) fn player_grounded(&self, id: u8) -> bool {
         let player = self.players[usize::from(id)].collider;
         self.platforms.iter().any(|platform| {
             self.rapier
                 .contact_pair(player, *platform)
                 .is_some_and(|pair| pair.has_any_active_contact())
-        }) || self.dynamic_bodies.values().any(|body| {
-            self.rapier
-                .contact_pair(player, body.collider)
-                .is_some_and(|pair| pair.has_any_active_contact())
         })
     }
-
-    fn bullet_contact(&self, id: u32, target: u8) -> Option<Vector> {
+    pub(crate) fn bullet_contact(&self, id: u32, target: u8) -> Option<Vector> {
         let bullet = self.bullets.get(&id)?;
-        if let Some(pair) = self
-            .rapier
-            .contact_pair(bullet.collider, self.players[usize::from(target)].collider)
-            && let Some(point) = pair.solver_manifolds().iter().find_map(|manifold| {
-                let contact = manifold.data.solver_contacts.first()?;
-                let (first, second) = manifold
-                    .data
-                    .solver_contact_world_points(contact, &self.rapier.bodies);
-                Some(if pair.collider1 == bullet.collider {
-                    second
-                } else {
-                    first
-                })
-            })
-        {
-            return Some(point);
-        }
-        let bullet_position = self.rapier.bodies[bullet.body].translation();
-        let player_position = self.player_pose(target).0;
-        let radius = self.player_radius(target);
-        let segment = bullet_position - bullet.previous;
+        let position = self.rapier.bodies[bullet.body].translation();
+        let target_position = self.player_pose(target).0;
+        let segment = position - bullet.previous;
         let length_squared = segment.length_squared();
         let fraction = if length_squared > 0.0 {
-            ((player_position - bullet.previous).dot(segment) / length_squared).clamp(0.0, 1.0)
+            ((target_position - bullet.previous).dot(segment) / length_squared).clamp(0.0, 1.0)
         } else {
             0.0
         };
         let closest = bullet.previous + segment * fraction;
-        let contact_radius = radius + BULLET_RADIUS + 2.0;
-        if closest.distance_squared(player_position) > contact_radius.powi(2) {
-            return None;
-        }
-        // Preserve the existing swept-hit tolerance, but locate the first contact
-        // on the fighter instead of publishing the projectile's later endpoint.
-        let start = bullet.previous - player_position;
-        let entry = if start.length_squared() > contact_radius.powi(2) && length_squared > 0.0 {
-            let projection = start.dot(segment);
-            let discriminant = projection.powi(2)
-                - length_squared * (start.length_squared() - contact_radius.powi(2));
-            let time =
-                ((-projection - discriminant.max(0.0).sqrt()) / length_squared).clamp(0.0, 1.0);
-            start + segment * time
-        } else {
-            start
-        };
-        Some(player_position + entry.normalize_or_zero() * radius)
+        (closest.distance_squared(target_position) <= (PLAYER_RADIUS + BULLET_RADIUS + 2.0).powi(2))
+            .then_some(
+                target_position + (closest - target_position).normalize_or_zero() * PLAYER_RADIUS,
+            )
     }
-
-    fn bullet_platform_contact(&self, id: u32) -> bool {
-        let Some(bullet) = self.bullets.get(&id) else {
-            return false;
-        };
-        self.platforms.iter().any(|platform| {
-            self.rapier
-                .contact_pair(bullet.collider, *platform)
-                .is_some_and(|pair| pair.has_any_active_contact())
+    pub(crate) fn bullet_platform_contact(&self, id: u32) -> bool {
+        self.bullets.get(&id).is_some_and(|bullet| {
+            self.platforms.iter().any(|platform| {
+                self.rapier
+                    .contact_pair(bullet.collider, *platform)
+                    .is_some_and(|pair| pair.has_any_active_contact())
+            })
         })
     }
-
-    fn reflect_bullet(&mut self, id: u32, new_owner: u8) {
+    pub(crate) fn reflect_bullet(&mut self, id: u32) {
         if let Some(bullet) = self.bullets.get(&id) {
             let body = &mut self.rapier.bodies[bullet.body];
             let incoming = body.linvel();
-            let velocity = Vector::new(-incoming.x, incoming.x.abs() * 0.22 - incoming.y);
-            body.set_linvel(velocity, true);
-            let translation = body.translation() + velocity.normalize_or_zero() * 8.0;
-            body.set_translation(translation, true);
-            let (membership, filter) = bullet_groups(new_owner, true);
-            self.rapier.colliders[bullet.collider].set_collision_groups(groups(membership, filter));
+            body.set_linvel(
+                Vector::new(-incoming.x, incoming.x.abs() * 0.22 - incoming.y),
+                true,
+            );
         }
     }
-
-    fn bullet_pose(&self, id: u32) -> Option<(Vector, Vector, Vector, u16)> {
+    pub(crate) fn bullet_pose(&self, id: u32) -> Option<(Vector, Vector, Vector, u16)> {
         self.bullets.get(&id).map(|bullet| {
             let body = &self.rapier.bodies[bullet.body];
             (
@@ -897,30 +452,37 @@ impl PhysicsBoundary {
             )
         })
     }
-
-    fn remove_bullet(&mut self, id: u32) {
+    pub(crate) fn remove_bullet(&mut self, id: u32) {
         if let Some(bullet) = self.bullets.remove(&id) {
-            let _ = self.rapier.remove_body(bullet.body);
+            self.rapier.remove_body(bullet.body);
+        }
+    }
+    pub(crate) fn clear_bullets(&mut self) {
+        for bullet in std::mem::take(&mut self.bullets).into_values() {
+            self.rapier.remove_body(bullet.body);
         }
     }
 }
-
+fn distributed_spawns(count: usize, arena: &ArenaDefinition) -> Vec<Vector> {
+    let base = arena
+        .spawns
+        .iter()
+        .copied()
+        .map(Vector::from)
+        .collect::<Vec<_>>();
+    (0..count)
+        .map(|index| {
+            if index < base.len() {
+                base[index]
+            } else {
+                let left = arena.frame[0] + PLAYER_RADIUS * 2.0;
+                let right = arena.frame[2] - PLAYER_RADIUS * 2.0;
+                let y = base.first().map_or(0.0, |spawn| spawn.y);
+                let fraction = (index + 1) as f32 / (count + 1) as f32;
+                Vector::new(left + (right - left) * fraction, y)
+            }
+        })
+        .collect()
+}
 mod combat;
 pub use combat::*;
-
-fn groups(memberships: Group, filter: Group) -> InteractionGroups {
-    InteractionGroups::new(memberships, filter, InteractionTestMode::And)
-}
-
-fn bullet_groups(owner: u8, collide_with_arena: bool) -> (Group, Group) {
-    let arena = if collide_with_arena {
-        Group::GROUP_3
-    } else {
-        Group::NONE
-    };
-    if owner == 0 {
-        (Group::GROUP_4, Group::GROUP_2 | arena | DYNAMIC_GROUP)
-    } else {
-        (Group::GROUP_5, Group::GROUP_1 | arena | DYNAMIC_GROUP)
-    }
-}

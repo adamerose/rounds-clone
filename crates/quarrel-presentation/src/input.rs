@@ -77,27 +77,60 @@ pub fn gamepad_combat_input(gamepad: &Gamepad) -> PlayerInput {
 /// Maps concrete keyboard input into the same semantic command sent over the
 /// network. Presentation never chooses or applies an item itself.
 pub fn keyboard_flow_command(key: KeyCode, player: u8, flow: &FlowSnapshot) -> Option<FlowCommand> {
+    let yes = if player == 0 {
+        KeyCode::KeyY
+    } else {
+        KeyCode::KeyK
+    };
+    let no = if player == 0 {
+        KeyCode::KeyN
+    } else {
+        KeyCode::KeyL
+    };
+    let left = if player == 0 {
+        KeyCode::KeyA
+    } else {
+        KeyCode::ArrowLeft
+    };
+    let right = if player == 0 {
+        KeyCode::KeyD
+    } else {
+        KeyCode::ArrowRight
+    };
+    let confirm = if player == 0 {
+        KeyCode::Space
+    } else {
+        KeyCode::Enter
+    };
     match key {
-        KeyCode::KeyY if flow.phase == FlowPhase::RematchPrompt => Some(FlowCommand {
+        key if key == yes && flow.phase == FlowPhase::MatchEnd => Some(FlowCommand {
             phase_revision: flow.phase_revision,
             action: FlowAction::VoteYes,
         }),
-        KeyCode::KeyN if flow.phase == FlowPhase::RematchPrompt => Some(FlowCommand {
+        key if key == no && flow.phase == FlowPhase::MatchEnd => Some(FlowCommand {
             phase_revision: flow.phase_revision,
             action: FlowAction::VoteNo,
         }),
-        KeyCode::ArrowLeft if is_draft_phase(flow.phase) => {
+        key if key == left && is_draft_phase(flow.phase) => {
             draft_navigation_command(player, flow, -1)
         }
-        KeyCode::ArrowRight if is_draft_phase(flow.phase) => {
+        key if key == right && is_draft_phase(flow.phase) => {
             draft_navigation_command(player, flow, 1)
         }
-        KeyCode::Enter | KeyCode::Space if is_draft_phase(flow.phase) => {
-            flow.hovered[usize::from(player)].map(|item| FlowCommand {
+        key if key == confirm && is_draft_phase(flow.phase) => flow
+            .hovered
+            .get(usize::from(player))
+            .copied()
+            .flatten()
+            .or_else(|| {
+                flow.offers
+                    .get(usize::from(player))
+                    .and_then(|offers| offers.first().copied())
+            })
+            .map(|item| FlowCommand {
                 phase_revision: flow.phase_revision,
                 action: FlowAction::Confirm(item),
-            })
-        }
+            }),
         _ => None,
     }
 }
@@ -108,11 +141,11 @@ pub fn gamepad_flow_command(
     flow: &FlowSnapshot,
 ) -> Option<FlowCommand> {
     match button {
-        GamepadButton::South if flow.phase == FlowPhase::RematchPrompt => Some(FlowCommand {
+        GamepadButton::South if flow.phase == FlowPhase::MatchEnd => Some(FlowCommand {
             phase_revision: flow.phase_revision,
             action: FlowAction::VoteYes,
         }),
-        GamepadButton::East if flow.phase == FlowPhase::RematchPrompt => Some(FlowCommand {
+        GamepadButton::East if flow.phase == FlowPhase::MatchEnd => Some(FlowCommand {
             phase_revision: flow.phase_revision,
             action: FlowAction::VoteNo,
         }),
@@ -132,7 +165,7 @@ pub fn gamepad_flow_command(
 }
 
 pub(super) fn is_draft_phase(phase: FlowPhase) -> bool {
-    matches!(phase, FlowPhase::Draft | FlowPhase::PostRoundDraft)
+    phase == FlowPhase::Draft
 }
 
 pub(super) fn draft_navigation_command(
@@ -140,11 +173,11 @@ pub(super) fn draft_navigation_command(
     flow: &FlowSnapshot,
     direction: isize,
 ) -> Option<FlowCommand> {
-    if flow.active_player != Some(player) {
+    let index = usize::from(player);
+    let offers = flow.offers.get(index)?;
+    if offers.is_empty() || flow.selected.get(index).copied().flatten().is_some() {
         return None;
     }
-    let index = usize::from(player);
-    let offers = &flow.offers[index];
     let current = flow.hovered[index]
         .and_then(|hovered| offers.iter().position(|item| *item == hovered))
         .unwrap_or(0);
@@ -153,4 +186,63 @@ pub(super) fn draft_navigation_command(
         phase_revision: flow.phase_revision,
         action: FlowAction::Hover(offers[next]),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn flow() -> FlowSnapshot {
+        AuthoritativeMatch::new(38).snapshot().flow.unwrap()
+    }
+
+    #[test]
+    fn each_keyboard_slot_confirms_its_own_offer_and_vote() {
+        let mut draft = flow();
+        let first = draft.offers[0][0];
+        let second = draft.offers[1][0];
+        assert_eq!(
+            keyboard_flow_command(KeyCode::Space, 0, &draft)
+                .unwrap()
+                .action,
+            FlowAction::Confirm(first)
+        );
+        assert_eq!(
+            keyboard_flow_command(KeyCode::Enter, 1, &draft)
+                .unwrap()
+                .action,
+            FlowAction::Confirm(second)
+        );
+        assert!(keyboard_flow_command(KeyCode::Space, 1, &draft).is_none());
+        draft.phase = FlowPhase::MatchEnd;
+        assert_eq!(
+            keyboard_flow_command(KeyCode::KeyY, 0, &draft)
+                .unwrap()
+                .action,
+            FlowAction::VoteYes
+        );
+        assert_eq!(
+            keyboard_flow_command(KeyCode::KeyK, 1, &draft)
+                .unwrap()
+                .action,
+            FlowAction::VoteYes
+        );
+        assert!(keyboard_flow_command(KeyCode::KeyY, 1, &draft).is_none());
+        assert_eq!(
+            keyboard_flow_command(KeyCode::KeyL, 1, &draft)
+                .unwrap()
+                .action,
+            FlowAction::VoteNo
+        );
+    }
+
+    #[test]
+    fn navigation_ignores_empty_and_already_selected_offers() {
+        let mut state = flow();
+        state.offers[0].clear();
+        assert!(draft_navigation_command(0, &state, 1).is_none());
+        let mut state = flow();
+        state.selected[0] = state.offers[0].first().copied();
+        assert!(draft_navigation_command(0, &state, 1).is_none());
+    }
 }

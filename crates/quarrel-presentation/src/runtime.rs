@@ -1,8 +1,7 @@
 use super::*;
 use super::{
     arena::spawn_snapshot_scene,
-    post_process::RadialEchoSettings,
-    scene::{camera_projection, camera_state, camera_viewport, radial_echo_settings},
+    scene::{camera_projection, camera_state, camera_viewport},
 };
 use bevy::camera::{Camera, Projection};
 
@@ -11,7 +10,6 @@ type CameraSettings<'a> = (
     &'a mut Bloom,
     &'a mut ChromaticAberration,
     &'a mut LensDistortion,
-    &'a mut RadialEchoSettings,
     &'a mut Projection,
 );
 
@@ -36,7 +34,6 @@ pub(super) fn setup_offscreen_scene(
         bloom,
         chromatic,
         lens,
-        radial_echo_settings(&snapshot.0),
     ));
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot.0);
 }
@@ -52,7 +49,6 @@ pub(super) fn setup_visible_scene(mut commands: Commands, snapshot: Res<SceneSna
         bloom,
         chromatic,
         lens,
-        radial_echo_settings(&snapshot.0),
     ));
 }
 
@@ -77,8 +73,7 @@ pub(super) fn advance_visible_scene(
     *camera.1 = bloom;
     *camera.2 = chromatic;
     *camera.3 = lens;
-    *camera.4 = radial_echo_settings(snapshot);
-    *camera.5 = camera_projection(snapshot);
+    *camera.4 = camera_projection(snapshot);
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
     replay.next += 1;
     if replay.next == replay.snapshots.len() {
@@ -111,22 +106,17 @@ pub(super) fn advance_interactive_scene(
         return;
     }
     let flow = scene.0.flow.as_ref();
-    let mut direct = [None, None];
+    let fighters = flow.map_or(0, |flow| flow.scores.len());
+    let mut direct = vec![None; fighters];
     if let Some(flow) = flow {
         for key in keys.get_just_pressed().copied() {
-            let player = flow
-                .active_player
-                .unwrap_or(if key == KeyCode::Enter { 1 } else { 0 });
-            if flow.phase == FlowPhase::RematchPrompt && key == KeyCode::Enter {
-                direct[1] = Some(FlowCommand {
-                    phase_revision: flow.phase_revision,
-                    action: FlowAction::VoteYes,
-                });
-            } else if let Some(command) = keyboard_flow_command(key, player, flow) {
-                direct[usize::from(player)] = Some(command);
+            for (player, input) in direct.iter_mut().enumerate().take(2) {
+                if let Some(command) = keyboard_flow_command(key, player as u8, flow) {
+                    *input = Some(command);
+                }
             }
         }
-        for (player, gamepad) in gamepads.iter().take(2).enumerate() {
+        for (player, gamepad) in gamepads.iter().take(fighters).enumerate() {
             for button in gamepad.get_just_pressed().copied() {
                 if let Some(command) = gamepad_flow_command(button, player as u8, flow) {
                     direct[player] = Some(command);
@@ -139,8 +129,10 @@ pub(super) fn advance_interactive_scene(
             authority.pending_flow[player] = command;
         }
     }
-    let mut live = std::array::from_fn(|player| keyboard_combat_input(&keys, player as u8));
-    for (player, gamepad) in gamepads.iter().take(2).enumerate() {
+    let mut live = (0..fighters)
+        .map(|player| keyboard_combat_input(&keys, player as u8))
+        .collect::<Vec<_>>();
+    for (player, gamepad) in gamepads.iter().take(fighters).enumerate() {
         live[player] = gamepad_combat_input(gamepad);
     }
     let steps = if authority.automated {
@@ -155,13 +147,13 @@ pub(super) fn advance_interactive_scene(
         if authority.tick >= authority.limit {
             break;
         }
+        let observation = authority.simulation.snapshot();
         let mut inputs = if authority.automated {
-            [
-                authority.scripts[0][authority.tick],
-                authority.scripts[1][authority.tick],
-            ]
+            (0..fighters)
+                .map(|player| quarrel_sim::automated_input(player as u8, &observation))
+                .collect::<Vec<_>>()
         } else {
-            live
+            live.clone()
         };
         if substep == 0 {
             for (player, input) in inputs.iter_mut().enumerate() {
@@ -170,11 +162,14 @@ pub(super) fn advance_interactive_scene(
                 }
             }
         }
-        let observation = authority.simulation.snapshot();
-        inputs = std::array::from_fn(|player| {
-            inputs[player].with_progressive_observation(player as u8, Some(&observation))
-        });
-        authority.simulation.step(inputs);
+        inputs = inputs
+            .into_iter()
+            .enumerate()
+            .map(|(player, input)| {
+                input.with_progressive_observation(player as u8, Some(&observation))
+            })
+            .collect();
+        authority.simulation.step(&inputs);
         authority.tick += 1;
     }
     scene.0 = authority.simulation.snapshot();
@@ -183,8 +178,7 @@ pub(super) fn advance_interactive_scene(
     *camera.1 = bloom;
     *camera.2 = chromatic;
     *camera.3 = lens;
-    *camera.4 = radial_echo_settings(&scene.0);
-    *camera.5 = camera_projection(&scene.0);
+    *camera.4 = camera_projection(&scene.0);
     for entity in &visuals {
         commands.entity(entity).despawn();
     }
@@ -227,7 +221,6 @@ pub(super) fn advance_live_scene(
         mut camera_bloom,
         mut camera_chromatic,
         mut camera_lens,
-        mut camera_echo,
         mut projection,
     )) = cameras.single_mut()
     {
@@ -235,7 +228,6 @@ pub(super) fn advance_live_scene(
         *camera_bloom = bloom;
         *camera_chromatic = chromatic;
         *camera_lens = lens;
-        *camera_echo = radial_echo_settings(snapshot);
         *projection = camera_projection(snapshot);
     } else {
         commands.spawn((
@@ -247,7 +239,6 @@ pub(super) fn advance_live_scene(
             bloom,
             chromatic,
             lens,
-            radial_echo_settings(snapshot),
         ));
     }
     for entity in &visuals {

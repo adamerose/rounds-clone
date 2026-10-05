@@ -404,11 +404,7 @@ fn spawn_fighters(
 ) {
     for player in &snapshot.players {
         let point = Vec2::new(player.x_milli as f32, player.y_milli as f32) / 1_000.0;
-        let color = if player.id == 0 {
-            Color::srgb_u8(244, 84, 72)
-        } else {
-            Color::srgb_u8(54, 167, 252)
-        };
+        let color = crate::hud::fighter_color(usize::from(player.id));
         commands.spawn((
             SceneVisual,
             CaptureElement::Character,

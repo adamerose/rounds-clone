@@ -421,7 +421,7 @@ impl ArenaShape {
             .expect("validated convex polygon"),
         }
     }
-    fn radius(&self) -> f32 {
+    pub(crate) fn radius(&self) -> f32 {
         match self {
             Self::Circle { radius } => *radius,
             Self::Rectangle { size } => Vector::from(*size).length() * 0.5,

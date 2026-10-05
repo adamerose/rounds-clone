@@ -73,3 +73,24 @@ The watcher had consumed the changed source before deciding whether a prior acti
 A public replay regression lowered the future draft floor and reproduced the fighter standing at -166011 milli on the old floor.
 The initial-stage file switch now compares its old cached source before reading, and rebuilds on that change or a previous active edit.
 Later stages still use their loaders, so this correction retains the ice-entry fix and avoids resetting unchanged replay geometry.
+
+## 2026-10-05 — Ticket 78 replacements removed wanted neighboring behavior
+
+The first delegated simulation and transport replacements removed more than footage adapters: arena object physics and the live transport's session, flow-edge and terminal-delivery behavior disappeared.
+The parent caught these gaps before committing and returned them for repair, then assigned fresh bounded contexts to preserve the existing contracts.
+The original task already required preserving those interfaces; treating the smaller replacements as complete would have violated that scope.
+Retained behavior is now explicit in the handoffs and verification: arena objects/reloads and live session/edge/terminal tests accompany the new match-rule tests.
+One presentation child also attempted a Cargo check despite the parent-only build instruction; it stopped on a temporarily missing manifest target during another child's rewrite and did not start a clean target.
+The parent remains the sole Cargo runner, using the prepared target and the repository's two-job cap.
+
+The first complete test pass exposed live peers being welcomed before concave arena collision preparation finished.
+The authority started its silence clock before that work, and clients stopped waiting before receiving a snapshot.
+Packet round-trip tests ruled out serialization; preparing collision geometry before Welcome and reusing unchanged surface colliders restored the live tests with their existing time limits.
+The final audit also found the watcher treating initially empty source text as an edit and resetting fighter health on reload.
+Validated source text is retained across arena selection, and edits preserve fighter health and elimination as well as flow.
+The installed Ivy check-all script expects an Ivy source repository containing playbook/skills and cannot run against this game's checkout.
+The repository's format, strict Clippy, build, workspace tests, UDP smoke, rendered captures and installed ticket validator provide the applicable checks.
+The rendered match-end evidence exposed missing separator glyphs in the default font; the shipped labels now use supported characters.
+A projection audit also found fixed arena dimensions could stretch a visible window; automatic minimum dimensions now preserve aspect and have a camera-boundary regression.
+The first separator substitution did not apply because Python used the Windows default encoding to read UTF-8 source.
+The second render exposed that failed substitution; exact UTF-8 edits corrected it before review.

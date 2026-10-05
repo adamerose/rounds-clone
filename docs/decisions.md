@@ -786,3 +786,16 @@ The converted files retain exact integer contours and decimal body values export
 Legacy geometry stays in compatibility fields so replay snapshots remain unchanged; new arena authors use `objects` and `chains`.
 The other-family consultation recommended preserving insertion order, removing joint registries on destruction, and deriving kinematic movement from time rather than accumulating translations.
 The implementation follows those points; embedding files was rejected because it would prevent live edits.
+
+## 2026-10-05 — Ticket #78 ordinary matches for run #75
+
+Keep one match authority with a fighter vector; remove footage adapters instead of retaining a second match mode.
+The alternative would preserve unrequested profile branches and require every new rule to work through both paths.
+Opening drafts and loser drafts accept independent picks together, so adding fighters does not add a fixed handoff sequence.
+Run-backs keep scores as well as cards: reaching five extends the same match to ten, then fifteen, rather than replaying ten and fifteen points from zero.
+At a match end, votes remain pending or changeable until everyone chooses the same action; the limit disables only the run-back choice.
+Resolve a final same-tick death among fighters alive before that tick, using the seeded match stream; previously eliminated fighters cannot receive the point.
+Cards are RON data with string IDs, names, descriptions and stat changes. Stable SHA-derived IDs fit revisioned input commands without a closed enum of card names.
+Draw without replacement within each offer, and allow a previously picked card again in later offers so a five-card placeholder pool can support a whole match.
+A shuffle bag selects arena files without repeats until exhausted; simulation and snapshots continue to use the existing data-arena physics.
+Reuse the prepared root target through the ignored worktree junction, keeping the repository two-job cap and serial network test setting from the existing CI.

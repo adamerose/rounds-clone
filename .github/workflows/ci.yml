@@ -34,6 +34,6 @@ jobs:
           RUST_TEST_THREADS: '1'
         run: cargo test --workspace --locked
       - name: Two-client authoritative smoke
-        run: out/cargo-target/debug/quarrel-automation smoke --profile teal-duel-replay --seed 38 --ticks 180
+        run: out/cargo-target/debug/quarrel-automation smoke --seed 38 --ticks 1200
       - name: Deterministic capture
         run: out/cargo-target/debug/quarrel-client capture --seed 38 --ticks 30 --output out/ticket-038-frame.png --metadata out/ticket-038-frame.json

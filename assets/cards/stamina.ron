@@ -1,0 +1,1 @@
+(id: "stamina", name: "Stamina", description: "Gain 20 health.", stat_changes: (health: 20))

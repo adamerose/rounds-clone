@@ -13,7 +13,7 @@
 <p>World units are pixels, Y points up, and rotations are radians. Each file names a frame as <code>(left, bottom, right, top)</code>.</p>
 <p>The camera shows that frame. The loader rejects geometry, motion endpoints, fixed anchors or spawns outside it, including non-finite values.</p>
 <p>The frame keeps its aspect ratio, with letterboxing when needed. Data arenas have no lens distortion or chromatic offset.</p>
-<p>Provide one to four spawn coordinates. The current two-fighter adapter uses the first two; a single slot is reused for both fighters.</p>
+<p>Provide one to four spawn coordinates. Fighters use them in order; additional fighters receive deterministic positions across the frame.</p>
 <h2>Pieces</h2>
 <p>Each object has a unique <code>id</code>, position, shape, kind and RGB colour. Rotation defaults to zero and mass defaults to one.</p>
 <p>Shapes are <code>Rectangle(size: (width, height))</code>, <code>Circle(radius: r)</code> or <code>Polygon(vertices: [...])</code>.</p>
@@ -28,7 +28,7 @@
 <h2>Motion and chains</h2>
 <p>Motion is <code>Some((path: [(0.0, 0.0), (120.0, 0.0)], period_seconds: 2.0, angular_velocity: 0.0))</code>.</p>
 <p>Path points are offsets from the initial position. Segments take equal time and the last point connects to the first; an empty path rotates in place.</p>
-<p>Moving pieces are kinematic so they push fighters. Position derives from the arena age; repeated loops do not accumulate translation error.</p>
+<p>Moving pieces are kinematic so they push fighters. Position derives from simulation time; repeated loops do not accumulate translation error.</p>
 <p>Chains name <code>body_b</code>, an optional <code>body_a</code>, a world anchor, a positive maximum length, and a unique chain ID.</p>
 <p>When <code>body_a: None</code>, the anchor is fixed. Otherwise the chain joins the centres of the named pieces and ignores the world anchor.</p>
 <p>Chains never break from shots or force. Breaking either endpoint removes that chain and frees the surviving piece.</p>
@@ -36,12 +36,12 @@
 <p><code>ArenaDefinition::load</code> validates one file; <code>load_arena_directory</code> loads every RON file in filename order.</p>
 <p><code>AuthoritativeMatch::from_arena_file</code> runs a session from a file and checks it at tick boundaries for validated edits.</p>
 <p>File checks occur every fifteen ticks, giving at most 250 ms of reload delay in live play without reading the filesystem on every physics tick.</p>
-<p>A valid edit resets geometry, spawns and transient combat state. Invalid edits leave the running arena intact; inspect <code>arena_reload_error()</code>.</p>
-<p>Reloads preserve network ticks, match phase, scores and loadouts. Invalid later-stage edits use the last validated geometry and report the error.</p>
+<p>A valid edit replaces geometry and resets positions and projectiles. Invalid edits leave the running arena intact; inspect <code>arena_reload_error()</code>.</p>
+<p>Reloads preserve network ticks, fighter health and elimination, match phase, scores and loadouts.</p>
 <p>Set <code>QUARREL_ARENA_DIR</code> to override the asset directory. Otherwise assets are located beside an enclosing working or executable directory.</p>
 <pre><code>cargo run --locked -p quarrel-client -- arena-preview --arena assets/arenas/all-kinds.ron --output out/arena-preview.png</code></pre>
 <p>This uses Bevy's offscreen renderer without opening a window. Previews belong under ignored <code>out/</code>, not in Git.</p>
-<p>The converted replay files retain compatibility surfaces and body definitions. New arenas use objects and chains; the profiles remain until ticket 78.</p>
+<p>Converted files retain surface contours and body definitions. Ordinary matches load them as arena data; new arenas use objects and chains.</p>
 </main>
 </body>
 </html>

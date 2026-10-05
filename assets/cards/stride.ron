@@ -1,0 +1,1 @@
+(id: "stride", name: "Stride", description: "Run 25 units per second faster.", stat_changes: (movement_speed: 25))

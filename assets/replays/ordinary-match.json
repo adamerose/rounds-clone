@@ -1,0 +1,5196 @@
+{
+  "config": {
+    "fighter_count": 2,
+    "target_score": 2,
+    "offer_size": 5,
+    "run_it_back_limit": 2,
+    "seed": 38
+  },
+  "frames": [
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": {
+          "phase_revision": 0,
+          "action": {
+            "Confirm": 533296276972003695
+          }
+        }
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": {
+          "phase_revision": 0,
+          "action": {
+            "Confirm": 2490825524433594493
+          }
+        }
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": true,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": true,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -1,
+        "aim_at_opponent": false,
+        "jump": true,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 1,
+        "aim_at_opponent": false,
+        "jump": true,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -1,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 1,
+        "aim_at_opponent": false,
+        "jump": true,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 13,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -13,
+        "aim_at_opponent": false,
+        "jump": true,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 29,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -29,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 31,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -31,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 33,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -33,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 35,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -35,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 37,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -37,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 39,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -39,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 41,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -41,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 43,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -43,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 46,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -46,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 48,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -48,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 47,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -47,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 44,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -44,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 41,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -41,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 36,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -36,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 32,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -32,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 28,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -28,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 22,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -22,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 16,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -16,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 9,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": -9,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -8,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 8,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -18,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 18,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -29,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 29,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -42,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 42,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -55,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 55,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -70,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 70,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -73,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 73,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -73,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 73,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -73,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 73,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -74,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 74,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -74,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 74,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -75,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 75,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -75,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 75,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": -76,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 76,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": {
+          "phase_revision": 3,
+          "action": {
+            "Confirm": 1101697646798369389
+          }
+        }
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 1,
+        "aim_x": 1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": true,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": -1,
+        "aim_x": -1000,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ],
+    [
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      },
+      {
+        "move_axis": 0,
+        "aim_x": 0,
+        "aim_y": 0,
+        "aim_at_opponent": false,
+        "jump": false,
+        "fire": false,
+        "block": false,
+        "flow": null
+      }
+    ]
+  ]
+}

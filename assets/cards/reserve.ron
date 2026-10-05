@@ -1,0 +1,1 @@
+(id: "reserve", name: "Reserve", description: "Gain 10 health and 10 damage.", stat_changes: (health: 10, damage: 10))
