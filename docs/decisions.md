@@ -716,3 +716,10 @@ He rejected Vampire Survivors-style evolution recipes because the game must be e
 Hand limits, tags, the combo book, sudden death, the kill cam, secret cards, a growing pool and handicaps are tabled.
 Every good ROUNDS mechanic stays available as inspiration alongside our own, collected in `docs/card-ideas.md`; style and juice are deferred until the MVP but remain essential.
 The fading-chain rule stays as an engineering requirement, since reactions that trigger each other must not hang the game.
+
+## 2026-10-04 — Keep ROUNDS' basics and try recoil movement
+
+Adam declined a timed perfect block and impact-scaled wall damage, so blocking and the arena edge work as in ROUNDS: shots reflect off any block, and edges deal heavy damage and push fighters back unless they block into them for a launch.
+He chose to try recoil as a movement tool, with a cap so it is never required.
+He wants arenas built from a variety of materials with some breakable and roped objects, as ROUNDS has, but not terrain that is all breakable or chippable.
+Research checked ROUNDS' basics, including crouch and the single stored jump, and found the older core-rules note and the current code wrong to treat leaving the arena as death; `docs/rounds-reference.md` records the verified behaviour with sources.

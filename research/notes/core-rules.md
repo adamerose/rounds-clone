@@ -35,7 +35,7 @@ No downloaded video or source frame is committed.
 1. Exactly two opposing players join a vanilla match.
 2. Each player receives five card choices and selects one persistent starting card.
 3. A fixed arena appears, both players spawn with fresh health, ammunition, block cooldown, and no transient projectiles, and control unlocks together.
-4. The players fight until one dies from depleted health or leaving the arena bounds.
+4. The players fight until one dies from depleted health or leaving the arena bounds. (Corrected 2026-10-04: leaving the arena deals heavy damage and pushes the fighter back rather than killing; see `docs/rounds-reference.md`.)
 5. The survivor receives half of one round point.
 6. The same arena resets for another duel with cards and score retained.
 7. A second duel win completes the round point.

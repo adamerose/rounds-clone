@@ -4,6 +4,12 @@
 Everything below is a hypothesis until a play session supports it; `docs/playtests/` records which ones survived.
 `docs/card-ideas.md` is the pool of card, trait, curse and fight-modifier ideas.
 
+## The basics
+
+The controls and fight basics are ROUNDS' (`docs/rounds-reference.md`): move, one stored jump, crouch, wall cling and climb, arcing shots with three-shot magazines, a reflecting block, and screen edges that hurt and push you back unless you block into them for a launch.
+They are the core of the pace and skill expression, so QUARREL keeps them and adds its variety through cards, arenas and modifiers.
+The one change under test is recoil you can move with: firing pushes you back, so a downward shot mid-air gives a capped boost.
+
 ## What we keep from ROUNDS
 
 - Short fights in small arenas, where one good block or shot decides things.
@@ -40,8 +46,9 @@ Everything below is a hypothesis until a play session supports it; `docs/playtes
 6. **Builds can change the fighter, not just the gun.**
    Grapple hook, portal gun, melee weapons, dash and wall cling sit beside gun upgrades.
 7. **The arena is part of the fight.**
-   Destructible and moving terrain, ring-outs as a real way to win, and cards that act on the world.
-   Damage visibly scales shot size, screen distortion and terrain destruction.
+   Arenas mix materials that behave differently, but most terrain stays solid; nothing is chipped pixel by pixel.
+   Pieces hang from ropes, topple, and hurt whoever they land on, and cards act on the world.
+   Damage visibly scales shot size, screen distortion and how much breaks.
 8. **Curses.**
    Now and then the loser's offer includes a curse that hurts the leader, such as slippery feet or a smaller magazine.
    Taking it spends the pick, so it is a real choice; curses never take away control.
@@ -58,6 +65,7 @@ Everything below is a hypothesis until a play session supports it; `docs/playtes
 
 ## Experiments for play sessions
 
+- Recoil movement: how strong, and whether it is fun or mandatory.
 - Whether the base fight with no cards is fun on its own; this comes first.
 - The target score and the run-it-back targets.
 - How often curses and fight modifiers appear.
