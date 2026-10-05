@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "cards"]
@@ -33,6 +33,7 @@ Cards built from stat changes plus rules that react to events let such combos em
 - Card names, text and numbers are our own; ROUNDS names stay only in design notes.
 - Echo means "when I block, block again a moment later" (Adam, 2026-10-04).
 - This ticket may run alongside #79, which edits movement and blocking; whichever lands second rebases.
+- Extends the card format defined in #78 rather than replacing it, and removes its placeholder cards.
 
 ## Evidence required
 
