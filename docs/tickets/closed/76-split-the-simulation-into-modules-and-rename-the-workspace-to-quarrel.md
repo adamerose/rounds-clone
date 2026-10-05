@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a10d50-dccf-7641-937d-21bf6a455456
+status: closed
 created: 2026-10-05T14:13:11Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "refactor"]
@@ -53,3 +52,5 @@ Adam — this session, 2026-10-05:
 - 2026-10-05T18:40:31Z stage verify start session codex:01a10d50-dccf-7641-937d-21bf6a455456 — Locked workspace build/test followed by renamed public smoke/capture commands and saved pre-rename state/frame comparisons; RUST_TEST_THREADS=1 for renderer tests.
 - 2026-10-05T18:52:38Z stage verify end session codex:01a10d50-dccf-7641-937d-21bf6a455456 — fmt, strict locked all-target Clippy, locked workspace build and all 88 tests pass. Renamed CI smoke (180 ticks), connected two-client smoke (5941 ticks), and headless capture pass. Exact pre-change build matches all seven full inspection outputs and PNG bytes; existing cached executables were stale. Evidence: out/ticket-076. Name scan has only this ticket's pre-change summary until closure.
 - 2026-10-05T18:52:48Z stage review start session codex:01a10d50-dccf-7641-937d-21bf6a455456 — Fresh read-only Claude Fable CLI review of the complete move/rename candidate after retargeting onto the current origin/main and verification.
+- 2026-10-05T19:21:00Z stage review end session claude:d99e00db-544d-4b73-b800-d4508ce0e319 — approved candidate c0ca1853ddcc73c37fa106984d5a051884613b98..94bbb709a006baee059fc1142cedf92984085a18
+- 2026-10-05T19:21:00Z stage integration end session codex:01a10d50-dccf-7641-937d-21bf6a455456 — integrated 94bbb709a006baee059fc1142cedf92984085a18 as 94bbb709a006baee059fc1142cedf92984085a18
