@@ -743,3 +743,7 @@ Online play between homes moves into the MVP (M1) instead of following it, becau
 
 An independent contract check found missing dependencies (#82 on #78, #83 on #79, #84 on #83), an undefined card format between #78 and #80, and Steam and controller evidence a worker could not produce unattended; the tickets were fixed and admitted.
 Delegated for run #75: a run-back needs every fighter to vote yes, and any no starts a new match from no cards; the alternative, a majority vote, could force a player into a longer match they did not want.
+
+## 2026-10-05 — The end-of-match choice needs consensus
+
+Adam replaced the delegated "any no starts a new match" rule: each fighter picks run it back or new match, sees everyone's current pick live, can change theirs, and nothing happens until all picks agree.
