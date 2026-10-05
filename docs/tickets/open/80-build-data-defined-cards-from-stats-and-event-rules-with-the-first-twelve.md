@@ -1,0 +1,54 @@
+---
+format: 3
+status: idea
+created: 2026-10-05T14:13:11Z
+origin: human-request
+tags: ["quarrel", "mvp", "cards"]
+value: 10
+sessions:
+  - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
+execution: unattended
+parent: 75
+depends-on: [78]
+supersedes: []
+split-from: []
+---
+
+# Build data-defined cards from stats and event rules, with the first twelve
+
+The fun Adam's group remembers is discovering combos, such as poison plus spray plus reload-on-hit giving an endless stream after one hit.
+Cards built from stat changes plus rules that react to events let such combos emerge without anyone designing each one (pillar 2 of `docs/game-design.md`).
+
+## Outcome
+
+- Cards are RON files under `assets/cards/`, reloaded while the game runs; each has an original name, a one-sentence description, stat changes and event rules.
+- Rules react to: fire, hit, block, bounce, land, take damage and kill; effects include extra shots, reload, teleport, repeat a block, fire at an opponent, explode, poison and changes to a shot in flight.
+- Rules scale with stats (a reaction shot uses the fighter's current shot stats), and reaction chains fade so each triggered reaction is less likely to trigger the next.
+- Twelve cards with our own names and numbers, matching these ideas from `docs/card-ideas.md`: Fast shot (much faster, harder shots, slower fire; the sniper card), Spray, Bounce, Grow, Steer, Drill, Explode, Poison, Reload on hit, Teleport, Echo and Radar.
+- Most cards have a visible upside and downside.
+- Holding several copies of a card stacks it.
+
+## Decisions
+
+- Card names, text and numbers are our own; ROUNDS names stay only in design notes.
+- Echo means "when I block, block again a moment later" (Adam, 2026-10-04).
+- This ticket may run alongside #79, which edits movement and blocking; whichever lands second rebases.
+
+## Evidence required
+
+- A sim test for each card showing its effect the first time it fires.
+- Combo tests: Poison with Spray and Reload on hit keeps firing after one landed hit; Echo with Teleport and Radar teleports twice and fires two reaction shots; Grow with Fast shot hits harder at long range.
+- A test that a self-triggering chain stops within a bounded number of reactions.
+- A test changes a card file during a session and observes the change.
+
+## Chat excerpts
+
+Adam — this session, 2026-10-04:
+
+> powerful combos, like high bullet speed high damage making me a sniper. or echo + teleport + radar shot. or poison + spray + scavenger giving infinite spray when i land one bullet, or abyssal countdown + supernova.... the first time we had each of those combos was amazing
+
+> I like grow, I like the one where you guide the bullet with your mouse, I like bouncing, drilling, etc.
+
+## Work log
+
+- 2026-10-05T14:13:11Z Drafted under run #75.
