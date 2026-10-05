@@ -19,12 +19,13 @@ Everything below is a hypothesis until a play session supports it; `docs/playtes
 
 ## Pillars
 
-1. **Combos come from rules that react to each other.**
-   A card is mostly a small rule on a game event: when I fire, when I hit, when I block, when a bullet bounces, when I land, when I take damage, when I kill.
-   Effects include spawning a projectile, teleporting, poisoning, exploding, refilling ammo, healing, shoving terrain and changing gravity.
-   Cards that only add numbers are rare, and usually come attached to a rule.
+1. **Builds come from stats and rules together.**
+   Stat cards push a fighter toward a role: high bullet speed plus high damage makes a sniper, fast fire plus spread makes a sprayer.
+   A good stat card pays for itself in another stat (more damage, slower reload) or with a soft cap, so it shapes a role instead of adding raw power.
+   Rule cards are small reactions to game events: when I fire, when I hit, when I block, when a bullet bounces, when I land, when I take damage, when I kill.
+   Their effects include spawning a projectile, teleporting, poisoning, exploding, refilling ammo, healing, shoving terrain and changing gravity.
    ROUNDS combos fit this shape: Scavenger is "on hit, refill ammo" and Echo is "on fire, repeat this shot later".
-   New rules should combine with existing ones, so nobody has to design the combos one by one.
+   Rules scale with stats (a sniper's Echo is a second sniper shot), and new rules combine with existing ones, so nobody has to design the combos one by one.
 2. **Builds are choices, not piles.**
    A fighter holds a limited number of cards, probably five or six so three-card combos still fit.
    A full hand means a new card replaces one you already have.
