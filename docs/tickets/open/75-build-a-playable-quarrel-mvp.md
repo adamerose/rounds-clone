@@ -64,3 +64,4 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 ## Work log
 - 2026-10-05T01:08:21Z Run ticket admitted on Adam's authority by invoking /autonomy; destination main.
 - 2026-10-05T14:16:48Z Contract updated to the settled design (loser picks, new arena every fight, ROUNDS basics plus recoil) and split into #76-#82; superseded tickets closed. The run is not yet started.
+- 2026-10-05T14:56:33Z Online play (#83 responsive netcode, #84 Steam invites) added to the MVP; no tied fights; run-backs go to 10 and 15.
