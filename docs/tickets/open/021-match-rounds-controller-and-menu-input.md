@@ -40,3 +40,4 @@ ROUNDS is played through its complete controller and keyboard flow, while the cl
 - 2026-08-29T02:40:49Z stage design start session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Assigning the controller and menu-input fidelity gap without converting internal bots into an invented shipped mode.
 - 2026-08-29T02:40:49Z stage design end session codex:01a0492f-57bc-7f32-87fa-1fbe5d483893 — Bound local input behavior to direct target-build evidence and the existing deterministic semantic-input boundary.
 - 2026-09-02T02:09:33Z — Reflection verdict: wait because the playable local match's still-required controller and menu path needs the base calibration and presentation flow owned by tickets 016 and 020 before its navigation and prompts can be target-faithful.
+- 2026-10-05T14:06:35Z Abandoned: superseded by the 2026-10-04 QUARREL direction (GOAL.md, docs/roadmap.md) and run ticket #75; Adam approved closing it. The footage-fidelity goal it served no longer exists.
