@@ -1,0 +1,51 @@
+---
+format: 3
+status: idea
+created: 2026-10-05T14:13:11Z
+origin: human-request
+tags: ["quarrel", "mvp", "combat"]
+value: 9
+sessions:
+  - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
+execution: unattended
+parent: 75
+depends-on: [78]
+supersedes: []
+split-from: []
+---
+
+# Make the base fight play like ROUNDS, with recoil movement and live tuning
+
+QUARREL keeps ROUNDS' controls and fight basics because they carry its pace and skill expression, and the base fight must be fun with no cards before cards are worth tuning.
+The current code differs from ROUNDS in places, most visibly by killing a fighter who leaves the arena.
+
+## Outcome
+
+- The basics in `docs/rounds-reference.md` hold: one stored jump restored by floor or wall; wall cling and climbing; crouch that halves height on the ground and falls faster in the air; three-shot magazine and reload; shots that drop under gravity and push what they hit; a base hit removing about 60 % of health; a block of about half a second that reflects shots and extends when it does, with a cooldown, that does not stop damage over time; no fall damage.
+- Crossing any screen edge deals heavy damage and pushes the fighter back in instead of killing; blocking just before touching an edge cancels the damage and launches the fighter off it.
+- Firing pushes the shooter back with a capped strength, so a downward shot mid-air gives a small boost; recoil can be switched off in tuning for comparison.
+- Every movement, shot, block, edge and recoil number lives in `assets/tuning.ron` and reloads while the game runs.
+
+## Decisions
+
+- Keep ROUNDS' controls and basics; recoil movement is the only change under test (Adam, 2026-10-04).
+- Numbers are our own starting points tuned by feel, not footage measurements.
+- Perfect blocks and impact-scaled edge damage are not added (Adam, 2026-10-04).
+
+## Evidence required
+
+- Sim tests for each rule above, including an edge hit dealing damage and pushing back, an edge block launching without damage, block reflection and extension, crouch height, and capped recoil.
+- A headless capture shows an edge launch and a reflected shot.
+- A test changes `assets/tuning.ron` during a session and observes the new value.
+
+## Chat excerpts
+
+Adam — this session, 2026-10-04:
+
+> yeah. also lets revisit the fundamental mechanics. are we just copying rounds so far? left click fires an arcing bullet, jumping, blocking, map edge damage and bounce up, blocking to bounce far as you hit the map edge and negate damage, hanging on to walls, wall jump, etc. do we want to change any of that?
+
+> 1. nah 2. nah 3. yes lets try it
+
+## Work log
+
+- 2026-10-05T14:13:11Z Drafted under run #75.
