@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: closed
 created: 2026-09-02T02:12:00Z
 origin: system-detected
 tags: ["project-maintenance", "recovery", "git", "workflow"]
