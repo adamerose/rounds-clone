@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:13:11Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "refactor"]
@@ -34,7 +34,7 @@ The crates are also still named after ROUNDS, which the game is no longer clonin
 
 - `cargo fmt --all -- --check`, strict all-target Clippy, and a locked build and test of the workspace pass through the repository's `.cargo/config.toml` target.
 - The existing headless capture and two-client smoke commands still pass under the new names.
-- `git grep -n "rounds-sim\|rounds_sim\|rounds-client\|rounds_client"` finds no live code or command references (history and archived notes excepted).
+- `git grep -nE "rounds[-_](sim|presentation|network|client|server|automation)"` finds nothing outside `docs/decisions.md`, `docs/tickets/closed/` and `docs/recovery/`.
 
 ## Chat excerpts
 
