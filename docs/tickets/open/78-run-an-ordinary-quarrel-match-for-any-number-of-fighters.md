@@ -36,12 +36,12 @@ This ticket replaces all of that with one general match flow driven by a match c
 - Only fighters who did not win a fight pick; in 1v1 that is the loser (Adam, 2026-10-04).
 - A new random arena every fight, as in ROUNDS (Adam, 2026-10-04).
 - Offers are seeded from the match seed so a replay reproduces them.
-- A run-back needs every fighter to vote yes; any no starts a new match from no cards, beginning with an opening pick (delegated choice for run #75, recorded in `docs/decisions.md`).
+- The end-of-match choice needs consensus: each fighter picks run it back or new match, can change their pick, and sees everyone's current pick; nothing happens until every pick agrees (Adam, 2026-10-05).
 - "Every fighter who did not win picks" is the free-for-all reading of "the loser picks"; in 1v1 they are the same.
 
 ## Evidence required
 
-- Sim tests cover: opening pick, a point per fight, loser pick, a same-tick double death resolved by the seeded coin flip, first to the target, run-it-back keeping cards and raising the target, the run-back limit, and arena rotation without repeats.
+- Sim tests cover: opening pick, a point per fight, loser pick, a same-tick double death resolved by the seeded coin flip, first to the target, run-it-back keeping cards and raising the target, the end-of-match choice waiting until every fighter's pick agrees, the run-back limit, and arena rotation without repeats.
 - A sim test runs a three-fighter match to its end.
 - The recorded-input replay reaches a draft and a match end and produces the same result on two runs.
 - A headless two-client smoke over UDP plays an ordinary match through at least one draft.
@@ -60,6 +60,10 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 > that should never happen. or flip a coin. dont tie
 
 > running it back should be 5,10,15
+
+Adam — [this session](http://ivy.localhost/sessions/claude/b6830e28-b9c7-41d5-9510-1a09f7d6de88), 2026-10-05:
+
+> just make it require consensus, and show the other players current pick
 
 ## Work log
 
