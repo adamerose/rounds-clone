@@ -16,7 +16,7 @@ The goal is an ordinary match that anyone can start and finish, with no script b
 
 - Replace `ReplayProfile` with general data: an arena definition (surfaces, spawns, dynamic bodies, hazards) and a match config (fighters, target score, run-it-back limit).
 - Rules, draft and scoring for any number of fighters; ship 1v1.
-- Rotate the existing arena geometry as ordinary arenas.
+- An arena format covering every ROUNDS object kind in `docs/rounds-maps.md` (solid, loose, breakable, background, chained, saws, moving), and a first set of our own arenas that use each kind; the existing scene geometry can seed them.
 - Play the base fight with no cards and tune movement, shot, block and knockback until it is fun on its own.
 - A card system built from event rules (on fire, hit, block, bounce, land, damage, kill) and effects, loaded from data that reloads while the game runs.
 - The first twelve cards from `docs/card-ideas.md`, chosen to combine: Fast shot, Spray, Bounce, Grow, Steer, Drill, Explode, Poison, Reload on hit, Teleport, Echo and Radar (renamed before release).

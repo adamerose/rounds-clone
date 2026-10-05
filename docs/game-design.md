@@ -46,9 +46,11 @@ The one change under test is recoil you can move with: firing pushes you back, s
 6. **Builds can change the fighter, not just the gun.**
    Grapple hook, portal gun, melee weapons, dash and wall cling sit beside gun upgrades.
 7. **The arena is part of the fight.**
-   Arenas mix materials that behave differently, but most terrain stays solid; nothing is chipped pixel by pixel.
-   Pieces hang from ropes, topple, and hurt whoever they land on, and cards act on the world.
-   Damage visibly scales shot size, screen distortion and how much breaks.
+   Arenas start with every kind of object ROUNDS has (`docs/rounds-maps.md`): solid ground, loose boxes and balls, breakable pieces, background props, pieces hung on chains, fixed and loose saws, and moving parts.
+   Chains never break; what they hold is knocked loose by breaking or shoving the piece itself.
+   Most terrain stays solid and nothing is chipped pixel by pixel; there are no drop-through platforms.
+   You can tell how a piece behaves from its look alone.
+   Falling pieces hurt whoever they land on, and damage visibly scales shot size, screen distortion and how much breaks.
 8. **Curses.**
    Now and then the loser's offer includes a curse that hurts the leader, such as slippery feet or a smaller magazine.
    Taking it spends the pick, so it is a real choice; curses never take away control.
@@ -70,9 +72,14 @@ The one change under test is recoil you can move with: firing pushes you back, s
 - The target score and the run-it-back targets.
 - How often curses and fight modifiers appear.
 
+## Arena ideas for later
+
+Glass that shatters in one hit, metal that always ricochets shots, rubber that bounces fighters, ice floors, explosive barrels with chain reactions, liquids (water, lava, acid), force and wind zones, low-gravity bubbles, crushers, pendulums and rotating platforms.
+
 ## Engineering requirements
 
 - Cards are data that reloads while the game runs, so trying a variant takes minutes rather than a rebuild.
+- Arenas are text data that agents write and edit, with a headless preview render to check each change; nobody needs a visual map editor.
 - Chains of reactions fade out (each reaction triggered by another is less likely to trigger the next), so absurd combos stay absurd instead of freezing the game or breaking online play.
 
 ## Tabled ideas

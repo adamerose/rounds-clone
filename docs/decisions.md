@@ -723,3 +723,12 @@ Adam declined a timed perfect block and impact-scaled wall damage, so blocking a
 He chose to try recoil as a movement tool, with a cap so it is never required.
 He wants arenas built from a variety of materials with some breakable and roped objects, as ROUNDS has, but not terrain that is all breakable or chippable.
 Research checked ROUNDS' basics, including crouch and the single stored jump, and found the older core-rules note and the current code wrong to treat leaving the arena as death; `docs/rounds-reference.md` records the verified behaviour with sources.
+
+## 2026-10-04 — Arenas start from ROUNDS' object kinds, with unbreakable chains
+
+Adam asked for a reference catalogue of ROUNDS' maps; `docs/rounds-maps.md` describes all 70 from the community spreadsheet's previews and internal names, plus six removed at launch.
+QUARREL's arenas begin with every object kind ROUNDS uses: solid ground, loose boxes and balls, breakable pieces, background props, hung pieces, fixed and loose saws, and moving parts.
+Adam prefers chains that never break and no drop-through platforms, wants each material's behaviour to be clear from its look, and likes moving pieces.
+Extra materials and zones are listed for later in `docs/game-design.md`.
+Because the game is built with agents, arenas are text data with headless preview renders instead of a visual editor.
+The earlier map research avoided community names; the new catalogue includes them because they are reference notes, not shipped content, and the preview images themselves stay out of Git.
