@@ -52,3 +52,4 @@ The current match rotates through 62 arenas whose geometry was abstracted from p
 - 2026-09-02T02:09:33Z — Reflection verdict: wait because the still-required full-catalog outcome's first evidence-backed group needs ticket 016 to establish calibrated base behavior through ticket 031's currently blocked installed-build capture route.
 - 2026-09-04T12:40:06.869Z — Recorded ticket 042 as this umbrella's first radial-saw child while preserving the full-catalog closure boundary and ticket 042's independent dependency set.
 - 2026-09-04T17:00:46.632Z — Recorded proposed ticket 043 as the first source-bound yellow-crate/reactive-piece child without changing this umbrella's full-catalog outcome.
+- 2026-10-05T14:05:23Z Abandoned: superseded by the 2026-10-04 QUARREL direction (GOAL.md, docs/roadmap.md) and run ticket #75; Adam approved closing it. The footage-fidelity goal it served no longer exists.
