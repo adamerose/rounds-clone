@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-10-02T15:44:47Z
 origin: agent-proposed
 tags: ["rounds", "fidelity", "research", "projectiles"]
