@@ -44,7 +44,7 @@ The one change under test is recoil you can move with: firing pushes you back, s
    A trait card changes your whole fighter (Sniper, Juggernaut, Acrobat, Brawler) and gives a build its direction.
    You hold one; taking a new trait replaces the old one.
 6. **Builds can change the fighter, not just the gun.**
-   Grapple hook, portal gun, melee weapons, dash and wall cling sit beside gun upgrades.
+   Grapple hook, portal gun, melee weapons and dash sit beside gun upgrades.
 7. **The arena is part of the fight.**
    Arenas start with every kind of object ROUNDS has (`docs/rounds-maps.md`): solid ground, loose boxes and balls, breakable pieces, background props, pieces hung on chains, fixed and loose saws, and moving parts.
    Chains never break; what they hold is knocked loose by breaking or shoving the piece itself.

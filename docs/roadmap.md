@@ -42,7 +42,7 @@ The goal is the "first time we found that combo" feeling, session after session.
 
 - Play-test the experiments in `docs/game-design.md`: target score, run-it-back, opening pick, curse and modifier frequency.
 - Trait cards, duo cards, curses and random fight modifiers.
-- Fighter-changing cards: grapple hook, portal gun, melee, dash, wall cling.
+- Fighter-changing cards: grapple hook, portal gun, melee, dash.
 - Destructible terrain and screen distortion that scale with build power.
 - Grow toward forty cards and ten arenas, adding what play sessions ask for.
 

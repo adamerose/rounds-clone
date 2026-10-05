@@ -102,7 +102,6 @@ ROUNDS' richest combos come from reactions to blocking.
 - ★ **Grapple hook:** fire a line that pulls you to terrain, or pulls a light opponent to you.
 - **Dash:** a short burst in your aim direction with a moment of invulnerability.
 - **Double jump.**
-- **Wall cling:** stick to walls and jump off them.
 - **Jetpack:** hold jump to hover briefly.
 - **Ground slam:** drop fast and knock back whatever is near where you land.
 - **Rewind:** jump back to where you were two seconds ago.
@@ -151,7 +150,7 @@ A trait changes your whole fighter, so it gives a build its direction.
 
 - **Sniper:** shots fly far faster and hit harder; you fire much less often.
 - **Juggernaut:** heavy and hard to knock back, but slow.
-- **Acrobat:** double jump and wall cling, less health.
+- **Acrobat:** a second air jump and faster wall climbing, less health.
 - **Gunslinger:** two guns that fire alternately.
 - **Brawler:** melee instead of a gun, with a dash.
 - **Ghost:** pass through thin platforms, take a little more damage.
