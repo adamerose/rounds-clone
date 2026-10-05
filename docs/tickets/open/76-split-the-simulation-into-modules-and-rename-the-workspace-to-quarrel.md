@@ -1,12 +1,14 @@
 ---
 format: 3
 status: ready
+owner: codex:01a10d50-dccf-7641-937d-21bf6a455456
 created: 2026-10-05T14:13:11Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "refactor"]
 value: 6
 sessions:
   - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
+  - codex:01a10d50-dccf-7641-937d-21bf6a455456
 execution: unattended
 parent: 75
 depends-on: []
