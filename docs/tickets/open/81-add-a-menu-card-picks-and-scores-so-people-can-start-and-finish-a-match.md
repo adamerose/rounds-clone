@@ -24,7 +24,7 @@ Style waits until after the MVP, so this is plain and readable rather than polis
 - A main menu offers local match, host and join (with an address field).
 - A local match on one machine supports keyboard and mouse for one fighter and a controller for the other, or two controllers.
 - Between fights, each picking fighter sees their offer with each card's name and one-sentence description and chooses one with their own input; others see who is picking.
-- A score display shows points between fights, and the match end screen shows the winner and the run-it-back vote.
+- A score display shows points between fights, and the match end screen shows the winner and each fighter's current pick of run it back or new match, updating live until all agree.
 - Everything uses plain shapes and text.
 
 ## Decisions
@@ -45,6 +45,10 @@ Style waits until after the MVP, so this is plain and readable rather than polis
 Adam — this session, 2026-10-04:
 
 > also lets forget about aesthetic until we have an MVP, but its extremely important. the style and juice of rounds is great.
+
+Adam — [this session](http://ivy.localhost/sessions/claude/b6830e28-b9c7-41d5-9510-1a09f7d6de88), 2026-10-05:
+
+> just make it require consensus, and show the other players current pick
 
 ## Work log
 
