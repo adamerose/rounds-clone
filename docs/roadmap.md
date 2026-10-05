@@ -14,13 +14,13 @@ Good reusable pieces already exist: arena geometry for teal, timber, ice, lime, 
 
 The goal is an ordinary match that anyone can start and finish, with no script behind it, and a base fight that is fun before any card.
 
-- Replace `ReplayProfile` with general data: an arena definition (surfaces, spawns, dynamic bodies, hazards, palette) and a match config (fighters, target score, run-it-back limit).
+- Replace `ReplayProfile` with general data: an arena definition (surfaces, spawns, dynamic bodies, hazards) and a match config (fighters, target score, run-it-back limit).
 - Rules, draft and scoring for any number of fighters; ship 1v1.
 - Rotate the existing arena geometry as ordinary arenas.
 - Play the base fight with no cards and tune movement, shot, block and knockback until it is fun on its own.
 - A card system built from event rules (on fire, hit, block, bounce, land, damage, kill) and effects, loaded from data that reloads while the game runs.
-- About ten original cards chosen to combine with each other.
-- Option D draft: everyone picks once at the start; afterwards the winner upgrades or swaps and the others take a new card from a seeded offer.
+- About ten cards from `docs/card-ideas.md`, mostly with an upside and a downside, chosen to combine with each other.
+- Every fight is a point; the loser of each fight picks from a seeded offer.
 - A minimal menu: local match, host, join.
 - Keep a short recorded-input replay as a regression check; it plays through the general rules, not a profile.
 - Delete the footage-slice profiles, the historical-rematch setup, the fixed offer lists, the ROUNDS card catalog and their capture-anchor tests once nothing uses them.
@@ -40,13 +40,15 @@ The goal is a full match between two homes that feels fair.
 
 The goal is the "first time we found that combo" feeling, session after session.
 
-- Play-test the experiments in `docs/game-design.md`: hand size, draft variants, curses, match length and run-it-back.
-- Evolutions for duplicate cards, hidden fusions and a shared combo book.
-- Fighter-changing cards: dash, grapple, wall-cling, parry, gun replacements.
+- Play-test the experiments in `docs/game-design.md`: target score, run-it-back, opening pick, curse and modifier frequency.
+- Trait cards, duo cards, curses and random fight modifiers.
+- Fighter-changing cards: grapple hook, portal gun, melee, dash, wall cling.
 - Destructible terrain and screen distortion that scale with build power.
 - Grow toward forty cards and ten arenas, adding what play sessions ask for.
 
 ## M4 — Our own identity
+
+Style and juice are as important as mechanics; they wait only until the game is playable.
 
 - Logo, palette, fighter and card art, original sound, screen shake, hit pause and particles.
 - Controller support for every player, settings that persist.

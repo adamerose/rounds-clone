@@ -706,3 +706,13 @@ The alternatives were ROUNDS' loser-only picks, a shared offer with the loser fi
 
 An earlier estimate here wrongly said a first-to-three-rounds match would fill a five- or six-card hand; it gives two to four cards each.
 The match structure to test first is therefore a draft after every fight to five wins, compared against ROUNDS' rhythm shortened to three rounds, and is not yet settled.
+
+## 2026-10-04 — Loser-only picks, single-fight points, traits, duos, curses and modifiers
+
+Adam reversed the winner-sharpens draft: only the loser of a fight picks a card, as in ROUNDS.
+He also dropped best-of-three rounds, so every fight is a point and the loser picks after each one; first to five points is the default to test.
+He chose Hades-style duo cards, one-at-a-time trait cards instead of starting characters, more cards with both an upside and a downside, curse cards that the loser can take to hurt the leader, and random, occasional fight modifiers.
+He rejected Vampire Survivors-style evolution recipes because the game must be easy to learn, so hidden recipes and evolving duplicates are out; duo cards stay because the offer shows both parents.
+Hand limits, tags, the combo book, sudden death, the kill cam, secret cards, a growing pool and handicaps are tabled.
+Every good ROUNDS mechanic stays available as inspiration alongside our own, collected in `docs/card-ideas.md`; style and juice are deferred until the MVP but remain essential.
+The fading-chain rule stays as an engineering requirement, since reactions that trigger each other must not hang the game.

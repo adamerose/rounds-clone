@@ -2,58 +2,72 @@
 
 `QUARREL` (working title) is a spiritual successor to ROUNDS: its pace, movement, physics, juice and build variety, with new mechanics of our own.
 Everything below is a hypothesis until a play session supports it; `docs/playtests/` records which ones survived.
+`docs/card-ideas.md` is the pool of card, trait, curse and fight-modifier ideas.
 
 ## What we keep from ROUNDS
 
 - Short fights in small arenas, where one good block or shot decides things.
 - Movement and physics that feel great on their own, before any card.
+- The loser of each fight picks a card, which keeps matches close.
 - Building something across a match, and the "first time we found that combo" moments that keep happening after hundreds of games.
 - Power you can see: a big damage build visibly distorts the screen and breaks the map apart.
-- A clean, bright, readable look.
+- Every good ROUNDS mechanic is fair game; our own mechanics come on top.
 
 ## What we fix
 
-- **Winning costs you upgrades.** In ROUNDS only the loser drafts, so playing hard means not picking.
-- **Power creep.** Every card stacks forever on one gun, so late game turns into a contest of multiplied numbers and the screen becomes unreadable.
-- **Shallow variety.** Most cards only change numbers, so many builds feel the same.
+- **Power creep.** Cards that only add free numbers stack into a contest of multiplied stats and an unreadable screen.
+- **Repetition.** After many games the same builds come up; new mechanics, traits, duos, curses and fight modifiers keep matches different.
 
 ## Pillars
 
-1. **Builds come from stats and rules together.**
+1. **Easy to learn.**
+   Every card explains itself in one sentence and shows its effect the first time it fires.
+   Nothing combines through hidden recipes.
+2. **Builds come from stats and rules together.**
    Stat cards push a fighter toward a role: high bullet speed plus high damage makes a sniper, fast fire plus spread makes a sprayer.
-   A good stat card pays for itself in another stat (more damage, slower reload) or with a soft cap, so it shapes a role instead of adding raw power.
-   Rule cards are small reactions to game events: when I fire, when I hit, when I block, when a bullet bounces, when I land, when I take damage, when I kill.
-   Their effects include spawning a projectile, teleporting, poisoning, exploding, refilling ammo, healing, shoving terrain and changing gravity.
-   ROUNDS combos fit this shape: Scavenger is "on hit, refill ammo" and Echo is "on fire, repeat this shot later".
-   Rules scale with stats (a sniper's Echo is a second sniper shot), and new rules combine with existing ones, so nobody has to design the combos one by one.
-2. **Builds are choices, not piles.**
-   A fighter holds a limited number of cards, probably five or six so three-card combos still fit.
-   A full hand means a new card replaces one you already have.
-3. **Duplicates evolve.**
-   Taking a card you already hold turns it into a stronger, different version, rather than doubling its numbers.
-   Some pairs of different cards can fuse into hidden cards that players discover on their own; a shared combo book records what the group has found.
-4. **Builds can change the fighter, not just the gun.**
-   Dash, grapple, wall-cling, a timed parry that returns shots, sticky shots that detonate later, and cards that replace the gun entirely.
-5. **The arena is part of the fight.**
+   Rule cards react to game events: when I fire, hit, block, bounce, land, take damage or kill.
+   ROUNDS combos fit this shape: Reload-on-hit is "when I hit, reload" and Echo is "when I block, block again a moment later".
+   Rules scale with stats (Radar on a sniper fires a sniper shot), and each new rule should combine with the existing ones, so nobody designs combos one by one.
+3. **Most cards have an upside and a downside.**
+   "Much harder hits, much slower fire" shapes a build and holds power creep down better than free bonuses.
+   Pure upgrades exist but are rarer.
+4. **Duo cards.**
+   A duo card appears in your offer only once you hold both of its parent cards, and shows both parents so the reason is obvious.
+   It makes a combo bigger than its parts, such as every bounce exploding.
+5. **One trait at a time.**
+   A trait card changes your whole fighter (Sniper, Juggernaut, Acrobat, Brawler) and gives a build its direction.
+   You hold one; taking a new trait replaces the old one.
+6. **Builds can change the fighter, not just the gun.**
+   Grapple hook, portal gun, melee weapons, dash and wall cling sit beside gun upgrades.
+7. **The arena is part of the fight.**
    Destructible and moving terrain, ring-outs as a real way to win, and cards that act on the world.
-   Power has to show: damage scales bullet size, screen distortion and terrain destruction.
-6. **Winning sharpens a build; losing widens it.**
-   Everyone picks one card before the first fight.
-   After each draft, the winner upgrades or evolves a card they already hold, or swaps one out, while every other fighter takes a new card.
-   Winning is rewarded with depth and losing with breadth, so nobody sits out a draft and the loser still gains the most new options.
-7. **Quick matches that can keep going.**
-   The default to test is first to five fight wins with a draft after every fight: five to nine fights, ending with about three to five cards each plus upgrades.
-   The comparison is ROUNDS' rhythm shortened to first to three rounds of best-of-three fights, which keeps tense rounds but leaves only two to four cards each.
-   At the end, everyone can vote to run it back with builds kept and the target raised (eight, then eleven), at most twice.
-   The hand limit and evolution matter most in run-backs, keeping long builds deep rather than bloated.
-8. **1v1 first, more players later.**
-   The rules, draft and scoring work for any number of fighters, so 2v2 and free-for-all are configuration rather than rewrites.
+   Damage visibly scales shot size, screen distortion and terrain destruction.
+8. **Curses.**
+   Now and then the loser's offer includes a curse that hurts the leader, such as slippery feet or a smaller magazine.
+   Taking it spends the pick, so it is a real choice; curses never take away control.
+9. **Fight modifiers, now and then.**
+   Every few fights, at random, one rule applies to everyone for that fight (low gravity, ice floor, huge shots) and is announced before it starts.
+10. **Quick matches that can keep going.**
+    There are no best-of-three rounds: every fight is a point, and the loser of each fight picks a card.
+    The default to test is first to five points, five to nine fights.
+    At the end, everyone can vote to run it back with builds kept and a higher target, at most twice.
+11. **1v1 first, more players later.**
+    The rules, draft and scoring work for any number of fighters, so 2v2 and free-for-all are configuration rather than rewrites.
+12. **Style and juice matter as much as mechanics, after the MVP.**
+    The MVP uses plain shapes; the look, sound and feel get full attention once the game is playable.
 
 ## Experiments for play sessions
 
-- Hand size: unlimited stacking against five or six slots.
-- Draft: winner sharpens and loser widens, against ROUNDS' loser-only picks and a shared offer with the loser first.
-- Draft after every fight to five wins, against first to three rounds of best-of-three, and the run-it-back targets.
 - Whether the base fight with no cards is fun on its own; this comes first.
+- The target score (five points, or more) and the run-it-back targets.
+- Whether everyone picks one card before the first fight.
+- How often curses and fight modifiers appear.
 
-Cards are data that reloads while the game runs, so trying a variant takes minutes rather than a rebuild.
+## Engineering requirements
+
+- Cards are data that reloads while the game runs, so trying a variant takes minutes rather than a rebuild.
+- Chains of reactions fade out (each reaction triggered by another is less likely to trigger the next), so absurd combos stay absurd instead of freezing the game or breaking online play.
+
+## Tabled ideas
+
+Kept for later, not planned: hand limits, evolving duplicates, card tags with set bonuses, a synergy pop and shared combo book, sudden death, a kill cam, secret cards, a card pool that grows as the group discovers duos, and handicaps for uneven players.
