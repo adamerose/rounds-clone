@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:13:11Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "ui"]
@@ -31,12 +31,14 @@ Style waits until after the MVP, so this is plain and readable rather than polis
 
 - Visible windows open on monitor 4 per `AGENTS.md`.
 - #73 and #74 stay separate tickets; this one must not break them.
+- #84 adds the Steam option to this menu.
 
 ## Evidence required
 
 - Headless captures of the menu, a card pick, the score display and the match end screen.
-- A visible local match on monitor 4 reaches a card pick, a match end and a run-back, recorded in the work log with the window position checked.
-- A host and a join on one machine reach the first fight from the menu.
+- A visible local match on monitor 4, driven by scripted keyboard and simulated gamepad input, reaches a card pick, a match end and a run-back; the window centre is verified on monitor 4 and logged.
+- A test drives one fighter from keyboard and mouse events and the other from simulated gamepad events.
+- A host and a join on one machine reach the first fight from the menu, headless or with both windows verified on monitor 4.
 
 ## Chat excerpts
 
