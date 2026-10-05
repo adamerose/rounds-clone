@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-10-02T14:41:09Z
 origin: agent-proposed
 tags: ["rounds", "product-fidelity", "physics"]
