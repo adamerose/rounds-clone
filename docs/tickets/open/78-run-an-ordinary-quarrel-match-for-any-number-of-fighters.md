@@ -73,3 +73,4 @@ Adam — [this session](http://ivy.localhost/sessions/claude/b6830e28-b9c7-41d5-
 - 2026-10-05T15:03:05Z Admitted for run #75 after an independent contract check; its fixes were applied first.
 - 2026-10-05T22:44:33Z stage research start session codex:01a10e3b-a842-7822-a150-68dd15a3b423 — Trace simulation, snapshots, clients and replay consumers for the general match replacement.
 - 2026-10-05T22:50:06Z stage research end session codex:01a10e3b-a842-7822-a150-68dd15a3b423 — Footage adapters own the obsolete assumptions throughout all six crates; replace those adapters while preserving ordinary arena physics and UDP/live render interfaces.
+- 2026-10-05T22:50:44Z stage implement start session codex:01a10e3b-a842-7822-a150-68dd15a3b423 — General flow and card pool implemented; bounded agents replace physics adapters, network consumers and rendering consumers in the isolated checkout.
