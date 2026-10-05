@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719
+status: closed
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "arenas"]
@@ -79,3 +78,5 @@ Adam — this session, 2026-10-04:
 - 2026-10-05T22:07:44Z stage correction start session codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719 — Reproduce pre-active draft edit and rebuild its physics only when changed data or earlier edits require it.
 - 2026-10-05T22:26:34Z stage correction end session codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719 — Pre-active draft collision mismatch reproduced red and fixed; all106 tests pass serially, fmt/strict Clippy/all-targets locked build pass, nine fresh previews and smoke pass. Evidence: out/ticket-077-draft-tests.log and out/ticket-077-proof-draft/.
 - 2026-10-05T22:26:56Z stage review start session codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719 — Fresh independent Claude CLI context audits the complete final range with all earlier findings and corrections.
+- 2026-10-05T22:36:15Z stage review end session claude:df200e2f-b388-447b-abfa-f37ad80ad2f9 — approved candidate 2d2954b41047266e158c1df023cbc916814b3bfa..c56799c82495da104b1f00072b9f7400f5ef8dcd
+- 2026-10-05T22:36:15Z stage integration end session codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719 — integrated c56799c82495da104b1f00072b9f7400f5ef8dcd as c56799c82495da104b1f00072b9f7400f5ef8dcd
