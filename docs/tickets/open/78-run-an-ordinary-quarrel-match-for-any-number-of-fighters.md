@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "match-flow"]
@@ -28,6 +28,7 @@ This ticket replaces all of that with one general match flow driven by a match c
 - Offers are drawn from the card pool in data, so new cards appear in offers without code changes.
 - A short recorded-input replay plays an ordinary match through these general rules as a regression check.
 - `ReplayProfile`, the historical-rematch setup, the fixed offer lists, the ROUNDS card catalog and the capture-anchor tests that only served them are deleted.
+- It defines the minimal card file format (id, name, one-sentence description, stat changes) under `assets/cards/`, with at least five placeholder stat cards; #80 extends this format and replaces the placeholders.
 
 ## Decisions
 
@@ -35,6 +36,8 @@ This ticket replaces all of that with one general match flow driven by a match c
 - Only fighters who did not win a fight pick; in 1v1 that is the loser (Adam, 2026-10-04).
 - A new random arena every fight, as in ROUNDS (Adam, 2026-10-04).
 - Offers are seeded from the match seed so a replay reproduces them.
+- A run-back needs every fighter to vote yes; any no starts a new match from no cards, beginning with an opening pick (delegated choice for run #75, recorded in `docs/decisions.md`).
+- "Every fighter who did not win picks" is the free-for-all reading of "the loser picks"; in 1v1 they are the same.
 
 ## Evidence required
 
