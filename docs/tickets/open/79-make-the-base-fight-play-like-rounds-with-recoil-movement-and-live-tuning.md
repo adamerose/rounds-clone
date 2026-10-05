@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "combat"]
