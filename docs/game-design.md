@@ -59,7 +59,8 @@ The one change under test is recoil you can move with: firing pushes you back, s
 10. **Quick matches that can keep going.**
     There are no best-of-three rounds: everyone picks one card before the first fight, every fight is a point, and the loser of each fight picks a card.
     The default is first to five points, five to nine fights, each on a new random arena as in ROUNDS.
-    At the end, everyone can vote to run it back with builds kept and a higher target, at most twice.
+    A fight never ends in a tie: if the last fighters die on the same tick, a coin flip seeded from the match decides who scores.
+    At the end, everyone can vote to run it back with builds kept, raising the target to 10 and then 15; there are at most two run-backs.
 11. **1v1 first, more players later.**
     The rules, draft and scoring work for any number of fighters, so 2v2 and free-for-all are configuration rather than rewrites.
 12. **Style and juice matter as much as mechanics, after the MVP.**

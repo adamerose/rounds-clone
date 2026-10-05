@@ -10,9 +10,10 @@ The game on top of it is not yet general.
 Rules branch on seven `ReplayProfile` footage slices, draft offers are fixed lists transcribed from the recordings, three of 21 catalogued cards work, and a live session loads whichever footage scene is the default.
 Good reusable pieces already exist: arena geometry for teal, timber, ice, lime, saw and crate scenes; jump, recoil, block, knockback, ring-out and explosion rules; halves, rounds, the loser draft, rematch and match end.
 
-## M1 — A real match on one machine or LAN
+## M1 — The MVP: a real match, online with friends
 
-The goal is an ordinary match that anyone can start and finish, with no script behind it, and a base fight that is fun before any card.
+The goal is an ordinary match that anyone can start and finish, locally or between two homes, with no script behind it, and a base fight that is fun before any card.
+Online play was a separate milestone until 2026-10-05; Adam moved it into the MVP because the group plays from their own homes.
 
 - Replace `ReplayProfile` with general data: an arena definition (surfaces, spawns, dynamic bodies, hazards) and a match config (fighters, target score, run-it-back limit).
 - Rules, draft and scoring for any number of fighters; ship 1v1.
@@ -20,21 +21,20 @@ The goal is an ordinary match that anyone can start and finish, with no script b
 - Play the base fight with no cards and tune movement, shot, block and knockback until it is fun on its own.
 - A card system built from event rules (on fire, hit, block, bounce, land, damage, kill) and effects, loaded from data that reloads while the game runs.
 - The first twelve cards from `docs/card-ideas.md`, chosen to combine: Fast shot, Spray, Bounce, Grow, Steer, Drill, Explode, Poison, Reload on hit, Teleport, Echo and Radar (renamed before release).
-- Everyone picks one card before the first fight; every fight is a point; the loser of each fight picks from a seeded offer; first to five.
-- A minimal menu: local match, host, join.
+- Everyone picks one card before the first fight; every fight is a point; the loser of each fight picks from a seeded offer; first to five; a fight never ends in a tie.
+- Running it back raises the target to 10, then 15.
+- A minimal menu: local match, host, join, invite a Steam friend.
 - Keep a short recorded-input replay as a regression check; it plays through the general rules, not a profile.
 - Delete the footage-slice profiles, the historical-rematch setup, the fixed offer lists, the ROUNDS card catalog and their capture-anchor tests once nothing uses them.
 
-## M2 — Online with friends
-
-The goal is a full match between two homes that feels fair.
+Online, inside M1:
 
 - Spike first: run the current host/client at simulated 80 ms round trip with 2 % loss, and compare client-side prediction with interpolation against rollback for this physics.
   The current model shows the remote authority's snapshot with no prediction, so a player's own movement lags by a full round trip.
 - Replace JSON snapshots with a compact binary encoding.
 - Add Steam networking (relay, friend invites, no port forwarding) beside the UDP transport.
   Development can use Valve's public test app until the game has its own App ID.
-- First online play session.
+- The MVP's first play session is online.
 
 ## M3 — Builds that keep surprising us
 

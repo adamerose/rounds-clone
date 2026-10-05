@@ -732,3 +732,9 @@ Adam prefers chains that never break and no drop-through platforms, wants each m
 Extra materials and zones are listed for later in `docs/game-design.md`.
 Because the game is built with agents, arenas are text data with headless preview renders instead of a visual editor.
 The earlier map research avoided community names; the new catalogue includes them because they are reference notes, not shipped content, and the preview images themselves stay out of Git.
+
+## 2026-10-05 — No tied fights, run-backs to 10 and 15, online play in the MVP
+
+Adam ruled out tied fights: when the last fighters die on the same tick, a coin flip seeded from the match decides the point, so every client agrees on it.
+Running it back raises the target from 5 to 10, then 15, at most twice.
+Online play between homes moves into the MVP (M1) instead of following it, because the group mostly plays 1v1 online; it covers responsive play at realistic latency, compact snapshots and Steam networking with friend invites and no port forwarding.
