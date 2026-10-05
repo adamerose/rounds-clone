@@ -48,8 +48,8 @@ Everything below is a hypothesis until a play session supports it; `docs/playtes
 9. **Fight modifiers, now and then.**
    Every few fights, at random, one rule applies to everyone for that fight (low gravity, ice floor, huge shots) and is announced before it starts.
 10. **Quick matches that can keep going.**
-    There are no best-of-three rounds: every fight is a point, and the loser of each fight picks a card.
-    The default to test is first to five points, five to nine fights.
+    There are no best-of-three rounds: everyone picks one card before the first fight, every fight is a point, and the loser of each fight picks a card.
+    The default is first to five points, five to nine fights.
     At the end, everyone can vote to run it back with builds kept and a higher target, at most twice.
 11. **1v1 first, more players later.**
     The rules, draft and scoring work for any number of fighters, so 2v2 and free-for-all are configuration rather than rewrites.
@@ -59,8 +59,7 @@ Everything below is a hypothesis until a play session supports it; `docs/playtes
 ## Experiments for play sessions
 
 - Whether the base fight with no cards is fun on its own; this comes first.
-- The target score (five points, or more) and the run-it-back targets.
-- Whether everyone picks one card before the first fight.
+- The target score and the run-it-back targets.
 - How often curses and fight modifiers appear.
 
 ## Engineering requirements

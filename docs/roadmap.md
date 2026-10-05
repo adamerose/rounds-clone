@@ -19,8 +19,8 @@ The goal is an ordinary match that anyone can start and finish, with no script b
 - Rotate the existing arena geometry as ordinary arenas.
 - Play the base fight with no cards and tune movement, shot, block and knockback until it is fun on its own.
 - A card system built from event rules (on fire, hit, block, bounce, land, damage, kill) and effects, loaded from data that reloads while the game runs.
-- About ten cards from `docs/card-ideas.md`, mostly with an upside and a downside, chosen to combine with each other.
-- Every fight is a point; the loser of each fight picks from a seeded offer.
+- The first twelve cards from `docs/card-ideas.md`, chosen to combine: Fast shot, Spray, Bounce, Grow, Steer, Drill, Explode, Poison, Reload on hit, Teleport, Echo and Radar (renamed before release).
+- Everyone picks one card before the first fight; every fight is a point; the loser of each fight picks from a seeded offer; first to five.
 - A minimal menu: local match, host, join.
 - Keep a short recorded-input replay as a regression check; it plays through the general rules, not a profile.
 - Delete the footage-slice profiles, the historical-rematch setup, the fixed offer lists, the ROUNDS card catalog and their capture-anchor tests once nothing uses them.
