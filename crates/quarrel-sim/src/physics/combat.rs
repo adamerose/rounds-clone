@@ -1,4 +1,5 @@
 use super::*;
+use data_arena::ArenaRuntime;
 fn spawn_dynamic_bodies(
     world: &mut World,
     dynamic_definitions: Vec<DynamicBodyDefinition>,
@@ -25,8 +26,11 @@ fn spawn_dynamic_bodies(
         .collect()
 }
 
-fn spawn_timber_constraints(world: &mut World) -> BTreeMap<u16, Entity> {
-    timber_body_definitions()
+fn spawn_timber_constraints(
+    world: &mut World,
+    definitions: Vec<DynamicBodyDefinition>,
+) -> BTreeMap<u16, Entity> {
+    definitions
         .into_iter()
         .map(|definition| {
             let (id, kind, anchor, active) = match definition.shape {
@@ -67,6 +71,11 @@ enum ArenaStage {
 }
 
 pub struct AuthoritativeMatch {
+    arena_runtime: Option<ArenaRuntime>,
+    arena_reload_error: Option<String>,
+    legacy_arena_watch: Option<LegacyArenaWatch>,
+    legacy_arena_cache: BTreeMap<&'static str, LegacyArenaWatch>,
+    legacy_arena_edited: bool,
     world: World,
     physics: PhysicsBoundary,
     player_entities: [Entity; 2],
@@ -96,6 +105,9 @@ impl AuthoritativeMatch {
     }
 
     pub fn new_with_profile(seed: u64, profile: ReplayProfile) -> Self {
+        Self::create(seed, profile, None)
+    }
+    fn create(seed: u64, profile: ReplayProfile, arena: Option<&ArenaDefinition>) -> Self {
         let mut world = World::new();
         let player_entities = [0_u8, 1_u8].map(|id| {
             world
@@ -116,18 +128,29 @@ impl AuthoritativeMatch {
                 .id()
         });
         let dynamic_definitions = match profile {
-            ReplayProfile::TimberCollapseReplay => timber_body_definitions(),
-            ReplayProfile::YellowCrateTerminalBlastReplay => yellow_crate_definitions(),
+            ReplayProfile::TimberCollapseReplay => arena
+                .map(body_definitions)
+                .unwrap_or_else(timber_body_definitions),
+            ReplayProfile::YellowCrateTerminalBlastReplay => arena
+                .map(body_definitions)
+                .unwrap_or_else(yellow_crate_definitions),
             _ => Vec::new(),
         };
         let dynamic_body_entities = spawn_dynamic_bodies(&mut world, dynamic_definitions);
         let constraint_entities = if profile == ReplayProfile::TimberCollapseReplay {
-            spawn_timber_constraints(&mut world)
+            spawn_timber_constraints(
+                &mut world,
+                arena
+                    .map(body_definitions)
+                    .unwrap_or_else(timber_body_definitions),
+            )
         } else {
             BTreeMap::new()
         };
         let saw_entities = if profile == ReplayProfile::RadialSawHalfBlueReplay {
-            RADIAL_SAWS
+            arena
+                .map(saw_definitions)
+                .unwrap_or_else(radial_saw_definitions)
                 .into_iter()
                 .map(|definition| {
                     let id = definition.id;
@@ -148,8 +171,16 @@ impl AuthoritativeMatch {
             BTreeMap::new()
         };
         let mut simulation = Self {
+            arena_runtime: None,
+            arena_reload_error: None,
+            legacy_arena_watch: None,
+            legacy_arena_cache: BTreeMap::new(),
+            legacy_arena_edited: false,
             world,
-            physics: PhysicsBoundary::new(profile),
+            physics: match arena {
+                Some(definition) => PhysicsBoundary::new_with_definition(profile, definition),
+                None => PhysicsBoundary::new(profile),
+            },
             player_entities,
             projectile_entities: BTreeMap::new(),
             dynamic_body_entities,
@@ -217,6 +248,10 @@ impl AuthoritativeMatch {
         if profile == ReplayProfile::MatchEndWaitingReplay {
             simulation.sync_round_from_flow();
         }
+        if arena.is_none() {
+            simulation.cache_legacy_arenas();
+            simulation.watch_legacy_arena();
+        }
         simulation
     }
 
@@ -279,6 +314,7 @@ impl AuthoritativeMatch {
     }
 
     pub fn step(&mut self, inputs: [PlayerInput; 2]) {
+        self.reload_arena_if_changed();
         self.tick += 1;
         if self.flow.is_none()
             && let Some(round) = &mut self.round
@@ -499,7 +535,9 @@ impl AuthoritativeMatch {
             });
         }
 
+        self.prepare_arena_motion();
         self.physics.step();
+        self.apply_arena_contacts();
         let (dynamic_body_contacts, fighter_body_contacts) = self.physics.dynamic_contact_counts();
         self.metrics.dynamic_body_contacts += dynamic_body_contacts;
         self.metrics.fighter_body_contact_ticks += fighter_body_contacts;
@@ -917,10 +955,13 @@ impl AuthoritativeMatch {
             self.world.despawn(entity);
         }
         self.projectile_entities.clear();
-        self.physics.load_timber_arena();
+        let arena = self.read_legacy_arena("timber.ron");
+        self.clear_arena_runtime();
+        self.physics.load_timber_arena(&arena);
         self.dynamic_body_entities =
-            spawn_dynamic_bodies(&mut self.world, timber_body_definitions());
-        self.constraint_entities = spawn_timber_constraints(&mut self.world);
+            spawn_dynamic_bodies(&mut self.world, body_definitions(&arena));
+        self.constraint_entities =
+            spawn_timber_constraints(&mut self.world, body_definitions(&arena));
         self.arena_stage = ArenaStage::Timber;
     }
 
@@ -942,7 +983,9 @@ impl AuthoritativeMatch {
         self.projectile_entities.clear();
         self.dynamic_body_entities.clear();
         self.constraint_entities.clear();
-        self.physics.load_ice_arena();
+        let arena = self.read_legacy_arena("ice.ron");
+        self.clear_arena_runtime();
+        self.physics.load_ice_arena(&arena);
         self.explosions.clear();
         self.impacts.clear();
         self.arena_stage = ArenaStage::Ice;
@@ -1100,27 +1143,20 @@ impl AuthoritativeMatch {
             })
             .collect();
         MatchSnapshot {
+            arena_objects: self.arena_render_snapshot(),
             protocol: 10,
             seed: self.seed,
             profile: self.profile.name().to_owned(),
             tick: self.tick,
-            arena: if self.arena_stage == ArenaStage::Ice {
-                ice_arena().to_vec()
-            } else if self.arena_stage == ArenaStage::Timber {
-                timber_arena().to_vec()
+            arena: if let Some(runtime) = &self.arena_runtime {
+                runtime.definition.surfaces.clone()
             } else if self.arena_stage == ArenaStage::HangingEntry {
                 Vec::new()
-            } else if self.profile == ReplayProfile::RematchDraftReplay
-                && self.flow.as_ref().is_some_and(|flow| {
-                    matches!(
-                        flow.snapshot().phase,
-                        FlowPhase::CombatConclusion | FlowPhase::RematchPrompt
-                    )
-                })
-            {
-                prior_match_arena().to_vec()
             } else {
-                arena_for_profile(self.profile).to_vec()
+                self.legacy_arena_cache[self.active_legacy_arena_filename()]
+                    .definition
+                    .surfaces
+                    .clone()
             },
             hanging_entry: (self.arena_stage == ArenaStage::HangingEntry).then(|| {
                 let age = self
@@ -1152,3 +1188,6 @@ impl AuthoritativeMatch {
 
 #[cfg(test)]
 mod tests;
+
+mod data_arena;
+use data_arena::LegacyArenaWatch;

@@ -1,0 +1,75 @@
+# Postmortems
+
+## 2026-10-05 — Arena conversion and rope scale in ticket 77
+
+A bounded converter used PowerShell text replacement and temporarily wrote an exception into `physics.rs`.
+The delegate restored that file from its exact base before handing off, but left two contour files empty; no candidate was committed or reviewed in that state.
+The worker replaced the partial files with a temporary Rust exporter using the original definitions and RON serialization, then removed the exporter and original geometry code.
+This retained exact contours and float values and all existing simulation tests passed unchanged.
+
+The ten-second arena test exposed accumulating stretch in a body-to-body rope.
+Rapier's correction speeds were scaled for metres while arena coordinates and gravity use pixels.
+Setting ordinary arena integration to 100 world units per metre kept the chain within its declared length; the replay adapters retain their original scale.
+The regression tests keep both chain attachment and loop-position checks at ten seconds.
+
+The first default parallel network run missed two live timing checks while the bulk headless simulation ran alongside them.
+Both tests passed individually and the unmodified base passed the default parallel suite.
+The arena watcher initially read complete files on every physics tick; it now reads every fifteen ticks and retains the resolved path.
+The original timing limits remain unchanged; verification includes the same default parallel network suite after that correction.
+
+The added shot-push test caught a gameplay contact being consumed before projectile momentum reached the loose body.
+Ordinary arena hits now apply the absorbed incoming projectile momentum before removing the shot; the same regression passes through public fighter input.
+That regression was added after the broad run began, so its failure required another expensive native relink.
+The final pass ran all new arena boundary tests first, then the workspace checks; adding checks while a broad build runs wastes that build's evidence.
+
+The worktree cleanup helper refused the baseline's ignored Cargo junction and then its empty `out/` directory.
+After checking the junction's exact target, the worker unlinked only the junction and removed the empty directory before retrying cleanup.
+The shared prepared Cargo target remains intact. Delivery uses the same explicit unlink after retaining this ticket's evidence.
+
+The first all-kinds preview reached ready GPU pipelines but timed out waiting for the scene.
+The data renderer omitted the background capture marker consumed by the existing readiness gate.
+It now marks the background and fighters, and a renderer regression checks capture readiness for every arena file.
+
+The first independent review rejected the candidate's default lens distortion and stretched camera frame.
+It also found that replay reload restarted network ticks and invalid later-stage edits could panic at transition.
+Corrections disable data-camera distortion, preserve frame aspect, replace only arena state, and retain validated stage definitions.
+Regressions cover edits during both timber and ice combat and malformed future-stage files through public replay input.
+The correction audit also found snapshots still falling back to direct stage-file reads before the watcher caught up.
+Snapshots now use the same validated cache as stage physics. Finding that read after the broad build started cost another native relink.
+
+The second review found that preserving replay clocks while installing generic arena objects still discarded the replay HUD, draft screens and timber joints.
+Replay edits now replace only their existing actors and physics, keeping the presentation adapter and following the next active arena file.
+It also found the stage cache selected only the rematch profile, although match-end sessions can reach hanging or begin another match.
+The cache now follows the presence of match flow. Public-input regressions cover an orange win into hanging and a fresh match's first half into timber.
+The delegate's first flow fixtures attempted unimplemented or unhovered card confirmations; corrected fixtures hover an implemented offer before confirming it.
+
+The last two-job workspace build failed in MSVC link.exe with exit 1 and no linker diagnostic.
+C: had 48 GB free; post-failure physical memory had about 8 GB free and commit headroom about 21 GB.
+Windows recorded no linker crash or resource-exhaustion event; those snapshots do not establish peak usage.
+A fresh other-family Fable consult (claude:92ba952a-0df9-4271-8cfa-1b0fb1dcfe44) recommended one diagnostic retry and retaining an unknown-cause record.
+The same locked workspace build passed with one job and verbose logging, using the prepared target without changing source, configuration or toolchain.
+The cause remains unconfirmed. This was a verification scheduling adjustment, not a fix for a diagnosed application defect.
+Repeated correction reviews and native relinks cost substantially more than the original verification; focused lifecycle regressions now cover the missed replay boundaries.
+
+The final workspace test run overlapped headless GPU captures and failed join_timeout_and_bad_state_are_named_failures.
+That existing fixture uses a 100 ms fake-authority receive, but the interrupted harness did not print the failed assertion; its cause is not established.
+The old-session fixture then waited for Welcome with no authority socket left: only one test UDP socket remained, and its loop never resends Hello or ends.
+The worker stopped that exact stuck test process after establishing it could not progress, retained the partial log, and reran the complete suite without captures or other worker jobs.
+No test timeout, assertion, coverage or runtime setting was changed. The initial short smoke also omitted its explicit teal profile and hit the default timber event gate before the explosion; the corrected teal command passed.
+
+The third review found that an earlier valid edit also rebuilt actors after the ice stage loader, clearing its 60-tick entry slide.
+A public replay regression reproduced the missing entry pose on the second transition tick.
+Edit-driven file switches now rebuild only the initial profile stage; timber, ice and hanging loaders already install validated data.
+The prior-match/draft handoff still follows its edited files. The repeated review identified lifecycle boundaries that the original within-stage tests did not cover.
+
+The next default-parallel suite rejected a protocol-12 packet at the protocol-11 server in lib.rs:811; its two clients then received Windows error 10054.
+The unchanged timeout fixture in live.rs releases an ephemeral port before repeatedly sending protocol-12 Hello packets to it for five seconds.
+That permits another parallel server to bind the destination. Port reuse is a concrete plausible explanation; no packet trace identified the sender.
+Ticket 85 preserves this separate test-isolation problem, including the earlier receive-loop stall, without broadening the arena implementation.
+Final full-suite verification uses test-threads=1 with every test, assertion and timeout intact. Both failed parallel logs are retained alongside the passing evidence.
+
+The fourth review found that a draft edit made before activation refreshed its cached drawing but left the startup collision geometry unchanged.
+The watcher had consumed the changed source before deciding whether a prior active edit required a rebuild.
+A public replay regression lowered the future draft floor and reproduced the fighter standing at -166011 milli on the old floor.
+The initial-stage file switch now compares its old cached source before reading, and rebuilds on that change or a previous active edit.
+Later stages still use their loaders, so this correction retains the ice-entry fix and avoids resetting unchanged replay geometry.

@@ -4,14 +4,14 @@ use quarrel_presentation::{
     run_interactive_visible, run_live_visible, run_visible, yellow_frame_signature,
 };
 use quarrel_sim::{
-    CONNECTED_BLUE_RESULT_ONSET_TICK, CONNECTED_HALF_BLUE_TAIL_TICK, CONNECTED_HALF_BLUE_TICK,
-    CONNECTED_HALF_ORANGE_TICK, CONNECTED_ORANGE_RESULT_ONSET_TICK, CONNECTED_TIMBER_COMBAT_TICK,
-    CONNECTED_TIMBER_IMPACT_TARGET_TICK, LEGACY_REMATCH_DRAFT_TICKS, MatchSnapshot,
-    RADIAL_HALF_BLUE_TICK, RADIAL_LAST_COMBAT_TICK, RADIAL_RESULT_ONSET_TICK, REPLAY_TICKS,
-    ReplayProfile, YELLOW_FOLLOWING_RESULT_TICK, YELLOW_IMPACT_TICK, YELLOW_LAST_CALM_TICK,
-    YELLOW_LAST_COMBAT_TICK, YELLOW_LOCAL_BURST_TICK, YELLOW_PEAK_ECHO_TICK, YELLOW_REPLAY_TICKS,
-    YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, YELLOW_TRAILS_TICK, arena_digest,
-    combat_digest, dynamic_body_digest, flow_digest, loadout_digest, round_digest,
+    AuthoritativeMatch, CONNECTED_BLUE_RESULT_ONSET_TICK, CONNECTED_HALF_BLUE_TAIL_TICK,
+    CONNECTED_HALF_BLUE_TICK, CONNECTED_HALF_ORANGE_TICK, CONNECTED_ORANGE_RESULT_ONSET_TICK,
+    CONNECTED_TIMBER_COMBAT_TICK, CONNECTED_TIMBER_IMPACT_TARGET_TICK, LEGACY_REMATCH_DRAFT_TICKS,
+    MatchSnapshot, RADIAL_HALF_BLUE_TICK, RADIAL_LAST_COMBAT_TICK, RADIAL_RESULT_ONSET_TICK,
+    REPLAY_TICKS, ReplayProfile, YELLOW_FOLLOWING_RESULT_TICK, YELLOW_IMPACT_TICK,
+    YELLOW_LAST_CALM_TICK, YELLOW_LAST_COMBAT_TICK, YELLOW_LOCAL_BURST_TICK, YELLOW_PEAK_ECHO_TICK,
+    YELLOW_REPLAY_TICKS, YELLOW_RESULT_ONSET_TICK, YELLOW_ROUND_ORANGE_TICK, YELLOW_TRAILS_TICK,
+    arena_digest, combat_digest, dynamic_body_digest, flow_digest, loadout_digest, round_digest,
     run_new_match_draft, run_profile_match, run_profile_snapshots, saw_digest, scripted_inputs_for,
 };
 use serde::Serialize;
@@ -71,6 +71,7 @@ fn run() -> Result<(), String> {
     let seed = argument(&arguments, "--seed", 38_u64)?;
     let profile = argument(&arguments, "--profile", ReplayProfile::default())?;
     match mode {
+        "arena-preview" => arena_preview(&arguments),
         "capture" => capture(&arguments, profile, seed, ticks),
         "capture-new-match-draft" => capture_new_match_draft(&arguments, seed),
         "capture-replay" => capture_replay(&arguments, profile, seed, ticks),
@@ -115,10 +116,26 @@ fn run() -> Result<(), String> {
         "join" => join(&arguments, profile, seed, ticks),
         "host" => host(&arguments, profile, seed, ticks),
         _ => Err(
-            "usage: quarrel-client [local|remote|join|host|capture|capture-replay|capture-new-match-draft|visible|visible-flow|visible-new-match-draft] [options]"
+            "usage: quarrel-client [local|remote|join|host|capture|capture-replay|capture-new-match-draft|arena-preview|visible|visible-flow|visible-new-match-draft] [options]"
                 .to_owned(),
         ),
     }
+}
+
+fn arena_preview(arguments: &[String]) -> Result<(), String> {
+    let arena = path_argument(arguments, "--arena")?;
+    let output = path_argument(arguments, "--output")?;
+    reject_path_aliases(&[("--arena", &arena), ("--output", &output)])?;
+    let mut game = AuthoritativeMatch::from_arena_file(0, &arena)?;
+    let snapshot = game.snapshot();
+    let frame = render_png(&snapshot, &output)?;
+    print_json(&serde_json::json!({
+        "arena": resolved_path(&arena)?.to_string_lossy().replace('\\', "/"),
+        "output": resolved_path(&output)?.to_string_lossy().replace('\\', "/"),
+        "frameSha256": frame_sha256(&frame),
+        "width": FRAME_WIDTH,
+        "height": FRAME_HEIGHT,
+    }))
 }
 
 fn join(arguments: &[String], profile: ReplayProfile, seed: u64, ticks: u32) -> Result<(), String> {

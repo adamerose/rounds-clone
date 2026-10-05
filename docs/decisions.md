@@ -758,3 +758,31 @@ Historical decisions, closed tickets and recovery records keep the names they re
 The worktree's ignored `out/cargo-target` junction reuses the prepared root target with the repository's two-job cap; it does not start a cold Bevy build.
 The stale-executable comparison remains in this ticket's verification log and retained evidence, rather than creating an additional journal.
 A separate journal entry would duplicate that record and overlap the scaffold reconciliation ticket 62 already owns.
+
+## 2026-10-05 — Ticket #77 arena data for run #75
+
+Use RON with world coordinates, an explicit camera frame and centre-based rope endpoints.
+The existing Rapier boundary and Bevy offscreen renderer serve arena simulation and PNG previews; a separate physics engine or rasterizer would duplicate them.
+Valid file edits apply at a tick boundary and restart the fight's geometry, spawns and transient combat state.
+They preserve monotonic network ticks, match phase, scores and loadouts; restarting the whole replay would freeze clients and return later stages to the initial arena.
+Invalid or incomplete edits preserve the current arena and expose the error through `arena_reload_error()`; replacing geometry around moving fighters could trap them in solids.
+At session start, retain validated definitions for the profile's later stages. A malformed edit at a transition keeps that last valid definition and reports the error.
+Reading a later-stage file only at the transition could panic halfway through a match; suppressing the parse error would hide it from arena authors.
+The camera letterboxes arena frames to preserve shape proportions and disables lens distortion and chromatic offsets for data arenas.
+Stretching to fill the window would turn circles into ellipses; expanding the world view would move the declared frame edges away from the game viewport edges.
+File polling belongs to the authority; peers receive the resulting snapshot rather than reading arena files.
+Poll content every fifteen ticks (at most 250 ms in live play), rather than performing file reads on every physics tick.
+The default parallel network tests passed on the base but initially missed live timing on the candidate; the per-tick reads were avoidable shared I/O.
+Breakable pieces explicitly choose fixed or loose behaviour; a chain can connect to either and is removed only when an endpoint breaks.
+Ordinary arenas use 100 world units per metre so Rapier's correction speeds match pixel coordinates and ropes do not accumulate stretch.
+Replay adapters retain their original insertion order, material values and explosion timing until ticket #78 removes profiles.
+Replay edits keep that adapter's HUD, draft screens, fighter sizes and timber joints; converting them to generic loose objects would change unrelated stage behavior.
+Only the initial prior-match/draft file switch needs an edit-driven rebuild; later stage loaders already install cached data and must retain their entry animation state.
+Compare the upcoming file's cached source before reading it: an edit made before activation must update collisions together with the snapshot, even if no active file was previously edited.
+Final verification serializes test cases, preserving every assertion and timeout, after an existing parallel UDP fixture received another protocol's packet.
+Keep that isolation problem in ticket 85 rather than changing production networking in an arena delivery; default parallel tests had passed the preceding candidate.
+Retain later-stage data for every flow-bearing profile, including match-end sessions that can begin a new match; selecting only the historical rematch profile missed that route.
+The converted files retain exact integer contours and decimal body values exported through Rust serialization, rather than approximating concave outlines by hand.
+Legacy geometry stays in compatibility fields so replay snapshots remain unchanged; new arena authors use `objects` and `chains`.
+The other-family consultation recommended preserving insertion order, removing joint registries on destruction, and deriving kinematic movement from time rather than accumulating translations.
+The implementation follows those points; embedding files was rejected because it would prevent live edits.

@@ -18,6 +18,10 @@ pub(super) fn spawn_snapshot_scene(
     materials: &mut Assets<ColorMaterial>,
     snapshot: &MatchSnapshot,
 ) {
+    if snapshot.arena_objects.is_some() {
+        crate::data_arena::spawn_data_arena_scene(commands, meshes, materials, snapshot);
+        return;
+    }
     let profile = snapshot
         .profile
         .parse::<ReplayProfile>()

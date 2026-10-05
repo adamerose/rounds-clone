@@ -1,0 +1,23 @@
+(
+    name: "Workshop",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-500.0, -240.0), (500.0, -240.0), (-350.0, -240.0), (350.0, -240.0)],
+    objects: [
+        (id: 0, position: (0.0, -300.0), shape: Rectangle(size: (1240.0, 40.0)), kind: Solid, color: (62, 170, 177)),
+        (id: 1, position: (-400.0, -100.0), shape: Circle(radius: 40.0), kind: Solid, color: (62, 170, 177)),
+        (id: 2, position: (400.0, -100.0), shape: Polygon(vertices: [(-50.0, -20.0), (50.0, -20.0), (0.0, 40.0)]), kind: Solid, color: (62, 170, 177)),
+        (id: 3, position: (-220.0, -210.0), shape: Rectangle(size: (40.0, 40.0)), kind: Loose, color: (195, 139, 69), mass: 2.0),
+        (id: 4, position: (220.0, -210.0), shape: Circle(radius: 22.0), kind: Loose, color: (195, 139, 69), mass: 2.0),
+        (id: 5, position: (-100.0, 90.0), shape: Rectangle(size: (48.0, 30.0)), kind: Breakable(loose: true), color: (226, 108, 102), health: Some(50)),
+        (id: 6, position: (-100.0, 10.0), shape: Circle(radius: 18.0), kind: Loose, color: (195, 139, 69)),
+        (id: 7, position: (0.0, 210.0), shape: Rectangle(size: (180.0, 40.0)), kind: Background, color: (31, 66, 75)),
+        (id: 8, position: (110.0, 60.0), shape: Circle(radius: 28.0), kind: Saw(loose: false, teeth: 10, angular_velocity: 3.0), color: (230, 230, 218)),
+        (id: 9, position: (280.0, 140.0), shape: Circle(radius: 25.0), kind: Saw(loose: true, teeth: 8, angular_velocity: 4.0), color: (230, 230, 218), mass: 1.5),
+        (id: 10, position: (0.0, -150.0), shape: Rectangle(size: (90.0, 16.0)), kind: Solid, color: (99, 177, 122), motion: Some((path: [(0.0, 0.0), (120.0, 0.0)], period_seconds: 2.0))),
+        (id: 11, position: (-320.0, 180.0), shape: Rectangle(size: (90.0, 16.0)), kind: Solid, color: (99, 177, 122), motion: Some((path: [], period_seconds: 2.0, angular_velocity: 1.0))),
+    ],
+    chains: [
+        (id: 0, body_a: None, body_b: 5, anchor: (-100.0, 220.0), length: 130.0),
+        (id: 1, body_a: Some(5), body_b: 6, anchor: (0.0, 0.0), length: 80.0),
+    ],
+)

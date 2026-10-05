@@ -89,12 +89,14 @@ const YELLOW_EXPLOSION_RADIUS: f32 = 330.0;
 const YELLOW_EXPLOSION_IMPULSE: f32 = 2_850.0;
 
 mod arena;
+mod arena_data;
 mod flow;
 mod physics;
 mod replay;
 mod snapshots;
 
 pub use arena::*;
+pub use arena_data::*;
 pub use flow::*;
 pub use physics::*;
 pub use replay::*;

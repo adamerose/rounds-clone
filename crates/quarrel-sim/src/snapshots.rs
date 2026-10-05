@@ -364,9 +364,11 @@ pub struct CombatMetrics {
     pub simultaneous_eliminations: u32,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MatchSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arena_objects: Option<ArenaRenderSnapshot>,
     pub protocol: u16,
     pub seed: u64,
     pub profile: String,

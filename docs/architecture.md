@@ -12,6 +12,10 @@ The recordings in `reference/manifest.json` and the notes in `docs/fidelity/` re
 
 ## Runtime shape
 
+Arenas load from `assets/arenas/*.ron`; the [arena data format](design-docs/arena-data.html) describes shapes, behaviours, camera bounds, chains and previews.
+`AuthoritativeMatch::from_arena_file` runs the ordinary data path and observes validated file edits at tick boundaries.
+Replay profiles remain compatibility adapters over the converted files until their removal; they preserve their existing physics insertion order and snapshots.
+
 The authoritative match advances at 60 fixed ticks per second in `quarrel-sim`.
 Stable player and projectile identities and gameplay state live in Bevy ECS.
 A project-owned `PhysicsBoundary` keeps Rapier rigid-body, collider, and joint handles private while it advances static arena contacts, dynamic circular players, dynamic arena bodies, constraints, CCD bullets, recoil, blocks, damage, knockback, explosions, and ring-outs.

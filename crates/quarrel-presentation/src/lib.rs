@@ -61,6 +61,7 @@ const ROUND_FONT_HANDLE: Handle<Font> = uuid_handle!("52b1b7b5-ad12-4e7a-8f2b-77
 mod arena;
 mod capture;
 mod card_art;
+mod data_arena;
 mod draft;
 mod hud;
 mod input;
@@ -338,6 +339,30 @@ mod tests {
         }
         state.apply(&mut world);
         world
+    }
+
+    #[test]
+    fn data_arena_scenes_satisfy_capture_readiness() {
+        use bevy::ecs::system::RunSystemOnce;
+        for arena in
+            quarrel_sim::load_arena_directory(&quarrel_sim::default_arena_directory()).unwrap()
+        {
+            let name = arena.name.clone();
+            let snapshot = quarrel_sim::AuthoritativeMatch::from_arena(77, arena)
+                .unwrap()
+                .snapshot();
+            let mut world = scene_for_snapshot(&snapshot);
+            world.spawn(Camera2d);
+            world.insert_resource(SceneSnapshot(snapshot));
+            world.init_resource::<CaptureReadiness>();
+            world
+                .run_system_once(capture::update_capture_scene_readiness)
+                .unwrap();
+            assert!(
+                world.resource::<CaptureReadiness>().scene_complete,
+                "{name}"
+            );
+        }
     }
 
     fn draft_scene_at(tick: u32) -> World {

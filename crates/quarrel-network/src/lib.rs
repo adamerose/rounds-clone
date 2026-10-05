@@ -37,7 +37,7 @@ enum ClientPacket {
     },
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 enum AuthorityPacket {
     Welcome {
@@ -52,7 +52,7 @@ enum AuthorityPacket {
     },
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerReport {
     pub protocol: u16,
@@ -73,7 +73,7 @@ pub struct ServerReport {
     pub state: MatchSnapshot,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientSessionReport {
     pub protocol: u16,

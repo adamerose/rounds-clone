@@ -80,6 +80,7 @@ struct BulletPhysics {
     body: RigidBodyHandle,
     collider: ColliderHandle,
     previous: Vector,
+    previous_velocity: Vector,
     lifetime: u16,
 }
 
@@ -112,24 +113,26 @@ struct SawDefinition {
     angular_velocity: f32,
 }
 
-const RADIAL_SAWS: [SawDefinition; 2] = [
-    SawDefinition {
-        id: 200,
-        position: Vector::new(0.0, 0.0),
-        radius: 82.0,
-        teeth: 8,
-        initial_angle: 0.18,
-        angular_velocity: 7.43,
-    },
-    SawDefinition {
-        id: 201,
-        position: Vector::new(0.0, -348.0),
-        radius: 76.0,
-        teeth: 8,
-        initial_angle: 0.51,
-        angular_velocity: 7.43,
-    },
-];
+fn radial_saw_definitions() -> Vec<SawDefinition> {
+    saw_definitions(
+        &ArenaDefinition::load(&default_arena_directory().join("radial-saw.ron"))
+            .expect("radial saw arena must load"),
+    )
+}
+fn saw_definitions(arena: &ArenaDefinition) -> Vec<SawDefinition> {
+    arena
+        .legacy_saws
+        .iter()
+        .map(|s| SawDefinition {
+            id: s.id,
+            position: Vector::from(s.position),
+            radius: s.radius,
+            teeth: s.teeth,
+            initial_angle: s.initial_angle,
+            angular_velocity: s.angular_velocity,
+        })
+        .collect()
+}
 
 #[derive(Clone, Copy)]
 struct DynamicBodyDefinition {
@@ -146,107 +149,36 @@ struct DynamicBodyDefinition {
     restitution: f32,
 }
 
-fn timber_body_definitions() -> Vec<DynamicBodyDefinition> {
-    const TIMBER: [u8; 3] = [124, 39, 48];
-    const DARK_TIMBER: [u8; 3] = [83, 28, 39];
-    const WEIGHT: [u8; 3] = [98, 42, 59];
-    let timber = |id, x, y, rotation, width, height, color| DynamicBodyDefinition {
-        id,
-        shape: DynamicBodyShape::Timber,
-        position: Vector::new(x, y),
-        rotation,
-        width,
-        height,
-        radius: 0.0,
-        face_rgb: color,
-        mass: 1.0,
-        friction: 0.82,
-        restitution: 0.08,
-    };
-    vec![
-        timber(0, -210.0, -236.0, 0.0, 260.0, 30.0, DARK_TIMBER),
-        timber(1, 210.0, -236.0, 0.0, 260.0, 30.0, DARK_TIMBER),
-        timber(2, -322.0, -151.0, 0.0, 30.0, 170.0, TIMBER),
-        timber(3, -102.0, -151.0, 0.0, 30.0, 170.0, TIMBER),
-        timber(4, 102.0, -151.0, 0.0, 30.0, 170.0, TIMBER),
-        timber(5, 322.0, -151.0, 0.0, 30.0, 170.0, TIMBER),
-        timber(6, -212.0, -58.0, 0.0, 250.0, 30.0, DARK_TIMBER),
-        timber(7, 212.0, -58.0, 0.0, 250.0, 30.0, DARK_TIMBER),
-        timber(8, -102.0, 20.0, 0.0, 30.0, 140.0, TIMBER),
-        timber(9, 102.0, 20.0, 0.0, 30.0, 140.0, TIMBER),
-        timber(10, -205.0, 85.0, 0.42, 230.0, 28.0, TIMBER),
-        timber(11, 205.0, 85.0, -0.42, 230.0, 28.0, TIMBER),
-        timber(12, -72.0, 154.0, 0.0, 160.0, 27.0, DARK_TIMBER),
-        timber(13, 72.0, 154.0, 0.0, 160.0, 27.0, DARK_TIMBER),
-        timber(14, 0.0, 213.0, 0.0, 30.0, 106.0, TIMBER),
-        timber(15, -72.0, 262.0, 0.28, 150.0, 26.0, TIMBER),
-        timber(16, 72.0, 262.0, -0.28, 150.0, 26.0, TIMBER),
-        DynamicBodyDefinition {
-            id: 100,
-            shape: DynamicBodyShape::Weight,
-            position: Vector::new(-520.0, 70.0),
-            rotation: 0.0,
-            width: 0.0,
-            height: 0.0,
-            radius: 42.0,
-            face_rgb: WEIGHT,
-            mass: 1.2,
-            friction: 0.82,
-            restitution: 0.08,
-        },
-        DynamicBodyDefinition {
-            id: 101,
-            shape: DynamicBodyShape::Weight,
-            position: Vector::new(520.0, 70.0),
-            rotation: 0.0,
-            width: 0.0,
-            height: 0.0,
-            radius: 42.0,
-            face_rgb: WEIGHT,
-            mass: 1.2,
-            friction: 0.82,
-            restitution: 0.08,
-        },
-    ]
+fn legacy_body_definitions(file: &str) -> Vec<DynamicBodyDefinition> {
+    body_definitions(
+        &ArenaDefinition::load(&default_arena_directory().join(file))
+            .expect("legacy body arena must load"),
+    )
 }
-
+fn body_definitions(arena: &ArenaDefinition) -> Vec<DynamicBodyDefinition> {
+    arena
+        .legacy_bodies
+        .iter()
+        .map(|b| DynamicBodyDefinition {
+            id: b.id,
+            shape: b.shape,
+            position: Vector::from(b.position),
+            rotation: b.rotation,
+            width: b.width,
+            height: b.height,
+            radius: b.radius,
+            face_rgb: b.face_rgb,
+            mass: b.mass,
+            friction: b.friction,
+            restitution: b.restitution,
+        })
+        .collect()
+}
+fn timber_body_definitions() -> Vec<DynamicBodyDefinition> {
+    legacy_body_definitions("timber.ron")
+}
 fn yellow_crate_definitions() -> Vec<DynamicBodyDefinition> {
-    const BROWN: [u8; 3] = [151, 101, 23];
-    let crate_body = |id, x, y, rotation, width, height| DynamicBodyDefinition {
-        id,
-        shape: DynamicBodyShape::Crate,
-        position: Vector::new(x, y),
-        rotation,
-        width,
-        height,
-        radius: 0.0,
-        face_rgb: BROWN,
-        mass: 0.78,
-        friction: 0.76,
-        restitution: 0.12,
-    };
-    vec![
-        crate_body(300, -485.0, 207.0, 0.0, 34.0, 48.0),
-        crate_body(301, -450.0, 207.0, 0.0, 34.0, 48.0),
-        crate_body(302, -468.0, 249.0, 0.0, 34.0, 36.0),
-        crate_body(303, -165.0, 207.0, 0.0, 34.0, 48.0),
-        crate_body(304, 140.0, 207.0, 0.0, 34.0, 48.0),
-        crate_body(305, 178.0, 207.0, 0.0, 34.0, 48.0),
-        crate_body(306, -610.0, 67.0, 0.0, 34.0, 48.0),
-        crate_body(307, -324.0, 67.0, 0.0, 34.0, 48.0),
-        crate_body(308, -286.0, 67.0, 0.0, 34.0, 48.0),
-        crate_body(309, 0.0, 67.0, 0.0, 34.0, 48.0),
-        crate_body(310, 38.0, 67.0, 0.0, 34.0, 48.0),
-        crate_body(311, 322.0, 67.0, 0.0, 34.0, 48.0),
-        crate_body(312, 360.0, 67.0, 0.0, 34.0, 48.0),
-        crate_body(313, 405.0, 207.0, 0.0, 34.0, 48.0),
-        crate_body(314, 442.0, 207.0, 0.0, 34.0, 48.0),
-        crate_body(315, 424.0, 249.0, 0.0, 36.0, 36.0),
-        crate_body(316, -485.0, -93.0, 0.0, 34.0, 48.0),
-        crate_body(317, -165.0, -93.0, 0.0, 34.0, 48.0),
-        crate_body(318, 155.0, -93.0, 0.0, 34.0, 48.0),
-        crate_body(319, 475.0, -93.0, 0.0, 34.0, 48.0),
-    ]
+    legacy_body_definitions("yellow-crate.ron")
 }
 
 struct PhysicsBoundary {
@@ -265,13 +197,20 @@ struct PhysicsBoundary {
 
 impl PhysicsBoundary {
     fn new(profile: ReplayProfile) -> Self {
+        let arena =
+            ArenaDefinition::load(&default_arena_directory().join(profile_arena_filename(profile)))
+                .expect("profile arena must load");
+        Self::new_with_definition(profile, &arena)
+    }
+    fn new_with_definition(profile: ReplayProfile, arena: &ArenaDefinition) -> Self {
         let mut rapier = RapierWorld::new();
         rapier.gravity = Vector::new(0.0, -1_500.0);
         rapier.integration_parameters.dt = 1.0 / TICKS_PER_SECOND as f32;
         rapier.integration_parameters.max_ccd_substeps = 4;
         rapier.integration_parameters.normalized_max_linear_velocity = 5_000.0;
 
-        let platforms = arena_for_profile(profile)
+        let platforms = arena
+            .surfaces
             .iter()
             .map(|surface| {
                 let shape = collider_for_surface(surface);
@@ -297,17 +236,10 @@ impl PhysicsBoundary {
             })
             .collect::<Vec<_>>();
 
-        let player_spawns = match profile {
-            ReplayProfile::TealDuelReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
-            ReplayProfile::RematchDraftReplay => [(-500.0, -150.0, 0_u8), (500.0, -150.0, 1_u8)],
-            ReplayProfile::MatchEndWaitingReplay => [(-520.0, -134.0, 0_u8), (520.0, -134.0, 1_u8)],
-            ReplayProfile::LimeModularArenaReplay => [(-405.0, -58.0, 0_u8), (405.0, -58.0, 1_u8)],
-            ReplayProfile::RadialSawHalfBlueReplay => [(-285.0, 118.0, 0_u8), (285.0, 118.0, 1_u8)],
-            ReplayProfile::YellowCrateTerminalBlastReplay => {
-                [(220.0, 292.0, 0_u8), (570.0, 292.0, 1_u8)]
-            }
-            ReplayProfile::TimberCollapseReplay => [(-500.0, -210.0, 0_u8), (500.0, -210.0, 1_u8)],
-        };
+        let player_spawns = [0u8, 1u8].map(|id| {
+            let [x, y] = arena.spawns[usize::from(id).min(arena.spawns.len() - 1)];
+            (x, y, id)
+        });
         let players = player_spawns.map(|(x, y, id)| {
             let (membership, filter) = if id == 0 {
                 (
@@ -361,19 +293,19 @@ impl PhysicsBoundary {
             saws: BTreeMap::new(),
         };
         if profile == ReplayProfile::TimberCollapseReplay {
-            boundary.insert_timber_structure();
+            boundary.insert_timber_structure(arena);
         }
         if profile == ReplayProfile::YellowCrateTerminalBlastReplay {
-            boundary.insert_yellow_crates();
+            boundary.insert_yellow_crates(arena);
         }
         if profile == ReplayProfile::RadialSawHalfBlueReplay {
-            boundary.insert_radial_saws();
+            boundary.insert_radial_saws(arena);
         }
         boundary
     }
 
-    fn insert_radial_saws(&mut self) {
-        for definition in RADIAL_SAWS {
+    fn insert_radial_saws(&mut self, arena: &ArenaDefinition) {
+        for definition in saw_definitions(arena) {
             let (body, collider) = self.rapier.insert(
                 RigidBodyBuilder::kinematic_velocity_based()
                     .translation(definition.position)
@@ -417,10 +349,10 @@ impl PhysicsBoundary {
         })
     }
 
-    fn insert_timber_structure(&mut self) {
+    fn insert_timber_structure(&mut self, arena: &ArenaDefinition) {
         let anchor = self.rapier.insert_body(RigidBodyBuilder::fixed());
         self.timber_anchor = Some(anchor);
-        for definition in timber_body_definitions() {
+        for definition in body_definitions(arena) {
             let body_builder = RigidBodyBuilder::dynamic()
                 .translation(definition.position)
                 .rotation(definition.rotation)
@@ -489,7 +421,7 @@ impl PhysicsBoundary {
         }
     }
 
-    fn load_ice_arena(&mut self) {
+    fn load_ice_arena(&mut self, arena: &ArenaDefinition) {
         for constraint in std::mem::take(&mut self.constraints).into_values() {
             self.rapier.impulse_joints.remove(constraint.handle, true);
         }
@@ -511,7 +443,8 @@ impl PhysicsBoundary {
         for id in self.bullets.keys().copied().collect::<Vec<_>>() {
             self.remove_bullet(id);
         }
-        self.platforms = ice_arena()
+        self.platforms = arena
+            .surfaces
             .iter()
             .map(|surface| {
                 let vertices = surface
@@ -545,7 +478,8 @@ impl PhysicsBoundary {
                     .1
             })
             .collect();
-        self.spawns = [Vector::new(-529.0, -102.0), Vector::new(519.0, -102.0)];
+        self.spawns =
+            std::array::from_fn(|i| Vector::from(arena.spawns[i.min(arena.spawns.len() - 1)]));
         self.respawn_players();
         for player in self.players {
             self.rapier.colliders[player.collider].set_shape(SharedShape::ball(12.0));
@@ -578,7 +512,7 @@ impl PhysicsBoundary {
         self.respawn_players();
     }
 
-    fn load_timber_arena(&mut self) {
+    fn load_timber_arena(&mut self, arena: &ArenaDefinition) {
         // Keep the established Rapier insertion order for the connected timber
         // contacts. These colliders cannot collide; ice loading removes them.
         for collider in self.platforms.drain(..) {
@@ -589,7 +523,8 @@ impl PhysicsBoundary {
         for id in bullet_ids {
             self.remove_bullet(id);
         }
-        self.platforms = timber_arena()
+        self.platforms = arena
+            .surfaces
             .iter()
             .map(|surface| {
                 let (_, collider) = self.rapier.insert(
@@ -615,9 +550,10 @@ impl PhysicsBoundary {
                 collider
             })
             .collect();
-        self.spawns = [Vector::new(-500.0, -210.0), Vector::new(500.0, -210.0)];
+        self.spawns =
+            std::array::from_fn(|i| Vector::from(arena.spawns[i.min(arena.spawns.len() - 1)]));
         self.respawn_players();
-        self.insert_timber_structure();
+        self.insert_timber_structure(arena);
         self.rapier
             .bodies
             .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
@@ -635,8 +571,8 @@ impl PhysicsBoundary {
             .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
     }
 
-    fn insert_yellow_crates(&mut self) {
-        for definition in yellow_crate_definitions() {
+    fn insert_yellow_crates(&mut self, arena: &ArenaDefinition) {
+        for definition in body_definitions(arena) {
             let (body, collider) = self.rapier.insert(
                 RigidBodyBuilder::dynamic()
                     .translation(definition.position)
@@ -839,6 +775,7 @@ impl PhysicsBoundary {
                 body,
                 collider,
                 previous: origin,
+                previous_velocity: aim * launch_speed,
                 lifetime: BULLET_LIFETIME,
             },
         );
@@ -851,6 +788,7 @@ impl PhysicsBoundary {
     fn step(&mut self) {
         for bullet in self.bullets.values_mut() {
             bullet.previous = self.rapier.bodies[bullet.body].translation();
+            bullet.previous_velocity = self.rapier.bodies[bullet.body].linvel();
             bullet.lifetime = bullet.lifetime.saturating_sub(1);
         }
         self.rapier.step();

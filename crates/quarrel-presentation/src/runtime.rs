@@ -2,8 +2,18 @@ use super::*;
 use super::{
     arena::spawn_snapshot_scene,
     post_process::RadialEchoSettings,
-    scene::{camera_state, radial_echo_settings},
+    scene::{camera_projection, camera_state, camera_viewport, radial_echo_settings},
 };
+use bevy::camera::{Camera, Projection};
+
+type CameraSettings<'a> = (
+    &'a mut Transform,
+    &'a mut Bloom,
+    &'a mut ChromaticAberration,
+    &'a mut LensDistortion,
+    &'a mut RadialEchoSettings,
+    &'a mut Projection,
+);
 
 pub(super) fn setup_offscreen_scene(
     mut commands: Commands,
@@ -15,6 +25,11 @@ pub(super) fn setup_offscreen_scene(
     let (transform, bloom, chromatic, lens) = camera_state(&snapshot.0);
     commands.spawn((
         Camera2d,
+        Camera {
+            viewport: camera_viewport(&snapshot.0, UVec2::new(FRAME_WIDTH, FRAME_HEIGHT)),
+            ..default()
+        },
+        camera_projection(&snapshot.0),
         Hdr,
         RenderTarget::Image(target.0.clone().into()),
         transform,
@@ -30,6 +45,8 @@ pub(super) fn setup_visible_scene(mut commands: Commands, snapshot: Res<SceneSna
     let (transform, bloom, chromatic, lens) = camera_state(&snapshot.0);
     commands.spawn((
         Camera2d,
+        Camera::default(),
+        camera_projection(&snapshot.0),
         Hdr,
         transform,
         bloom,
@@ -44,16 +61,7 @@ pub(super) fn advance_visible_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     visuals: Query<Entity, With<SceneVisual>>,
-    mut camera: Single<
-        (
-            &mut Transform,
-            &mut Bloom,
-            &mut ChromaticAberration,
-            &mut LensDistortion,
-            &mut RadialEchoSettings,
-        ),
-        With<Camera2d>,
-    >,
+    mut camera: Single<CameraSettings<'_>, With<Camera2d>>,
     mut replay: ResMut<VisibleReplay>,
     mut lifetime: ResMut<VisibleLifetime>,
 ) {
@@ -70,6 +78,7 @@ pub(super) fn advance_visible_scene(
     *camera.2 = chromatic;
     *camera.3 = lens;
     *camera.4 = radial_echo_settings(snapshot);
+    *camera.5 = camera_projection(snapshot);
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
     replay.next += 1;
     if replay.next == replay.snapshots.len() {
@@ -92,16 +101,7 @@ pub(super) fn advance_interactive_scene(
     mut authority: ResMut<InteractiveAuthority>,
     mut scene: ResMut<SceneSnapshot>,
     mut lifetime: ResMut<VisibleLifetime>,
-    mut camera: Single<
-        (
-            &mut Transform,
-            &mut Bloom,
-            &mut ChromaticAberration,
-            &mut LensDistortion,
-            &mut RadialEchoSettings,
-        ),
-        With<Camera2d>,
-    >,
+    mut camera: Single<CameraSettings<'_>, With<Camera2d>>,
 ) {
     if !lifetime.shown {
         return;
@@ -184,6 +184,7 @@ pub(super) fn advance_interactive_scene(
     *camera.2 = chromatic;
     *camera.3 = lens;
     *camera.4 = radial_echo_settings(&scene.0);
+    *camera.5 = camera_projection(&scene.0);
     for entity in &visuals {
         commands.entity(entity).despawn();
     }
@@ -207,16 +208,7 @@ pub(super) fn advance_live_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     visuals: Query<Entity, With<SceneVisual>>,
-    mut cameras: Query<
-        (
-            &mut Transform,
-            &mut Bloom,
-            &mut ChromaticAberration,
-            &mut LensDistortion,
-            &mut RadialEchoSettings,
-        ),
-        With<Camera2d>,
-    >,
+    mut cameras: Query<CameraSettings<'_>, With<Camera2d>>,
     live: Res<LivePresentation>,
     mut rendered_hash: Local<Option<String>>,
 ) {
@@ -236,6 +228,7 @@ pub(super) fn advance_live_scene(
         mut camera_chromatic,
         mut camera_lens,
         mut camera_echo,
+        mut projection,
     )) = cameras.single_mut()
     {
         *camera_transform = transform;
@@ -243,9 +236,12 @@ pub(super) fn advance_live_scene(
         *camera_chromatic = chromatic;
         *camera_lens = lens;
         *camera_echo = radial_echo_settings(snapshot);
+        *projection = camera_projection(snapshot);
     } else {
         commands.spawn((
             Camera2d,
+            Camera::default(),
+            camera_projection(snapshot),
             Hdr,
             transform,
             bloom,
@@ -268,10 +264,16 @@ pub(super) fn advance_live_scene(
 pub(super) fn verify_live_monitor_show(
     mut primary: Single<(&mut Window, &OnMonitor), With<PrimaryWindow>>,
     monitors: Query<&Monitor>,
+    mut cameras: Query<&mut Camera, With<Camera2d>>,
     live: Res<LivePresentation>,
     mut lifetime: ResMut<VisibleLifetime>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    if let Some(snapshot) = live.displayed_snapshot.as_ref()
+        && let Ok(mut camera) = cameras.single_mut()
+    {
+        camera.viewport = camera_viewport(snapshot, primary.0.physical_size());
+    }
     if lifetime.shown || live.displayed_snapshot.is_none() {
         return;
     }
@@ -380,9 +382,14 @@ pub(super) fn close_live_window(
 pub(super) fn verify_monitor_show_and_exit(
     mut primary: Single<(&mut Window, &OnMonitor), With<PrimaryWindow>>,
     monitors: Query<&Monitor>,
+    mut cameras: Query<&mut Camera, With<Camera2d>>,
+    snapshot: Res<SceneSnapshot>,
     mut lifetime: ResMut<VisibleLifetime>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    if let Ok(mut camera) = cameras.single_mut() {
+        camera.viewport = camera_viewport(&snapshot.0, primary.0.physical_size());
+    }
     lifetime.frames -= 1;
     if !lifetime.shown {
         let monitor = monitors

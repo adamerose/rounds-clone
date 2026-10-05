@@ -1,9 +1,62 @@
 use super::*;
 use crate::{hud::spawn_triangle, post_process::RadialEchoSettings};
+use bevy::camera::{OrthographicProjection, Projection, ScalingMode, Viewport};
+
+pub(super) fn camera_viewport(snapshot: &MatchSnapshot, target: UVec2) -> Option<Viewport> {
+    if target.x == 0 || target.y == 0 {
+        return None;
+    }
+    snapshot
+        .arena_objects
+        .as_ref()
+        .map(|arena| data_arena_viewport(arena.frame, target))
+}
+
+fn data_arena_viewport(frame: [f32; 4], target: UVec2) -> Viewport {
+    let frame_size = Vec2::new(frame[2] - frame[0], frame[3] - frame[1]);
+    let scale = (target.x as f32 / frame_size.x).min(target.y as f32 / frame_size.y);
+    let size = (frame_size * scale).floor().as_uvec2().max(UVec2::ONE);
+    Viewport {
+        physical_position: (target - size) / 2,
+        physical_size: size,
+        ..default()
+    }
+}
+
+pub(super) fn camera_projection(snapshot: &MatchSnapshot) -> Projection {
+    let Some(arena) = &snapshot.arena_objects else {
+        return Projection::Orthographic(OrthographicProjection::default_2d());
+    };
+    Projection::Orthographic(OrthographicProjection {
+        scaling_mode: ScalingMode::Fixed {
+            width: arena.frame[2] - arena.frame[0],
+            height: arena.frame[3] - arena.frame[1],
+        },
+        ..OrthographicProjection::default_2d()
+    })
+}
 
 pub(super) fn camera_state(
     snapshot: &MatchSnapshot,
 ) -> (Transform, Bloom, ChromaticAberration, LensDistortion) {
+    if let Some(arena) = &snapshot.arena_objects {
+        return (
+            Transform::from_xyz(
+                (arena.frame[0] + arena.frame[2]) * 0.5,
+                (arena.frame[1] + arena.frame[3]) * 0.5,
+                0.0,
+            ),
+            Bloom::NATURAL,
+            ChromaticAberration {
+                intensity: 0.0,
+                ..default()
+            },
+            LensDistortion {
+                intensity: 0.0,
+                ..default()
+            },
+        );
+    }
     let player_nudge = snapshot
         .players
         .iter()
@@ -356,5 +409,38 @@ pub(super) fn spawn_yellow_paper(
             },
             -94.0 + (facet % 3) as f32,
         );
+    }
+}
+
+#[cfg(test)]
+mod data_camera_tests {
+    use super::*;
+
+    #[test]
+    fn data_camera_has_no_lens_effects() {
+        let arena = quarrel_sim::ArenaDefinition::load(
+            &quarrel_sim::default_arena_directory().join("all-kinds.ron"),
+        )
+        .unwrap();
+        let snapshot = quarrel_sim::AuthoritativeMatch::from_arena(77, arena)
+            .unwrap()
+            .snapshot();
+        let (_, _, chromatic, lens) = camera_state(&snapshot);
+        assert_eq!(chromatic.intensity, 0.0);
+        assert_eq!(lens.intensity, 0.0);
+    }
+
+    #[test]
+    fn letterboxing_keeps_square_and_fifteen_by_eight_scales_equal() {
+        for (frame, target) in [
+            ([0.0, 0.0, 8.0, 8.0], UVec2::new(1_280, 720)),
+            ([0.0, 0.0, 15.0, 8.0], UVec2::new(1_500, 720)),
+            ([0.0, 0.0, 15.0, 8.0], UVec2::new(1_280, 720)),
+        ] {
+            let viewport = data_arena_viewport(frame, target);
+            let x_scale = viewport.physical_size.x as f32 / (frame[2] - frame[0]);
+            let y_scale = viewport.physical_size.y as f32 / (frame[3] - frame[1]);
+            assert!((x_scale - y_scale).abs() <= 1.0 / 8.0);
+        }
     }
 }
