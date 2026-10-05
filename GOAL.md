@@ -1,31 +1,27 @@
 # Goal
 
-Make a game that Adam and his friends want to play together on a regular night: fast 1v1 physics duels, a card draft for whoever lost the round, and the bright, chunky feel that made ROUNDS fun.
-ROUNDS is no longer being developed, so this game is where the group keeps improving that idea: new cards, arenas, fixes, and modes they want.
-If it turns out good enough, Adam may release it on Steam as his own game.
+Make a spiritual successor to ROUNDS that Adam and his friends want to play together on a regular night, and that Adam can release on Steam as his own game.
+It keeps what made ROUNDS great (fast physics duels, skill expression, build variety, destructible maps and juice) and adds mechanics of its own, so builds keep producing new combos without collapsing into power creep.
+`docs/game-design.md` holds the design pillars.
 
 ## Who it is for, in order
 
-1. The friend group, playing online from their own homes.
-2. Whoever builds and changes it, which includes agents: adding a card or an arena must be cheap and safe.
-3. Possibly, later, Steam players.
+1. The friend group, usually playing 1v1 online from their own homes, sometimes with more players.
+2. Whoever builds and changes it, which includes agents: adding a card, rule or arena must be cheap and safe.
+3. Steam players.
 
 ## What "good" means
 
 The test is whether the group plays it and asks to play again.
 A build is better when a real play session says so, not when a capture matches a frame.
-ROUNDS is the starting reference for feel: movement, jump, shot, block, knockback, round flow and the draft should feel like it before the game deliberately goes beyond it.
-The two recordings in `reference/manifest.json` and the measurements in `docs/fidelity/` are reference material for that tuning, not acceptance tests.
-
-Once the base game feels right, intentional improvements are the point.
-Each one should be a choice the group made after playing, recorded in `docs/decisions.md`.
+ROUNDS is a reference for pace and feel, not a specification; the two recordings in `reference/manifest.json` and the measurements in `docs/fidelity/` are tuning material only.
+Design changes come from play sessions and are recorded in `docs/decisions.md`.
 
 ## Product boundary
 
-The game is a clean-room implementation in Rust and Bevy.
-Never copy ROUNDS source code or extract its art, logo, audio, or other asset bytes.
-Game mechanics may be reimplemented.
-A public release must not use the `ROUNDS` name, Landfall's card names or text, or a look that could pass as their game; until Adam picks a release identity, those names stay in data that can be replaced in one place.
+The game is a clean-room implementation in Rust and Bevy with its own name, card names, art and visual identity.
+Never copy ROUNDS source code or extract its art, logo, audio, or other asset bytes, and do not use the `ROUNDS` name, Landfall's card names or text, or a look that could pass as their game.
+General mechanics may be reimplemented.
 
 Online play with friends is a core feature, not an extra.
 It has to feel responsive at real internet latency and work without port forwarding.
@@ -37,6 +33,7 @@ An agent must be able to drive bounded inputs, inspect authoritative state, rend
 ## Engineering rules
 
 Game rules are general: arenas, cards and match flow come from data and ordinary rules, never from branches that recreate one recorded moment.
+Rules, draft and scoring work for any number of fighters even while 1v1 is the main mode.
 Tests protect behavior people depend on, reproduced bugs, and release threats.
 If support or test code grows larger or harder to understand than the game it protects, stop and rethink before adding more.
 

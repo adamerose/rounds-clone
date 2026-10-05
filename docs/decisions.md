@@ -681,3 +681,15 @@ This partly restores the reasoning of the 2026-08-14 original-identity decision,
 Rust, Bevy and Rapier stay: a third engine restart would discard working physics, networking and rendering, and nothing observed shows the engine is the obstacle.
 The next work removes footage profiles in favour of general arenas, cards and match flow (`docs/roadmap.md` M1), then tests online feel at real latency before choosing prediction or rollback (M2).
 GOAL.md, the README introduction, the architecture introduction and `docs/roadmap.md` change with this entry.
+
+## 2026-10-04 — Make a spiritual successor with its own mechanics, not a ROUNDS copy
+
+Later the same day Adam narrowed the direction: he still enjoys ROUNDS but finds it repetitive, does not want mods, and sees mod card packs adding power creep.
+He wants new mechanics, usually 1v1 with support for more players, and confirms a Steam release is likely.
+This supersedes the earlier entry's plan to reach ROUNDS feel fidelity before diverging: ROUNDS is now a reference for pace and feel, and the game has its own name, cards and identity from the start.
+
+His answers shape `docs/game-design.md`.
+Winning in ROUNDS denies the winner an upgrade, so everyone drafts after each fight and the loser's edge comes from picking first and other comeback options under test.
+The moments he values most are discovering strong combos across hundreds of games and power he can see, such as screen distortion and the map breaking apart under big damage; cards are therefore event rules designed to combine, with hand limits and evolution in place of unbounded stacking.
+Matches are short with an optional, limited run-it-back that keeps builds.
+These are hypotheses for play sessions, not settled tuning.

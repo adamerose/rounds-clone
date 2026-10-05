@@ -7,7 +7,7 @@ The retired Godot and C# architecture remains available at the annotated tag `ar
 
 This document describes the code as it is today.
 Much of it is organised around seven `ReplayProfile` footage slices from the earlier goal of reproducing two recordings.
-Since 2026-10-04 the goal is a general game (see `GOAL.md` and `docs/roadmap.md`): profiles, fixed source offer lists and the historical-rematch setup are scheduled for removal in favour of arena data, card data and ordinary match flow.
+Since 2026-10-04 the goal is a general game that succeeds ROUNDS rather than copying it (see `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md`): profiles, fixed source offer lists, the ROUNDS card catalog and the historical-rematch setup are scheduled for removal in favour of arena data, event-rule card data and ordinary match flow for any number of fighters.
 The recordings in `reference/manifest.json` and the notes in `docs/fidelity/` remain tuning references; they no longer define completion.
 
 ## Runtime shape
