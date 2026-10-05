@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "arenas"]
@@ -27,6 +27,8 @@ The format must cover every kind of object ROUNDS maps use (`docs/rounds-maps.md
 - Falling and thrown pieces damage fighters they hit hard enough.
 - The existing teal, timber, ice, lime, saw and crate scenes are converted into arena files and the old scene code is removed.
 - One headless command renders a PNG preview of any arena file.
+- Converted arena files reproduce the old scene geometry and the existing profiles load them, so existing tests pass unchanged until #78 deletes the profiles.
+- The format states the camera frame bounds, and the loader rejects geometry or spawns outside them; #79 uses these bounds as the screen edges.
 
 ## Decisions
 
@@ -42,6 +44,7 @@ The format must cover every kind of object ROUNDS maps use (`docs/rounds-maps.md
 - A test arena containing every object kind simulates 10 seconds headless with no panic, every chained piece still attached to its anchor, and a moving piece back on its path.
 - The preview command writes a PNG for each converted arena; previews stay out of Git.
 - A test changes an arena file while a session runs and observes the reloaded geometry.
+- Tests show a hard-falling piece damages a fighter, a breakable piece breaks at zero health and releases what hangs from it, a saw damages a fighter, and fighters and shots pass through background pieces.
 
 ## Chat excerpts
 
