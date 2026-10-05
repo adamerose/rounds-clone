@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-30T02:35:54Z
 origin: human-request
 tags: ["product-fidelity", "projectiles", "presentation"]
