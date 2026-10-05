@@ -58,7 +58,7 @@ The one change under test is recoil you can move with: firing pushes you back, s
    Every few fights, at random, one rule applies to everyone for that fight (low gravity, ice floor, huge shots) and is announced before it starts.
 10. **Quick matches that can keep going.**
     There are no best-of-three rounds: everyone picks one card before the first fight, every fight is a point, and the loser of each fight picks a card.
-    The default is first to five points, five to nine fights.
+    The default is first to five points, five to nine fights, each on a new random arena as in ROUNDS.
     At the end, everyone can vote to run it back with builds kept and a higher target, at most twice.
 11. **1v1 first, more players later.**
     The rules, draft and scoring work for any number of fighters, so 2v2 and free-for-all are configuration rather than rewrites.

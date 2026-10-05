@@ -37,7 +37,7 @@ No downloaded video or source frame is committed.
 3. A fixed arena appears, both players spawn with fresh health, ammunition, block cooldown, and no transient projectiles, and control unlocks together.
 4. The players fight until one dies from depleted health or leaving the arena bounds. (Corrected 2026-10-04: leaving the arena deals heavy damage and pushes the fighter back rather than killing; see `docs/rounds-reference.md`.)
 5. The survivor receives half of one round point.
-6. The same arena resets for another duel with cards and score retained.
+6. The same arena resets for another duel with cards and score retained. (Corrected 2026-10-05: every fight uses a new arena; see `docs/rounds-reference.md`.)
 7. A second duel win completes the round point.
 8. The player who lost the full round receives five card choices and selects one persistent card.
 9. The next round uses a new arena and repeats the two-duel scoring sequence.

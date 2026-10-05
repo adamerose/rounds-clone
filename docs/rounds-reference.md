@@ -41,7 +41,8 @@ It is the baseline QUARREL starts from; `docs/game-design.md` says where QUARREL
 
 - Officially two players; four or more players exist only through community mods such as RoundsWithFriends and Local Game Modes.
 - Both players pick one of five cards before the first fight.
-- A round is won by the first to two fight wins; the arena changes each round; the round loser picks one of five cards; the first to five rounds wins.
+- A round is won by the first to two fight wins; the round loser picks one of five cards; the first to five rounds wins.
+- Every fight is on a new random arena, including the fights within one round; Adam's recordings show a round going from one arena to the timber-collapse arena to the ice arena.
 - Duplicate cards are allowed.
 
 ## Arena objects
