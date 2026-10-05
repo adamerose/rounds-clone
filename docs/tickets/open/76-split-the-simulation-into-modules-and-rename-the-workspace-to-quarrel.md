@@ -49,3 +49,4 @@ Adam — this session, 2026-10-05:
 - 2026-10-05T14:13:11Z Drafted as the first M1 ticket under run #75.
 - 2026-10-05T15:02:32Z Admitted for run #75 after an independent contract check; its fixes were applied first.
 - 2026-10-05T18:29:09Z stage implement start session codex:01a10d50-dccf-7641-937d-21bf6a455456 — Mechanical crate rename and module split; preserve public API and behavior; reuse root out/cargo-target through a worktree junction with jobs=2.
+- 2026-10-05T18:39:26Z stage implement end session codex:01a10d50-dccf-7641-937d-21bf6a455456 — Six crate names/paths and current command references renamed; sim and presentation split with all 62 original tests retained, largest source 1324 lines; fmt and strict locked all-target Clippy pass.
