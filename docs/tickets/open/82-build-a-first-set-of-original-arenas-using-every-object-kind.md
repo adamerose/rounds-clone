@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "arenas"]
@@ -9,7 +9,7 @@ sessions:
   - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
 execution: unattended
 parent: 75
-depends-on: [77]
+depends-on: [77, 78]
 supersedes: []
 split-from: []
 ---
@@ -32,6 +32,7 @@ With a new random arena every fight, a match of five to nine fights needs enough
 
 - A preview PNG of each arena, inspected for readability and recorded in the work log (previews stay out of Git).
 - A test spawns two and four fighters in each arena and checks none starts inside geometry or a saw, and each simulates 20 seconds headless without a panic or a piece leaving the world.
+- A test checks that every object kind from #77 appears in at least one original arena.
 
 ## Chat excerpts
 
