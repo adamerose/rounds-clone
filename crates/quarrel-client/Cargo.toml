@@ -1,0 +1,14 @@
+[package]
+name = "quarrel-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+quarrel-network = { path = "../quarrel-network" }
+quarrel-presentation = { path = "../quarrel-presentation" }
+quarrel-sim = { path = "../quarrel-sim" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

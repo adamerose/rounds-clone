@@ -1,0 +1,1142 @@
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+pub const REMATCH_DRAFT_TICKS: u32 = 4_540;
+pub const CONNECTED_FIRST_ROUND_TICKS: u32 = 5_466;
+pub const FIRST_LOSER_DRAFT_TICKS: u32 = 5_893;
+pub const HELD_HANGING_ENTRY_TICKS: u32 = 5_941;
+pub const CONNECTED_ICE_LOAD_TICK: u32 = 4_541;
+pub const CONNECTED_ICE_COMBAT_TICK: u32 = 4_601;
+pub const CONNECTED_ICE_RESULT_ONSET_TICK: u32 = 5_339;
+pub const LEGACY_REMATCH_DRAFT_TICKS: u32 = 2_400;
+pub const REMATCH_DRAFT_PROFILE: &str = "rematch-draft-replay";
+pub const REMATCH_DRAFT_SOURCE_INTERVAL: &str = "02:39.516029-03:55.182393";
+pub const REMATCH_DRAFT_SOURCE_START_HUNDREDTHS: u64 = 15_952;
+pub const SOURCE_DRAFT_SEED: u64 = 41;
+pub const CONNECTED_BLUE_RESULT_ONSET_TICK: u32 = 2_586;
+pub const CONNECTED_HALF_BLUE_TICK: u32 = 2_609;
+pub const CONNECTED_HALF_BLUE_TAIL_TICK: u32 = 2_700;
+pub const CONNECTED_TIMBER_COMBAT_TICK: u32 = 2_730;
+pub const CONNECTED_TIMBER_IMPACT_TARGET_TICK: u32 = 3_653;
+pub const CONNECTED_ORANGE_RESULT_ONSET_TICK: u32 = 4_450;
+pub const CONNECTED_HALF_ORANGE_TICK: u32 = 4_470;
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ItemId {
+    FrostSlam,
+    Combine,
+    TasteOfBlood,
+    Burst,
+    Dazzle,
+    ExplosiveBullet,
+    Echo,
+    Lifestealer,
+    Emp,
+    QuickShot,
+    ColdBullets,
+    CarefulPlanning,
+    Overpower,
+    BigBullet,
+    SteadyShot,
+    Tank,
+    TimedDetonation,
+    Homing,
+    Huge,
+    HealingField,
+    Parasite,
+}
+
+impl ItemId {
+    pub fn short_badge(self) -> &'static str {
+        match self {
+            Self::Dazzle => "Da",
+            Self::ExplosiveBullet => "Ex",
+            Self::FrostSlam => "Fr",
+            Self::Combine => "Co",
+            Self::TasteOfBlood => "Ta",
+            Self::Burst => "Bu",
+            Self::Echo => "Ec",
+            Self::Lifestealer => "Li",
+            Self::Emp => "Em",
+            Self::QuickShot => "Qu",
+            Self::ColdBullets => "Co",
+            Self::CarefulPlanning => "Ca",
+            Self::Overpower => "Ov",
+            Self::BigBullet => "Bi",
+            Self::SteadyShot => "St",
+            Self::Tank => "Ta",
+            Self::TimedDetonation => "Ti",
+            Self::Homing => "Ho",
+            Self::Huge => "Hu",
+            Self::HealingField => "He",
+            Self::Parasite => "Pa",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ItemRarity {
+    Unknown,
+    Common,
+    Uncommon,
+    Rare,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ImplementationState {
+    Implemented,
+    CatalogOnly,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GameplayModifiers {
+    pub dazzle_stun_pulses: u8,
+    pub dazzle_stun_ticks: u16,
+    pub explosion_radius_milli: i32,
+    pub explosion_impulse_milli: i32,
+    pub fire_cooldown_extra_ticks: u16,
+    pub projectile_speed_factor: ProjectileSpeedFactor,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectileSpeedFactor {
+    pub milli: u16,
+}
+
+impl Default for ProjectileSpeedFactor {
+    fn default() -> Self {
+        Self { milli: 1_000 }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemDefinition {
+    pub id: ItemId,
+    pub title: String,
+    pub rules: Vec<String>,
+    pub rarity: ItemRarity,
+    pub palette_rgb: [u8; 3],
+    pub art_key: String,
+    pub implementation: ImplementationState,
+    pub modifiers: Option<GameplayModifiers>,
+}
+
+pub fn item_catalog() -> Vec<ItemDefinition> {
+    use ImplementationState::{CatalogOnly, Implemented};
+    use ItemId::*;
+    use ItemRarity::{Common, Rare, Uncommon, Unknown};
+    vec![
+        item(
+            FrostSlam,
+            "FROST SLAM",
+            &[
+                "Slows enemies around you when you block",
+                "More HP",
+                "+0.25s Block cooldown",
+            ],
+            Uncommon,
+            [80, 209, 239],
+            "frost-ring",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Combine,
+            "COMBINE",
+            &["A bunch more DMG", "-2 Ammo", "+0.5s Reload time"],
+            Common,
+            [236, 81, 74],
+            "merged-rounds",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            TasteOfBlood,
+            "TASTE OF BLOOD",
+            &[
+                "+50% movement speed 3s after dealing DMG",
+                "Slightly more Life steal",
+            ],
+            Uncommon,
+            [181, 62, 105],
+            "fang-drop",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Burst,
+            "BURST",
+            &[
+                "Multiple bullets are fired in a sequence",
+                "+2 Bullets",
+                "+3 Ammo",
+                "Lower DMG",
+                "+0.25s Reload time",
+            ],
+            Rare,
+            [233, 178, 45],
+            "burst-rays",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Dazzle,
+            "DAZZLE",
+            &[
+                "Bullets stun the opponent multiple times",
+                "+0.25s Reload time",
+            ],
+            Rare,
+            [222, 128, 50],
+            "stun-stars",
+            Implemented,
+            Some(GameplayModifiers {
+                dazzle_stun_pulses: 3,
+                dazzle_stun_ticks: 6,
+                explosion_radius_milli: 0,
+                explosion_impulse_milli: 0,
+                fire_cooldown_extra_ticks: 15,
+                projectile_speed_factor: ProjectileSpeedFactor::default(),
+            }),
+        ),
+        item(
+            ExplosiveBullet,
+            "EXPLOSIVE BULLET",
+            &[
+                "Bullet explodes on impact",
+                "Lower ATKSPD",
+                "+0.25s Reload time",
+            ],
+            Rare,
+            [238, 116, 35],
+            "impact-burst",
+            Implemented,
+            Some(GameplayModifiers {
+                dazzle_stun_pulses: 0,
+                dazzle_stun_ticks: 0,
+                explosion_radius_milli: 150_000,
+                explosion_impulse_milli: 540_000,
+                fire_cooldown_extra_ticks: 15,
+                projectile_speed_factor: ProjectileSpeedFactor::default(),
+            }),
+        ),
+        item(
+            Echo,
+            "ECHO",
+            &[
+                "Blocking triggers another, delayed block",
+                "More HP",
+                "+0.25s Block cooldown",
+            ],
+            Uncommon,
+            [97, 175, 213],
+            "echo-rings",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Lifestealer,
+            "LIFESTEALER",
+            &["Steal HP from your opponent when near", "Slightly more HP"],
+            Rare,
+            [177, 71, 183],
+            "vampire-orbit",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Emp,
+            "EMP",
+            &[
+                "Blocking spawns a ring of slowing projectiles",
+                "More HP",
+                "+0.25s Block cooldown",
+            ],
+            Rare,
+            [68, 169, 204],
+            "electric-ring",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            QuickShot,
+            "QUICK SHOT",
+            &["A bunch more Bullet speed", "+0.25s Reload time"],
+            Common,
+            [222, 244, 102],
+            "speed-streak-blob",
+            Implemented,
+            Some(GameplayModifiers {
+                projectile_speed_factor: ProjectileSpeedFactor { milli: 1_250 },
+                ..neutral_modifiers()
+            }),
+        ),
+        item(
+            ColdBullets,
+            "COLD BULLETS",
+            &["A bunch more Bullet slow", "+0.25s Reload time"],
+            Uncommon,
+            [92, 188, 224],
+            "snowflake-bullet",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            CarefulPlanning,
+            "CAREFUL PLANNING",
+            &["A bunch more DMG", "Lower ATKSPD", "+0.5s Reload time"],
+            Uncommon,
+            [22, 165, 190],
+            "paper-fan-blob",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Overpower,
+            "OVERPOWER",
+            &[
+                "Deal 15% of your max HP to enemies around you when you block",
+                "More HP",
+                "+0.25s Block cooldown",
+            ],
+            Rare,
+            [244, 78, 73],
+            "dark-glasses-blob",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            BigBullet,
+            "BIG BULLET",
+            &["Bigger bullets", "+0.25s Reload time"],
+            Common,
+            [226, 83, 74],
+            "oversized-red-round",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            SteadyShot,
+            "STEADY SHOT",
+            &["More HP", "More Bullet speed", "+0.25s Reload time"],
+            Unknown,
+            [151, 154, 67],
+            "steady-target",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Tank,
+            "TANK",
+            &[
+                "A huge amount of HP",
+                "Slightly lower ATKSPD",
+                "+0.5s Reload time",
+            ],
+            Unknown,
+            [98, 161, 92],
+            "tank-treads",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            TimedDetonation,
+            "TIMED DETONATION",
+            &[
+                "Bullets spawn bombs that explode after half a second",
+                "Slightly lower DMG",
+                "+0.25s Reload time",
+            ],
+            Unknown,
+            [221, 79, 62],
+            "timed-bomb",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Homing,
+            "HOMING",
+            &[
+                "Bullets home towards visible targets",
+                "Slightly lower DMG",
+                "Slightly lower ATKSPD",
+                "+0.25s Reload time",
+            ],
+            Unknown,
+            [229, 190, 55],
+            "homing-circuit",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Huge,
+            "HUGE",
+            &["A bunch more HP"],
+            Unknown,
+            [83, 159, 89],
+            "huge-weight",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            HealingField,
+            "HEALING FIELD",
+            &[
+                "Blocking creates a healing field",
+                "More HP",
+                "+0.25s Block cooldown",
+            ],
+            Unknown,
+            [65, 190, 83],
+            "healing-aura",
+            CatalogOnly,
+            None,
+        ),
+        item(
+            Parasite,
+            "PARASITE",
+            &[
+                "Bullets deal damage over 5 seconds",
+                "More Life steal",
+                "More HP",
+                "More DMG",
+                "+0.25s Reload time",
+            ],
+            Unknown,
+            [211, 45, 229],
+            "parasite-host",
+            CatalogOnly,
+            None,
+        ),
+    ]
+}
+
+fn neutral_modifiers() -> GameplayModifiers {
+    GameplayModifiers {
+        dazzle_stun_pulses: 0,
+        dazzle_stun_ticks: 0,
+        explosion_radius_milli: 0,
+        explosion_impulse_milli: 0,
+        fire_cooldown_extra_ticks: 0,
+        projectile_speed_factor: ProjectileSpeedFactor::default(),
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is one visible or typed column of the compact source-card table"
+)]
+fn item(
+    id: ItemId,
+    title: &str,
+    rules: &[&str],
+    rarity: ItemRarity,
+    palette_rgb: [u8; 3],
+    art_key: &str,
+    implementation: ImplementationState,
+    modifiers: Option<GameplayModifiers>,
+) -> ItemDefinition {
+    ItemDefinition {
+        id,
+        title: title.to_owned(),
+        rules: rules.iter().map(|rule| (*rule).to_owned()).collect(),
+        rarity,
+        palette_rgb,
+        art_key: art_key.to_owned(),
+        implementation,
+        modifiers,
+    }
+}
+
+pub fn item_definition(id: ItemId) -> ItemDefinition {
+    item_catalog()
+        .into_iter()
+        .find(|item| item.id == id)
+        .expect("every item id is registered")
+}
+
+pub fn general_implemented_offer_pool() -> Vec<ItemId> {
+    item_catalog()
+        .into_iter()
+        .filter(|item| item.implementation == ImplementationState::Implemented)
+        .map(|item| item.id)
+        .collect()
+}
+
+pub fn source_offers(seed: u64, player: u8) -> Vec<ItemId> {
+    use ItemId::*;
+    let mut offers = if player == 0 {
+        vec![FrostSlam, Combine, TasteOfBlood, Burst, Dazzle]
+    } else {
+        vec![ExplosiveBullet, Echo, Lifestealer, Emp, Dazzle]
+    };
+    let rotation = seed.wrapping_sub(SOURCE_DRAFT_SEED) as usize % offers.len();
+    offers.rotate_left(rotation);
+    offers
+}
+
+pub fn first_loser_draft_offers() -> Vec<ItemId> {
+    use ItemId::*;
+    vec![
+        QuickShot,
+        ColdBullets,
+        CarefulPlanning,
+        Overpower,
+        BigBullet,
+    ]
+}
+
+pub fn new_match_source_offers() -> [Vec<ItemId>; 2] {
+    use ItemId::*;
+    [
+        vec![Dazzle, SteadyShot, Tank, TimedDetonation, Homing],
+        vec![Huge, SteadyShot, ExplosiveBullet, HealingField, Parasite],
+    ]
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FlowPhase {
+    CombatConclusion,
+    RematchPrompt,
+    ArenaFade,
+    Draft,
+    Reveal,
+    Handoff,
+    ArenaTransition,
+    ResumedCombat,
+    EliminationConclusion,
+    BlueResultTransition,
+    HalfBlue,
+    TimberTransition,
+    TimberCombat,
+    OrangeResultTransition,
+    HalfOrange,
+    IceTransition,
+    IceCombat,
+    RoundBlue,
+    RoundOrange,
+    PostRoundDraft,
+    PostRoundReveal,
+    PostRoundBridge,
+    HangingEntry,
+    Waiting,
+    TerminalMatch,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RematchVote {
+    Pending,
+    Yes,
+    No,
+}
+
+/// Source-visible badge abbreviations from the concluded match. Their full
+/// card identities are not legible in the bounded recording, so the authority
+/// preserves the observed values without inventing item definitions.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub enum PriorBadge {
+    Po,
+    De,
+    Th,
+    Qu,
+    Bu,
+    Ca,
+    Co,
+    Fa,
+}
+
+impl PriorBadge {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Po => "Po",
+            Self::De => "De",
+            Self::Th => "Th",
+            Self::Qu => "Qu",
+            Self::Bu => "Bu",
+            Self::Ca => "Ca",
+            Self::Co => "Co",
+            Self::Fa => "Fa",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FlowAction {
+    VoteYes,
+    VoteNo,
+    Hover(ItemId),
+    Confirm(ItemId),
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlowCommand {
+    pub phase_revision: u16,
+    pub action: FlowAction,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ActionResult {
+    #[default]
+    None,
+    Accepted,
+    Stale,
+    Duplicate,
+    WrongPlayer,
+    WrongPhase,
+    NotOffered,
+    NotHovered,
+    UnimplementedItem,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LifecycleRequest {
+    BeginNewMatch,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LifecycleResult {
+    Accepted,
+    WrongPhase,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FighterCapabilities {
+    pub dazzle_stun_pulses: u8,
+    pub dazzle_stun_ticks: u16,
+    pub explosion_radius_milli: i32,
+    pub explosion_impulse_milli: i32,
+    pub fire_cooldown_extra_ticks: u16,
+    pub projectile_speed_factor: ProjectileSpeedFactor,
+}
+
+impl FighterCapabilities {
+    fn accumulate(&mut self, modifiers: GameplayModifiers) {
+        self.dazzle_stun_pulses = self
+            .dazzle_stun_pulses
+            .saturating_add(modifiers.dazzle_stun_pulses);
+        self.dazzle_stun_ticks = self
+            .dazzle_stun_ticks
+            .saturating_add(modifiers.dazzle_stun_ticks);
+        self.explosion_radius_milli = self
+            .explosion_radius_milli
+            .saturating_add(modifiers.explosion_radius_milli);
+        self.explosion_impulse_milli = self
+            .explosion_impulse_milli
+            .saturating_add(modifiers.explosion_impulse_milli);
+        self.fire_cooldown_extra_ticks = self
+            .fire_cooldown_extra_ticks
+            .saturating_add(modifiers.fire_cooldown_extra_ticks);
+        let multiplied = u32::from(self.projectile_speed_factor.milli)
+            * u32::from(modifiers.projectile_speed_factor.milli)
+            / 1_000;
+        self.projectile_speed_factor.milli = multiplied.min(u32::from(u16::MAX)) as u16;
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlowSnapshot {
+    pub phase: FlowPhase,
+    pub phase_revision: u16,
+    pub phase_tick: u32,
+    pub active_player: Option<u8>,
+    pub scores: [u8; 2],
+    pub halves: [u8; 2],
+    pub winner: Option<u8>,
+    pub eliminated: Option<u8>,
+    pub fighter_alive: [bool; 2],
+    pub prior_badges: [Vec<PriorBadge>; 2],
+    pub rematch_votes: [RematchVote; 2],
+    pub offers: [Vec<ItemId>; 2],
+    pub hovered: [Option<ItemId>; 2],
+    pub selected: [Option<ItemId>; 2],
+    pub revealed: Option<ItemId>,
+    pub loadouts: [Vec<ItemId>; 2],
+    pub capabilities: [FighterCapabilities; 2],
+    pub last_results: [ActionResult; 2],
+    pub accepted_actions: u32,
+    pub catalog: Vec<ItemDefinition>,
+}
+
+pub struct FlowAuthority {
+    snapshot: FlowSnapshot,
+    /// Combat phase to repeat after a no-award simultaneous elimination.
+    repeat_phase: Option<FlowPhase>,
+}
+
+impl FlowAuthority {
+    /// Starts a fresh match without inherited score, result, or build state.
+    pub fn new(seed: u64) -> Self {
+        Self::from_constructed_state(
+            seed,
+            FlowPhase::ResumedCombat,
+            [0, 0],
+            [0, 0],
+            None,
+            None,
+            [Vec::new(), Vec::new()],
+            [Vec::new(), Vec::new()],
+        )
+    }
+
+    /// Reconstructs the already-concluded 4–5 match at the beginning of the
+    /// connected rematch recording. This is historical presentation state,
+    /// not a score reached by [`Self::record_elimination`].
+    pub fn historical_rematch(seed: u64) -> Self {
+        Self::from_constructed_state(
+            seed,
+            FlowPhase::CombatConclusion,
+            [4, 5],
+            [0, 0],
+            Some(1),
+            Some(0),
+            [
+                vec![
+                    PriorBadge::Po,
+                    PriorBadge::De,
+                    PriorBadge::Th,
+                    PriorBadge::Qu,
+                    PriorBadge::Bu,
+                ],
+                vec![
+                    PriorBadge::Bu,
+                    PriorBadge::Ca,
+                    PriorBadge::Co,
+                    PriorBadge::Co,
+                    PriorBadge::Fa,
+                ],
+            ],
+            [Vec::new(), Vec::new()],
+        )
+    }
+
+    /// Constructs the source-backed 3–4, one-half-each prehistory used by the
+    /// match-end replay. The fifth point must still be earned through combat.
+    pub fn match_end_waiting_replay(seed: u64) -> Self {
+        let mut authority = Self::from_constructed_state(
+            seed,
+            FlowPhase::ResumedCombat,
+            [3, 4],
+            [1, 1],
+            None,
+            None,
+            [Vec::new(), Vec::new()],
+            [vec![ItemId::Dazzle], vec![ItemId::ExplosiveBullet]],
+        );
+        authority.snapshot.capabilities[0]
+            .accumulate(item_definition(ItemId::Dazzle).modifiers.unwrap());
+        authority.snapshot.capabilities[1]
+            .accumulate(item_definition(ItemId::ExplosiveBullet).modifiers.unwrap());
+        authority
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_constructed_state(
+        seed: u64,
+        phase: FlowPhase,
+        scores: [u8; 2],
+        halves: [u8; 2],
+        winner: Option<u8>,
+        eliminated: Option<u8>,
+        prior_badges: [Vec<PriorBadge>; 2],
+        loadouts: [Vec<ItemId>; 2],
+    ) -> Self {
+        Self {
+            snapshot: FlowSnapshot {
+                phase,
+                phase_revision: 0,
+                phase_tick: 0,
+                active_player: None,
+                scores,
+                halves,
+                winner,
+                eliminated,
+                fighter_alive: [eliminated != Some(0), eliminated != Some(1)],
+                prior_badges,
+                rematch_votes: [RematchVote::Pending; 2],
+                offers: [source_offers(seed, 0), source_offers(seed, 1)],
+                hovered: [None, None],
+                selected: [None, None],
+                revealed: None,
+                loadouts,
+                capabilities: [FighterCapabilities::default(); 2],
+                last_results: [ActionResult::None; 2],
+                accepted_actions: 0,
+                catalog: item_catalog(),
+            },
+            repeat_phase: None,
+        }
+    }
+
+    pub fn snapshot(&self) -> FlowSnapshot {
+        self.snapshot.clone()
+    }
+
+    pub fn capabilities(&self, player: u8) -> FighterCapabilities {
+        self.snapshot.capabilities[usize::from(player)]
+    }
+
+    #[cfg(test)]
+    pub(crate) fn copy_player_build_for_test(&mut self, player: u8, source: &FlowSnapshot) {
+        let index = usize::from(player);
+        self.snapshot.loadouts[index] = source.loadouts[index].clone();
+        self.snapshot.capabilities[index] = source.capabilities[index];
+    }
+
+    pub fn accepts_combat(&self) -> bool {
+        matches!(
+            self.snapshot.phase,
+            FlowPhase::ResumedCombat | FlowPhase::TimberCombat | FlowPhase::IceCombat
+        )
+    }
+
+    pub fn record_elimination(&mut self, winner: u8) -> bool {
+        if winner > 1 || !self.accepts_combat() {
+            return false;
+        }
+        self.snapshot.halves[usize::from(winner)] += 1;
+        if self.snapshot.halves[usize::from(winner)] == 2 {
+            self.snapshot.scores[usize::from(winner)] += 1;
+        }
+        self.snapshot.winner = Some(winner);
+        self.snapshot.eliminated = Some(1 - winner);
+        self.snapshot.fighter_alive = [winner == 0, winner == 1];
+        self.transition(FlowPhase::EliminationConclusion, None);
+        true
+    }
+
+    /// Records that both fighters fell on the same tick. Provisional policy
+    /// pending source evidence: nobody scores, halves and loadouts stay, and the
+    /// same arena repeats without a draft. Returns false outside live combat.
+    pub fn record_simultaneous_elimination(&mut self) -> bool {
+        if !self.accepts_combat() {
+            return false;
+        }
+        self.repeat_phase = Some(self.snapshot.phase);
+        self.snapshot.winner = None;
+        self.snapshot.eliminated = None;
+        self.snapshot.fighter_alive = [false, false];
+        self.transition(FlowPhase::EliminationConclusion, None);
+        true
+    }
+
+    pub fn has_terminal_result(&self) -> bool {
+        self.snapshot.winner.is_some()
+    }
+
+    pub fn request_lifecycle(&mut self, request: LifecycleRequest) -> LifecycleResult {
+        match request {
+            LifecycleRequest::BeginNewMatch if self.snapshot.phase == FlowPhase::Waiting => {
+                self.snapshot.scores = [0, 0];
+                self.snapshot.halves = [0, 0];
+                self.snapshot.winner = None;
+                self.snapshot.eliminated = None;
+                self.snapshot.fighter_alive = [true, true];
+                self.snapshot.prior_badges = [Vec::new(), Vec::new()];
+                self.snapshot.rematch_votes = [RematchVote::Pending; 2];
+                self.snapshot.offers = new_match_source_offers();
+                self.snapshot.hovered = [None, None];
+                self.snapshot.selected = [None, None];
+                self.snapshot.revealed = None;
+                self.snapshot.loadouts = [Vec::new(), Vec::new()];
+                self.snapshot.capabilities = [FighterCapabilities::default(); 2];
+                self.snapshot.last_results = [ActionResult::None; 2];
+                self.snapshot.accepted_actions = 0;
+                self.repeat_phase = None;
+                self.transition(FlowPhase::ArenaFade, None);
+                LifecycleResult::Accepted
+            }
+            LifecycleRequest::BeginNewMatch => LifecycleResult::WrongPhase,
+        }
+    }
+
+    pub fn advance(&mut self, commands: [Option<FlowCommand>; 2]) {
+        self.snapshot.phase_tick = self.snapshot.phase_tick.saturating_add(1);
+        self.snapshot.last_results = [ActionResult::None; 2];
+        for (player, command) in commands.into_iter().enumerate() {
+            if let Some(command) = command {
+                self.apply(player as u8, command);
+            }
+        }
+        match self.snapshot.phase {
+            FlowPhase::CombatConclusion if self.snapshot.phase_tick >= 240 => {
+                self.transition(FlowPhase::RematchPrompt, None);
+            }
+            FlowPhase::ArenaFade if self.snapshot.phase_tick >= 150 => {
+                self.transition(FlowPhase::Draft, Some(0));
+                self.snapshot.hovered[0] = self.snapshot.offers[0].get(1).copied();
+            }
+            FlowPhase::Reveal
+                if self.snapshot.phase_tick
+                    >= if self.snapshot.active_player == Some(0) {
+                        120
+                    } else {
+                        60
+                    } =>
+            {
+                if self.snapshot.active_player == Some(0) {
+                    self.transition(FlowPhase::Handoff, None);
+                } else {
+                    self.transition(FlowPhase::ArenaTransition, None);
+                }
+            }
+            FlowPhase::Handoff if self.snapshot.phase_tick >= 30 => {
+                self.transition(FlowPhase::Draft, Some(1));
+                self.snapshot.hovered[1] = self.snapshot.offers[1].get(4).copied();
+            }
+            FlowPhase::ArenaTransition if self.snapshot.phase_tick >= 59 => {
+                self.transition(FlowPhase::ResumedCombat, None);
+            }
+            FlowPhase::RoundBlue | FlowPhase::RoundOrange if self.snapshot.phase_tick >= 139 => {
+                let winner = self
+                    .snapshot
+                    .winner
+                    .expect("a completed round records its winning fighter");
+                if self.snapshot.scores[usize::from(winner)] >= 5 {
+                    self.snapshot.fighter_alive = [true, true];
+                    self.snapshot.offers = [Vec::new(), Vec::new()];
+                    self.snapshot.hovered = [None, None];
+                    self.snapshot.selected = [None, None];
+                    self.snapshot.revealed = None;
+                    self.transition(FlowPhase::Waiting, None);
+                    return;
+                }
+                let loser = self
+                    .snapshot
+                    .eliminated
+                    .expect("a completed round records its losing fighter");
+                self.snapshot.halves = [0, 0];
+                self.snapshot.offers = [Vec::new(), Vec::new()];
+                self.snapshot.offers[usize::from(loser)] = first_loser_draft_offers();
+                self.snapshot.hovered = [None, None];
+                self.snapshot.selected = [None, None];
+                self.snapshot.revealed = None;
+                self.transition(FlowPhase::PostRoundDraft, Some(loser));
+            }
+            FlowPhase::PostRoundReveal if self.snapshot.phase_tick >= 16 => {
+                self.transition(FlowPhase::PostRoundBridge, None);
+            }
+            FlowPhase::PostRoundBridge if self.snapshot.phase_tick >= 76 => {
+                self.snapshot.winner = None;
+                self.snapshot.eliminated = None;
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::HangingEntry, None);
+            }
+            FlowPhase::EliminationConclusion
+                if self.snapshot.phase_tick
+                    >= if self.snapshot.halves.iter().sum::<u8>() == 1 {
+                        13
+                    } else if self.snapshot.halves.iter().sum::<u8>() == 3 {
+                        27
+                    } else {
+                        16
+                    } =>
+            {
+                let next = match self.snapshot.winner {
+                    Some(1) => FlowPhase::BlueResultTransition,
+                    Some(_) => FlowPhase::OrangeResultTransition,
+                    None => {
+                        self.snapshot.fighter_alive = [true, true];
+                        self.repeat_phase.take().unwrap_or(FlowPhase::ResumedCombat)
+                    }
+                };
+                self.transition(next, None);
+            }
+            FlowPhase::BlueResultTransition
+                if self.snapshot.phase_tick
+                    >= if self.snapshot.halves.iter().sum::<u8>() == 1 {
+                        23
+                    } else if self.snapshot.halves.iter().sum::<u8>() == 3 {
+                        16
+                    } else {
+                        20
+                    } =>
+            {
+                self.transition(
+                    if self.snapshot.halves[1] == 2 {
+                        FlowPhase::RoundBlue
+                    } else {
+                        FlowPhase::HalfBlue
+                    },
+                    None,
+                );
+            }
+            FlowPhase::HalfBlue | FlowPhase::HalfOrange
+                if self.snapshot.phase_tick >= 91
+                    && self.snapshot.halves.iter().sum::<u8>() == 1 =>
+            {
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::TimberTransition, None);
+            }
+            FlowPhase::TimberTransition if self.snapshot.phase_tick >= 30 => {
+                self.snapshot.winner = None;
+                self.snapshot.eliminated = None;
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::TimberCombat, None);
+            }
+            FlowPhase::HalfBlue | FlowPhase::HalfOrange
+                if self.snapshot.phase_tick >= 71 && self.snapshot.halves == [1, 1] =>
+            {
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::IceTransition, None);
+            }
+            FlowPhase::IceTransition if self.snapshot.phase_tick >= 60 => {
+                self.snapshot.winner = None;
+                self.snapshot.eliminated = None;
+                self.snapshot.fighter_alive = [true, true];
+                self.transition(FlowPhase::IceCombat, None);
+            }
+            FlowPhase::OrangeResultTransition
+                if self.snapshot.phase_tick
+                    >= if self.snapshot.halves.iter().sum::<u8>() == 1 {
+                        23
+                    } else if self.snapshot.halves.iter().sum::<u8>() == 3 {
+                        16
+                    } else {
+                        20
+                    } =>
+            {
+                self.transition(
+                    if self.snapshot.halves[0] == 2 {
+                        FlowPhase::RoundOrange
+                    } else {
+                        FlowPhase::HalfOrange
+                    },
+                    None,
+                );
+            }
+            _ => {}
+        }
+    }
+
+    fn apply(&mut self, player: u8, command: FlowCommand) {
+        let index = usize::from(player);
+        if command.phase_revision != self.snapshot.phase_revision {
+            self.snapshot.last_results[index] = ActionResult::Stale;
+            return;
+        }
+        let result = match (self.snapshot.phase, command.action) {
+            (FlowPhase::RematchPrompt, FlowAction::VoteYes) => self.vote(player, RematchVote::Yes),
+            (FlowPhase::RematchPrompt, FlowAction::VoteNo) => self.vote(player, RematchVote::No),
+            (FlowPhase::Draft, FlowAction::Hover(item)) => self.hover(player, item),
+            (FlowPhase::Draft, FlowAction::Confirm(item)) => self.confirm(player, item),
+            (FlowPhase::PostRoundDraft, FlowAction::Hover(item)) => self.hover(player, item),
+            (FlowPhase::PostRoundDraft, FlowAction::Confirm(item)) => self.confirm(player, item),
+            (FlowPhase::PostRoundReveal, FlowAction::Confirm(item)) => self.confirm(player, item),
+            _ => ActionResult::WrongPhase,
+        };
+        self.snapshot.last_results[index] = result;
+        if result == ActionResult::Accepted {
+            self.snapshot.accepted_actions += 1;
+        }
+    }
+
+    fn vote(&mut self, player: u8, vote: RematchVote) -> ActionResult {
+        let slot = &mut self.snapshot.rematch_votes[usize::from(player)];
+        if *slot != RematchVote::Pending {
+            return ActionResult::Duplicate;
+        }
+        *slot = vote;
+        if vote == RematchVote::No {
+            self.transition(FlowPhase::TerminalMatch, None);
+        } else if self.snapshot.rematch_votes == [RematchVote::Yes; 2] {
+            self.snapshot.scores = [0, 0];
+            self.snapshot.halves = [0, 0];
+            self.snapshot.winner = None;
+            self.snapshot.eliminated = None;
+            self.snapshot.fighter_alive = [true, true];
+            self.snapshot.prior_badges = [Vec::new(), Vec::new()];
+            self.snapshot.loadouts = [Vec::new(), Vec::new()];
+            self.snapshot.capabilities = [FighterCapabilities::default(); 2];
+            self.transition(FlowPhase::ArenaFade, None);
+        }
+        ActionResult::Accepted
+    }
+
+    fn hover(&mut self, player: u8, item: ItemId) -> ActionResult {
+        if self.snapshot.active_player != Some(player) {
+            return ActionResult::WrongPlayer;
+        }
+        let index = usize::from(player);
+        if !self.snapshot.offers[index].contains(&item) {
+            return ActionResult::NotOffered;
+        }
+        if self.snapshot.hovered[index] == Some(item) {
+            return ActionResult::Duplicate;
+        }
+        self.snapshot.hovered[index] = Some(item);
+        ActionResult::Accepted
+    }
+
+    fn confirm(&mut self, player: u8, item: ItemId) -> ActionResult {
+        if self.snapshot.active_player != Some(player) {
+            return ActionResult::WrongPlayer;
+        }
+        let index = usize::from(player);
+        if !self.snapshot.offers[index].contains(&item) {
+            return ActionResult::NotOffered;
+        }
+        if self.snapshot.hovered[index] != Some(item) {
+            return ActionResult::NotHovered;
+        }
+        let definition = item_definition(item);
+        if definition.implementation != ImplementationState::Implemented {
+            return ActionResult::UnimplementedItem;
+        }
+        if self.snapshot.selected[index].is_some() || self.snapshot.loadouts[index].contains(&item)
+        {
+            return ActionResult::Duplicate;
+        }
+        self.snapshot.selected[index] = Some(item);
+        self.snapshot.revealed = Some(item);
+        self.snapshot.loadouts[index].push(item);
+        if let Some(modifiers) = definition.modifiers {
+            self.snapshot.capabilities[index].accumulate(modifiers);
+        }
+        let reveal = if self.snapshot.phase == FlowPhase::PostRoundDraft {
+            FlowPhase::PostRoundReveal
+        } else {
+            FlowPhase::Reveal
+        };
+        self.transition(reveal, Some(player));
+        ActionResult::Accepted
+    }
+
+    fn transition(&mut self, phase: FlowPhase, active_player: Option<u8>) {
+        self.snapshot.phase = phase;
+        self.snapshot.phase_revision += 1;
+        self.snapshot.phase_tick = 0;
+        self.snapshot.active_player = active_player;
+        if !matches!(phase, FlowPhase::Reveal | FlowPhase::PostRoundReveal) {
+            self.snapshot.revealed = None;
+        }
+    }
+}
+
+pub fn flow_digest(flow: &FlowSnapshot) -> String {
+    let bytes = serde_json::to_vec(flow).expect("flow serialization cannot fail");
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+pub fn loadout_digest(flow: &FlowSnapshot) -> String {
+    let bytes = serde_json::to_vec(&(flow.loadouts.clone(), flow.capabilities))
+        .expect("loadout serialization cannot fail");
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+#[cfg(test)]
+mod tests;

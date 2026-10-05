@@ -1,11 +1,11 @@
 [workspace]
 members = [
-    "crates/rounds-sim",
-    "crates/rounds-presentation",
-    "crates/rounds-network",
-    "crates/rounds-server",
-    "crates/rounds-client",
-    "crates/rounds-automation",
+    "crates/quarrel-sim",
+    "crates/quarrel-presentation",
+    "crates/quarrel-network",
+    "crates/quarrel-server",
+    "crates/quarrel-client",
+    "crates/quarrel-automation",
 ]
 resolver = "3"
 

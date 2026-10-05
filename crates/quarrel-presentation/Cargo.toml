@@ -1,0 +1,17 @@
+[package]
+name = "quarrel-presentation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bevy.workspace = true
+png.workspace = true
+quarrel-network = { path = "../quarrel-network" }
+quarrel-sim = { path = "../quarrel-sim" }
+serde.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

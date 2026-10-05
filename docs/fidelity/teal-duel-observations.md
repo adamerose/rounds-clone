@@ -69,17 +69,18 @@ The workspace has twelve focused executed test cases: two automation, three clie
 
 ### Line and responsibility inventory
 
-Counts below are LF source lines after formatting.
+This is the original teal slice's historical inventory, with crate names updated to QUARREL.
+Counts and line ranges describe that delivery, before the later additions and module split.
 
 | File | Lines | Responsibility and proportional test ownership |
 |---|---:|---|
-| `crates/rounds-sim/src/lib.rs` | 878 | Authoritative ECS/Rapier rules, snapshots, arena, replay profile; lines 789–878 contain route/contact, terminal-impact replay, separate ring-out, real Rapier CCD, and bounded-JSON tests. |
-| `crates/rounds-network/src/lib.rs` | 387 | Private packet grammar, handshake barrier, sequenced input and progressive snapshot transport; lines 355–387 run two real UDP clients against one authority. |
-| `crates/rounds-presentation/src/lib.rs` | 565 | Shared visible/offscreen Bevy scene, event-driven bounded capture, common camera transform, and exact hidden monitor selection; lines 543–565 execute the GPU renderer and inspect the PNG dimensions. |
-| `crates/rounds-client/src/main.rs` | 358 | Local, live remote, visible replay, single capture, named anchor capture, and pairwise destination validation; no private unit-test mirror. |
-| `crates/rounds-client/tests/capture_cli.rs` | 99 | Three process-boundary regressions prove resolved-equivalent single capture, replay anchor/metadata, and remote image/metadata destinations are rejected before rendering, networking, or writing. |
-| `crates/rounds-server/src/main.rs` | 41 | Thin headless authority process; protected through network and three-process smoke evidence rather than duplicate tests. |
-| `crates/rounds-automation/src/main.rs` | 416 | Owns three-process lifecycle, agreement checks, and live-render binding; lines 345–416 prove a partial client-start failure releases the owned server, with one inert helper test entry point. |
+| `crates/quarrel-sim/src/lib.rs` | 878 | Authoritative ECS/Rapier rules, snapshots, arena, replay profile; lines 789–878 contain route/contact, terminal-impact replay, separate ring-out, real Rapier CCD, and bounded-JSON tests. |
+| `crates/quarrel-network/src/lib.rs` | 387 | Private packet grammar, handshake barrier, sequenced input and progressive snapshot transport; lines 355–387 run two real UDP clients against one authority. |
+| `crates/quarrel-presentation/src/lib.rs` | 565 | Shared visible/offscreen Bevy scene, event-driven bounded capture, common camera transform, and exact hidden monitor selection; lines 543–565 execute the GPU renderer and inspect the PNG dimensions. |
+| `crates/quarrel-client/src/main.rs` | 358 | Local, live remote, visible replay, single capture, named anchor capture, and pairwise destination validation; no private unit-test mirror. |
+| `crates/quarrel-client/tests/capture_cli.rs` | 99 | Three process-boundary regressions prove resolved-equivalent single capture, replay anchor/metadata, and remote image/metadata destinations are rejected before rendering, networking, or writing. |
+| `crates/quarrel-server/src/main.rs` | 41 | Thin headless authority process; protected through network and three-process smoke evidence rather than duplicate tests. |
+| `crates/quarrel-automation/src/main.rs` | 416 | Owns three-process lifecycle, agreement checks, and live-render binding; lines 345–416 prove a partial client-start failure releases the owned server, with one inert helper test entry point. |
 
 The larger simulation and renderer files contain the shipped product implementation, not test scaffolding.
 Automation remains a single process runner around public executables, and its only support-only mechanism is the 22-line `ChildGuard` used by both the real smoke and cleanup regression.
@@ -94,10 +95,10 @@ After the final correction, the following commands passed against the same isola
 - `cargo clippy --workspace --all-targets --locked -- -D warnings` — exit 0 in 1 minute 17 seconds.
 - `cargo build --workspace --locked` — exit 0 in 22 seconds.
 - `cargo test --workspace --locked -- --nocapture` — exit 0 in 40 seconds; 12 passed, 0 failed, 0 ignored across unit, integration, renderer, and documentation targets.
-- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\rounds-automation.exe smoke --seed 38 --ticks 786 --output-dir out/ticket-039/corrected-smoke` — exit 0; two handshakes completed, both clients sent sequences 0–785 and received ticks 1–786, both clients and the local authority agreed on state SHA-256 `ccc3a488dfe11b8e718677cad19044332b8b386063320988461274584a95b7a3`, and the frame rendered from client 0's received snapshot agreed with that state.
-- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\rounds-automation.exe inspect --seed 38 --ticks 786` — exit 0; the bounded final state reports 1,006 platform-contact ticks, 17 jumps, five shots and recoil impulses, seven block activations, one reflection, one CCD contact, one damage-scaled hit, zero ring-outs, both fighters at the upper right, and winner 0.
-- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\rounds-client.exe capture-replay --seed 38 --ticks 786 --output-dir out/ticket-039/corrected-anchors --metadata out/ticket-039/corrected-anchors.json` — exit 0; the five renderer/state hashes above were reproduced exactly.
-- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\rounds-client.exe visible --seed 38 --ticks 786 --frames 180` — exit 0; while hidden, the guard observed exactly one display at `(364,-1080)`, 1920×1080, re-verified that identity before showing, and completed all 786 ticks with the same final state hash as the smoke run.
+- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\quarrel-automation.exe smoke --seed 38 --ticks 786 --output-dir out/ticket-039/corrected-smoke` — exit 0; two handshakes completed, both clients sent sequences 0–785 and received ticks 1–786, both clients and the local authority agreed on state SHA-256 `ccc3a488dfe11b8e718677cad19044332b8b386063320988461274584a95b7a3`, and the frame rendered from client 0's received snapshot agreed with that state.
+- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\quarrel-automation.exe inspect --seed 38 --ticks 786` — exit 0; the bounded final state reports 1,006 platform-contact ticks, 17 jumps, five shots and recoil impulses, seven block activations, one reflection, one CCD contact, one damage-scaled hit, zero ring-outs, both fighters at the upper right, and winner 0.
+- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\quarrel-client.exe capture-replay --seed 38 --ticks 786 --output-dir out/ticket-039/corrected-anchors --metadata out/ticket-039/corrected-anchors.json` — exit 0; the five renderer/state hashes above were reproduced exactly.
+- `out\\ticket-039\\cold-first-target-20260904-correction\\debug\\quarrel-client.exe visible --seed 38 --ticks 786 --frames 180` — exit 0; while hidden, the guard observed exactly one display at `(364,-1080)`, 1920×1080, re-verified that identity before showing, and completed all 786 ticks with the same final state hash as the smoke run.
 - `cargo tree -e features -i bevy_rapier2d` — exit 0; only the workspace `dim2` and `headless` feature requests are active, with no `enhanced-determinism` feature.
 - `node C:\\Users\\Adam\\.codex\\worktrees\\3d6a\\ivy\\playbook\\checks\\scripts\\check-tickets.mjs .` — exit 0; ticket format check passed. The ticket's documented repository-local checker path is absent in this checkout, so the installed Ivy checker was used.
 - `git diff --check` — exit 0.

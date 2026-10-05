@@ -747,3 +747,14 @@ Delegated for run #75: a run-back needs every fighter to vote yes, and any no st
 ## 2026-10-05 — The end-of-match choice needs consensus
 
 Adam replaced the delegated "any no starts a new match" rule: each fighter picks run it back or new match, sees everyone's current pick live, can change theirs, and nothing happens until all picks agree.
+
+## 2026-10-05 — Ticket #76 module boundaries for run #75
+
+Keep the existing crate-root API and move definitions, rules, render systems and tests into concern-specific modules.
+Private cross-module access is restricted to the crate; replay profiles, constants, serialized names, shader identity and game behavior stay unchanged.
+An alternative was to redesign shared simulation and rendering state while splitting it; that would mix behavior changes into the move-only contract and make verification harder.
+The six crate directories, package names, imports, executable lookup and current command examples use `quarrel`.
+Historical decisions, closed tickets and recovery records keep the names they recorded.
+The worktree's ignored `out/cargo-target` junction reuses the prepared root target with the repository's two-job cap; it does not start a cold Bevy build.
+The stale-executable comparison remains in this ticket's verification log and retained evidence, rather than creating an additional journal.
+A separate journal entry would duplicate that record and overlap the scaffold reconciliation ticket 62 already owns.

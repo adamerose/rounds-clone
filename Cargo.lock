@@ -4498,61 +4498,61 @@ dependencies = [
 ]
 
 [[package]]
-name = "rounds-automation"
+name = "quarrel-automation"
 version = "0.1.0"
 dependencies = [
- "rounds-network",
- "rounds-sim",
+ "quarrel-network",
+ "quarrel-sim",
  "serde",
  "serde_json",
 ]
 
 [[package]]
-name = "rounds-client"
+name = "quarrel-client"
 version = "0.1.0"
 dependencies = [
- "rounds-network",
- "rounds-presentation",
- "rounds-sim",
- "serde",
- "serde_json",
- "sha2",
-]
-
-[[package]]
-name = "rounds-network"
-version = "0.1.0"
-dependencies = [
- "rounds-sim",
+ "quarrel-network",
+ "quarrel-presentation",
+ "quarrel-sim",
  "serde",
  "serde_json",
  "sha2",
 ]
 
 [[package]]
-name = "rounds-presentation"
+name = "quarrel-network"
+version = "0.1.0"
+dependencies = [
+ "quarrel-sim",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "quarrel-presentation"
 version = "0.1.0"
 dependencies = [
  "bevy",
  "png",
- "rounds-network",
- "rounds-sim",
+ "quarrel-network",
+ "quarrel-sim",
  "serde",
  "serde_json",
  "sha2",
 ]
 
 [[package]]
-name = "rounds-server"
+name = "quarrel-server"
 version = "0.1.0"
 dependencies = [
- "rounds-network",
- "rounds-sim",
+ "quarrel-network",
+ "quarrel-sim",
  "serde_json",
 ]
 
 [[package]]
-name = "rounds-sim"
+name = "quarrel-sim"
 version = "0.1.0"
 dependencies = [
  "bevy_ecs",

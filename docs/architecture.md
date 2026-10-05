@@ -1,4 +1,4 @@
-# ROUNDS clone architecture
+# QUARREL architecture
 
 This document describes the active Bevy implementation.
 The retired Godot and C# architecture remains available at the annotated tag `archive/godot-csharp-prototype-2026-09-03`.
@@ -12,7 +12,7 @@ The recordings in `reference/manifest.json` and the notes in `docs/fidelity/` re
 
 ## Runtime shape
 
-The authoritative match advances at 60 fixed ticks per second in `rounds-sim`.
+The authoritative match advances at 60 fixed ticks per second in `quarrel-sim`.
 Stable player and projectile identities and gameplay state live in Bevy ECS.
 A project-owned `PhysicsBoundary` keeps Rapier rigid-body, collider, and joint handles private while it advances static arena contacts, dynamic circular players, dynamic arena bodies, constraints, CCD bullets, recoil, blocks, damage, knockback, explosions, and ring-outs.
 Vertical control is variable-height and arena-independent: `set_player_control` sets the fixed jump impulse when jump is pressed on a grounded tick, and cuts the remaining upward velocity to `JUMP_RELEASE_CUT` once, on the tick the jump input goes from held to released, and only while that fighter is airborne and still rising. A release read on a grounded tick does nothing whatever the vertical velocity, and a held jump keeps the full arc. The memory of last tick's input is authority-internal and reaches no snapshot; it follows the jump input on every tick the authority reads it, whether or not control runs for that fighter, so a fighter that lets go while stunned or eliminated has let go rather than saving the release for the tick control returns, and a revive clears it with the rest of the transient control state. The one release the authority cannot read on its own tick is one inside a freeze, where no input is read at all; it is consumed on the first controlled tick after the freeze. `JUMP_SPEED`, gravity, damping and air control are unchanged by it, so every arena gets the same rule and none gets a special case. No shipped replay script releases jump while airborne and rising, so the mechanic exists without any current route exercising it; the ice route ticket 049 owns will be the first.
@@ -44,7 +44,7 @@ In this connected route an Explosive Bullet must contact a dynamic timber body b
 `PlayerInput::with_progressive_observation` resolves explicitly requested opponent-relative aim against a snapshot. The public `AuthoritativeMatch::snapshot` and `step` methods let a program choose and submit later actions without reconstructing state. Scripted peers resolve aim from their latest received snapshot; the live authority resolves it once at apply time and records the resolved input in its trace. Both paths use the same revisioned `FlowCommand` boundary. Snapshot protocol 10 carries `Waiting`, the post-request flow state and the expanded 21-entry catalog beside the existing capability, arena and score state; `LifecycleResult` remains the direct return from the local authority operation and is not serialized. Scripted network protocol 11 and live network protocol 12 reject mismatched peers; live sessions count and ignore old or malformed datagrams. Scripted smoke sessions retain their 6,000-tick cap; paced live sessions accept positive bounds through 36,060 ticks. The bounded connected source route uses 5,941 ticks, while the constructed-prehistory match-end route uses 240 before an explicitly requested new match can reuse the ordinary fade-to-draft path.
 Human visible play maps two-player keyboard and controller combat controls to `PlayerInput` and advances at 60 Hz from elapsed time. The bounded automated visible route advances the source action trace faster for verification. Neither mode owns damage, card application, collapse or scoring.
 
-Presentation reads an immutable authoritative snapshot through `rounds-presentation`.
+Presentation reads an immutable authoritative snapshot through `quarrel-presentation`.
 Pixels, camera motion, and other presentation-only state never enter the replicated snapshot or its hash.
 The shipped Bevy 2D scene draws the static platforms and long shadows, a snapshot-responsive faceted timber floor and directional shadow, dynamic timber and weights, suspended lines, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, hit flash, and snapshot-derived explosion particles.
 Visible and offscreen modes apply the same snapshot-derived camera transform, shake envelope, `Bloom`, `ChromaticAberration`, and `LensDistortion` settings.
@@ -61,21 +61,26 @@ For the connected ice arena, the same scene clips animated cyan and pale facets 
 The same scene renders `Waiting` from the received typed phase over the still-loaded arena with both revived fighters, retained badges and the terminal five-pip row. It does not infer match completion from profile identity or elapsed ticks.
 `LifecycleRequest::BeginNewMatch` is the non-player boundary between that stable state and a fresh match. It is accepted only in `Waiting`, clears match-owned score, result, draft and build state, respawns both fighters in the loaded arena, and enters the existing `ArenaFade` to orange `Draft` path. Authority ticks and combat metrics remain cumulative because they identify the lifetime of the running authoritative session rather than either match; inputs stay disabled throughout the fade and draft. No timer, local button, lobby or network packet is mapped to the request yet.
 
-`rounds-network` owns the wire records and the transport-facing API. Its live adapter uses bounded IPv4 UDP datagrams for controlled direct-IP development. A dedicated authority defaults to loopback and accepts an explicit nonlocal bind; a client resolves the selected IPv4 endpoint. A host starts this same authority loop on a joined thread and joins it with its own UDP peer, using loopback when the bind permits it. The authority runs at 60 Hz, applies the newest held input from each peer without waiting for both inputs, and publishes progressive snapshots. It uses a bounded mailbox for held controls, ordered flow edges, the newest validated snapshot, and close status; presentation reads only that received state and never constructs an authority or predicts transforms. The protocol identifies sessions, keeps flow edges FIFO with once-only consumed acknowledgements, and sends a self-contained terminal state until acknowledged. It reports late ticks, mean rate, datagram sizes, peer-loss and terminal-delivery outcomes. Short taps may be lost before send or in transit. It is not a production reliability protocol and does not claim prediction, interpolation, rollback, lag compensation, matchmaking, authentication, NAT traversal, or Steam transport.
+`quarrel-network` owns the wire records and the transport-facing API. Its live adapter uses bounded IPv4 UDP datagrams for controlled direct-IP development. A dedicated authority defaults to loopback and accepts an explicit nonlocal bind; a client resolves the selected IPv4 endpoint. A host starts this same authority loop on a joined thread and joins it with its own UDP peer, using loopback when the bind permits it. The authority runs at 60 Hz, applies the newest held input from each peer without waiting for both inputs, and publishes progressive snapshots. It uses a bounded mailbox for held controls, ordered flow edges, the newest validated snapshot, and close status; presentation reads only that received state and never constructs an authority or predicts transforms. The protocol identifies sessions, keeps flow edges FIFO with once-only consumed acknowledgements, and sends a self-contained terminal state until acknowledged. It reports late ticks, mean rate, datagram sizes, peer-loss and terminal-delivery outcomes. Short taps may be lost before send or in transit. It is not a production reliability protocol and does not claim prediction, interpolation, rollback, lag compensation, matchmaking, authentication, NAT traversal, or Steam transport.
 
-`rounds-server dedicated` runs one headless live authority and `rounds-server scripted` retains the existing scripted smoke authority. `rounds-client join` runs one live visible peer; `rounds-client host` runs that same authority plus its own live UDP peer. Existing `local`, `remote`, capture, and replay commands remain scripted paths. Live presentation renders only validated received snapshots and uses the same keyboard/gamepad input and semantic flow-command boundaries as programmatic clients.
-`rounds-automation` starts the headless server and two real client processes, proves each received the same progressive phase sequence, binds one client's render to its received final snapshot, checks the profile-specific authority projections and local-host agreement, and emits bounded JSON evidence.
+`quarrel-server dedicated` runs one headless live authority and `quarrel-server scripted` retains the existing scripted smoke authority. `quarrel-client join` runs one live visible peer; `quarrel-client host` runs that same authority plus its own live UDP peer. Existing `local`, `remote`, capture, and replay commands remain scripted paths. Live presentation renders only validated received snapshots and uses the same keyboard/gamepad input and semantic flow-command boundaries as programmatic clients.
+`quarrel-automation` starts the headless server and two real client processes, proves each received the same progressive phase sequence, binds one client's render to its received final snapshot, checks the profile-specific authority projections and local-host agreement, and emits bounded JSON evidence.
 
 ## Workspace boundaries
 
 | Crate | Owns | Does not own |
 |---|---|---|
-| `rounds-sim` | Bevy ECS authoritative state, private Rapier service, fixed-tick rules, input validation, stable snapshots | rendering, sockets, files, wall clock |
-| `rounds-presentation` | shared Bevy 2D visible/offscreen snapshot scene | authoritative or replicated state |
-| `rounds-network` | bounded wire records and the current UDP adapter | game rules or presentation |
-| `rounds-server` | headless server process and command-line configuration | duplicated simulation rules |
-| `rounds-client` | local-host, live remote, visible, and replay-capture entry points | editor state or server-only rules |
-| `rounds-automation` | smoke orchestration and JSON inspection | gameplay behavior |
+| `quarrel-sim` | Bevy ECS authoritative state, private Rapier service, fixed-tick rules, input validation, stable snapshots | rendering, sockets, files, wall clock |
+| `quarrel-presentation` | shared Bevy 2D visible/offscreen snapshot scene | authoritative or replicated state |
+| `quarrel-network` | bounded wire records and the current UDP adapter | game rules or presentation |
+| `quarrel-server` | headless server process and command-line configuration | duplicated simulation rules |
+| `quarrel-client` | local-host, live remote, visible, and replay-capture entry points | editor state or server-only rules |
+| `quarrel-automation` | smoke orchestration and JSON inspection | gameplay behavior |
+
+The simulation separates the immutable snapshot and input records, replay fixtures, arena definitions, Rapier boundary, fixed-tick match authority and match-flow/card rules into modules.
+The presentation separates input mapping, window lifecycle, offscreen capture, the shared scene, arena drawing, card art, HUD and the radial-echo pass.
+The crate roots retain the existing public API; moving these definitions changes no simulation order, state encoding or rendered scene.
+Tests live beside the concern they check in smaller test modules.
 
 `bevy_rapier2d` 0.36 is pinned with default features disabled and only `dim2` and `headless` enabled.
 The incompatible `enhanced-determinism` feature is deliberately absent; the server-authority model does not require cross-platform lockstep.
@@ -90,25 +95,25 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo build --workspace --locked
 cargo test --workspace --locked
-out/cargo-target/debug/rounds-automation smoke --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/smoke
-out/cargo-target/debug/rounds-automation inspect --profile timber-collapse-replay --seed 40 --ticks 1440
-out/cargo-target/debug/rounds-client capture-replay --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/clone-anchors --metadata out/ticket-040/clone-anchors.json
-out/cargo-target/debug/rounds-client visible --profile timber-collapse-replay --seed 40 --ticks 1440 --frames 180
-out/cargo-target/debug/rounds-automation smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/smoke
-out/cargo-target/debug/rounds-automation inspect --profile rematch-draft-replay --seed 41 --ticks 2400
-out/cargo-target/debug/rounds-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/anchors --metadata out/ticket-041/anchors.json
-out/cargo-target/debug/rounds-client visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
-out/cargo-target/debug/rounds-automation smoke --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/smoke
-out/cargo-target/debug/rounds-automation inspect --profile radial-saw-half-blue-replay --seed 42 --ticks 938
-out/cargo-target/debug/rounds-client capture-replay --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/anchors --metadata out/ticket-042/anchors.json
-out/cargo-target/debug/rounds-client visible --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --frames 180
+out/cargo-target/debug/quarrel-automation smoke --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/smoke
+out/cargo-target/debug/quarrel-automation inspect --profile timber-collapse-replay --seed 40 --ticks 1440
+out/cargo-target/debug/quarrel-client capture-replay --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/clone-anchors --metadata out/ticket-040/clone-anchors.json
+out/cargo-target/debug/quarrel-client visible --profile timber-collapse-replay --seed 40 --ticks 1440 --frames 180
+out/cargo-target/debug/quarrel-automation smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/smoke
+out/cargo-target/debug/quarrel-automation inspect --profile rematch-draft-replay --seed 41 --ticks 2400
+out/cargo-target/debug/quarrel-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/anchors --metadata out/ticket-041/anchors.json
+out/cargo-target/debug/quarrel-client visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
+out/cargo-target/debug/quarrel-automation smoke --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/smoke
+out/cargo-target/debug/quarrel-automation inspect --profile radial-saw-half-blue-replay --seed 42 --ticks 938
+out/cargo-target/debug/quarrel-client capture-replay --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/anchors --metadata out/ticket-042/anchors.json
+out/cargo-target/debug/quarrel-client visible --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --frames 180
 ```
 
 The smoke command must report every handshake, input sequence and progressive snapshot, agreement among the headless server, both UDP clients and local client-host, and a live client render bound to the agreed state hash.
 Replay capture emits twelve named Bevy-rendered timber anchors spanning the intact structure, pre-impact combat, bright impact, 100 ms impact progression, first release, deformation, debris, settlement, and continued combat.
 The earlier teal-duel profile remains available by passing `--profile teal-duel-replay --ticks 786`.
 The 2,400-tick rematch/draft capture retains thirteen anchors from `VICTORY!` through both five-card fans and the upgraded projectile exchange. Passing `--ticks 4540` extends it to 25 anchors, and `--ticks 5466` emits 37 through the final blue pip. Passing `--ticks 5893` retains those 37 and adds eleven entries through the loser draft and bridge. Passing `--ticks 5941` adds nine held-entry entries at 5894/5898/5902/5906/5910/5914/5918/5940/5941. Native source PTS and RGBA hashes bind every connected anchor; the adjacent pairs preserve the silhouette, overlay/reset and badge boundaries.
-Run `out/cargo-target/debug/rounds-automation smoke --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/smoke` for the extended two-client check. The corresponding capture command is `out/cargo-target/debug/rounds-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/anchors --metadata out/ticket-055/anchors.json`; bounded playback uses `visible-flow --profile rematch-draft-replay --seed 41 --ticks 5941 --automated` on that same client executable.
+Run `out/cargo-target/debug/quarrel-automation smoke --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/smoke` for the extended two-client check. The corresponding capture command is `out/cargo-target/debug/quarrel-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/anchors --metadata out/ticket-055/anchors.json`; bounded playback uses `visible-flow --profile rematch-draft-replay --seed 41 --ticks 5941 --automated` on that same client executable.
 The radial replay emits eight anchors from arena reveal through traversal, ordinary projectile exchange, adjacent tick-908/tick-909 combat and result frames, and established tick-938 `HALF BLUE`.
 The 240-tick match-end replay emits its constructed match point, decisive public-input shot and stable waiting endpoint; only the endpoint binds the native PTS 2000158666 waiting frame.
 `capture-new-match-draft` starts from that unchanged endpoint, calls the public lifecycle boundary, and captures the ordinary first draft against native PTS 2039991840. `visible-new-match-draft` presents the same typed snapshot through the guarded visible renderer without extending the match-end replay's input trace.

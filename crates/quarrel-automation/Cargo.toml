@@ -1,0 +1,12 @@
+[package]
+name = "quarrel-automation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+quarrel-network = { path = "../quarrel-network" }
+quarrel-sim = { path = "../quarrel-sim" }
+serde.workspace = true
+serde_json.workspace = true
