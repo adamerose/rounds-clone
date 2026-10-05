@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T14:55:57Z
 origin: human-request
 tags: ["quarrel", "mvp", "network"]
@@ -9,7 +9,7 @@ sessions:
   - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
 execution: unattended
 parent: 75
-depends-on: [78]
+depends-on: [78, 79]
 supersedes: []
 split-from: []
 ---
@@ -32,12 +32,13 @@ Today a client shows the host's JSON snapshot with no prediction, so a player's 
 - Start with a short spike that measures, at the conditions above, client-side prediction of the local fighter with interpolation of everything else against rollback for this Rapier physics; record the numbers, the choice and the rejected option in `docs/decisions.md`, then build the choice.
   Prediction on a host-authoritative simulation is the expected answer, because rollback needs bit-identical physics on every machine and re-simulates every loose piece; the spike may overturn it with evidence.
 - The host stays authoritative for hits, deaths, points and draws of card offers.
+- #74 is open and touches the network crate; this ticket must not break it.
 
 ## Evidence required
 
 - An automated headless two-client match under the simulated conditions completes, with both clients reporting the same score and card picks as the host.
 - A measurement of local input to visible response under those conditions, at most one frame, recorded in the work log.
-- Snapshot bandwidth per client for a 1v1 on an arena with at least 30 loose pieces, recorded in the work log and below 30 KB/s.
+- Snapshot bandwidth per client for a 1v1 on an arena with at least 30 loose pieces (an #82 arena or a test arena made for the measurement), recorded in the work log and below 30 KB/s.
 - The spike's comparison is in `docs/decisions.md`.
 
 ## Chat excerpts
