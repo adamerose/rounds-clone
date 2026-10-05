@@ -57,3 +57,4 @@ Adam — [source session](http://ivy.localhost/sessions/01a0fd03-d222-7cf2-a225-
 - 2026-10-02T14:42:14Z stage review start session codex:01a0fd03-d222-7cf2-a225-29c243f2337e/admit_69 — Fresh isolated context independently checks contract completeness, source facts, gates, risk and dependency ordering; admission is not implementation approval.
 
 - 2026-10-02T14:44:13Z stage review end session codex:01a0fd03-d222-7cf2-a225-29c243f2337e/admit_69 — ADMIT at risk 4: checked source/tick/missing-period facts, complete public and source gates, provisional general model, no human decision and dependencies 52/66/67. Admission approves the contract only, not implementation.
+- 2026-10-05T14:11:58Z Abandoned: superseded by the 2026-10-04 QUARREL direction (GOAL.md, docs/roadmap.md) and run ticket #75; Adam approved closing it. The footage-fidelity goal it served no longer exists.
