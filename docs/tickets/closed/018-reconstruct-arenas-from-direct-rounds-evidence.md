@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: closed
 created: 2026-08-29T02:31:59Z
 origin: human-request
 tags: ["product-fidelity", "maps", "simulation"]
