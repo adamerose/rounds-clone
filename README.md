@@ -1,4 +1,4 @@
-# ROUNDS successor (working title)
+# QUARREL (working title)
 
 A spiritual successor to ROUNDS for Adam and his friends, and later Steam: fast physics duels and build variety like ROUNDS, with its own mechanics, cards and identity.
 It is a clean-room Rust, Bevy and Rapier implementation; see `GOAL.md` for the purpose, `docs/game-design.md` for the design pillars and `docs/roadmap.md` for what comes next.

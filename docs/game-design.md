@@ -1,6 +1,6 @@
 # Game design
 
-A spiritual successor to ROUNDS: its pace, movement, physics, juice and build variety, with new mechanics of our own.
+`QUARREL` (working title) is a spiritual successor to ROUNDS: its pace, movement, physics, juice and build variety, with new mechanics of our own.
 Everything below is a hypothesis until a play session supports it; `docs/playtests/` records which ones survived.
 
 ## What we keep from ROUNDS
@@ -37,22 +37,23 @@ Everything below is a hypothesis until a play session supports it; `docs/playtes
 5. **The arena is part of the fight.**
    Destructible and moving terrain, ring-outs as a real way to win, and cards that act on the world.
    Power has to show: damage scales bullet size, screen distortion and terrain destruction.
-6. **Everyone progresses; the loser gets the edge.**
-   Everyone drafts after every fight.
-   The loser picks first from a shared offer, so the order itself creates denial picks; with more players, pick order follows standing.
-   Options to try for a stronger comeback: the loser sees more cards, can reroll, can give the leader a curse instead of taking a card, or picks the next arena or an arena modifier.
+6. **Winning sharpens a build; losing widens it.**
+   Everyone picks one card before the first fight.
+   After each draft, the winner upgrades or evolves a card they already hold, or swaps one out, while every other fighter takes a new card.
+   Winning is rewarded with depth and losing with breadth, so nobody sits out a draft and the loser still gains the most new options.
 7. **Quick matches that can keep going.**
-   A match is short by default.
-   At the end, everyone can vote to run it back with their builds kept and a higher target, up to a small fixed number of times.
-   Hand limits and evolution keep those extended builds deep rather than bloated.
+   The default to test is first to five fight wins with a draft after every fight: five to nine fights, ending with about three to five cards each plus upgrades.
+   The comparison is ROUNDS' rhythm shortened to first to three rounds of best-of-three fights, which keeps tense rounds but leaves only two to four cards each.
+   At the end, everyone can vote to run it back with builds kept and the target raised (eight, then eleven), at most twice.
+   The hand limit and evolution matter most in run-backs, keeping long builds deep rather than bloated.
 8. **1v1 first, more players later.**
    The rules, draft and scoring work for any number of fighters, so 2v2 and free-for-all are configuration rather than rewrites.
 
 ## Experiments for play sessions
 
 - Hand size: unlimited stacking against five or six slots.
-- Draft: loser-only (ROUNDS) against everyone-drafts with loser first, with and without curses.
-- Match length and the run-it-back target.
+- Draft: winner sharpens and loser widens, against ROUNDS' loser-only picks and a shared offer with the loser first.
+- Draft after every fight to five wins, against first to three rounds of best-of-three, and the run-it-back targets.
 - Whether the base fight with no cards is fun on its own; this comes first.
 
 Cards are data that reloads while the game runs, so trying a variant takes minutes rather than a rebuild.

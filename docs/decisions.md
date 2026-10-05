@@ -693,3 +693,16 @@ Winning in ROUNDS denies the winner an upgrade, so everyone drafts after each fi
 The moments he values most are discovering strong combos across hundreds of games and power he can see, such as screen distortion and the map breaking apart under big damage; cards are therefore event rules designed to combine, with hand limits and evolution in place of unbounded stacking.
 Matches are short with an optional, limited run-it-back that keeps builds.
 These are hypotheses for play sessions, not settled tuning.
+
+## 2026-10-04 — Working title QUARREL and the winner-sharpens draft
+
+Adam chose `QUARREL` as the working title: a crossbow bolt and a fight between friends.
+The only prior use found is Denki's 2011 word game for iOS and Xbox Live Arcade, which is not on Steam; POP OFF, KICKBACK and FEUD were rejected as existing Steam titles and BOUTS as too close to ROUNDS.
+A trademark check is still required before release.
+
+Adam chose draft option D from six: the winner upgrades, evolves or swaps a held card while every other fighter takes a new one.
+It answers his complaint that winning in ROUNDS forfeits an upgrade without giving up the comeback.
+The alternatives were ROUNDS' loser-only picks, a shared offer with the loser first, bigger offers for the loser, a card-or-point choice, and a bounty on the leader.
+
+An earlier estimate here wrongly said a first-to-three-rounds match would fill a five- or six-card hand; it gives two to four cards each.
+The match structure to test first is therefore a draft after every fight to five wins, compared against ROUNDS' rhythm shortened to three rounds, and is not yet settled.

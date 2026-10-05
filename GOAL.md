@@ -1,6 +1,6 @@
 # Goal
 
-Make a spiritual successor to ROUNDS that Adam and his friends want to play together on a regular night, and that Adam can release on Steam as his own game.
+Make `QUARREL` (working title), a spiritual successor to ROUNDS, that Adam and his friends want to play together on a regular night, and that Adam can release on Steam as his own game.
 It keeps what made ROUNDS great (fast physics duels, skill expression, build variety, destructible maps and juice) and adds mechanics of its own, so builds keep producing new combos without collapsing into power creep.
 `docs/game-design.md` holds the design pillars.
 

@@ -20,7 +20,7 @@ The goal is an ordinary match that anyone can start and finish, with no script b
 - Play the base fight with no cards and tune movement, shot, block and knockback until it is fun on its own.
 - A card system built from event rules (on fire, hit, block, bounce, land, damage, kill) and effects, loaded from data that reloads while the game runs.
 - About ten original cards chosen to combine with each other.
-- Everyone drafts after each fight from a shared seeded offer, loser first.
+- Option D draft: everyone picks once at the start; afterwards the winner upgrades or swaps and the others take a new card from a seeded offer.
 - A minimal menu: local match, host, join.
 - Keep a short recorded-input replay as a regression check; it plays through the general rules, not a profile.
 - Delete the footage-slice profiles, the historical-rematch setup, the fixed offer lists, the ROUNDS card catalog and their capture-anchor tests once nothing uses them.
@@ -48,7 +48,7 @@ The goal is the "first time we found that combo" feeling, session after session.
 
 ## M4 — Our own identity
 
-- Name, logo, palette, fighter and card art, original sound, screen shake, hit pause and particles.
+- Logo, palette, fighter and card art, original sound, screen shake, hit pause and particles.
 - Controller support for every player, settings that persist.
 - 2v2 and free-for-all.
 
@@ -57,6 +57,6 @@ The goal is the "first time we found that combo" feeling, session after session.
 - A check by someone qualified that the game does not infringe Landfall's trademarks or trade dress.
 - App ID (Steam Direct fee), store page, achievements if wanted, crash reporting, a release build pipeline, and an outside playtest.
 
-## Open questions for Adam
+## Settled
 
-- A working name, so card and UI text can use it from M1 onward.
+- Working title `QUARREL` (2026-10-04); a trademark check comes before release.
