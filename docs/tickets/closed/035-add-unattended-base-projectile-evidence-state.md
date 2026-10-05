@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: closed
 created: 2026-08-30T03:14:10Z
 origin: agent-proposed
 tags: ["verification", "projectiles", "playtesting"]
