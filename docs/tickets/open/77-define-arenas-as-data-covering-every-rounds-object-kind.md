@@ -60,3 +60,4 @@ Adam — this session, 2026-10-04:
 - 2026-10-05T15:02:48Z Admitted for run #75 after an independent contract check; its fixes were applied first.
 - 2026-10-05T19:35:27Z stage implement start session codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719 — Preserve legacy geometry and solver order; add validated RON loading and ordinary arena physics.
 - 2026-10-05T19:54:42Z stage implement end session codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719 — Converted all eight legacy arena layouts and body definitions; implemented ordinary arena loading, hazards, chains, reloads, and previews.
+- 2026-10-05T19:54:58Z stage verify start session codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719 — Run strict workspace Clippy, locked build/tests, headless previews, and unchanged replay checks using the shared two-job target.
