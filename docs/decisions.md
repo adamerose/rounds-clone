@@ -1178,3 +1178,12 @@ Use buffered remote action state and interpolate aim angle and crouch height alo
 The alternatives were a full projectile-effect simulator or extra shot-event protocol records. Neither is needed to stop the demonstrated visual defects without changing authority.
 The final neutral-baseline impaired probe starts with no owned projectile or active block, then measures the new movement, shot and block in its next scene frame.
 
+## 2026-10-06 — Ticket #83 cursor origin and remote terminal collisions for run #75
+
+A new host snapshot must not overwrite the last drawn fighter before mouse input is sampled. Bootstrap the first scene only; ClientPresentation reconciles later samples after device sampling.
+The previous raw hash cache has no remaining role and is removed. A live UDP plus Bevy Update regression reproduced the wrong origin and now retains the drawn position.
+The earlier velocity-only terminal segment crossed walls. Replace it with the existing presentation-only CCD predictor, one world per missing remote owner, and interpolate fractional physics ticks.
+This supersedes the previous velocity-only terminal extrapolation decision. It respects fixed arena/fighter proxies and projectile lifetime while leaving host impacts and health untouched.
+The alternative was a separate ray/shape-cast implementation over every arena shape; reusing existing physics avoids divergent polygon, circle and CCD behavior.
+A rendered before/after wall-contact fixture checks that yellow projectile pixels disappear at contact rather than appearing beyond the wall.
+

@@ -410,10 +410,9 @@ fn spawn_waiting_scene(commands: &mut Commands) {
 }
 
 pub(super) fn poll_live_snapshot(mut live: ResMut<LivePresentation>) {
-    if let Some((snapshot, hash)) = live.handle.latest()
-        && live.displayed_hash.as_deref() != Some(hash.as_str())
+    if live.displayed_snapshot.is_none()
+        && let Some((snapshot, _)) = live.handle.latest()
     {
-        live.displayed_hash = Some(hash);
         live.displayed_snapshot = Some(snapshot);
     }
 }
@@ -674,6 +673,55 @@ pub(super) fn is_project_display(monitor: &Monitor) -> bool {
 #[cfg(test)]
 mod scripted_tests {
     use super::*;
+    #[test]
+    fn a_new_authority_sample_does_not_replace_the_pose_used_for_mouse_aim() {
+        use quarrel_network::{LiveClient, LiveServer};
+        let config = quarrel_sim::MatchConfig::default();
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_config = config.clone();
+        let authority = std::thread::spawn(move || server.run(server_config, 30, None).unwrap());
+        let first = LiveClient::connect(address, 0, config.clone()).unwrap();
+        let handle = first.handle();
+        let first = std::thread::spawn(move || first.run(30).unwrap());
+        let second = LiveClient::connect(address, 1, config).unwrap();
+        let second = std::thread::spawn(move || second.run(30).unwrap());
+        let until = Instant::now() + Duration::from_secs(2);
+        let raw = loop {
+            if let Some((state, _)) = handle.latest() {
+                break state;
+            }
+            assert!(Instant::now() < until, "authority sample did not arrive");
+            std::thread::sleep(Duration::from_millis(2));
+        };
+        let mut displayed = raw.clone();
+        displayed.players[0].x_milli += 100000;
+        let drawn_x = displayed.players[0].x_milli;
+        let mut app = App::new();
+        app.insert_resource(LivePresentation {
+            handle,
+            player: 0,
+            prediction: quarrel_network::ClientPresentation::new(0),
+            displayed_snapshot: Some(displayed),
+        });
+        app.add_systems(Update, poll_live_snapshot);
+        app.update();
+        let preserved = app
+            .world()
+            .resource::<LivePresentation>()
+            .displayed_snapshot
+            .as_ref()
+            .unwrap()
+            .players[0]
+            .x_milli;
+        first.join().unwrap();
+        second.join().unwrap();
+        authority.join().unwrap();
+        assert_eq!(
+            preserved, drawn_x,
+            "cursor aim must use the fighter position that is drawn"
+        );
+    }
 
     #[test]
     fn device_script_displays_choices_before_confirming_and_reaches_run_back() {

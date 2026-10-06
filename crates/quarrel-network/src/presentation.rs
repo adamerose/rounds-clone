@@ -103,6 +103,7 @@ impl ClientPresentation {
             &after.state,
             fraction,
             self.player,
+            &latest.tuning,
         );
         let mut prediction = LocalPrediction::new(
             &latest.state,
@@ -146,6 +147,7 @@ fn interpolate(
     after: &MatchSnapshot,
     t: f64,
     owned: u8,
+    tuning: &CombatTuning,
 ) {
     for player in &mut display.players {
         if player.id == owned {
@@ -183,9 +185,10 @@ fn interpolate(
             .filter(|shot| shot.owner != owned && !owned_ids.contains(&shot.id))
             .cloned(),
     );
-    for shot in &mut display.projectiles {
+    let terminal = terminal_shots(before, after, owned, t, tuning);
+    display.projectiles.retain_mut(|shot| {
         if shot.owner == owned {
-            continue;
+            return true;
         }
         if let Some(a) = before.projectiles.iter().find(|p| p.id == shot.id)
             && let Some(b) = after.projectiles.iter().find(|p| p.id == shot.id)
@@ -195,17 +198,13 @@ fn interpolate(
             shot.previous_x_milli = blend(a.previous_x_milli, b.previous_x_milli, t);
             shot.previous_y_milli = blend(a.previous_y_milli, b.previous_y_milli, t);
         } else {
-            // The host removed this identity between samples. Continue its last
-            // observed trajectory until that removal reaches the buffered clock.
-            let seconds = after.tick.saturating_sub(before.tick) as f64 * t / 60.;
-            let dx = shot.velocity_x_milli_per_second as f64 * seconds;
-            let dy = shot.velocity_y_milli_per_second as f64 * seconds;
-            shot.x_milli = (shot.x_milli as f64 + dx).round() as i32;
-            shot.y_milli = (shot.y_milli as f64 + dy).round() as i32;
-            shot.previous_x_milli = (shot.previous_x_milli as f64 + dx).round() as i32;
-            shot.previous_y_milli = (shot.previous_y_milli as f64 + dy).round() as i32;
+            let Some(predicted) = terminal.iter().find(|predicted| predicted.id == shot.id) else {
+                return false;
+            };
+            *shot = predicted.clone();
         }
-    }
+        true
+    });
     if let Some(arena) = &mut display.arena_objects
         && let Some(a) = &before.arena_objects
         && let Some(b) = &after.arena_objects
@@ -227,10 +226,118 @@ fn interpolate(
     }
 }
 
+fn terminal_shots(
+    before: &MatchSnapshot,
+    after: &MatchSnapshot,
+    owned: u8,
+    t: f64,
+    tuning: &CombatTuning,
+) -> Vec<quarrel_sim::ProjectileSnapshot> {
+    let missing = |shot: &quarrel_sim::ProjectileSnapshot| {
+        shot.owner != owned && !after.projectiles.iter().any(|next| next.id == shot.id)
+    };
+    let owners = before
+        .projectiles
+        .iter()
+        .filter(|shot| missing(shot))
+        .map(|shot| shot.owner)
+        .collect::<std::collections::BTreeSet<_>>();
+    let elapsed = after.tick.saturating_sub(before.tick) as f64 * t;
+    let steps = elapsed.floor() as u32;
+    let fraction = elapsed.fract();
+    let mut visible = Vec::new();
+    for owner in owners {
+        // Reuse presentation-only CCD and fixed collider proxies. It never
+        // applies an impact or modifies host health, scores or choices.
+        let mut physics =
+            LocalPrediction::new(before, owner, tuning.clone(), PlayerInput::default());
+        for _ in 0..steps {
+            physics.step(PlayerInput::default());
+        }
+        let mut first = before.clone();
+        physics.apply(&mut first);
+        let mut next = before.clone();
+        if fraction > 0. {
+            physics.step(PlayerInput::default());
+            physics.apply(&mut next);
+        }
+        for mut shot in first
+            .projectiles
+            .into_iter()
+            .filter(|shot| shot.owner == owner && missing(shot))
+        {
+            if fraction > 0. {
+                let Some(end) = next
+                    .projectiles
+                    .iter()
+                    .find(|end| end.id == shot.id && end.owner == owner)
+                else {
+                    continue;
+                };
+                shot.x_milli = blend(shot.x_milli, end.x_milli, fraction);
+                shot.y_milli = blend(shot.y_milli, end.y_milli, fraction);
+                shot.previous_x_milli =
+                    blend(shot.previous_x_milli, end.previous_x_milli, fraction);
+                shot.previous_y_milli =
+                    blend(shot.previous_y_milli, end.previous_y_milli, fraction);
+            }
+            visible.push(shot);
+        }
+    }
+    visible
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use quarrel_sim::{AuthoritativeMatch, FlowAction, FlowCommand, MatchConfig};
+    #[test]
+    fn a_remote_terminal_segment_stops_at_arena_geometry() {
+        let mut before = combat();
+        before.arena.clear();
+        before.arena_objects.as_mut().unwrap().objects = vec![quarrel_sim::ArenaObject {
+            id: 900,
+            position: [40., 100.],
+            rotation: 0.,
+            shape: quarrel_sim::ArenaShape::Rectangle { size: [20., 300.] },
+            kind: quarrel_sim::ArenaKind::Solid,
+            color: [100, 100, 100],
+            mass: 1.,
+            health: None,
+            motion: None,
+        }];
+        before.arena_objects.as_mut().unwrap().chains.clear();
+        before.projectiles = vec![quarrel_sim::ProjectileSnapshot {
+            id: 42,
+            owner: 1,
+            x_milli: 0,
+            y_milli: 100000,
+            previous_x_milli: -60000,
+            previous_y_milli: 100000,
+            velocity_x_milli_per_second: 3600000,
+            velocity_y_milli_per_second: 0,
+            lifetime_ticks: 60,
+            dazzle_pulses: 0,
+            explosive_radius_milli: 0,
+        }];
+        let mut after = before.clone();
+        after.tick += 6;
+        after.projectiles.clear();
+        let mut display = after.clone();
+        interpolate(
+            &mut display,
+            &before,
+            &after,
+            0.5,
+            0,
+            &CombatTuning::default(),
+        );
+        assert!(
+            display.projectiles.is_empty(),
+            "a removed shot cannot fly through a visible wall"
+        );
+        assert_eq!(display.flow, after.flow);
+    }
     #[test]
     fn disappearing_remote_shot_keeps_moving_and_remote_aim_uses_buffered_time() {
         let mut before = combat();
@@ -257,7 +364,14 @@ mod tests {
         after.players[1].aim_y = 1000;
         after.players[1].block_ticks = 10;
         let mut display = after.clone();
-        interpolate(&mut display, &before, &after, 0.5, 0);
+        interpolate(
+            &mut display,
+            &before,
+            &after,
+            0.5,
+            0,
+            &CombatTuning::default(),
+        );
         assert_eq!(
             display.projectiles[0].x_milli, 180000,
             "last segment must keep moving"
@@ -273,7 +387,14 @@ mod tests {
         after.projectiles = before.projectiles.clone();
         after.projectiles[0].owner = 0;
         display = after.clone();
-        interpolate(&mut display, &before, &after, 0.5, 0);
+        interpolate(
+            &mut display,
+            &before,
+            &after,
+            0.5,
+            0,
+            &CombatTuning::default(),
+        );
         assert_eq!(display.projectiles.len(), 1);
         assert_eq!(display.projectiles[0].owner, 0);
     }
@@ -363,7 +484,14 @@ mod tests {
         b.rotation = -3.1;
         b.position = [6., 0.];
         let mut display = after.clone();
-        interpolate(&mut display, &before, &after, 0.5, 0);
+        interpolate(
+            &mut display,
+            &before,
+            &after,
+            0.5,
+            0,
+            &CombatTuning::default(),
+        );
         assert_eq!(display.players[1].x_milli, 3000);
         let piece = &display.arena_objects.as_ref().unwrap().objects[0];
         assert!((piece.rotation - std::f32::consts::PI).abs() < 0.001);

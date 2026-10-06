@@ -134,7 +134,6 @@ struct LivePresentation {
     handle: LiveClientHandle,
     prediction: quarrel_network::ClientPresentation,
     player: u8,
-    displayed_hash: Option<String>,
     displayed_snapshot: Option<MatchSnapshot>,
 }
 impl Drop for InteractiveAuthority {

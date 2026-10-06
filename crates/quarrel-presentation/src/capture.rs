@@ -203,7 +203,6 @@ pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), Stri
             handle,
             prediction: quarrel_network::ClientPresentation::new(player),
             player,
-            displayed_hash: None,
             displayed_snapshot: None,
         })
         .init_resource::<VisibleWindowRequested>()

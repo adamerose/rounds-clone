@@ -396,3 +396,12 @@ The author also reproduced discarded ground-support contacts: pose restoration r
 Preserving its identity restored support and authoritative ground control. A second detached checkout kept the ongoing review's original range immutable during reproduction.
 Remote aim and stance now use the buffered moment. The impairment probe now compares a neutral scene without an owned shot or active block, removing ambiguity in its one-frame assertion.
 
+The [second Claude review](http://ivy.localhost/sessions/claude/a9af5c9a-ed42-49a6-b303-85f11b1b2c8a) confirmed the first corrections and found an input-origin regression.
+Snapshot polling overwrote the predicted pose just before mouse aim, sending a direction from an older host position ten times per second.
+A real live-UDP/Bevy polling regression failed with -500000 instead of the drawn -400000 milli. Bootstrap-only sampling now preserves the drawn origin.
+The same review identified velocity-only remote shots crossing walls. The retained wall fixture failed, then passed using existing presentation-only CCD and fractional tick interpolation.
+The remote wall-contact render fixture adds pixel evidence; no additional damage, reflection or flow authority was introduced.
+
+The final full test output was lost at a context boundary, requiring one cached serial repeat to preserve checkable results.
+The installed Ivy check-all script expects a Playbook repository and cannot run here because playbook/skills is absent; the project's CI gates were run instead.
+
