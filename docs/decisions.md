@@ -967,3 +967,9 @@ The fixed proxy and transition corrections can follow the choice; they do not au
 The consultant recommends time-warped shots inside the buffered model. That requires explicit acceptance of a 2x visual catch-up burst and still draws short-flight hits after current damage.
 The worker instead recommends (a) because it aims to keep launch and impact on one scene timeline without deliberately changing projectile speed. This is a recommendation to revisit the model, not a claim that its replacement is implemented or verified.
 Buffering remote shots was the candidate's choice; #88 selected buffering for remote fighters and pieces.
+
+## 2026-10-06 — Run #75: online play shows one current predicted scene
+
+#83 found that buffering remote fighters and pieces (the interpolation half of #88's recommendation) lets authoritative damage land before the buffered bullet arrives and makes result revisions jump the world.
+The orchestrator chose one current predicted scene on each client for fighters, shots and pieces, corrected from host snapshots, with the host still authoritative.
+Rejected: keeping the buffered world and time-warping shots to catch up, because it visibly changes bullet speed, which is part of how combat reads.
