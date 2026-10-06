@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a10efb-452f-7e52-a19e-e83483327e9c
+status: closed
 created: 2026-10-05T14:13:11Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "ui"]
@@ -78,3 +77,5 @@ Adam — [this session](http://ivy.localhost/sessions/claude/b6830e28-b9c7-41d5-
 - 2026-10-06T04:46:18Z stage verify end session codex:01a10efb-452f-7e52-a19e-e83483327e9c — 59 passed, zero failed/ignored; seven refreshed views inspected, native actual menu Join client 1 cancels, host port rebinds, two runbacks verified on DISPLAY4; all checks passed.
 - 2026-10-06T04:46:24Z stage review start session codex:01a10efb-452f-7e52-a19e-e83483327e9c — Fresh other-family review of whole range, including actual menu Join correction and reverse launch-order evidence.
 - 2026-10-06T04:52:53Z Independent review approved whole range 4b949ef0c9242a79bd07ae61998814db7460a654..32b791a601f70c1284857e92a283506133ddead3, session claude:67bde4c2-028f-4c40-a066-45e88778b06d; reproduced actual menu Join alive beyond 8s. Nonblocking notes: silent pre-snapshot peer reservation may require cancel/rejoin, general disconnect copy, proof hashes added separately, native launch arguments retained in worker record, and ticket73 should use delivered mixed-device baseline. Full review out/ticket081proof/review3.json.
+- 2026-10-06T04:54:07Z stage review end session claude:67bde4c2-028f-4c40-a066-45e88778b06d — approved candidate 4b949ef0c9242a79bd07ae61998814db7460a654..c75f34655bbaa29718205e11570a99c08ccb985d
+- 2026-10-06T04:54:07Z stage integration end session codex:01a10efb-452f-7e52-a19e-e83483327e9c — integrated c75f34655bbaa29718205e11570a99c08ccb985d as b33c463ad56bacaaf2e4d7f11a871a7721ce3fa7
