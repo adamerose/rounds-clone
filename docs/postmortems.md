@@ -129,3 +129,13 @@ The seed included 51.14 GiB of logical file data; package invalidation reported 
 The shutdown regression initially assumed Rust would expose raw Winsock 10058. Rust returned an I/O error without a raw code, so the check now verifies propagation of the actual non-reset, non-timeout error.
 The forced-rebind collision fixture introduced the same ephemeral-port gap this ticket removes. A later full parallel repeat failed at the replacement bind with Windows 10048.
 The retained collision check sends the live Hello to an already bound synchronous authority; the authority-exit regression separately proves exclusive endpoint ownership, without adding another release-and-rebind gap.
+
+
+## 2026-10-06 — Lock the throwaway physics spike for [ticket 88](http://ivy.localhost/tickets/88?repo=rounds-clone)
+
+The first offline spike command could not resolve uncached `bincode`; resolving its standalone manifest then selected newer transitive versions than the game lockfile. That build was stopped before measuring. Copying the repository lockfile into the temporary crate preserved every shared package identity; only `bincode`, `enumn` and `serde_arrays` were added for physics serialization. The corrected spike uses the existing target and two Cargo jobs, with no spike dependency or source added to the game.
+
+
+The final rebased verification copied each test executable as Cargo emitted it; all 43 tests passed from those copies. The later documentation phase failed because `rustdoc` could not find `libquarrel_sim-e3fdc65f5faf41ff.rlib` in the shared target while other Cargo commands were active. Test executable copies do not protect rustdoc's external libraries. Repeating documentation checks after those commands finished passed, with candidate source timestamps refreshed and the dependency target retained; [ticket 87](http://ivy.localhost/tickets/87?repo=rounds-clone) owns the shared-build isolation problem.
+
+The verification helper initially waited for every Cargo process, including an already-built network test, and delayed the final checks unnecessarily. The corrected helper waits for active compilation or queued builds; running test executables do not consume Cargo compiler jobs. No unrelated process was stopped.

@@ -1,3 +1,5 @@
+use crate::conditions::{ConditionedSocket, DatagramSocket};
+use crate::{NetworkConditions, NetworkTraffic};
 use quarrel_sim::{
     AuthoritativeMatch, FlowCommand, MatchConfig, MatchSnapshot, PlayerInput, TICKS_PER_SECOND,
     hash_snapshot,
@@ -100,7 +102,7 @@ fn encode<T: Serialize>(packet: &T) -> Result<Vec<u8>, String> {
 }
 
 fn send<T: Serialize>(
-    socket: &UdpSocket,
+    socket: &impl DatagramSocket,
     address: SocketAddr,
     packet: &T,
 ) -> Result<usize, String> {
@@ -112,7 +114,7 @@ fn send<T: Serialize>(
 }
 
 fn recv<T: for<'a> Deserialize<'a>>(
-    socket: &UdpSocket,
+    socket: &impl DatagramSocket,
     invalid_datagrams: &mut u32,
 ) -> Result<Option<(T, SocketAddr, usize)>, String> {
     let mut bytes = vec![0; MAX_DATAGRAM];
@@ -159,6 +161,8 @@ pub struct AppliedTick {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveServerReport {
+    #[serde(default)]
+    pub traffic: NetworkTraffic,
     pub result: String,
     pub tick: u32,
     pub state_hash: String,
@@ -175,6 +179,8 @@ pub struct LiveServerReport {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveClientReport {
+    #[serde(default)]
+    pub traffic: NetworkTraffic,
     pub result: String,
     pub client_id: u8,
     pub last_tick: u32,
@@ -186,7 +192,7 @@ pub struct LiveClientReport {
 }
 
 pub struct LiveServer {
-    socket: UdpSocket,
+    socket: ConditionedSocket,
 }
 
 #[derive(Default)]
@@ -198,16 +204,29 @@ struct RunFaults {
 
 impl LiveServer {
     pub fn bind(address: impl ToSocketAddrs) -> Result<Self, String> {
+        Self::bind_with_conditions(address, NetworkConditions::from_env()?)
+    }
+
+    pub fn bind_with_conditions(
+        address: impl ToSocketAddrs,
+        conditions: NetworkConditions,
+    ) -> Result<Self, String> {
+        let conditions = conditions.validate()?;
         let socket =
             UdpSocket::bind(address).map_err(|error| format!("bind live authority: {error}"))?;
         socket
             .set_read_timeout(Some(READ_INTERVAL))
             .map_err(|error| error.to_string())?;
-        Ok(Self { socket })
+        Ok(Self {
+            socket: ConditionedSocket::new(socket, conditions, 0),
+        })
     }
 
     pub fn local_addr(&self) -> Result<SocketAddr, String> {
-        self.socket.local_addr().map_err(|error| error.to_string())
+        self.socket
+            .socket
+            .local_addr()
+            .map_err(|error| error.to_string())
     }
 
     pub fn run(
@@ -456,7 +475,11 @@ impl LiveServer {
                 }
             }
         }
+        self.socket
+            .drain()
+            .map_err(|error| format!("drain live authority: {error}"))?;
         Ok(LiveServerReport {
+            traffic: self.socket.traffic(),
             result: if terminal_acks == [true; 2] {
                 "completed"
             } else {
@@ -518,7 +541,7 @@ impl LiveClientHandle {
 }
 
 pub struct LiveClient {
-    socket: UdpSocket,
+    socket: ConditionedSocket,
     authority: SocketAddr,
     client_id: u8,
     session: u64,
@@ -534,6 +557,16 @@ impl LiveClient {
         client_id: u8,
         config: MatchConfig,
     ) -> Result<Self, String> {
+        Self::connect_with_conditions(address, client_id, config, NetworkConditions::from_env()?)
+    }
+
+    pub fn connect_with_conditions(
+        address: impl ToSocketAddrs,
+        client_id: u8,
+        config: MatchConfig,
+        conditions: NetworkConditions,
+    ) -> Result<Self, String> {
+        let conditions = conditions.validate()?;
         config.validate()?;
         if config.fighter_count != 2 || client_id > 1 {
             return Err("live UDP currently supports client ids 0 and 1".to_owned());
@@ -548,6 +581,7 @@ impl LiveClient {
         socket
             .set_read_timeout(Some(READ_INTERVAL))
             .map_err(|error| error.to_string())?;
+        let socket = ConditionedSocket::new(socket, conditions, u64::from(client_id) + 1);
         let nonce = new_nonce();
         let hello = ClientPacket::Hello {
             protocol: LIVE_PROTOCOL,
@@ -641,6 +675,9 @@ impl LiveClient {
                         client_id: self.client_id,
                     },
                 )?);
+                self.socket
+                    .drain()
+                    .map_err(|error| format!("drain live peer: {error}"))?;
                 return Ok(self.report("local_close", last_tick, last_hash, received));
             }
             if last_authority.elapsed() > PEER_WINDOW {
@@ -730,6 +767,9 @@ impl LiveClient {
                                 )?);
                                 std::thread::sleep(Duration::from_millis(10));
                             }
+                            self.socket
+                                .drain()
+                                .map_err(|error| format!("drain live peer: {error}"))?;
                             return Ok(self.report(
                                 if tick == ticks {
                                     "completed"
@@ -757,6 +797,7 @@ impl LiveClient {
     ) -> LiveClientReport {
         self.handle.0.lock().unwrap().result = Some(result.to_owned());
         LiveClientReport {
+            traffic: self.socket.traffic(),
             result: result.to_owned(),
             client_id: self.client_id,
             last_tick,
@@ -773,6 +814,89 @@ impl LiveClient {
 mod regression_tests {
     // Keep endpoint clones until peer senders stop, even if an authority exits early.
     use super::*;
+    #[test]
+    fn impaired_two_client_match_measures_input_to_snapshot() {
+        let conditions = NetworkConditions {
+            delay_ms: 40,
+            jitter_ms: 20,
+            loss_basis_points: 200,
+            seed: 88,
+        };
+        let config = MatchConfig::default();
+        let ticks = 720;
+        let server = LiveServer::bind_with_conditions("127.0.0.1:0", conditions).unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
+        let address = server.local_addr().unwrap();
+        let server_config = config.clone();
+        let measured_start = Instant::now();
+        let authority = std::thread::spawn(move || server.run(server_config, ticks, None).unwrap());
+        let clients = (0..2_u8).map(|id| {
+            let config = config.clone();
+            std::thread::spawn(move || {
+                let client = LiveClient::connect_with_conditions(address, id, config, conditions).unwrap();
+                let handle = client.handle();
+                let worker = std::thread::spawn(move || client.run(ticks).unwrap());
+                let mut revision = None;
+                let until = Instant::now() + Duration::from_secs(8);
+                loop {
+                    if let Some((state, _)) = handle.latest() {
+                        let flow = state.flow.unwrap();
+                        if flow.phase == quarrel_sim::FlowPhase::Combat { break; }
+                        if flow.phase == quarrel_sim::FlowPhase::Draft && revision != Some(flow.phase_revision) {
+                            handle.push_flow(FlowCommand { phase_revision: flow.phase_revision, action: quarrel_sim::FlowAction::Confirm(flow.offers[id as usize][0]) }).unwrap();
+                            revision = Some(flow.phase_revision);
+                        }
+                    }
+                    assert!(Instant::now() < until, "combat did not start");
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+                let mut delays = Vec::new();
+                // Aim is a visible fighter property with no collision/acceleration ambiguity.
+                // Unique markers prevent an older/reordered snapshot satisfying a later probe.
+                for marker in 1..=41_i16 {
+                    let start = Instant::now();
+                    handle.set_held(PlayerInput { aim_x: 1000, aim_y: marker, ..Default::default() });
+                    loop {
+                        if handle.latest().is_some_and(|(state, _)| state.players[id as usize].aim_y == marker) {
+                            delays.push(start.elapsed().as_secs_f64() * 1000.0);
+                            break;
+                        }
+                        assert!(start.elapsed() < Duration::from_secs(1), "fighter input not observed");
+                        std::thread::sleep(Duration::from_millis(1));
+                    }
+                    std::thread::sleep(Duration::from_millis(30));
+                }
+                delays.sort_by(f64::total_cmp);
+                println!("client {id}: set_held->latest visible aim n={} median_ms={:.3} p95_ms={:.3}", delays.len(), delays[delays.len()/2], delays[(delays.len()*95/100).min(delays.len()-1)]);
+                worker.join().unwrap()
+            })
+        }).collect::<Vec<_>>();
+        let server = authority.join().unwrap();
+        assert_eq!(server.result, "completed");
+        println!(
+            "traffic: {:?} wall_s={:.3} actual_payload_bytes_per_second_both_peers={:.1}",
+            server.traffic,
+            measured_start.elapsed().as_secs_f64(),
+            server.traffic.sent_bytes as f64 / measured_start.elapsed().as_secs_f64()
+        );
+        println!(
+            "authority: ticks={} elapsed_ms={} mean_hz={:.3} snapshot_max_bytes={} payload_upper_bytes_per_second_per_peer={:.1}",
+            server.tick,
+            server.elapsed_ms,
+            server.mean_rate_hz,
+            server.max_sent_datagram,
+            server.mean_rate_hz * server.max_sent_datagram as f64
+        );
+        for client in clients {
+            let client = client.join().unwrap();
+            assert_eq!(client.result, "completed");
+            assert_eq!(
+                client.state_hash.as_deref(),
+                Some(server.state_hash.as_str())
+            );
+        }
+    }
+
     #[test]
     fn ordinary_state_and_inputs_round_trip_in_live_packets() {
         let mut game = AuthoritativeMatch::with_config(MatchConfig::default()).unwrap();
@@ -842,7 +966,7 @@ mod regression_tests {
     fn sessioned_live_clients_receive_terminal_state() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let authority_config = config.clone();
         let authority = thread::spawn(move || server.run(authority_config, 8, None).unwrap());
@@ -901,7 +1025,7 @@ mod regression_tests {
     fn terminal_recovers_a_lost_final_snapshot() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let authority = thread::spawn({
             let config = config.clone();
@@ -944,7 +1068,7 @@ mod regression_tests {
     fn vanished_peer_and_leave_stop_authority_with_bounded_results() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let authority = thread::spawn({
             let config = config.clone();
@@ -952,7 +1076,7 @@ mod regression_tests {
         });
         let vanished = LiveClient::connect(address, 0, config.clone()).unwrap();
         let survivor = LiveClient::connect(address, 1, config).unwrap();
-        let _vanished_endpoint = vanished.socket.try_clone().unwrap();
+        let _vanished_endpoint = vanished.socket.socket.try_clone().unwrap();
         drop(vanished);
         let survivor = thread::spawn(move || survivor.run(300).unwrap());
         assert!(
@@ -1035,7 +1159,7 @@ mod regression_tests {
     fn public_handles_reliably_deliver_revisioned_opening_picks() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let authority = thread::spawn({
             let config = config.clone();
@@ -1116,7 +1240,7 @@ mod regression_tests {
             new_nonce()
         ));
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let server_config = match_config.clone();
         let server_trace = trace_path.clone();
@@ -1197,7 +1321,7 @@ mod regression_tests {
             new_nonce()
         ));
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let server_config = config.clone();
         let server_trace = trace_path.clone();
@@ -1242,7 +1366,7 @@ mod regression_tests {
     fn terminal_loss_and_local_close_are_bounded_and_ports_rebind() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let server_config = config.clone();
         let authority = thread::spawn(move || {
@@ -1283,7 +1407,7 @@ mod regression_tests {
         drop(LiveServer::bind(address).unwrap());
 
         let server = LiveServer::bind(address).unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let server_config = config.clone();
         let authority = thread::spawn(move || server.run(server_config, 300, None));
         let first_config = config.clone();
@@ -1404,7 +1528,7 @@ mod regression_tests {
     fn stale_session_fixture_names_authority_exit() {
         for waiting_for in ["welcome", "terminal"] {
             let server = LiveServer::bind("127.0.0.1:0").unwrap();
-            let _endpoint = server.socket.try_clone().unwrap();
+            let _endpoint = server.socket.socket.try_clone().unwrap();
             let address = server.local_addr().unwrap();
             let authority = thread::spawn(move || server.run(config(), 0, None));
             while !authority.is_finished() {
@@ -1446,7 +1570,7 @@ mod regression_tests {
             new_nonce()
         ));
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
-        let _endpoint = server.socket.try_clone().unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let server_config = config.clone();
         let server_trace = trace_path.clone();
