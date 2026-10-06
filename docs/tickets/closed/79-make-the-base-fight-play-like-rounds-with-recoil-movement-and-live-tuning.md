@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a10efa-ac4b-7192-8f54-91f1d6f6da0d
+status: closed
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "combat"]
@@ -79,3 +78,5 @@ Adam — this session, 2026-10-04:
 - 2026-10-06T05:05:29Z stage verify end session codex:01a10efa-ac4b-7192-8f54-91f1d6f6da0d — Rebased menu-compatible candidate e5034fcf3c645f3df88049049eabb63116e0e30f: 78 tests passed (35 sim,24 network,14 presentation,5 CLI), no failed/skipped tests; fmt, strict Clippy, locked build, docs, two-client1200-tick smoke and four refreshed headless renders passed. Compiler source provenance and frozen binary312efc5 recorded. No human feel assessment.
 - 2026-10-06T05:05:35Z stage review start session codex:01a10efa-ac4b-7192-8f54-91f1d6f6da0d — Fresh other-family CLI review of complete menu-reconciled range 6697480df1cf6fbd2be08bb3d12abd31c9cb9104..e5034fcf3c645f3df88049049eabb63116e0e30f; earlier approval invalidated by input reconciliation.
 - 2026-10-06T05:10:42Z Fresh reviewer approved corrected own range9eac44f..e5034fc (three commits, no ticket bytes); initial review base669748 incorrectly included upstream ticket81 log. Accepted nonblocking notes: invalid tuning at startup fails like existing asset validation; unused scripted gamepad crouch absent; ring_outs counts edge returns; geometry edits reset support briefly; postmortem spacing typo; upstream HUD wall overlap. See retained review and range clarification evidence.
+- 2026-10-06T05:14:56Z stage review end session claude:0b3fbd73-f8cb-4473-bd03-e6368a7300d4 — approved candidate 9eac44f25ddb5572f36893298a87be3aa90466bc..853a072cc99975e1f49934e42adf97250a5655e1
+- 2026-10-06T05:14:56Z stage integration end session codex:01a10efa-ac4b-7192-8f54-91f1d6f6da0d — integrated 853a072cc99975e1f49934e42adf97250a5655e1 as e793bb230fc459e59d678fb6cc51b2d946e085be
