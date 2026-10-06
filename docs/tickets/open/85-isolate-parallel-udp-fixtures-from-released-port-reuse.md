@@ -44,3 +44,4 @@ Edits are confined to `#[cfg(test)]` fixtures in crates/quarrel-network. Ticket 
 
 - 2026-10-05T21:57:36Z Discovered in ticket 77's final verification. Retained logs: out/ticket-077-delivery/ticket-077-entry-tests.log and ticket-077-final-tests.log. Sources: crates/quarrel-network/src/live.rs join_timeout_keeps_the_absent_socket_bound (fixed by #78 to hold its socket; base bc6184b) and old_session_input_from_a_current_peer_is_ignored; lib.rs two_udp_clients_stream_monotonic_inputs_and_progressive_snapshots.
 - 2026-10-06T02:15:16Z Admitted for run #75 after an independent contract check updated it to main at bc6184b.
+- 2026-10-06T02:16:36Z stage research start session codex:01a10efe-cc85-7522-81c7-22387758b422 — Inspect endpoint ownership and authority lifecycle.
