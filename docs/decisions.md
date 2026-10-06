@@ -799,3 +799,11 @@ Cards are RON data with string IDs, names, descriptions and stat changes. Stable
 Draw without replacement within each offer, and allow a previously picked card again in later offers so a five-card placeholder pool can support a whole match.
 A shuffle bag selects arena files without repeats until exhausted; simulation and snapshots continue to use the existing data-arena physics.
 Reuse the prepared root target through the ignored worktree junction, keeping the repository two-job cap and serial network test setting from the existing CI.
+
+## 2026-10-06 — Ticket #78 corrections for run #75
+
+Store a recording's logical starting cards and arenas alongside its inputs. Playback then remains reproducible when authors add or edit live assets.
+The alternative, a separately maintained fixture asset directory, duplicates files and still lets callers select the wrong content; pinning only file hashes would detect changes without restoring playback.
+Normal matches continue watching live files. A valid arena name edit updates its cached name-to-file mapping so subsequent fights retain that file's identity.
+Restore general transport failure tests and capture provenance rather than treating them as footage-specific checks. Reject aliased PNG and metadata paths before rendering or connecting.
+The alternative would delete wanted development capabilities outside this ticket's profile removal. Local presentation and paced live networking retain their shipped 1v1 scope; fighter-count generality belongs to the match authority and scripted transport.

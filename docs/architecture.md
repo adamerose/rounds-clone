@@ -1,135 +1,54 @@
 # QUARREL architecture
 
-This document describes the active Bevy implementation.
-The retired Godot and C# architecture remains available at the annotated tag `archive/godot-csharp-prototype-2026-09-03`.
+The active game uses Rust, Bevy and Rapier. The retired Godot and C# prototype remains at `archive/godot-csharp-prototype-2026-09-03`.
+`GOAL.md`, `docs/game-design.md` and `docs/roadmap.md` describe the intended game; this document describes the running implementation.
 
-## Direction
+## Match authority
 
-This document describes the code as it is today.
-Much of it is organised around seven `ReplayProfile` footage slices from the earlier goal of reproducing two recordings.
-Since 2026-10-04 the goal is a general game that succeeds ROUNDS rather than copying it (see `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md`): profiles, fixed source offer lists, the ROUNDS card catalog and the historical-rematch setup are scheduled for removal in favour of arena data, event-rule card data and ordinary match flow for any number of fighters.
-The recordings in `reference/manifest.json` and the notes in `docs/fidelity/` remain tuning references; they no longer define completion.
+`quarrel-sim` owns one `AuthoritativeMatch`, advancing at 60 fixed ticks per second. `MatchConfig` supplies fighter count, target score, offer size, run-back limit and seed.
+Fighters live in a vector of stable ECS entities. `FlowAuthority` owns opening and loser drafts, points, persistent card loadouts and end-of-match choices.
+Every fighter picks one card before combat. The last survivor earns a point; if the last fighters die together, a seeded choice among fighters alive before that tick awards it.
+After a brief result phase, every nonwinner picks another card. The first fighter to the target reaches `MatchEnd`.
+Votes remain visible and changeable until everyone agrees. A run-back retains points and cards and increases the original target; a new match resets both.
 
-## Runtime shape
+Cards load from sorted `assets/cards/*.ron` files. Each has a string ID, name, description and stat changes, converted to a stable hashed `ItemId` and fighter modifiers.
+Offers draw without replacement within a row and may contain cards already owned. The five placeholder cards change health, shot damage, movement speed or projectile speed.
+Event-rule cards and a larger original catalog belong to later work. No footage profile, fixed offer list or source card enum drives the match.
 
-Arenas load from `assets/arenas/*.ron`; the [arena data format](design-docs/arena-data.html) describes shapes, behaviours, camera bounds, chains and previews.
-`AuthoritativeMatch::from_arena_file` runs the ordinary data path and observes validated file edits at tick boundaries.
-Replay profiles remain compatibility adapters over the converted files until their removal; they preserve their existing physics insertion order and snapshots.
+`PlayerInput` is the public control boundary. Revisioned `FlowCommand` values reject actions from an earlier phase and apply an entire tick's commands before transitions.
+`automated_input` uses the same boundary; automation cannot write scores, health, loadouts or phases.
+`InputRecording` stores the configuration, logical starting card and arena content, and each tick's inputs. Playback uses that content without filesystem reloads.
+The short ordinary recording reaches loser draft and match end; tests replay it twice and compare every snapshot. Repeatability is required on the same locked build and platform.
 
-The authoritative match advances at 60 fixed ticks per second in `quarrel-sim`.
-Stable player and projectile identities and gameplay state live in Bevy ECS.
-A project-owned `PhysicsBoundary` keeps Rapier rigid-body, collider, and joint handles private while it advances static arena contacts, dynamic circular players, dynamic arena bodies, constraints, CCD bullets, recoil, blocks, damage, knockback, explosions, and ring-outs.
-Vertical control is variable-height and arena-independent: `set_player_control` sets the fixed jump impulse when jump is pressed on a grounded tick, and cuts the remaining upward velocity to `JUMP_RELEASE_CUT` once, on the tick the jump input goes from held to released, and only while that fighter is airborne and still rising. A release read on a grounded tick does nothing whatever the vertical velocity, and a held jump keeps the full arc. The memory of last tick's input is authority-internal and reaches no snapshot; it follows the jump input on every tick the authority reads it, whether or not control runs for that fighter, so a fighter that lets go while stunned or eliminated has let go rather than saving the release for the tick control returns, and a revive clears it with the rest of the transient control state. The one release the authority cannot read on its own tick is one inside a freeze, where no input is read at all; it is consumed on the first controlled tick after the freeze. `JUMP_SPEED`, gravity, damping and air control are unchanged by it, so every arena gets the same rule and none gets a special case. No shipped replay script releases jump while airborne and rising, so the mechanic exists without any current route exercising it; the ice route ticket 049 owns will be the first.
-Only quantized project snapshots cross the simulation boundary; neither Bevy entity IDs nor Rapier handles appear on the wire.
-Repeatability is required on the same locked build and platform, not across platforms.
+## Physics and arena data
 
-Dynamic arena bodies and constraints use stable project IDs held in ordered registries.
-The timber-collapse profile begins with 17 dynamic timber bodies held by fixed Rapier joints and two dynamic circular weights held by rope joints.
-Its authoritative explosion releases the fixed joints, wakes and impulses nearby bodies, and leaves the rope joints active; contacts and Rapier integration determine the resulting pile.
-Snapshots report ordered transforms, velocities, sleep state, constraint activity, and the stable explosion event.
+Arenas load from sorted `assets/arenas/*.ron` files; the [arena data format](design-docs/arena-data.html) describes shapes, behaviors, camera bounds, chains and previews.
+A seeded shuffle bag selects each arena once before repeats. Extra fighters receive deterministic positions when an arena has fewer declared spawns.
+`PhysicsBoundary` keeps Rapier handles private and integrates players, CCD projectiles, fixed and loose objects, kinematic movement, saws, breakables and rope constraints.
+Stable project IDs connect collision objects to ordered snapshots. Quantized snapshots expose neither Bevy entity IDs nor Rapier handles.
+Movement, variable-height jumps, recoil, blocking, damage, knockback and ring-outs remain authority behavior. Elimination disables combat input until the next fight.
 
-The radial-saw profile uses the same boundary for two kinematic Rapier bodies with project IDs 200 and 201. The dark diamond support is represented by the same stable arena records that are rendered, so replay collision cannot rely on invisible rectangular walls. ECS owns each saw's initial pose, radius, eight-tooth silhouette, and measured 7.43 rad/s angular velocity; snapshots read the collider pose and body angular velocity, while reset immediately propagates the restored body pose to its collider before another snapshot can cross the wire. The source does not show saw contact, so their colliders carry no damage rule. Ordinary CCD projectiles remain the only damage path in this slice. A small authoritative round resource preserves orange's existing half, awards blue's half on the tick-909 ordinary hit, freezes combat, then exposes the established `HalfBlue` phase at tick 938.
+Normal matches watch their active arena file every fifteen ticks. Valid edits replace geometry and transient projectiles while preserving ticks, phase, points, cards, health and elimination.
+Invalid edits retain the last valid arena and expose `arena_reload_error()`. Renaming an arena updates the name-to-file mapping, so later fights keep watching the same file.
+`from_arena_file` follows this reload path; `with_content` uses supplied logical content without watching disk, as recorded playback requires.
+Unchanged contour colliders are cached at the physics boundary to avoid repeating expensive concave preparation at each fight.
 
-The rematch/draft profile adds an authoritative match-flow resource above combat.
-Fresh `FlowAuthority::new` state is a live 0–0 match without an inherited result or build. The rematch replay explicitly constructs its historical blue 4–5 terminal win, orange elimination and exact prior-card badge stacks; one rematch vote per player and the both-yes reset clear that result and old cards, revive both fighters, and start the score at 0–0.
-It also owns seeded ordered offers, active drafter, hover, confirmation, reveal, phase revision, and persistent new-match loadouts.
-The source replay advances through only a brief dark bridge after orange's reveal: orange focuses `COMBINE` at tick 540, `BURST` at tick 600, and confirms Dazzle into a lowered fan at tick 840; blue's complete fan is authoritative by tick 960, then focuses Dazzle, Lifestealer, and Echo before confirming Explosive Bullet into a lowered fan at tick 2120.
-The stable item registry holds 21 definitions: nine behind the opening draft's ten visible offers, where Dazzle appears in both fans; five first-loser-draft cards; and seven new-match-draft cards, where Steady Shot appears in both source rows.
-Dazzle, Explosive Bullet, and Quick Shot are implemented and therefore appear in `general_implemented_offer_pool`; the fixed source-shaped offer path does not read that pool. The authority returns `UnimplementedItem` for the other eighteen catalog-only definitions no matter what a client renders.
-Typed fighter capabilities enter ECS-backed projectile creation: Dazzle bullets schedule three stun pulses, Explosive Bullet impacts emit an authoritative radial event and impulse, and Quick Shot multiplies only its owner's projectile launch speed through the sole bullet-spawn boundary while the shared base speed remains unchanged.
+## Presentation and transport
 
-The same rematch authority continues after the original 2,400-tick draft slice through the first full round. Ordinary damage decides each fight. Two wins by either player in the opening arenas award a round immediately; a split loads the ice arena for a deciding fight. One `AuthoritativeMatch`, its ECS world and its Rapier boundary survive each handoff. Existing fighters retain identity and selected capabilities; loading the next arena replaces its collision surfaces, revives and repositions both fighters beneath the outgoing result overlay, and clears old projectiles, dynamic bodies and constraints before creating the incoming arena. The prior winner and half award remain visible until combat resumes.
-Elimination ends a fighter's agency: a dead fighter's inputs cannot move, aim, block or fire, and projectiles that reach a dead body are discarded. Each tick resolves the fight outcome once from the fighters still alive after damage and ring-outs, so a lone survivor wins and a held or changed input can never manufacture a later winner. When both fighters die on the same tick the flow records a no-award result with no winner and no eliminated player, pauses through the same conclusion timing, then revives both fighters at the current arena's spawns with projectiles cleared while halves, completed rounds and loadouts persist. This repeat-in-place policy is provisional pending source evidence.
-The source trace produces blue, orange, then blue. `FlowSnapshot.halves` records current fight wins and `FlowSnapshot.scores` records completed rounds. The full-round overlay retains [1, 2] halves and [0, 1] completed rounds; entry to the post-round draft resets only halves to [0, 0]. `RoundStateSnapshot.scores` retains its half-count meaning, while `completed_rounds` carries the connected round count. The completed round's loser is the sole active drafter. Dedicated post-round draft, reveal and bridge phases keep this cadence independent from the opening two-player draft, while revisioned `FlowCommand` remains the only input/application boundary.
-When either completed-round score reaches five, the same result transition and full-round overlay finish before flow branches to `Waiting` instead of loser draft. Waiting retains the awarded score, winner and build state, clears transient draft state and projectiles, respawns both physics bodies at the loaded arena's existing anchors, and revives their ECS state. It accepts no combat or flow actions. The separate non-player `BeginNewMatch` lifecycle request is accepted only there; it clears match-owned progression and starts the ordinary fade into orange's fresh draft, while the timer, host action, lobby or readiness policy that will issue that request remains unmapped because the source does not expose the trigger. The bounded match-end profile explicitly constructs only its 3–4, one-half-each prehistory; its public-input projectile, fifth-point award and all later phases use the ordinary authority path.
-The ice arena has seventeen stable polygon records, IDs 40–56. Each `ArenaSurfaceSnapshot.outline_milli` contains local centered vertices used by both Rapier's static collision contour and the shared renderer; an empty outline keeps the earlier rectangular surfaces. The entry snapshot briefly carries the actual outgoing fighter positions so both clients can interpolate their arrival while collision already uses the new arena. The contours stay intact during combat. This source interval establishes no ice friction, fracture, melting or extra damage rule.
-In this connected route an Explosive Bullet must contact a dynamic timber body before the fixed timber joints release. Removing that shot or drafting Dazzle for blue instead leaves the structure constrained. The explosion event uses the actual Rapier surface contact point rather than the bullet center after its continuous-collision step. Subsequent pile poses come from Rapier. The standalone ticket-040 profile retains its previously admitted scripted impact and anchors; it is not the connected gameplay trigger.
+`quarrel-presentation` reads immutable snapshots. Its shared scene draws data arenas, fighters, shots, cards, scores and consensus choices for visible play and offscreen PNGs.
+Rendering never applies damage or cards. Arena camera proportions are preserved; offscreen captures letterbox the declared frame.
+Capture waits for rendering and screenshot completion before writing PNG bytes. Metadata hashes the executable, frame and authority state; output and metadata destinations must differ.
+Visible windows start hidden, require the designated 1920 by 1080 display at physical position `(364,-1080)`, and appear only after placement is verified.
 
-`PlayerInput::with_progressive_observation` resolves explicitly requested opponent-relative aim against a snapshot. The public `AuthoritativeMatch::snapshot` and `step` methods let a program choose and submit later actions without reconstructing state. Scripted peers resolve aim from their latest received snapshot; the live authority resolves it once at apply time and records the resolved input in its trace. Both paths use the same revisioned `FlowCommand` boundary. Snapshot protocol 10 carries `Waiting`, the post-request flow state and the expanded 21-entry catalog beside the existing capability, arena and score state; `LifecycleResult` remains the direct return from the local authority operation and is not serialized. Scripted network protocol 11 and live network protocol 12 reject mismatched peers; live sessions count and ignore old or malformed datagrams. Scripted smoke sessions retain their 6,000-tick cap; paced live sessions accept positive bounds through 36,060 ticks. The bounded connected source route uses 5,941 ticks, while the constructed-prehistory match-end route uses 240 before an explicitly requested new match can reuse the ordinary fade-to-draft path.
-Human visible play maps two-player keyboard and controller combat controls to `PlayerInput` and advances at 60 Hz from elapsed time. The bounded automated visible route advances the source action trace faster for verification. Neither mode owns damage, card application, collapse or scoring.
+`quarrel-network` owns JSON wire records and direct-IP UDP sessions. The scripted path supports configurable fighter counts, progressive snapshots and final state agreement.
+The paced live path ships two peers: an authority runs at 60 Hz, applies newest held controls, consumes bounded FIFO flow edges, and publishes received state for rendering.
+Session identities reject stale packets; consumed acknowledgements prevent repeated edge application; terminal snapshots are retransmitted until acknowledged or the bounded delivery window ends.
+Host and dedicated modes use the same authority loop. Clients neither predict transforms nor construct a local authority for presentation.
+Protocol changes reject mismatched peers. Steam invitations, compact snapshots and responsive play at realistic latency remain MVP work.
+Local keyboard/controller presentation and live sessions currently support the shipped 1v1 controls; the general simulation is also tested with three fighters.
 
-Presentation reads an immutable authoritative snapshot through `quarrel-presentation`.
-Pixels, camera motion, and other presentation-only state never enter the replicated snapshot or its hash.
-The shipped Bevy 2D scene draws the static platforms and long shadows, a snapshot-responsive faceted timber floor and directional shadow, dynamic timber and weights, suspended lines, fighters, limbs, guns, health/name treatment, bullets, trails, block rings, hit flash, and snapshot-derived explosion particles.
-Visible and offscreen modes apply the same snapshot-derived camera transform, shake envelope, `Bloom`, `ChromaticAberration`, and `LensDistortion` settings.
-The timber impact uses separate short flash and delayed shock envelopes so the compact multi-lobed light ends while the source-timed whole-screen displacement peaks.
-These effects and the render-only particle arrangement do not enter the authoritative snapshot or state hash.
-The offscreen 1280×720 GPU path waits for Bevy's screenshot-completion event, bounds both device polling and the total capture, encodes the returned image, and writes the PNG only after capture succeeds.
-The visible path starts hidden, requires exactly one physical display at `(364,-1080)` with extent 1920×1080, verifies the window against that observed identity, and only then reveals it; missing or ambiguous displays fail closed.
-For the draft profile the same renderer projects received phase state into the live-arena result and rematch overlays, brief dark transitions, large expressive orange/blue fighters, curved readable five-card fans, reveal cadence, focus lift/dimming, selected-card confirmation motion, and arena bridges. The post-round lead-in raises a card behind the still-authoritative result; draft and reveal preserve the completed-round pip and authoritative badges, changing orange's stack from `Da` to `Da Qu` only after confirmation. At bridge entry on tick 5818, orange and the four unselected cards remain while Quick Shot alone is absent; by tick 5893 only the patterned background and HUD remain. Ticks 5894–5941 replace the ice scene once with a typed 21-body presentation layout and separately animated left, right, and central entry curves while the fighters remain held. The layout contains no solver bodies, constraints, or collision claims, and no second renderer or presentation-side item application exists.
-Every stable item `art_key` selects a distinct card motif, while authoritative hover and reveal state drives the card lift, arms, hands, eyes, and mouth.
-Offscreen capture does not guess how many updates rendering needs: it requires the expected camera, background, character, hands, cards, and item-art entities, observes an empty Bevy pipeline queue, and then waits for two consecutive complete extracted render frames before requesting the screenshot.
-Keyboard arrows plus Enter/Space and controller D-pad plus south button map to the same revisioned `FlowCommand` values used by automation and the UDP clients; these mappings never apply an item in presentation.
-For the radial profile, that same shared scene reads rotated platform and saw poses from the snapshot, then adds tick-derived paper-brush motion, long shadows, ordinary trails and impact particles, result dimming, half-score circles, and `HALF BLUE`. Those render entities are absent from authority hashes and cannot advance the frozen result locally.
-For the connected ice arena, the same scene clips animated cyan and pale facets to the snapshot contours and adds long navy shadows. Phase-relative movement brings the arena in and takes it away with its fighters and effects. Existing burst and chromatic effects respond to authoritative events. The result starts with both prior halves, fills the winning circle, displays `ROUND BLUE` or `ROUND ORANGE`, then moves the full circle into the first completed-round HUD pip while retaining the other half and loadout badges. No new replay profile, renderer, fullscreen pass or transport path owns this extension.
-The same scene renders `Waiting` from the received typed phase over the still-loaded arena with both revived fighters, retained badges and the terminal five-pip row. It does not infer match completion from profile identity or elapsed ticks.
-`LifecycleRequest::BeginNewMatch` is the non-player boundary between that stable state and a fresh match. It is accepted only in `Waiting`, clears match-owned score, result, draft and build state, respawns both fighters in the loaded arena, and enters the existing `ArenaFade` to orange `Draft` path. Authority ticks and combat metrics remain cumulative because they identify the lifetime of the running authoritative session rather than either match; inputs stay disabled throughout the fade and draft. No timer, local button, lobby or network packet is mapped to the request yet.
+## Verification
 
-`quarrel-network` owns the wire records and the transport-facing API. Its live adapter uses bounded IPv4 UDP datagrams for controlled direct-IP development. A dedicated authority defaults to loopback and accepts an explicit nonlocal bind; a client resolves the selected IPv4 endpoint. A host starts this same authority loop on a joined thread and joins it with its own UDP peer, using loopback when the bind permits it. The authority runs at 60 Hz, applies the newest held input from each peer without waiting for both inputs, and publishes progressive snapshots. It uses a bounded mailbox for held controls, ordered flow edges, the newest validated snapshot, and close status; presentation reads only that received state and never constructs an authority or predicts transforms. The protocol identifies sessions, keeps flow edges FIFO with once-only consumed acknowledgements, and sends a self-contained terminal state until acknowledged. It reports late ticks, mean rate, datagram sizes, peer-loss and terminal-delivery outcomes. Short taps may be lost before send or in transit. It is not a production reliability protocol and does not claim prediction, interpolation, rollback, lag compensation, matchmaking, authentication, NAT traversal, or Steam transport.
-
-`quarrel-server dedicated` runs one headless live authority and `quarrel-server scripted` retains the existing scripted smoke authority. `quarrel-client join` runs one live visible peer; `quarrel-client host` runs that same authority plus its own live UDP peer. Existing `local`, `remote`, capture, and replay commands remain scripted paths. Live presentation renders only validated received snapshots and uses the same keyboard/gamepad input and semantic flow-command boundaries as programmatic clients.
-`quarrel-automation` starts the headless server and two real client processes, proves each received the same progressive phase sequence, binds one client's render to its received final snapshot, checks the profile-specific authority projections and local-host agreement, and emits bounded JSON evidence.
-
-## Workspace boundaries
-
-| Crate | Owns | Does not own |
-|---|---|---|
-| `quarrel-sim` | Bevy ECS authoritative state, private Rapier service, fixed-tick rules, input validation, stable snapshots | rendering, sockets, files, wall clock |
-| `quarrel-presentation` | shared Bevy 2D visible/offscreen snapshot scene | authoritative or replicated state |
-| `quarrel-network` | bounded wire records and the current UDP adapter | game rules or presentation |
-| `quarrel-server` | headless server process and command-line configuration | duplicated simulation rules |
-| `quarrel-client` | local-host, live remote, visible, and replay-capture entry points | editor state or server-only rules |
-| `quarrel-automation` | smoke orchestration and JSON inspection | gameplay behavior |
-
-The simulation separates the immutable snapshot and input records, replay fixtures, arena definitions, Rapier boundary, fixed-tick match authority and match-flow/card rules into modules.
-The presentation separates input mapping, window lifecycle, offscreen capture, the shared scene, arena drawing, card art, HUD and the radial-echo pass.
-The crate roots retain the existing public API; moving these definitions changes no simulation order, state encoding or rendered scene.
-Tests live beside the concern they check in smaller test modules.
-
-`bevy_rapier2d` 0.36 is pinned with default features disabled and only `dim2` and `headless` enabled.
-The incompatible `enhanced-determinism` feature is deliberately absent; the server-authority model does not require cross-platform lockstep.
-
-## Public evidence commands
-
-All dependencies, including Bevy `0.19.1`, are pinned in `Cargo.toml`, `rust-toolchain.toml`, and `Cargo.lock`.
-The supported headless commands are:
-
-```text
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --locked -- -D warnings
-cargo build --workspace --locked
-cargo test --workspace --locked
-out/cargo-target/debug/quarrel-automation smoke --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/smoke
-out/cargo-target/debug/quarrel-automation inspect --profile timber-collapse-replay --seed 40 --ticks 1440
-out/cargo-target/debug/quarrel-client capture-replay --profile timber-collapse-replay --seed 40 --ticks 1440 --output-dir out/ticket-040/clone-anchors --metadata out/ticket-040/clone-anchors.json
-out/cargo-target/debug/quarrel-client visible --profile timber-collapse-replay --seed 40 --ticks 1440 --frames 180
-out/cargo-target/debug/quarrel-automation smoke --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/smoke
-out/cargo-target/debug/quarrel-automation inspect --profile rematch-draft-replay --seed 41 --ticks 2400
-out/cargo-target/debug/quarrel-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 2400 --output-dir out/ticket-041/anchors --metadata out/ticket-041/anchors.json
-out/cargo-target/debug/quarrel-client visible-flow --profile rematch-draft-replay --seed 41 --ticks 2400 --automated
-out/cargo-target/debug/quarrel-automation smoke --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/smoke
-out/cargo-target/debug/quarrel-automation inspect --profile radial-saw-half-blue-replay --seed 42 --ticks 938
-out/cargo-target/debug/quarrel-client capture-replay --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --output-dir out/ticket-042/anchors --metadata out/ticket-042/anchors.json
-out/cargo-target/debug/quarrel-client visible --profile radial-saw-half-blue-replay --seed 42 --ticks 938 --frames 180
-```
-
-The smoke command must report every handshake, input sequence and progressive snapshot, agreement among the headless server, both UDP clients and local client-host, and a live client render bound to the agreed state hash.
-Replay capture emits twelve named Bevy-rendered timber anchors spanning the intact structure, pre-impact combat, bright impact, 100 ms impact progression, first release, deformation, debris, settlement, and continued combat.
-The earlier teal-duel profile remains available by passing `--profile teal-duel-replay --ticks 786`.
-The 2,400-tick rematch/draft capture retains thirteen anchors from `VICTORY!` through both five-card fans and the upgraded projectile exchange. Passing `--ticks 4540` extends it to 25 anchors, and `--ticks 5466` emits 37 through the final blue pip. Passing `--ticks 5893` retains those 37 and adds eleven entries through the loser draft and bridge. Passing `--ticks 5941` adds nine held-entry entries at 5894/5898/5902/5906/5910/5914/5918/5940/5941. Native source PTS and RGBA hashes bind every connected anchor; the adjacent pairs preserve the silhouette, overlay/reset and badge boundaries.
-Run `out/cargo-target/debug/quarrel-automation smoke --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/smoke` for the extended two-client check. The corresponding capture command is `out/cargo-target/debug/quarrel-client capture-replay --profile rematch-draft-replay --seed 41 --ticks 5941 --output-dir out/ticket-055/anchors --metadata out/ticket-055/anchors.json`; bounded playback uses `visible-flow --profile rematch-draft-replay --seed 41 --ticks 5941 --automated` on that same client executable.
-The radial replay emits eight anchors from arena reveal through traversal, ordinary projectile exchange, adjacent tick-908/tick-909 combat and result frames, and established tick-938 `HALF BLUE`.
-The 240-tick match-end replay emits its constructed match point, decisive public-input shot and stable waiting endpoint; only the endpoint binds the native PTS 2000158666 waiting frame.
-`capture-new-match-draft` starts from that unchanged endpoint, calls the public lifecycle boundary, and captures the ordinary first draft against native PTS 2039991840. `visible-new-match-draft` presents the same typed snapshot through the guarded visible renderer without extending the match-end replay's input trace.
-
-## Testing rule
-
-Keep tests at the public and deep boundaries: stable contact and jump behavior, the jump-release cut's height band and its grounded-release gate, the complete duel and collapse, joint release and explosion response, outcome-changing physics perturbation, one-tick bullet CCD, bounded inspection, progressive UDP agreement, and the real Bevy offscreen renderer.
-For match flow, one compact set covers the complete phase order, terminal authority and exact prior badges, accepted-rematch clearing, the explicit Waiting-only new-match lifecycle request, source-bound draft rows, vote outcomes, invalid actions, exact source offers, catalog-only rejection, one-time typed picks, seed/loadout perturbations, concrete keyboard/controller mapping, real Dazzle/Explosive projectile behavior, and Quick Shot's exact typed launch-speed path through the authoritative spawn boundary.
-The connected first-round regressions drive public inputs through both drafts and arena handoffs, check body/projectile cleanup and retained loadouts, and distinguish current halves from completed rounds. Ordinary-damage outcomes cover both colors winning a deciding fight and both colors sweeping the opening fights. A changed terminal shot must change the protected elimination and award, and holding the result must leave its score unchanged.
-A public-input regression walks both fighters off the first rematch arena on the same tick and proves that dead fighters cannot shoot, jump, block or re-aim, that no winner or half is awarded, and that the same fight resumes once with both fighters revived at their spawns. A flow-level test proves a later elimination report cannot replace the recorded no-award outcome.
-A deep process-lifecycle test starts a minimal test-owned UDP child, forces the next child launch to fail, and proves cleanup releases the server.
-The capture boundary resolves metadata and every PNG destination before rendering or writing, compares every pair, and rejects aliases; process tests cover single capture, replay capture, and remote rendering before any network request or file write. A focused renderer test captures the same immutable draft state twice and requires byte-identical complete frames and unchanged authoritative digests.
-The radial checks protect stable saw IDs and measured motion, immediate collider-pose reset, an outcome-sensitive angular-speed perturbation, the exact ordinary-damage/result/score boundary, and two clients observing the same final authority projections.
-Do not retain tests for private layout or retired implementation details.
-When test or support machinery outweighs the behavior it protects, rethink the slice instead of hardening the machinery by default.
+The repository configuration limits Cargo to two jobs and reuses `out/cargo-target`.
+CI runs formatting, strict Clippy, build, serial workspace tests and a real two-client UDP smoke. Tests cover match rules, recorded inputs, arena physics and reloads, transport failures and capture safety.
+Headless capture verifies draft and match-end presentation without opening a desktop window.

@@ -15,7 +15,7 @@ pub struct ArenaDefinition {
     pub objects: Vec<ArenaObject>,
     #[serde(default)]
     pub chains: Vec<ArenaChain>,
-    /// Exact geometry used by the remaining footage profiles.
+    /// Converted geometry retained for existing arena data.
     #[serde(default)]
     pub surfaces: Vec<ArenaSurfaceSnapshot>,
     #[serde(default)]

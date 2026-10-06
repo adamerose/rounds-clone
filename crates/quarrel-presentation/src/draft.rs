@@ -29,7 +29,11 @@ pub(super) fn spawn_draft_scene(
         let row_y = 150.0 - fighter as f32 * 230.0;
         commands.spawn((
             SceneVisual,
-            Text2d::new(format!("F{}", fighter + 1)),
+            Text2d::new(if selected.is_some() || offers.is_empty() {
+                format!("F{}\nREADY", fighter + 1)
+            } else {
+                format!("F{}", fighter + 1)
+            }),
             TextFont {
                 font_size: FontSize::Px(22.0),
                 ..default()
@@ -54,6 +58,16 @@ pub(super) fn spawn_draft_scene(
             );
         }
     }
+    commands.spawn((
+        SceneVisual,
+        Text2d::new("F1: A/D + Space    F2: Arrows + Enter    Controller: D-pad + A"),
+        TextFont {
+            font_size: FontSize::Px(18.0),
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, -285.0, 40.0),
+    ));
 }
 
 fn spawn_card(

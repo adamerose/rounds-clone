@@ -3,12 +3,12 @@
 Each milestone ends with something the group can play, followed by a play session whose notes go in `docs/playtests/`.
 Those notes decide what comes next; this list is a plan, not a contract.
 
-## Where things stand (2026-10-04)
+## Where things stand (2026-10-05)
 
-The Rust/Bevy/Rapier foundation is solid: a 60 Hz authority, Rapier physics behind a project boundary, a shared 2D renderer, a UDP client/host/dedicated split, headless capture, and CI.
-The game on top of it is not yet general.
-Rules branch on seven `ReplayProfile` footage slices, draft offers are fixed lists transcribed from the recordings, three of 21 catalogued cards work, and a live session loads whichever footage scene is the default.
-Good reusable pieces already exist: arena geometry for teal, timber, ice, lime, saw and crate scenes; jump, recoil, block, knockback, ring-out and explosion rules; halves, rounds, the loser draft, rematch and match end.
+The Rust/Bevy/Rapier foundation runs ordinary matches: a 60 Hz authority, general fighter vectors, opening and loser drafts, one point per fight, seeded tie resolution and unanimous end choices.
+Data arenas rotate without repeats and retain their object physics and live editing. Five data-driven placeholder stat cards support the general offer and loadout path.
+The shared renderer, local 1v1 controls, UDP client/host/dedicated split, headless captures and CI remain in use. A short input recording pins its starting content and checks replay determinism.
+Footage profiles, fixed source offers and the ROUNDS card catalog have been removed. Base-fight tuning, event-rule cards, original arenas and production online play remain ahead.
 
 ## M1 — The MVP: a real match, online with friends
 

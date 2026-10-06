@@ -22,7 +22,8 @@ out/cargo-target/debug/quarrel-client capture --seed 38 --ticks 30 --output out/
 
 Cargo uses two jobs and the reusable `out/cargo-target` directory from `.cargo/config.toml`.
 The smoke runs an authority and two UDP clients through ordinary drafts, checking progressive snapshots and final state agreement.
-`assets/replays/ordinary-match.json` contains player inputs for a short ordinary match; the simulation tests replay it twice and compare every snapshot.
+`assets/replays/ordinary-match.json` contains starting cards and arenas plus player inputs for a short ordinary match; the simulation tests replay it twice and compare every snapshot.
+Adding or editing live assets does not change that recording.
 Use `quarrel-client replay --input assets/replays/ordinary-match.json` to print its final authority snapshot.
 
 ## Play locally
@@ -30,6 +31,8 @@ Use `quarrel-client replay --input assets/replays/ordinary-match.json` to print 
 ```powershell
 out/cargo-target/debug/quarrel-client visible-flow --seed 38 --ticks 18000
 ```
+
+Capture metadata includes executable, PNG and state hashes. `capture --metadata` and scripted `remote --render-output --render-metadata` retain provenance; PNG and metadata paths must differ.
 
 Project windows open hidden and appear only after placement on monitor four is verified.
 
@@ -53,6 +56,7 @@ out/cargo-target/debug/quarrel-client join --address 127.0.0.1:41000 --client 0 
 out/cargo-target/debug/quarrel-client join --address 127.0.0.1:41000 --client 1 --ticks 18000
 ```
 
+Local keyboard/controller presentation and paced live sessions support the shipped two fighters. The general simulation and scripted transport also accept other fighter counts.
 Direct-IP UDP development sessions use one authority. Steam invitations and prediction are later MVP tickets.
 
 ## Card data and match configuration

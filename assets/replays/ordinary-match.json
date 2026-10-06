@@ -6,6 +6,4243 @@
     "run_it_back_limit": 2,
     "seed": 38
   },
+  "content": {
+    "cards": [
+      {
+        "id": 533296276972003695,
+        "title": "Impact",
+        "rules": [
+          "Shots deal 20 more damage."
+        ],
+        "palette_rgb": [
+          90,
+          190,
+          160
+        ],
+        "modifiers": {
+          "dazzle_stun_pulses": 0,
+          "dazzle_stun_ticks": 0,
+          "explosion_radius_milli": 0,
+          "explosion_impulse_milli": 0,
+          "fire_cooldown_extra_ticks": 0,
+          "projectile_speed_factor": {
+            "milli": 1000
+          },
+          "health_bonus": 0,
+          "damage_bonus": 20,
+          "movement_bonus": 0
+        }
+      },
+      {
+        "id": 1101697646798369389,
+        "title": "Reserve",
+        "rules": [
+          "Gain 10 health and 10 damage."
+        ],
+        "palette_rgb": [
+          90,
+          190,
+          160
+        ],
+        "modifiers": {
+          "dazzle_stun_pulses": 0,
+          "dazzle_stun_ticks": 0,
+          "explosion_radius_milli": 0,
+          "explosion_impulse_milli": 0,
+          "fire_cooldown_extra_ticks": 0,
+          "projectile_speed_factor": {
+            "milli": 1000
+          },
+          "health_bonus": 10,
+          "damage_bonus": 10,
+          "movement_bonus": 0
+        }
+      },
+      {
+        "id": 14114772733218045970,
+        "title": "Stamina",
+        "rules": [
+          "Gain 20 health."
+        ],
+        "palette_rgb": [
+          90,
+          190,
+          160
+        ],
+        "modifiers": {
+          "dazzle_stun_pulses": 0,
+          "dazzle_stun_ticks": 0,
+          "explosion_radius_milli": 0,
+          "explosion_impulse_milli": 0,
+          "fire_cooldown_extra_ticks": 0,
+          "projectile_speed_factor": {
+            "milli": 1000
+          },
+          "health_bonus": 20,
+          "damage_bonus": 0,
+          "movement_bonus": 0
+        }
+      },
+      {
+        "id": 15846630011584951766,
+        "title": "Stride",
+        "rules": [
+          "Run 25 units per second faster."
+        ],
+        "palette_rgb": [
+          90,
+          190,
+          160
+        ],
+        "modifiers": {
+          "dazzle_stun_pulses": 0,
+          "dazzle_stun_ticks": 0,
+          "explosion_radius_milli": 0,
+          "explosion_impulse_milli": 0,
+          "fire_cooldown_extra_ticks": 0,
+          "projectile_speed_factor": {
+            "milli": 1000
+          },
+          "health_bonus": 0,
+          "damage_bonus": 0,
+          "movement_bonus": 25
+        }
+      },
+      {
+        "id": 2490825524433594493,
+        "title": "Velocity",
+        "rules": [
+          "Shots travel 20 percent faster."
+        ],
+        "palette_rgb": [
+          90,
+          190,
+          160
+        ],
+        "modifiers": {
+          "dazzle_stun_pulses": 0,
+          "dazzle_stun_ticks": 0,
+          "explosion_radius_milli": 0,
+          "explosion_impulse_milli": 0,
+          "fire_cooldown_extra_ticks": 0,
+          "projectile_speed_factor": {
+            "milli": 1200
+          },
+          "health_bonus": 0,
+          "damage_bonus": 0,
+          "movement_bonus": 0
+        }
+      }
+    ],
+    "arenas": [
+      {
+        "name": "Workshop",
+        "frame": [
+          -640.0,
+          -360.0,
+          640.0,
+          360.0
+        ],
+        "spawns": [
+          [
+            -500.0,
+            -240.0
+          ],
+          [
+            500.0,
+            -240.0
+          ],
+          [
+            -350.0,
+            -240.0
+          ],
+          [
+            350.0,
+            -240.0
+          ]
+        ],
+        "objects": [
+          {
+            "id": 0,
+            "position": [
+              0.0,
+              -300.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Rectangle": {
+                "size": [
+                  1240.0,
+                  40.0
+                ]
+              }
+            },
+            "kind": "Solid",
+            "color": [
+              62,
+              170,
+              177
+            ],
+            "mass": 1.0,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 1,
+            "position": [
+              -400.0,
+              -100.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Circle": {
+                "radius": 40.0
+              }
+            },
+            "kind": "Solid",
+            "color": [
+              62,
+              170,
+              177
+            ],
+            "mass": 1.0,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 2,
+            "position": [
+              400.0,
+              -100.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Polygon": {
+                "vertices": [
+                  [
+                    -50.0,
+                    -20.0
+                  ],
+                  [
+                    50.0,
+                    -20.0
+                  ],
+                  [
+                    0.0,
+                    40.0
+                  ]
+                ]
+              }
+            },
+            "kind": "Solid",
+            "color": [
+              62,
+              170,
+              177
+            ],
+            "mass": 1.0,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 3,
+            "position": [
+              -220.0,
+              -210.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Rectangle": {
+                "size": [
+                  40.0,
+                  40.0
+                ]
+              }
+            },
+            "kind": "Loose",
+            "color": [
+              195,
+              139,
+              69
+            ],
+            "mass": 2.0,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 4,
+            "position": [
+              220.0,
+              -210.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Circle": {
+                "radius": 22.0
+              }
+            },
+            "kind": "Loose",
+            "color": [
+              195,
+              139,
+              69
+            ],
+            "mass": 2.0,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 5,
+            "position": [
+              -100.0,
+              90.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Rectangle": {
+                "size": [
+                  48.0,
+                  30.0
+                ]
+              }
+            },
+            "kind": {
+              "Breakable": {
+                "loose": true
+              }
+            },
+            "color": [
+              226,
+              108,
+              102
+            ],
+            "mass": 1.0,
+            "health": 50,
+            "motion": null
+          },
+          {
+            "id": 6,
+            "position": [
+              -100.0,
+              10.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Circle": {
+                "radius": 18.0
+              }
+            },
+            "kind": "Loose",
+            "color": [
+              195,
+              139,
+              69
+            ],
+            "mass": 1.0,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 7,
+            "position": [
+              0.0,
+              210.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Rectangle": {
+                "size": [
+                  180.0,
+                  40.0
+                ]
+              }
+            },
+            "kind": "Background",
+            "color": [
+              31,
+              66,
+              75
+            ],
+            "mass": 1.0,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 8,
+            "position": [
+              110.0,
+              60.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Circle": {
+                "radius": 28.0
+              }
+            },
+            "kind": {
+              "Saw": {
+                "loose": false,
+                "teeth": 10,
+                "angular_velocity": 3.0
+              }
+            },
+            "color": [
+              230,
+              230,
+              218
+            ],
+            "mass": 1.0,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 9,
+            "position": [
+              280.0,
+              140.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Circle": {
+                "radius": 25.0
+              }
+            },
+            "kind": {
+              "Saw": {
+                "loose": true,
+                "teeth": 8,
+                "angular_velocity": 4.0
+              }
+            },
+            "color": [
+              230,
+              230,
+              218
+            ],
+            "mass": 1.5,
+            "health": null,
+            "motion": null
+          },
+          {
+            "id": 10,
+            "position": [
+              0.0,
+              -150.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Rectangle": {
+                "size": [
+                  90.0,
+                  16.0
+                ]
+              }
+            },
+            "kind": "Solid",
+            "color": [
+              99,
+              177,
+              122
+            ],
+            "mass": 1.0,
+            "health": null,
+            "motion": {
+              "path": [
+                [
+                  0.0,
+                  0.0
+                ],
+                [
+                  120.0,
+                  0.0
+                ]
+              ],
+              "period_seconds": 2.0,
+              "angular_velocity": 0.0
+            }
+          },
+          {
+            "id": 11,
+            "position": [
+              -320.0,
+              180.0
+            ],
+            "rotation": 0.0,
+            "shape": {
+              "Rectangle": {
+                "size": [
+                  90.0,
+                  16.0
+                ]
+              }
+            },
+            "kind": "Solid",
+            "color": [
+              99,
+              177,
+              122
+            ],
+            "mass": 1.0,
+            "health": null,
+            "motion": {
+              "path": [],
+              "period_seconds": 2.0,
+              "angular_velocity": 1.0
+            }
+          }
+        ],
+        "chains": [
+          {
+            "id": 0,
+            "body_a": null,
+            "body_b": 5,
+            "anchor": [
+              -100.0,
+              220.0
+            ],
+            "length": 130.0
+          },
+          {
+            "id": 1,
+            "body_a": 5,
+            "body_b": 6,
+            "anchor": [
+              0.0,
+              0.0
+            ],
+            "length": 80.0
+          }
+        ],
+        "surfaces": [],
+        "legacy_bodies": [],
+        "legacy_saws": []
+      },
+      {
+        "name": "draft",
+        "frame": [
+          -900.0,
+          -480.0,
+          900.0,
+          480.0
+        ],
+        "spawns": [
+          [
+            -500.0,
+            -150.0
+          ],
+          [
+            500.0,
+            -150.0
+          ]
+        ],
+        "objects": [],
+        "chains": [],
+        "surfaces": [
+          {
+            "outlineMilli": [],
+            "id": 0,
+            "centerXMilli": -520000,
+            "centerYMilli": -210000,
+            "widthMilli": 170000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 1,
+            "centerXMilli": -260000,
+            "centerYMilli": -40000,
+            "widthMilli": 140000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 2,
+            "centerXMilli": 0,
+            "centerYMilli": -210000,
+            "widthMilli": 145000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 3,
+            "centerXMilli": 260000,
+            "centerYMilli": -40000,
+            "widthMilli": 140000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 4,
+            "centerXMilli": 520000,
+            "centerYMilli": -210000,
+            "widthMilli": 170000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 5,
+            "centerXMilli": -390000,
+            "centerYMilli": 140000,
+            "widthMilli": 130000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 6,
+            "centerXMilli": 0,
+            "centerYMilli": 190000,
+            "widthMilli": 150000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 7,
+            "centerXMilli": 390000,
+            "centerYMilli": 140000,
+            "widthMilli": 130000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 8,
+            "centerXMilli": 0,
+            "centerYMilli": -20000,
+            "widthMilli": 100000,
+            "heightMilli": 40000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              252,
+              224,
+              0
+            ]
+          }
+        ],
+        "legacy_bodies": [],
+        "legacy_saws": []
+      },
+      {
+        "name": "ice",
+        "frame": [
+          -900.0,
+          -480.0,
+          900.0,
+          480.0
+        ],
+        "spawns": [
+          [
+            -529.0,
+            -102.0
+          ],
+          [
+            519.0,
+            -102.0
+          ]
+        ],
+        "objects": [],
+        "chains": [],
+        "surfaces": [
+          {
+            "outlineMilli": [
+              [
+                -25000,
+                29000
+              ],
+              [
+                -21000,
+                22000
+              ],
+              [
+                -21000,
+                -27000
+              ],
+              [
+                -25000,
+                -34000
+              ],
+              [
+                -25000,
+                -51000
+              ],
+              [
+                26000,
+                -51000
+              ],
+              [
+                26000,
+                -34000
+              ],
+              [
+                22000,
+                -27000
+              ],
+              [
+                22000,
+                22000
+              ],
+              [
+                26000,
+                29000
+              ],
+              [
+                26000,
+                51000
+              ],
+              [
+                -25000,
+                51000
+              ]
+            ],
+            "id": 40,
+            "centerXMilli": -163000,
+            "centerYMilli": 182000,
+            "widthMilli": 51000,
+            "heightMilli": 102000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -25000,
+                29000
+              ],
+              [
+                -21000,
+                22000
+              ],
+              [
+                -21000,
+                -27000
+              ],
+              [
+                -25000,
+                -34000
+              ],
+              [
+                -25000,
+                -51000
+              ],
+              [
+                26000,
+                -51000
+              ],
+              [
+                26000,
+                -34000
+              ],
+              [
+                22000,
+                -27000
+              ],
+              [
+                22000,
+                22000
+              ],
+              [
+                26000,
+                29000
+              ],
+              [
+                26000,
+                51000
+              ],
+              [
+                -25000,
+                51000
+              ]
+            ],
+            "id": 41,
+            "centerXMilli": 162000,
+            "centerYMilli": 182000,
+            "widthMilli": 51000,
+            "heightMilli": 102000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -43000,
+                -9000
+              ],
+              [
+                -31000,
+                -24000
+              ],
+              [
+                31000,
+                -24000
+              ],
+              [
+                44000,
+                -9000
+              ],
+              [
+                44000,
+                24000
+              ],
+              [
+                -43000,
+                24000
+              ]
+            ],
+            "id": 42,
+            "centerXMilli": -1000,
+            "centerYMilli": 153000,
+            "widthMilli": 87000,
+            "heightMilli": 48000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -43000,
+                -10000
+              ],
+              [
+                -29000,
+                -25000
+              ],
+              [
+                29000,
+                -25000
+              ],
+              [
+                43000,
+                -10000
+              ],
+              [
+                43000,
+                24000
+              ],
+              [
+                -43000,
+                24000
+              ]
+            ],
+            "id": 43,
+            "centerXMilli": -281000,
+            "centerYMilli": 64000,
+            "widthMilli": 86000,
+            "heightMilli": 49000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -43000,
+                -10000
+              ],
+              [
+                -29000,
+                -25000
+              ],
+              [
+                29000,
+                -25000
+              ],
+              [
+                43000,
+                -10000
+              ],
+              [
+                43000,
+                24000
+              ],
+              [
+                -43000,
+                24000
+              ]
+            ],
+            "id": 44,
+            "centerXMilli": 281000,
+            "centerYMilli": 64000,
+            "widthMilli": 86000,
+            "heightMilli": 49000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -70000,
+                -14000
+              ],
+              [
+                -59000,
+                -31000
+              ],
+              [
+                59000,
+                -31000
+              ],
+              [
+                70000,
+                -14000
+              ],
+              [
+                70000,
+                30000
+              ],
+              [
+                -70000,
+                30000
+              ]
+            ],
+            "id": 45,
+            "centerXMilli": 0,
+            "centerYMilli": 36000,
+            "widthMilli": 140000,
+            "heightMilli": 61000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -43000,
+                -9000
+              ],
+              [
+                -29000,
+                -25000
+              ],
+              [
+                30000,
+                -25000
+              ],
+              [
+                44000,
+                -9000
+              ],
+              [
+                44000,
+                24000
+              ],
+              [
+                -43000,
+                24000
+              ]
+            ],
+            "id": 46,
+            "centerXMilli": -433000,
+            "centerYMilli": -37000,
+            "widthMilli": 87000,
+            "heightMilli": 49000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -43000,
+                -9000
+              ],
+              [
+                -29000,
+                -25000
+              ],
+              [
+                30000,
+                -25000
+              ],
+              [
+                44000,
+                -9000
+              ],
+              [
+                44000,
+                24000
+              ],
+              [
+                -43000,
+                24000
+              ]
+            ],
+            "id": 47,
+            "centerXMilli": 433000,
+            "centerYMilli": -37000,
+            "widthMilli": 87000,
+            "heightMilli": 49000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -25000,
+                59000
+              ],
+              [
+                -21000,
+                53000
+              ],
+              [
+                -21000,
+                -55000
+              ],
+              [
+                -25000,
+                -62000
+              ],
+              [
+                -25000,
+                -81000
+              ],
+              [
+                26000,
+                -81000
+              ],
+              [
+                26000,
+                -62000
+              ],
+              [
+                22000,
+                -55000
+              ],
+              [
+                22000,
+                53000
+              ],
+              [
+                26000,
+                59000
+              ],
+              [
+                26000,
+                81000
+              ],
+              [
+                -25000,
+                81000
+              ]
+            ],
+            "id": 48,
+            "centerXMilli": -163000,
+            "centerYMilli": -92000,
+            "widthMilli": 51000,
+            "heightMilli": 162000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -25000,
+                59000
+              ],
+              [
+                -21000,
+                53000
+              ],
+              [
+                -21000,
+                -55000
+              ],
+              [
+                -25000,
+                -62000
+              ],
+              [
+                -25000,
+                -81000
+              ],
+              [
+                26000,
+                -81000
+              ],
+              [
+                26000,
+                -62000
+              ],
+              [
+                22000,
+                -55000
+              ],
+              [
+                22000,
+                53000
+              ],
+              [
+                26000,
+                59000
+              ],
+              [
+                26000,
+                81000
+              ],
+              [
+                -25000,
+                81000
+              ]
+            ],
+            "id": 49,
+            "centerXMilli": 162000,
+            "centerYMilli": -92000,
+            "widthMilli": 51000,
+            "heightMilli": 162000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -29000,
+                47000
+              ],
+              [
+                -52000,
+                25000
+              ],
+              [
+                -52000,
+                -163000
+              ],
+              [
+                52000,
+                -163000
+              ],
+              [
+                52000,
+                26000
+              ],
+              [
+                33000,
+                47000
+              ],
+              [
+                33000,
+                163000
+              ],
+              [
+                -29000,
+                163000
+              ]
+            ],
+            "id": 50,
+            "centerXMilli": -543000,
+            "centerYMilli": -277000,
+            "widthMilli": 104000,
+            "heightMilli": 326000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -32000,
+                47000
+              ],
+              [
+                -51000,
+                25000
+              ],
+              [
+                -51000,
+                -163000
+              ],
+              [
+                51000,
+                -163000
+              ],
+              [
+                51000,
+                26000
+              ],
+              [
+                32000,
+                47000
+              ],
+              [
+                32000,
+                163000
+              ],
+              [
+                -32000,
+                163000
+              ]
+            ],
+            "id": 51,
+            "centerXMilli": 541000,
+            "centerYMilli": -277000,
+            "widthMilli": 102000,
+            "heightMilli": 326000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -30000,
+                47000
+              ],
+              [
+                -50000,
+                25000
+              ],
+              [
+                -50000,
+                -163000
+              ],
+              [
+                51000,
+                -163000
+              ],
+              [
+                51000,
+                26000
+              ],
+              [
+                33000,
+                47000
+              ],
+              [
+                33000,
+                163000
+              ],
+              [
+                -30000,
+                163000
+              ]
+            ],
+            "id": 52,
+            "centerXMilli": -326000,
+            "centerYMilli": -277000,
+            "widthMilli": 101000,
+            "heightMilli": 326000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -31000,
+                47000
+              ],
+              [
+                -50000,
+                25000
+              ],
+              [
+                -50000,
+                -163000
+              ],
+              [
+                51000,
+                -163000
+              ],
+              [
+                51000,
+                26000
+              ],
+              [
+                32000,
+                47000
+              ],
+              [
+                32000,
+                163000
+              ],
+              [
+                -31000,
+                163000
+              ]
+            ],
+            "id": 53,
+            "centerXMilli": 324000,
+            "centerYMilli": -277000,
+            "widthMilli": 101000,
+            "heightMilli": 326000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -26000,
+                -11000
+              ],
+              [
+                0,
+                -37000
+              ],
+              [
+                26000,
+                -11000
+              ],
+              [
+                26000,
+                37000
+              ],
+              [
+                -26000,
+                37000
+              ]
+            ],
+            "id": 54,
+            "centerXMilli": -433000,
+            "centerYMilli": -181000,
+            "widthMilli": 52000,
+            "heightMilli": 74000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -26000,
+                -11000
+              ],
+              [
+                0,
+                -37000
+              ],
+              [
+                26000,
+                -11000
+              ],
+              [
+                26000,
+                37000
+              ],
+              [
+                -26000,
+                37000
+              ]
+            ],
+            "id": 55,
+            "centerXMilli": 433000,
+            "centerYMilli": -181000,
+            "widthMilli": 52000,
+            "heightMilli": 74000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -215000,
+                -182000
+              ],
+              [
+                215000,
+                -182000
+              ],
+              [
+                215000,
+                7000
+              ],
+              [
+                110000,
+                7000
+              ],
+              [
+                70000,
+                46000
+              ],
+              [
+                70000,
+                138000
+              ],
+              [
+                59000,
+                147000
+              ],
+              [
+                43000,
+                147000
+              ],
+              [
+                43000,
+                169000
+              ],
+              [
+                30000,
+                181000
+              ],
+              [
+                -31000,
+                181000
+              ],
+              [
+                -44000,
+                169000
+              ],
+              [
+                -44000,
+                147000
+              ],
+              [
+                -59000,
+                147000
+              ],
+              [
+                -70000,
+                138000
+              ],
+              [
+                -70000,
+                46000
+              ],
+              [
+                -109000,
+                7000
+              ],
+              [
+                -215000,
+                7000
+              ]
+            ],
+            "id": 56,
+            "centerXMilli": 0,
+            "centerYMilli": -258000,
+            "widthMilli": 430000,
+            "heightMilli": 363000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              223,
+              235,
+              229
+            ]
+          }
+        ],
+        "legacy_bodies": [],
+        "legacy_saws": []
+      },
+      {
+        "name": "lime",
+        "frame": [
+          -900.0,
+          -480.0,
+          900.0,
+          480.0
+        ],
+        "spawns": [
+          [
+            -405.0,
+            -58.0
+          ],
+          [
+            405.0,
+            -58.0
+          ]
+        ],
+        "objects": [],
+        "chains": [],
+        "surfaces": [
+          {
+            "outlineMilli": [
+              [
+                -58000,
+                50000
+              ],
+              [
+                -32000,
+                24000
+              ],
+              [
+                -18000,
+                24000
+              ],
+              [
+                -18000,
+                -79000
+              ],
+              [
+                18000,
+                -79000
+              ],
+              [
+                18000,
+                24000
+              ],
+              [
+                32000,
+                24000
+              ],
+              [
+                58000,
+                50000
+              ],
+              [
+                58000,
+                78000
+              ],
+              [
+                -58000,
+                78000
+              ]
+            ],
+            "id": 0,
+            "centerXMilli": -540000,
+            "centerYMilli": -83000,
+            "widthMilli": 116000,
+            "heightMilli": 157000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -58000,
+                50000
+              ],
+              [
+                -32000,
+                24000
+              ],
+              [
+                -18000,
+                24000
+              ],
+              [
+                -18000,
+                -79000
+              ],
+              [
+                18000,
+                -79000
+              ],
+              [
+                18000,
+                24000
+              ],
+              [
+                32000,
+                24000
+              ],
+              [
+                58000,
+                50000
+              ],
+              [
+                58000,
+                78000
+              ],
+              [
+                -58000,
+                78000
+              ]
+            ],
+            "id": 1,
+            "centerXMilli": -270000,
+            "centerYMilli": -83000,
+            "widthMilli": 116000,
+            "heightMilli": 157000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -58000,
+                50000
+              ],
+              [
+                -32000,
+                24000
+              ],
+              [
+                -18000,
+                24000
+              ],
+              [
+                -18000,
+                -79000
+              ],
+              [
+                18000,
+                -79000
+              ],
+              [
+                18000,
+                24000
+              ],
+              [
+                32000,
+                24000
+              ],
+              [
+                58000,
+                50000
+              ],
+              [
+                58000,
+                78000
+              ],
+              [
+                -58000,
+                78000
+              ]
+            ],
+            "id": 2,
+            "centerXMilli": 0,
+            "centerYMilli": -83000,
+            "widthMilli": 116000,
+            "heightMilli": 157000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -58000,
+                50000
+              ],
+              [
+                -32000,
+                24000
+              ],
+              [
+                -18000,
+                24000
+              ],
+              [
+                -18000,
+                -79000
+              ],
+              [
+                18000,
+                -79000
+              ],
+              [
+                18000,
+                24000
+              ],
+              [
+                32000,
+                24000
+              ],
+              [
+                58000,
+                50000
+              ],
+              [
+                58000,
+                78000
+              ],
+              [
+                -58000,
+                78000
+              ]
+            ],
+            "id": 3,
+            "centerXMilli": 270000,
+            "centerYMilli": -83000,
+            "widthMilli": 116000,
+            "heightMilli": 157000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -58000,
+                50000
+              ],
+              [
+                -32000,
+                24000
+              ],
+              [
+                -18000,
+                24000
+              ],
+              [
+                -18000,
+                -79000
+              ],
+              [
+                18000,
+                -79000
+              ],
+              [
+                18000,
+                24000
+              ],
+              [
+                32000,
+                24000
+              ],
+              [
+                58000,
+                50000
+              ],
+              [
+                58000,
+                78000
+              ],
+              [
+                -58000,
+                78000
+              ]
+            ],
+            "id": 4,
+            "centerXMilli": 540000,
+            "centerYMilli": -83000,
+            "widthMilli": 116000,
+            "heightMilli": 157000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                -69000
+              ],
+              [
+                18000,
+                -69000
+              ],
+              [
+                18000,
+                69000
+              ],
+              [
+                -18000,
+                69000
+              ]
+            ],
+            "id": 5,
+            "centerXMilli": -405000,
+            "centerYMilli": -150000,
+            "widthMilli": 36000,
+            "heightMilli": 138000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                -69000
+              ],
+              [
+                18000,
+                -69000
+              ],
+              [
+                18000,
+                69000
+              ],
+              [
+                -18000,
+                69000
+              ]
+            ],
+            "id": 6,
+            "centerXMilli": -127000,
+            "centerYMilli": -150000,
+            "widthMilli": 36000,
+            "heightMilli": 138000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                -69000
+              ],
+              [
+                18000,
+                -69000
+              ],
+              [
+                18000,
+                69000
+              ],
+              [
+                -18000,
+                69000
+              ]
+            ],
+            "id": 7,
+            "centerXMilli": 125000,
+            "centerYMilli": -150000,
+            "widthMilli": 36000,
+            "heightMilli": 138000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                -69000
+              ],
+              [
+                18000,
+                -69000
+              ],
+              [
+                18000,
+                69000
+              ],
+              [
+                -18000,
+                69000
+              ]
+            ],
+            "id": 8,
+            "centerXMilli": 405000,
+            "centerYMilli": -150000,
+            "widthMilli": 36000,
+            "heightMilli": 138000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                18000
+              ],
+              [
+                -54000,
+                18000
+              ],
+              [
+                -54000,
+                -21000
+              ],
+              [
+                -18000,
+                -21000
+              ],
+              [
+                -18000,
+                -55000
+              ],
+              [
+                19000,
+                -55000
+              ],
+              [
+                19000,
+                -21000
+              ],
+              [
+                55000,
+                -21000
+              ],
+              [
+                55000,
+                18000
+              ],
+              [
+                19000,
+                18000
+              ],
+              [
+                19000,
+                54000
+              ],
+              [
+                -18000,
+                54000
+              ]
+            ],
+            "id": 9,
+            "centerXMilli": -541000,
+            "centerYMilli": -305000,
+            "widthMilli": 109000,
+            "heightMilli": 109000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                18000
+              ],
+              [
+                -54000,
+                18000
+              ],
+              [
+                -54000,
+                -21000
+              ],
+              [
+                -18000,
+                -21000
+              ],
+              [
+                -18000,
+                -55000
+              ],
+              [
+                19000,
+                -55000
+              ],
+              [
+                19000,
+                -21000
+              ],
+              [
+                55000,
+                -21000
+              ],
+              [
+                55000,
+                18000
+              ],
+              [
+                19000,
+                18000
+              ],
+              [
+                19000,
+                54000
+              ],
+              [
+                -18000,
+                54000
+              ]
+            ],
+            "id": 10,
+            "centerXMilli": -271000,
+            "centerYMilli": -305000,
+            "widthMilli": 109000,
+            "heightMilli": 109000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                18000
+              ],
+              [
+                -54000,
+                18000
+              ],
+              [
+                -54000,
+                -21000
+              ],
+              [
+                -18000,
+                -21000
+              ],
+              [
+                -18000,
+                -55000
+              ],
+              [
+                19000,
+                -55000
+              ],
+              [
+                19000,
+                -21000
+              ],
+              [
+                55000,
+                -21000
+              ],
+              [
+                55000,
+                18000
+              ],
+              [
+                19000,
+                18000
+              ],
+              [
+                19000,
+                54000
+              ],
+              [
+                -18000,
+                54000
+              ]
+            ],
+            "id": 11,
+            "centerXMilli": -1000,
+            "centerYMilli": -305000,
+            "widthMilli": 109000,
+            "heightMilli": 109000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                18000
+              ],
+              [
+                -54000,
+                18000
+              ],
+              [
+                -54000,
+                -21000
+              ],
+              [
+                -18000,
+                -21000
+              ],
+              [
+                -18000,
+                -55000
+              ],
+              [
+                19000,
+                -55000
+              ],
+              [
+                19000,
+                -21000
+              ],
+              [
+                55000,
+                -21000
+              ],
+              [
+                55000,
+                18000
+              ],
+              [
+                19000,
+                18000
+              ],
+              [
+                19000,
+                54000
+              ],
+              [
+                -18000,
+                54000
+              ]
+            ],
+            "id": 12,
+            "centerXMilli": 269000,
+            "centerYMilli": -305000,
+            "widthMilli": 109000,
+            "heightMilli": 109000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                18000
+              ],
+              [
+                -54000,
+                18000
+              ],
+              [
+                -54000,
+                -21000
+              ],
+              [
+                -18000,
+                -21000
+              ],
+              [
+                -18000,
+                -55000
+              ],
+              [
+                19000,
+                -55000
+              ],
+              [
+                19000,
+                -21000
+              ],
+              [
+                55000,
+                -21000
+              ],
+              [
+                55000,
+                18000
+              ],
+              [
+                19000,
+                18000
+              ],
+              [
+                19000,
+                54000
+              ],
+              [
+                -18000,
+                54000
+              ]
+            ],
+            "id": 13,
+            "centerXMilli": 539000,
+            "centerYMilli": -305000,
+            "widthMilli": 109000,
+            "heightMilli": 109000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                -14000
+              ],
+              [
+                18000,
+                -14000
+              ],
+              [
+                18000,
+                13000
+              ],
+              [
+                -18000,
+                13000
+              ]
+            ],
+            "id": 14,
+            "centerXMilli": -405000,
+            "centerYMilli": -346000,
+            "widthMilli": 36000,
+            "heightMilli": 27000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                -14000
+              ],
+              [
+                18000,
+                -14000
+              ],
+              [
+                18000,
+                13000
+              ],
+              [
+                -18000,
+                13000
+              ]
+            ],
+            "id": 15,
+            "centerXMilli": -127000,
+            "centerYMilli": -346000,
+            "widthMilli": 36000,
+            "heightMilli": 27000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                -14000
+              ],
+              [
+                18000,
+                -14000
+              ],
+              [
+                18000,
+                13000
+              ],
+              [
+                -18000,
+                13000
+              ]
+            ],
+            "id": 16,
+            "centerXMilli": 125000,
+            "centerYMilli": -346000,
+            "widthMilli": 36000,
+            "heightMilli": 27000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [
+              [
+                -18000,
+                -14000
+              ],
+              [
+                18000,
+                -14000
+              ],
+              [
+                18000,
+                13000
+              ],
+              [
+                -18000,
+                13000
+              ]
+            ],
+            "id": 17,
+            "centerXMilli": 405000,
+            "centerYMilli": -346000,
+            "widthMilli": 36000,
+            "heightMilli": 27000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              45,
+              232,
+              199
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 18,
+            "centerXMilli": -540000,
+            "centerYMilli": 49000,
+            "widthMilli": 37000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 19,
+            "centerXMilli": -561000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 20,
+            "centerXMilli": -519000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 21,
+            "centerXMilli": -270000,
+            "centerYMilli": 49000,
+            "widthMilli": 37000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 22,
+            "centerXMilli": -291000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 23,
+            "centerXMilli": -249000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 24,
+            "centerXMilli": 0,
+            "centerYMilli": 49000,
+            "widthMilli": 37000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 25,
+            "centerXMilli": -21000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 26,
+            "centerXMilli": 21000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 27,
+            "centerXMilli": 270000,
+            "centerYMilli": 49000,
+            "widthMilli": 37000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 28,
+            "centerXMilli": 249000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 29,
+            "centerXMilli": 291000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 30,
+            "centerXMilli": 540000,
+            "centerYMilli": 49000,
+            "widthMilli": 37000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 31,
+            "centerXMilli": 519000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 32,
+            "centerXMilli": 561000,
+            "centerYMilli": 14000,
+            "widthMilli": 38000,
+            "heightMilli": 37000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              76,
+              81,
+              67
+            ]
+          }
+        ],
+        "legacy_bodies": [],
+        "legacy_saws": []
+      },
+      {
+        "name": "prior-match",
+        "frame": [
+          -900.0,
+          -480.0,
+          900.0,
+          480.0
+        ],
+        "spawns": [
+          [
+            -500.0,
+            -150.0
+          ],
+          [
+            500.0,
+            -150.0
+          ]
+        ],
+        "objects": [],
+        "chains": [],
+        "surfaces": [
+          {
+            "outlineMilli": [],
+            "id": 0,
+            "centerXMilli": -520000,
+            "centerYMilli": -260000,
+            "widthMilli": 210000,
+            "heightMilli": 48000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 1,
+            "centerXMilli": -310000,
+            "centerYMilli": -100000,
+            "widthMilli": 130000,
+            "heightMilli": 38000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 2,
+            "centerXMilli": -90000,
+            "centerYMilli": 55000,
+            "widthMilli": 120000,
+            "heightMilli": 38000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 3,
+            "centerXMilli": 170000,
+            "centerYMilli": -80000,
+            "widthMilli": 120000,
+            "heightMilli": 38000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 4,
+            "centerXMilli": 440000,
+            "centerYMilli": 90000,
+            "widthMilli": 150000,
+            "heightMilli": 42000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 5,
+            "centerXMilli": -420000,
+            "centerYMilli": 180000,
+            "widthMilli": 120000,
+            "heightMilli": 38000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 6,
+            "centerXMilli": -160000,
+            "centerYMilli": 255000,
+            "widthMilli": 145000,
+            "heightMilli": 40000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 7,
+            "centerXMilli": 110000,
+            "centerYMilli": 190000,
+            "widthMilli": 130000,
+            "heightMilli": 40000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 8,
+            "centerXMilli": 520000,
+            "centerYMilli": -230000,
+            "widthMilli": 180000,
+            "heightMilli": 45000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              248,
+              0,
+              78
+            ]
+          }
+        ],
+        "legacy_bodies": [],
+        "legacy_saws": []
+      },
+      {
+        "name": "radial-saw",
+        "frame": [
+          -900.0,
+          -480.0,
+          900.0,
+          480.0
+        ],
+        "spawns": [
+          [
+            -285.0,
+            118.0
+          ],
+          [
+            285.0,
+            118.0
+          ]
+        ],
+        "objects": [],
+        "chains": [],
+        "surfaces": [
+          {
+            "outlineMilli": [],
+            "id": 0,
+            "centerXMilli": -220000,
+            "centerYMilli": 72000,
+            "widthMilli": 286000,
+            "heightMilli": 52000,
+            "rotationMilliradians": 785,
+            "faceRgb": [
+              244,
+              248,
+              239
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 1,
+            "centerXMilli": 220000,
+            "centerYMilli": 72000,
+            "widthMilli": 220000,
+            "heightMilli": 52000,
+            "rotationMilliradians": -785,
+            "faceRgb": [
+              244,
+              248,
+              239
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 2,
+            "centerXMilli": -190000,
+            "centerYMilli": -154000,
+            "widthMilli": 214000,
+            "heightMilli": 52000,
+            "rotationMilliradians": -785,
+            "faceRgb": [
+              68,
+              221,
+              238
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 3,
+            "centerXMilli": 190000,
+            "centerYMilli": -154000,
+            "widthMilli": 214000,
+            "heightMilli": 52000,
+            "rotationMilliradians": 785,
+            "faceRgb": [
+              68,
+              221,
+              238
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 4,
+            "centerXMilli": 0,
+            "centerYMilli": 176000,
+            "widthMilli": 72000,
+            "heightMilli": 72000,
+            "rotationMilliradians": 785,
+            "faceRgb": [
+              244,
+              248,
+              239
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 5,
+            "centerXMilli": 0,
+            "centerYMilli": -178000,
+            "widthMilli": 58000,
+            "heightMilli": 58000,
+            "rotationMilliradians": 785,
+            "faceRgb": [
+              68,
+              221,
+              238
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 6,
+            "centerXMilli": -273000,
+            "centerYMilli": 173000,
+            "widthMilli": 494000,
+            "heightMilli": 76000,
+            "rotationMilliradians": 776,
+            "faceRgb": [
+              3,
+              23,
+              51
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 7,
+            "centerXMilli": -276000,
+            "centerYMilli": -176000,
+            "widthMilli": 650000,
+            "heightMilli": 76000,
+            "rotationMilliradians": -794,
+            "faceRgb": [
+              3,
+              23,
+              51
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 8,
+            "centerXMilli": 276000,
+            "centerYMilli": -205000,
+            "widthMilli": 650000,
+            "heightMilli": 76000,
+            "rotationMilliradians": 794,
+            "faceRgb": [
+              3,
+              23,
+              51
+            ]
+          }
+        ],
+        "legacy_bodies": [],
+        "legacy_saws": [
+          {
+            "id": 200,
+            "position": [
+              0.0,
+              0.0
+            ],
+            "radius": 82.0,
+            "teeth": 8,
+            "initial_angle": 0.18,
+            "angular_velocity": 7.43
+          },
+          {
+            "id": 201,
+            "position": [
+              0.0,
+              -348.0
+            ],
+            "radius": 76.0,
+            "teeth": 8,
+            "initial_angle": 0.51,
+            "angular_velocity": 7.43
+          }
+        ]
+      },
+      {
+        "name": "teal",
+        "frame": [
+          -900.0,
+          -480.0,
+          900.0,
+          480.0
+        ],
+        "spawns": [
+          [
+            -520.0,
+            -134.0
+          ],
+          [
+            520.0,
+            -134.0
+          ]
+        ],
+        "objects": [],
+        "chains": [],
+        "surfaces": [
+          {
+            "outlineMilli": [],
+            "id": 0,
+            "centerXMilli": -520000,
+            "centerYMilli": -170000,
+            "widthMilli": 92000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              44,
+              232,
+              207
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 1,
+            "centerXMilli": -390000,
+            "centerYMilli": -58000,
+            "widthMilli": 82000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              104,
+              239,
+              133
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 2,
+            "centerXMilli": -260000,
+            "centerYMilli": 36000,
+            "widthMilli": 76000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              44,
+              232,
+              207
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 3,
+            "centerXMilli": -130000,
+            "centerYMilli": -58000,
+            "widthMilli": 72000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              104,
+              239,
+              133
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 4,
+            "centerXMilli": -40000,
+            "centerYMilli": 36000,
+            "widthMilli": 72000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              44,
+              232,
+              207
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 5,
+            "centerXMilli": 40000,
+            "centerYMilli": 36000,
+            "widthMilli": 72000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              104,
+              239,
+              133
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 6,
+            "centerXMilli": 130000,
+            "centerYMilli": -58000,
+            "widthMilli": 72000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              44,
+              232,
+              207
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 7,
+            "centerXMilli": 260000,
+            "centerYMilli": 36000,
+            "widthMilli": 76000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              104,
+              239,
+              133
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 8,
+            "centerXMilli": 390000,
+            "centerYMilli": -58000,
+            "widthMilli": 82000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              44,
+              232,
+              207
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 9,
+            "centerXMilli": 520000,
+            "centerYMilli": -170000,
+            "widthMilli": 92000,
+            "heightMilli": 24000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              104,
+              239,
+              133
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 10,
+            "centerXMilli": -520000,
+            "centerYMilli": -286000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 11,
+            "centerXMilli": -390000,
+            "centerYMilli": -230000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 12,
+            "centerXMilli": -260000,
+            "centerYMilli": -190000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 13,
+            "centerXMilli": -130000,
+            "centerYMilli": -230000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 14,
+            "centerXMilli": 0,
+            "centerYMilli": -190000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 15,
+            "centerXMilli": 130000,
+            "centerYMilli": -230000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 16,
+            "centerXMilli": 260000,
+            "centerYMilli": -190000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 17,
+            "centerXMilli": 390000,
+            "centerYMilli": -230000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 18,
+            "centerXMilli": 520000,
+            "centerYMilli": -286000,
+            "widthMilli": 58000,
+            "heightMilli": 32000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              91,
+              99,
+              76
+            ]
+          }
+        ],
+        "legacy_bodies": [],
+        "legacy_saws": []
+      },
+      {
+        "name": "timber",
+        "frame": [
+          -900.0,
+          -480.0,
+          900.0,
+          480.0
+        ],
+        "spawns": [
+          [
+            -500.0,
+            -210.0
+          ],
+          [
+            500.0,
+            -210.0
+          ]
+        ],
+        "objects": [],
+        "chains": [],
+        "surfaces": [
+          {
+            "outlineMilli": [],
+            "id": 0,
+            "centerXMilli": 0,
+            "centerYMilli": -300000,
+            "widthMilli": 1600000,
+            "heightMilli": 60000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              246,
+              0,
+              79
+            ]
+          }
+        ],
+        "legacy_bodies": [
+          {
+            "id": 0,
+            "shape": "timber",
+            "position": [
+              -210.0,
+              -236.0
+            ],
+            "rotation": 0.0,
+            "width": 260.0,
+            "height": 30.0,
+            "radius": 0.0,
+            "face_rgb": [
+              83,
+              28,
+              39
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 1,
+            "shape": "timber",
+            "position": [
+              210.0,
+              -236.0
+            ],
+            "rotation": 0.0,
+            "width": 260.0,
+            "height": 30.0,
+            "radius": 0.0,
+            "face_rgb": [
+              83,
+              28,
+              39
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 2,
+            "shape": "timber",
+            "position": [
+              -322.0,
+              -151.0
+            ],
+            "rotation": 0.0,
+            "width": 30.0,
+            "height": 170.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 3,
+            "shape": "timber",
+            "position": [
+              -102.0,
+              -151.0
+            ],
+            "rotation": 0.0,
+            "width": 30.0,
+            "height": 170.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 4,
+            "shape": "timber",
+            "position": [
+              102.0,
+              -151.0
+            ],
+            "rotation": 0.0,
+            "width": 30.0,
+            "height": 170.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 5,
+            "shape": "timber",
+            "position": [
+              322.0,
+              -151.0
+            ],
+            "rotation": 0.0,
+            "width": 30.0,
+            "height": 170.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 6,
+            "shape": "timber",
+            "position": [
+              -212.0,
+              -58.0
+            ],
+            "rotation": 0.0,
+            "width": 250.0,
+            "height": 30.0,
+            "radius": 0.0,
+            "face_rgb": [
+              83,
+              28,
+              39
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 7,
+            "shape": "timber",
+            "position": [
+              212.0,
+              -58.0
+            ],
+            "rotation": 0.0,
+            "width": 250.0,
+            "height": 30.0,
+            "radius": 0.0,
+            "face_rgb": [
+              83,
+              28,
+              39
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 8,
+            "shape": "timber",
+            "position": [
+              -102.0,
+              20.0
+            ],
+            "rotation": 0.0,
+            "width": 30.0,
+            "height": 140.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 9,
+            "shape": "timber",
+            "position": [
+              102.0,
+              20.0
+            ],
+            "rotation": 0.0,
+            "width": 30.0,
+            "height": 140.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 10,
+            "shape": "timber",
+            "position": [
+              -205.0,
+              85.0
+            ],
+            "rotation": 0.42,
+            "width": 230.0,
+            "height": 28.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 11,
+            "shape": "timber",
+            "position": [
+              205.0,
+              85.0
+            ],
+            "rotation": -0.42,
+            "width": 230.0,
+            "height": 28.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 12,
+            "shape": "timber",
+            "position": [
+              -72.0,
+              154.0
+            ],
+            "rotation": 0.0,
+            "width": 160.0,
+            "height": 27.0,
+            "radius": 0.0,
+            "face_rgb": [
+              83,
+              28,
+              39
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 13,
+            "shape": "timber",
+            "position": [
+              72.0,
+              154.0
+            ],
+            "rotation": 0.0,
+            "width": 160.0,
+            "height": 27.0,
+            "radius": 0.0,
+            "face_rgb": [
+              83,
+              28,
+              39
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 14,
+            "shape": "timber",
+            "position": [
+              0.0,
+              213.0
+            ],
+            "rotation": 0.0,
+            "width": 30.0,
+            "height": 106.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 15,
+            "shape": "timber",
+            "position": [
+              -72.0,
+              262.0
+            ],
+            "rotation": 0.28,
+            "width": 150.0,
+            "height": 26.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 16,
+            "shape": "timber",
+            "position": [
+              72.0,
+              262.0
+            ],
+            "rotation": -0.28,
+            "width": 150.0,
+            "height": 26.0,
+            "radius": 0.0,
+            "face_rgb": [
+              124,
+              39,
+              48
+            ],
+            "mass": 1.0,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 100,
+            "shape": "weight",
+            "position": [
+              -520.0,
+              70.0
+            ],
+            "rotation": 0.0,
+            "width": 0.0,
+            "height": 0.0,
+            "radius": 42.0,
+            "face_rgb": [
+              98,
+              42,
+              59
+            ],
+            "mass": 1.2,
+            "friction": 0.82,
+            "restitution": 0.08
+          },
+          {
+            "id": 101,
+            "shape": "weight",
+            "position": [
+              520.0,
+              70.0
+            ],
+            "rotation": 0.0,
+            "width": 0.0,
+            "height": 0.0,
+            "radius": 42.0,
+            "face_rgb": [
+              98,
+              42,
+              59
+            ],
+            "mass": 1.2,
+            "friction": 0.82,
+            "restitution": 0.08
+          }
+        ],
+        "legacy_saws": []
+      },
+      {
+        "name": "yellow-crate",
+        "frame": [
+          -900.0,
+          -480.0,
+          900.0,
+          480.0
+        ],
+        "spawns": [
+          [
+            220.0,
+            292.0
+          ],
+          [
+            570.0,
+            292.0
+          ]
+        ],
+        "objects": [],
+        "chains": [],
+        "surfaces": [
+          {
+            "outlineMilli": [],
+            "id": 0,
+            "centerXMilli": -480000,
+            "centerYMilli": 160000,
+            "widthMilli": 118000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 1,
+            "centerXMilli": -160000,
+            "centerYMilli": 160000,
+            "widthMilli": 118000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 2,
+            "centerXMilli": 160000,
+            "centerYMilli": 160000,
+            "widthMilli": 118000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 3,
+            "centerXMilli": 440000,
+            "centerYMilli": 160000,
+            "widthMilli": 118000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 4,
+            "centerXMilli": -610000,
+            "centerYMilli": 20000,
+            "widthMilli": 112000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 5,
+            "centerXMilli": -320000,
+            "centerYMilli": 20000,
+            "widthMilli": 112000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 6,
+            "centerXMilli": 0,
+            "centerYMilli": 20000,
+            "widthMilli": 112000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 7,
+            "centerXMilli": 320000,
+            "centerYMilli": 20000,
+            "widthMilli": 112000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 8,
+            "centerXMilli": 610000,
+            "centerYMilli": 20000,
+            "widthMilli": 112000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 9,
+            "centerXMilli": -480000,
+            "centerYMilli": -140000,
+            "widthMilli": 118000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 10,
+            "centerXMilli": -160000,
+            "centerYMilli": -140000,
+            "widthMilli": 118000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 11,
+            "centerXMilli": 160000,
+            "centerYMilli": -140000,
+            "widthMilli": 118000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          },
+          {
+            "outlineMilli": [],
+            "id": 12,
+            "centerXMilli": 480000,
+            "centerYMilli": -140000,
+            "widthMilli": 118000,
+            "heightMilli": 44000,
+            "rotationMilliradians": 0,
+            "faceRgb": [
+              255,
+              231,
+              0
+            ]
+          }
+        ],
+        "legacy_bodies": [
+          {
+            "id": 300,
+            "shape": "crate",
+            "position": [
+              -485.0,
+              207.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 301,
+            "shape": "crate",
+            "position": [
+              -450.0,
+              207.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 302,
+            "shape": "crate",
+            "position": [
+              -468.0,
+              249.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 36.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 303,
+            "shape": "crate",
+            "position": [
+              -165.0,
+              207.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 304,
+            "shape": "crate",
+            "position": [
+              140.0,
+              207.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 305,
+            "shape": "crate",
+            "position": [
+              178.0,
+              207.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 306,
+            "shape": "crate",
+            "position": [
+              -610.0,
+              67.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 307,
+            "shape": "crate",
+            "position": [
+              -324.0,
+              67.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 308,
+            "shape": "crate",
+            "position": [
+              -286.0,
+              67.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 309,
+            "shape": "crate",
+            "position": [
+              0.0,
+              67.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 310,
+            "shape": "crate",
+            "position": [
+              38.0,
+              67.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 311,
+            "shape": "crate",
+            "position": [
+              322.0,
+              67.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 312,
+            "shape": "crate",
+            "position": [
+              360.0,
+              67.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 313,
+            "shape": "crate",
+            "position": [
+              405.0,
+              207.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 314,
+            "shape": "crate",
+            "position": [
+              442.0,
+              207.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 315,
+            "shape": "crate",
+            "position": [
+              424.0,
+              249.0
+            ],
+            "rotation": 0.0,
+            "width": 36.0,
+            "height": 36.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 316,
+            "shape": "crate",
+            "position": [
+              -485.0,
+              -93.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 317,
+            "shape": "crate",
+            "position": [
+              -165.0,
+              -93.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 318,
+            "shape": "crate",
+            "position": [
+              155.0,
+              -93.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          },
+          {
+            "id": 319,
+            "shape": "crate",
+            "position": [
+              475.0,
+              -93.0
+            ],
+            "rotation": 0.0,
+            "width": 34.0,
+            "height": 48.0,
+            "radius": 0.0,
+            "face_rgb": [
+              151,
+              101,
+              23
+            ],
+            "mass": 0.78,
+            "friction": 0.76,
+            "restitution": 0.12
+          }
+        ],
+        "legacy_saws": []
+      }
+    ]
+  },
   "frames": [
     [
       {

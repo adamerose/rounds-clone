@@ -34,27 +34,40 @@ impl AuthoritativeMatch {
     }
     pub fn with_config(config: MatchConfig) -> Result<Self, String> {
         let catalog = load_card_directory(&default_card_directory())?;
-        let arenas = load_arena_directory(&default_arena_directory())?;
-        Self::create(config, catalog, arenas)
+        let (arenas, paths, sources) = arena_file_map()?;
+        Self::create(config, catalog, arenas, paths, sources)
+    }
+    pub fn with_content(config: MatchConfig, content: MatchContent) -> Result<Self, String> {
+        Self::create(
+            config,
+            content.cards,
+            content.arenas,
+            BTreeMap::new(),
+            BTreeMap::new(),
+        )
     }
     pub fn from_arena(seed: u64, definition: ArenaDefinition) -> Result<Self, String> {
         let config = MatchConfig {
             seed,
             ..Default::default()
         };
-        let mut game = Self::create(
+        Self::with_content(
             config,
-            load_card_directory(&default_card_directory())?,
-            vec![definition],
-        )?;
-        game.arena_files.clear();
-        Ok(game)
+            MatchContent {
+                cards: load_card_directory(&default_card_directory())?,
+                arenas: vec![definition],
+            },
+        )
     }
     pub fn from_arena_file(seed: u64, path: &std::path::Path) -> Result<Self, String> {
         let source = std::fs::read_to_string(path)
             .map_err(|error| format!("{}: {error}", path.display()))?;
         let mut game = Self::from_arena(seed, ArenaDefinition::parse(&source)?)?;
         game.arena_path = Some(path.to_owned());
+        game.arena_files
+            .insert(game.arena.name.clone(), path.to_owned());
+        game.arena_sources
+            .insert(game.arena.name.clone(), source.clone());
         game.arena_source = source;
         Ok(game)
     }
@@ -62,6 +75,8 @@ impl AuthoritativeMatch {
         config: MatchConfig,
         catalog: Vec<ItemDefinition>,
         mut arenas: Vec<ArenaDefinition>,
+        arena_files: BTreeMap<String, std::path::PathBuf>,
+        arena_sources: BTreeMap<String, String>,
     ) -> Result<Self, String> {
         config.validate()?;
         arenas = arenas
@@ -73,7 +88,6 @@ impl AuthoritativeMatch {
         }
         SeededRandom(config.seed).shuffle(&mut arenas);
         let arena_count = arenas.len();
-        let (arena_files, arena_sources) = arena_file_map()?;
         let arena = arenas[arena_count - 1].clone();
         let arena_path = arena_files.get(&arena.name).cloned();
         let arena_source = arena_sources.get(&arena.name).cloned().unwrap_or_default();
@@ -395,14 +409,12 @@ impl AuthoritativeMatch {
             self.arena_index += 1;
         }
         self.arena = self.arena_bag[self.arena_index].clone();
-        if !self.arena_files.is_empty() {
-            self.arena_path = self.arena_files.get(&self.arena.name).cloned();
-            self.arena_source = self
-                .arena_sources
-                .get(&self.arena.name)
-                .cloned()
-                .unwrap_or_default();
-        }
+        self.arena_path = self.arena_files.get(&self.arena.name).cloned();
+        self.arena_source = self
+            .arena_sources
+            .get(&self.arena.name)
+            .cloned()
+            .unwrap_or_default();
         self.physics.replace_arena(&self.arena);
         self.clear_projectiles();
         self.impacts.clear();
@@ -513,13 +525,21 @@ impl AuthoritativeMatch {
             Ok(source) => {
                 match ArenaDefinition::parse(&source).and_then(Self::prepare_definition) {
                     Ok(arena) => {
-                        self.arena = arena;
-                        if self.arena_files.is_empty() {
-                            self.arena_bag = vec![self.arena.clone()];
-                            self.arena_index = 0;
-                        } else {
-                            self.arena_bag[self.arena_index] = self.arena.clone();
+                        if self
+                            .arena_files
+                            .get(&arena.name)
+                            .is_some_and(|other| *other != path)
+                        {
+                            self.arena_reload_error =
+                                Some(format!("duplicate arena name {}", arena.name));
+                            return;
                         }
+                        // Name is editable metadata; the watched file keeps its identity.
+                        self.arena_files.remove(&self.arena.name);
+                        self.arena_sources.remove(&self.arena.name);
+                        self.arena_files.insert(arena.name.clone(), path.clone());
+                        self.arena = arena;
+                        self.arena_bag[self.arena_index] = self.arena.clone();
                         self.arena_source = source;
                         self.arena_sources
                             .insert(self.arena.name.clone(), self.arena_source.clone());
@@ -641,6 +661,7 @@ impl AuthoritativeMatch {
 }
 
 type ArenaFiles = (
+    Vec<ArenaDefinition>,
     BTreeMap<String, std::path::PathBuf>,
     BTreeMap<String, String>,
 );
@@ -657,19 +678,22 @@ fn arena_file_map() -> Result<ArenaFiles, String> {
     paths.sort();
     let mut files = BTreeMap::new();
     let mut sources = BTreeMap::new();
+    let mut arenas = Vec::new();
     for path in paths
         .into_iter()
         .filter(|path| path.extension().is_some_and(|extension| extension == "ron"))
     {
         let source = std::fs::read_to_string(&path)
             .map_err(|error| format!("{}: {error}", path.display()))?;
-        let name = ArenaDefinition::parse(&source)?.name;
+        let definition = ArenaDefinition::parse(&source)?;
+        let name = definition.name.clone();
         if files.insert(name.clone(), path).is_some() {
             return Err(format!("duplicate arena name {name}"));
         }
         sources.insert(name, source);
+        arenas.push(definition);
     }
-    Ok((files, sources))
+    Ok((arenas, files, sources))
 }
 
 #[cfg(test)]
@@ -840,6 +864,49 @@ mod arena_runtime_tests {
         let arena = game.snapshot().arena_objects.unwrap();
         assert!(arena.objects.is_empty());
         assert!(arena.chains.is_empty());
+    }
+
+    #[test]
+    fn renamed_arena_keeps_watching_its_file_after_the_next_fight() {
+        let path =
+            std::env::temp_dir().join(format!("quarrel-renamed-arena-{}.ron", std::process::id()));
+        let mut arena = workshop();
+        arena.objects.retain(|object| object.id == 0);
+        arena.chains.clear();
+        std::fs::write(&path, ron::to_string(&arena).unwrap()).unwrap();
+        let mut game = AuthoritativeMatch::from_arena_file(77, &path).unwrap();
+        enter_combat(&mut game);
+        arena.name = "Renamed workshop".into();
+        arena.objects[0].color = [63, 171, 178];
+        std::fs::write(&path, ron::to_string(&arena).unwrap()).unwrap();
+        for _ in 0..2_400 {
+            let state = game.snapshot();
+            let flow = state.flow.as_ref().unwrap();
+            if flow.phase == FlowPhase::Combat && flow.fight_number > 0 {
+                break;
+            }
+            game.step(
+                &(0..2)
+                    .map(|id| automated_input(id, &state))
+                    .collect::<Vec<_>>(),
+            );
+        }
+        let next = game.snapshot();
+        let next_flow = next.flow.as_ref().unwrap();
+        arena.objects[0].color = [200, 10, 90];
+        std::fs::write(&path, ron::to_string(&arena).unwrap()).unwrap();
+        for _ in 0..15 {
+            game.step(&[PlayerInput::default(); 2]);
+        }
+        let edited = game.snapshot();
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(next_flow.phase, FlowPhase::Combat);
+        assert!(next_flow.fight_number > 0);
+        assert_eq!(
+            edited.arena_objects.unwrap().objects[0].color,
+            [200, 10, 90]
+        );
+        assert!(game.arena_reload_error().is_none());
     }
 
     #[test]

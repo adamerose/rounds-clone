@@ -1,11 +1,15 @@
 use quarrel_network::{LiveClient, LiveServer, ServerReport, send_inputs};
 use quarrel_presentation::{render_png, run_interactive_visible, run_live_visible, run_visible};
 use quarrel_sim::{
-    AuthoritativeMatch, FlowPhase, InputRecording, MatchConfig, PlayerInput, automated_input,
-    hash_snapshot, play_recording,
+    AuthoritativeMatch, FlowPhase, InputRecording, MatchConfig, MatchContent, PlayerInput,
+    automated_input, hash_snapshot, play_recording,
 };
 use serde::Serialize;
-use std::{env, fs, path::PathBuf};
+use sha2::{Digest, Sha256};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 fn main() {
     if let Err(error) = run() {
@@ -21,9 +25,9 @@ fn run() -> Result<(), String> {
     match mode {
         "local" => print(run_local(config, ticks)?),
         "replay" => { let path = required(&args, "--input")?; let recording: InputRecording = serde_json::from_slice(&fs::read(&path).map_err(|e| format!("read {path}: {e}"))?).map_err(|e| format!("decode {path}: {e}"))?; let states = play_recording(&recording)?; print(states.last().ok_or("empty replay")?) },
-        "remote" => { let address = required(&args, "--address")?; let id = argument(&args, "--client", 0_u8)?; let frames = scripted(config.clone(), ticks)?; let inputs = frames.into_iter().map(|frame| frame.get(usize::from(id)).copied().ok_or("client is outside fighter count")).collect::<Result<Vec<_>, _>>()?; print(send_inputs(address, id, config, &inputs)?) },
-        "capture" => { let output = PathBuf::from(required(&args, "--output")?); let state = match optional(&args, "--state") { Some(path) => serde_json::from_slice(&fs::read(&path).map_err(|e| format!("read {path}: {e}"))?).map_err(|e| format!("decode {path}: {e}"))?, None => state_after(config, ticks)? }; render_png(&state, &output)?; let metadata = serde_json::json!({"output": output, "stateSha256": hash_snapshot(&state), "tick": state.tick, "phase": state.flow.as_ref().map(|flow| flow.phase)}); if let Some(path) = optional(&args, "--metadata") { fs::write(&path, serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?).map_err(|e| format!("write {path}: {e}"))?; } print(metadata) },
-        "record" => { let output = PathBuf::from(required(&args, "--output")?); let frames = scripted_until_match_end(config.clone(), ticks)?; let recorded_ticks = frames.len(); fs::write(&output, serde_json::to_vec_pretty(&InputRecording { config, frames }).map_err(|e| e.to_string())?).map_err(|e| format!("write {}: {e}", output.display()))?; print(serde_json::json!({"output": output, "ticks": recorded_ticks})) },
+        "remote" => remote(&args, config, ticks),
+        "capture" => capture(&args, config, ticks),
+        "record" => { let output = PathBuf::from(required(&args, "--output")?); let recording = scripted_until_match_end(config, ticks)?; let recorded_ticks = recording.frames.len(); fs::write(&output, serde_json::to_vec_pretty(&recording).map_err(|e| e.to_string())?).map_err(|e| format!("write {}: {e}", output.display()))?; print(serde_json::json!({"output": output, "ticks": recorded_ticks})) },
         "visible" => { let state = state_after(config.clone(), ticks)?; run_visible(vec![state.clone(); 120])?; print(serde_json::json!({"stateSha256": hash_snapshot(&state)})) },
         "visible-flow" => { let state = run_interactive_visible(config, ticks, args.iter().any(|argument| argument == "--automated"))?; print(serde_json::json!({"stateSha256": hash_snapshot(&state)})) },
         "arena-preview" => { let arena = PathBuf::from(required(&args, "--arena")?); let output = PathBuf::from(required(&args, "--output")?); let mut state = AuthoritativeMatch::from_arena_file(config.seed, &arena)?.snapshot(); state.flow = None; render_png(&state, &output)?; print(serde_json::json!({"arena": arena, "output": output, "stateSha256": hash_snapshot(&state)})) },
@@ -31,6 +35,111 @@ fn run() -> Result<(), String> {
         "host" => host(&args, config, ticks),
         _ => Err("usage: quarrel-client [local|replay|remote|join|host|capture|record|visible|visible-flow|arena-preview] [options]".into()),
     }
+}
+fn capture_destinations(
+    args: &[String],
+    output_flag: &str,
+    metadata_flag: &str,
+) -> Result<Option<(PathBuf, Option<PathBuf>)>, String> {
+    let output = optional(args, output_flag).map(PathBuf::from);
+    let metadata = optional(args, metadata_flag).map(PathBuf::from);
+    match (&output, &metadata) {
+        (None, Some(_)) => return Err(format!("{metadata_flag} requires {output_flag}")),
+        (Some(output), Some(metadata))
+            if paths_equal(&resolved_path(output)?, &resolved_path(metadata)?) =>
+        {
+            return Err(format!(
+                "{output_flag} and {metadata_flag} must resolve to different paths"
+            ));
+        }
+        _ => {}
+    }
+    Ok(output.map(|output| (output, metadata)))
+}
+fn resolved_path(path: &Path) -> Result<PathBuf, String> {
+    let absolute = std::path::absolute(path).map_err(|error| error.to_string())?;
+    let mut ancestor = absolute.as_path();
+    let mut missing = Vec::new();
+    while !ancestor.exists() {
+        missing.push(
+            ancestor
+                .file_name()
+                .ok_or("destination has no existing ancestor")?
+                .to_owned(),
+        );
+        ancestor = ancestor
+            .parent()
+            .ok_or("destination has no existing ancestor")?;
+    }
+    let mut resolved = fs::canonicalize(ancestor).map_err(|error| error.to_string())?;
+    for name in missing.into_iter().rev() {
+        resolved.push(name);
+    }
+    Ok(resolved)
+}
+fn paths_equal(left: &Path, right: &Path) -> bool {
+    if cfg!(windows) {
+        left.to_string_lossy()
+            .eq_ignore_ascii_case(&right.to_string_lossy())
+    } else {
+        left == right
+    }
+}
+fn capture(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> {
+    let (output, metadata) =
+        capture_destinations(args, "--output", "--metadata")?.ok_or("missing --output")?;
+    let state = match optional(args, "--state") {
+        Some(path) => {
+            serde_json::from_slice(&fs::read(&path).map_err(|e| format!("read {path}: {e}"))?)
+                .map_err(|e| format!("decode {path}: {e}"))?
+        }
+        None => state_after(config, ticks)?,
+    };
+    print(render_capture(&state, &output, metadata.as_deref())?)
+}
+fn render_capture(
+    state: &quarrel_sim::MatchSnapshot,
+    output: &Path,
+    metadata_path: Option<&Path>,
+) -> Result<serde_json::Value, String> {
+    let executable =
+        fs::read(env::current_exe().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    let frame = render_png(state, output)?;
+    let metadata = serde_json::json!({"format": 1, "package": env!("CARGO_PKG_VERSION"), "output": output, "executableSha256": format!("{:x}", Sha256::digest(executable)), "frameSha256": format!("{:x}", Sha256::digest(frame)), "stateSha256": hash_snapshot(state), "tick": state.tick, "phase": state.flow.as_ref().map(|flow| flow.phase)});
+    if let Some(path) = metadata_path {
+        if let Some(parent) = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        fs::write(
+            path,
+            serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| format!("write {}: {e}", path.display()))?;
+    }
+    Ok(metadata)
+}
+fn remote(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> {
+    let capture = capture_destinations(args, "--render-output", "--render-metadata")?;
+    let address = required(args, "--address")?;
+    let id = argument(args, "--client", 0_u8)?;
+    let frames = scripted(config.clone(), ticks)?;
+    let inputs = frames
+        .into_iter()
+        .map(|frame| {
+            frame
+                .get(usize::from(id))
+                .copied()
+                .ok_or("client is outside fighter count")
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let report = send_inputs(address, id, config, &inputs)?;
+    if let Some((output, metadata)) = capture {
+        render_capture(&report.final_report.state, &output, metadata.as_deref())?;
+    }
+    print(report)
 }
 fn scripted(config: MatchConfig, ticks: u32) -> Result<Vec<Vec<PlayerInput>>, String> {
     let mut game = AuthoritativeMatch::with_config(config.clone())?;
@@ -48,11 +157,9 @@ fn scripted(config: MatchConfig, ticks: u32) -> Result<Vec<Vec<PlayerInput>>, St
     }
     Ok(frames)
 }
-fn scripted_until_match_end(
-    config: MatchConfig,
-    ticks: u32,
-) -> Result<Vec<Vec<PlayerInput>>, String> {
-    let mut game = AuthoritativeMatch::with_config(config.clone())?;
+fn scripted_until_match_end(config: MatchConfig, ticks: u32) -> Result<InputRecording, String> {
+    let content = MatchContent::load_default()?;
+    let mut game = AuthoritativeMatch::with_content(config.clone(), content.clone())?;
     let mut frames = Vec::with_capacity(ticks as usize);
     for _ in 0..ticks {
         let state = game.snapshot();
@@ -72,7 +179,11 @@ fn scripted_until_match_end(
         game.step(&inputs);
         frames.push(inputs);
     }
-    Ok(frames)
+    Ok(InputRecording {
+        config,
+        content,
+        frames,
+    })
 }
 fn state_after(config: MatchConfig, ticks: u32) -> Result<quarrel_sim::MatchSnapshot, String> {
     let mut game = AuthoritativeMatch::with_config(config.clone())?;

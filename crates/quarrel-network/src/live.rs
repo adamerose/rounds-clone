@@ -1067,4 +1067,377 @@ mod regression_tests {
         }
         assert_eq!(authority.result, "completed");
     }
+
+    #[test]
+    fn edge_queue_rejects_overflow_without_losing_order_or_held_updates() {
+        let handle = LiveClientHandle(Arc::new(Mutex::new(Shared {
+            held: PlayerInput::default(),
+            edges: VecDeque::new(),
+            next_edge: 0,
+            latest: None,
+            close: false,
+            result: None,
+        })));
+        let command = FlowCommand {
+            phase_revision: 0,
+            action: quarrel_sim::FlowAction::VoteYes,
+        };
+        for _ in 0..EDGE_CAPACITY {
+            handle.push_flow(command).unwrap();
+        }
+        assert!(handle.push_flow(command).unwrap_err().contains("overflow"));
+        handle.set_held(PlayerInput {
+            move_axis: 1,
+            ..Default::default()
+        });
+        let shared = handle.0.lock().unwrap();
+        assert_eq!(shared.held.move_axis, 1);
+        assert_eq!(
+            shared.edges.iter().map(|(id, _)| *id).collect::<Vec<_>>(),
+            (1..=EDGE_CAPACITY as u64).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn flow_edges_are_consumed_fifo_even_when_rules_reject_them() {
+        let match_config = config();
+        let ticks = 120;
+        let trace_path = std::env::temp_dir().join(format!(
+            "quarrel-flow-trace-{}-{}.json",
+            std::process::id(),
+            new_nonce()
+        ));
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_config = match_config.clone();
+        let server_trace = trace_path.clone();
+        let authority = thread::spawn(move || {
+            server
+                .run(server_config, ticks, Some(&server_trace))
+                .unwrap()
+        });
+        let first_config = match_config.clone();
+        let first = thread::spawn(move || {
+            let client = LiveClient::connect(address, 0, first_config).unwrap();
+            let handle = client.handle();
+            let run = thread::spawn(move || client.run(ticks).unwrap());
+            wait_for(&handle, |state| state.flow.is_some());
+            let flow = handle.latest().unwrap().0.flow.unwrap();
+            let item = flow.offers[0][0];
+            for command in [
+                FlowCommand {
+                    phase_revision: flow.phase_revision.wrapping_sub(1),
+                    action: quarrel_sim::FlowAction::Hover(item),
+                },
+                FlowCommand {
+                    phase_revision: flow.phase_revision,
+                    action: quarrel_sim::FlowAction::Confirm(item),
+                },
+                FlowCommand {
+                    phase_revision: flow.phase_revision,
+                    action: quarrel_sim::FlowAction::Confirm(item),
+                },
+            ] {
+                handle.push_flow(command).unwrap();
+            }
+            handle.set_held(PlayerInput {
+                move_axis: 1,
+                ..Default::default()
+            });
+            run.join().unwrap()
+        });
+        let second = thread::spawn(move || {
+            LiveClient::connect(address, 1, match_config)
+                .unwrap()
+                .run(ticks)
+                .unwrap()
+        });
+        assert_eq!(first.join().unwrap().result, "completed");
+        assert_eq!(second.join().unwrap().result, "completed");
+        assert_eq!(authority.join().unwrap().result, "completed");
+        let trace: Vec<AppliedTick> =
+            serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
+        fs::remove_file(trace_path).unwrap();
+        let mut game = AuthoritativeMatch::with_config(config()).unwrap();
+        let mut results = Vec::new();
+        let mut edge_ticks = Vec::new();
+        for row in trace {
+            game.step(&row.inputs);
+            if row.inputs[0].flow.is_some() {
+                edge_ticks.push(row.tick);
+                results.push(game.snapshot().flow.unwrap().last_results[0]);
+            }
+        }
+        assert_eq!(
+            results,
+            vec![
+                quarrel_sim::ActionResult::Stale,
+                quarrel_sim::ActionResult::Accepted,
+                quarrel_sim::ActionResult::Duplicate,
+            ]
+        );
+        assert!(edge_ticks.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn stalled_authority_never_bursts_catch_up_ticks() {
+        let config = config();
+        let trace_path = std::env::temp_dir().join(format!(
+            "quarrel-stall-{}-{}.json",
+            std::process::id(),
+            new_nonce()
+        ));
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_config = config.clone();
+        let server_trace = trace_path.clone();
+        let authority = thread::spawn(move || {
+            server
+                .run_inner(
+                    server_config,
+                    80,
+                    Some(&server_trace),
+                    RunFaults {
+                        stall_at: Some(30),
+                        ..Default::default()
+                    },
+                )
+                .unwrap()
+        });
+        let clients = (0..2_u8)
+            .map(|id| {
+                let config = config.clone();
+                thread::spawn(move || {
+                    LiveClient::connect(address, id, config)
+                        .unwrap()
+                        .run(80)
+                        .unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        for client in clients {
+            assert_eq!(client.join().unwrap().result, "completed");
+        }
+        let report = authority.join().unwrap();
+        let trace: Vec<AppliedTick> =
+            serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
+        fs::remove_file(trace_path).unwrap();
+        assert!(report.late_ticks >= 1);
+        assert!(trace[29].elapsed_micros - trace[28].elapsed_micros >= 140_000);
+        assert!(trace[30].elapsed_micros - trace[29].elapsed_micros >= 10_000);
+        assert!(report.elapsed_ms >= 1_300);
+    }
+
+    #[test]
+    fn terminal_loss_and_local_close_are_bounded_and_ports_rebind() {
+        let config = config();
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_config = config.clone();
+        let authority = thread::spawn(move || {
+            server
+                .run_inner(
+                    server_config,
+                    30,
+                    None,
+                    RunFaults {
+                        drop_terminal_for: Some(1),
+                        ..Default::default()
+                    },
+                )
+                .unwrap()
+        });
+        let clients = (0..2_u8)
+            .map(|id| {
+                let config = config.clone();
+                thread::spawn(move || {
+                    LiveClient::connect(address, id, config)
+                        .unwrap()
+                        .run(30)
+                        .unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        let reports = clients
+            .into_iter()
+            .map(|client| client.join().unwrap())
+            .collect::<Vec<_>>();
+        let server_report = authority.join().unwrap();
+        assert_eq!(server_report.result, "terminal_unacknowledged");
+        assert_eq!(server_report.terminal_acks, [true, false]);
+        assert_eq!(reports[0].result, "completed");
+        assert_eq!(reports[1].result, "authority_silent");
+        assert_eq!(reports[1].last_tick, 30);
+        drop(LiveServer::bind(address).unwrap());
+
+        let server = LiveServer::bind(address).unwrap();
+        let server_config = config.clone();
+        let authority = thread::spawn(move || server.run(server_config, 300, None));
+        let first_config = config.clone();
+        let first = thread::spawn(move || {
+            let client = LiveClient::connect(address, 0, first_config).unwrap();
+            let handle = client.handle();
+            let run = thread::spawn(move || client.run(300).unwrap());
+            wait_for(&handle, |state| state.tick >= 20);
+            handle.close();
+            run.join().unwrap()
+        });
+        let second = thread::spawn(move || {
+            LiveClient::connect(address, 1, config)
+                .unwrap()
+                .run(300)
+                .unwrap()
+        });
+        assert_eq!(first.join().unwrap().result, "local_close");
+        assert_eq!(second.join().unwrap().result, "authority_silent");
+        let stopped = authority.join().unwrap().unwrap_err();
+        assert!(
+            stopped.starts_with("peer_left:") || stopped.starts_with("peer_silent:"),
+            "{stopped}"
+        );
+        assert!(LiveServer::bind(address).is_ok());
+    }
+
+    #[test]
+    fn old_session_input_from_a_current_peer_is_ignored() {
+        let config = config();
+        let trace_path = std::env::temp_dir().join(format!(
+            "quarrel-reuse-{}-{}.json",
+            std::process::id(),
+            new_nonce()
+        ));
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_config = config.clone();
+        let server_trace = trace_path.clone();
+        let authority =
+            thread::spawn(move || server.run(server_config, 3, Some(&server_trace)).unwrap());
+        let peers = (0..2_u8)
+            .map(|id| {
+                let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+                socket
+                    .set_read_timeout(Some(Duration::from_millis(200)))
+                    .unwrap();
+                let nonce = new_nonce();
+                send(
+                    &socket,
+                    address,
+                    &ClientPacket::Hello {
+                        protocol: LIVE_PROTOCOL,
+                        client_id: id,
+                        config: config.clone(),
+                        nonce,
+                    },
+                )
+                .unwrap();
+                let session = loop {
+                    if let Some((
+                        ServerPacket::Welcome {
+                            client_id,
+                            nonce: echoed,
+                            session,
+                            ..
+                        },
+                        _,
+                        _,
+                    )) = recv::<ServerPacket>(&socket, &mut 0).unwrap()
+                        && client_id == id
+                        && echoed == nonce
+                    {
+                        break session;
+                    }
+                };
+                (id, socket, session)
+            })
+            .collect::<Vec<_>>();
+        let session = peers[0].2;
+        assert_eq!(session, peers[1].2);
+        send(
+            &peers[0].1,
+            address,
+            &ClientPacket::Input {
+                session: session ^ 1,
+                client_id: 0,
+                sequence: 99,
+                held: PlayerInput {
+                    move_axis: 1,
+                    ..Default::default()
+                },
+                edge: None,
+            },
+        )
+        .unwrap();
+        for (id, socket, _) in &peers {
+            send(
+                socket,
+                address,
+                &ClientPacket::Input {
+                    session,
+                    client_id: *id,
+                    sequence: 1,
+                    held: PlayerInput::default(),
+                    edge: None,
+                },
+            )
+            .unwrap();
+        }
+        for (id, socket, _) in &peers {
+            loop {
+                if let Some((
+                    ServerPacket::Terminal {
+                        session: received,
+                        tick,
+                        hash,
+                        ..
+                    },
+                    _,
+                    _,
+                )) = recv::<ServerPacket>(socket, &mut 0).unwrap()
+                {
+                    send(
+                        socket,
+                        address,
+                        &ClientPacket::Ack {
+                            session: received,
+                            client_id: *id,
+                            tick,
+                            hash,
+                        },
+                    )
+                    .unwrap();
+                    break;
+                }
+            }
+        }
+        assert_eq!(authority.join().unwrap().result, "completed");
+        let trace: Vec<AppliedTick> =
+            serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
+        fs::remove_file(trace_path).unwrap();
+        assert!(trace.iter().all(|row| row.inputs[0].move_axis == 0));
+    }
+
+    #[test]
+    fn join_timeout_keeps_the_absent_socket_bound() {
+        let blackhole = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let absent = blackhole.local_addr().unwrap();
+        let start = Instant::now();
+        let error = match LiveClient::connect(absent, 0, config()) {
+            Ok(_) => panic!("blackhole socket must not welcome a client"),
+            Err(error) => error,
+        };
+        assert!(error.starts_with("join_timeout:"));
+        assert!(start.elapsed() >= JOIN_WINDOW);
+        assert_eq!(blackhole.local_addr().unwrap(), absent);
+    }
+
+    fn wait_for(handle: &LiveClientHandle, predicate: impl Fn(&MatchSnapshot) -> bool) {
+        let until = Instant::now() + Duration::from_secs(8);
+        while Instant::now() < until {
+            if handle.latest().is_some_and(|(state, _)| predicate(&state)) {
+                return;
+            }
+            thread::sleep(Duration::from_millis(2));
+        }
+        panic!("live state did not reach the expected condition");
+    }
 }

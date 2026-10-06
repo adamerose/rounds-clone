@@ -38,13 +38,30 @@ pub fn automated_input(player: u8, state: &MatchSnapshot) -> PlayerInput {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct MatchContent {
+    pub cards: Vec<ItemDefinition>,
+    pub arenas: Vec<ArenaDefinition>,
+}
+impl MatchContent {
+    pub fn load_default() -> Result<Self, String> {
+        Ok(Self {
+            cards: load_card_directory(&default_card_directory())?,
+            arenas: load_arena_directory(&default_arena_directory())?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct InputRecording {
     pub config: MatchConfig,
+    /// Logical starting content makes a recording independent of later asset additions.
+    pub content: MatchContent,
     /// One vector of inputs per tick, in fighter order.
     pub frames: Vec<Vec<PlayerInput>>,
 }
 pub fn play_recording(recording: &InputRecording) -> Result<Vec<MatchSnapshot>, String> {
-    let mut game = AuthoritativeMatch::with_config(recording.config.clone())?;
+    let mut game =
+        AuthoritativeMatch::with_content(recording.config.clone(), recording.content.clone())?;
     let mut snapshots = vec![game.snapshot()];
     for frame in &recording.frames {
         if frame.len() != recording.config.fighter_count {

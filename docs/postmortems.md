@@ -94,3 +94,10 @@ The rendered match-end evidence exposed missing separator glyphs in the default 
 A projection audit also found fixed arena dimensions could stretch a visible window; automatic minimum dimensions now preserve aspect and have a camera-boundary regression.
 The first separator substitution did not apply because Python used the Windows default encoding to read UTF-8 source.
 The second render exposed that failed substitution; exact UTF-8 edits corrected it before review.
+
+The first fresh review approved the match rules but found capture provenance and several general transport regressions had been removed with footage tests.
+Passing the same path for PNG and metadata overwrote the image with JSON. A public CLI reproduction preserved this failure before destination validation and provenance were restored.
+The recording also depended on the current live asset pool: adding cards changed its offers, and adding an arena changed its fight. Recordings now contain their starting logical content.
+A separate dedicated-server reproduction used two real UDP peers to rename an active arena and edit it again in the next fight; the second edit was never observed.
+The watcher updated its shuffled definition but left the file mapping under the previous name. Rename updates now move both path and cached-source keys together, with a regression across a public-input fight transition.
+Architecture and roadmap descriptions still named retired profiles; they now describe the ordinary match and its remaining 1v1 presentation/live-transport scope.

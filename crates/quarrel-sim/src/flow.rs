@@ -265,6 +265,10 @@ pub struct FlowAuthority {
 impl FlowAuthority {
     pub fn with_config(config: MatchConfig, catalog: Vec<ItemDefinition>) -> Result<Self, String> {
         config.validate()?;
+        let unique: std::collections::BTreeSet<_> = catalog.iter().map(|item| item.id).collect();
+        if unique.len() != catalog.len() {
+            return Err("duplicate card IDs".into());
+        }
         if catalog.len() < config.offer_size {
             return Err("offer size exceeds card pool".into());
         }
