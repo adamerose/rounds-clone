@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 created: 2026-10-05T14:55:57Z
 origin: human-request
 tags: ["quarrel", "mvp", "network"]
@@ -20,20 +20,6 @@ split-from: []
 The group mostly plays 1v1 from their own homes, and a fast twitch game like this is only fun online if your own fighter answers your input immediately.
 Today a client shows the host's JSON snapshot with no prediction, so a player's own movement lags by a full round trip.
 
-## Blocked
-
-The current candidate fails review at the boundary between the buffered world and current authoritative combat. The local-response/bandwidth gates pass, but the scene is not coherent enough to ship. Do not publish this game-code range.
-
-1. Which presentation model should this ticket build now that the selected buffered world disagrees with current projectile impacts? (a) Recommended: keep host authority and permit a common current predicted scene for fighters, shots and pieces, correcting it from host snapshots; this revisits the choice to buffer remote fighters and pieces in [#88](http://ivy.localhost/tickets/88?repo=rounds-clone) and needs a revised admitted contract. (b) Keep buffered fighters and pieces and explicitly permit delayed or accelerated projectile/effect presentation; this changes visible combat timing and requires specifying which discrepancy is acceptable. A routine technical choice cannot override the operator's instruction to build the model selected in #88.
-
-The consultant prefers time-warped shots inside the buffered model, with a 2x catch-up burst and remaining late visuals for short flights. The worker recommends (a) to pursue one scene timeline without deliberately changing bullet speed; this alternative is not implemented or verified. Buffering remote shots was the candidate's choice, not a decision in #88.
-
-Evidence: the [third independent review](http://ivy.localhost/sessions/claude/7e224bc4-45be-4714-ada8-11cec4737c98) confirmed every earlier correction but found Result fast-forwarding the buffered world and incoming damage preceding its buffered bullet. New boundary fixtures failed for both and for fixed moving-support proxies. A [continuing read-only consultation](http://ivy.localhost/sessions/claude/1e60ef7f-1ce5-426a-925e-0e10136083ea) confirmed that drawing current shots while buffering their shooter creates a launch gap; time-warped catch-up changes visual bullet speed, and owned shots can disappear at current proxies away from the buffered target. Those are combat presentation choices, not missing null guards or retries.
-
-Unpublished candidate: `c3f5d614dc8d4bcf0803c6691936d4908486babc`, based on `5889452dd6713c7679e4a8135f8f80a9a4404325`, retained by `refs/ivy/candidates/83-review3` and `.ivy/worktrees/083-responsive-online-correction`. It has no approval. Original review checkout `.ivy/worktrees/083-responsive-online` remains intact. Both are clean. Review/consult results and exact failing-fixture patch are retained under ignored `out/netcode-evidence/`; no failing test was committed. The patch adds only the three reproductions and must be fixed before any future commit.
-
-Passed before these new reproductions: format, strict all-target Clippy, locked build, all 88 tests, pixel-checked renders, deterministic capture, and two-client smoke/terminal agreement. Impaired 32-piece measurement: one scene frame, 0.295/0.285 ms predictor CPU, 23,086.5 payload B/s per peer (93.43% below baseline). These passes do not cover the newly reproduced causal defects. Display scanout, actual two-home routing and shipped outlined-arena predictor performance remain unmeasured. The separate card ticket may continue; only this ticket is blocked.
-
 ## Outcome
 
 - Under simulated 80 ms round trip, 20 ms jitter and 2 % packet loss, the local player's own movement, shots and blocks show on the next rendered frame.
@@ -43,7 +29,7 @@ Passed before these new reproductions: format, strict all-target Clippy, locked 
 
 ## Decisions
 
-- Build the online model chosen and recorded by #88 in `docs/decisions.md`.
+- Keep host authority, but present one common current predicted scene on each client for fighters, shots and pieces, corrected from host snapshots; do not buffer remote fighters, shots or pieces behind the current time, and do not change visible bullet speed. This revises the buffered-interpolation part of #88's recommendation (orchestrator decision for run #75, 2026-10-06, option (a) from this ticket's block).
 - The host stays authoritative for hits, deaths, points and draws of card offers.
 - #74 is open and touches the network crate; this ticket must not break it.
 
