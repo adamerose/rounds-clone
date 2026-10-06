@@ -1,7 +1,6 @@
 ---
 format: 3
 status: blocked
-owner: codex:01a10efb-452f-7e52-a19e-e83483327e9c
 created: 2026-10-05T14:13:11Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "ui"]
