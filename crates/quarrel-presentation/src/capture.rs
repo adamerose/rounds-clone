@@ -9,13 +9,29 @@ pub(super) fn render_png_with_readiness(
     snapshot: &MatchSnapshot,
     output: &Path,
 ) -> Result<(Vec<u8>, CaptureReadiness), String> {
-    render_scene_png(snapshot, output, false)
+    render_scene_png(snapshot, output, OffscreenView::Match)
+}
+
+#[derive(Resource, Clone, Copy)]
+pub(super) enum OffscreenView {
+    Match,
+    Menu,
+    Waiting,
+}
+
+pub fn render_waiting_png(output: &Path) -> Result<Vec<u8>, String> {
+    render_scene_png(
+        &AuthoritativeMatch::new(38).snapshot(),
+        output,
+        OffscreenView::Waiting,
+    )
+    .map(|(bytes, _)| bytes)
 }
 
 pub(super) fn render_scene_png(
     snapshot: &MatchSnapshot,
     output: &Path,
-    menu: bool,
+    view: OffscreenView,
 ) -> Result<(Vec<u8>, CaptureReadiness), String> {
     let render_plugin = RenderPlugin {
         synchronous_pipeline_compilation: true,
@@ -41,7 +57,8 @@ pub(super) fn render_scene_png(
     .add_systems(Update, update_capture_scene_readiness);
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, update_pipeline_readiness);
-    if menu {
+    app.insert_resource(view);
+    if matches!(view, OffscreenView::Menu) {
         app.init_resource::<super::menu::Menu>();
     }
     app.finish();
@@ -196,6 +213,7 @@ pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), Stri
             shown: false,
         })
         .add_systems(Update, create_monitor_four_window)
+        .add_systems(Startup, setup_live_waiting_scene)
         .add_systems(Update, close_live_window)
         .add_systems(
             Update,

@@ -1,6 +1,7 @@
 use quarrel_network::{LiveClient, LiveServer, ServerReport, send_inputs};
 use quarrel_presentation::{
-    render_menu_png, render_png, run_interactive_visible, run_live_visible, run_menu, run_visible,
+    render_menu_png, render_png, render_waiting_png, run_interactive_visible, run_live_visible,
+    run_menu, run_visible,
 };
 use quarrel_sim::{
     AuthoritativeMatch, FlowPhase, InputRecording, MatchConfig, MatchContent, PlayerInput,
@@ -36,6 +37,7 @@ fn run() -> Result<(), String> {
     let ticks = argument(&args, "--ticks", 2_400_u32)?;
     match mode {
         "menu" => run_menu(),
+        "waiting-capture" => render_waiting_png(Path::new(&required(&args, "--output")?)).map(|_| ()),
         "menu-capture" => render_menu_png(Path::new(&required(&args, "--output")?)).map(|_| ()),
         "local" => print(run_local(config, ticks)?),
         "replay" => { let path = required(&args, "--input")?; let recording: InputRecording = serde_json::from_slice(&fs::read(&path).map_err(|e| format!("read {path}: {e}"))?).map_err(|e| format!("decode {path}: {e}"))?; let states = play_recording(&recording)?; print(states.last().ok_or("empty replay")?) },
@@ -229,6 +231,7 @@ fn join(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
         config,
         ticks,
         args.iter().any(|arg| arg == "--headless"),
+        args.iter().any(|arg| arg == "--interactive"),
     )
 }
 fn run_live_client(
@@ -237,17 +240,32 @@ fn run_live_client(
     config: MatchConfig,
     ticks: u32,
     headless: bool,
+    interactive: bool,
 ) -> Result<(), String> {
-    let client = LiveClient::connect(address, id, config)?;
+    let client = if interactive {
+        LiveClient::connect_interactive(address, id, config)?
+    } else {
+        LiveClient::connect(address, id, config)?
+    };
     let handle = client.handle();
     let close = handle.clone();
-    let network = std::thread::spawn(move || client.run(ticks));
+    let network = std::thread::spawn(move || {
+        if interactive {
+            client.run_interactive()
+        } else {
+            client.run(ticks)
+        }
+    });
     let presentation = if headless {
         let mut sent = None;
         let mut first_fight = false;
         let mut result = Ok(());
         while handle.result().is_none() {
             if let Some((state, _)) = handle.latest() {
+                // Headless menu evidence is cancelled explicitly after its requested observation window.
+                if interactive && state.tick >= ticks {
+                    handle.close();
+                }
                 if !first_fight
                     && state
                         .flow
@@ -288,7 +306,7 @@ fn run_live_client(
         .map_err(|_| "live client thread panicked".to_owned())??;
     print(&report)?;
     presentation?;
-    if report.result == "completed" {
+    if report.result == "completed" || (interactive && report.result == "local_close") {
         Ok(())
     } else {
         Err(format!("live client {}", report.result))
@@ -303,7 +321,15 @@ fn host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
     println!("{{\"event\":\"listening\",\"address\":\"{address}\"}}");
     let server_config = config.clone();
     let trace = optional(args, "--trace").map(PathBuf::from);
-    let authority = std::thread::spawn(move || server.run(server_config, ticks, trace.as_deref()));
+    let interactive = args.iter().any(|arg| arg == "--interactive");
+    let server_close = server.handle();
+    let authority = std::thread::spawn(move || {
+        if interactive {
+            server.run_interactive(server_config)
+        } else {
+            server.run(server_config, ticks, trace.as_deref())
+        }
+    });
     let peer = if address.ip().is_unspecified() {
         std::net::SocketAddr::from(([127, 0, 0, 1], address.port()))
     } else {
@@ -315,10 +341,29 @@ fn host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
         config,
         ticks,
         args.iter().any(|arg| arg == "--headless"),
+        args.iter().any(|arg| arg == "--interactive"),
     );
+    if interactive {
+        server_close.close();
+    }
     let report = authority
         .join()
-        .map_err(|_| "live authority thread panicked".to_owned())??;
+        .map_err(|_| "live authority thread panicked".to_owned())?;
+    if interactive {
+        match &report {
+            Ok(report) => print(report)?,
+            Err(error) => print(serde_json::json!({"event":"authorityEnded", "result":error}))?,
+        }
+        client?;
+        return match report {
+            Ok(_) => Ok(()),
+            Err(error) if error == "local_close" || error.starts_with("peer_left: client ") => {
+                Ok(())
+            }
+            Err(error) => Err(error),
+        };
+    }
+    let report = report?;
     print(&report)?;
     client?;
     if report.result == "completed" {

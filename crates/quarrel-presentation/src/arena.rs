@@ -2,14 +2,19 @@ use super::*;
 use crate::{draft::spawn_draft_scene, hud::spawn_flow_hud};
 
 /// Projects the current authority snapshot. Arenas are data-driven; match UI
-/// is only an overlay and never reconstructs historical replay scenes.
+/// uses a plain backdrop between fights and never reconstructs historical replay scenes.
 pub(super) fn spawn_snapshot_scene(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<ColorMaterial>,
     snapshot: &MatchSnapshot,
 ) {
-    if snapshot.arena_objects.is_some() {
+    if snapshot.arena_objects.is_some()
+        && snapshot
+            .flow
+            .as_ref()
+            .is_none_or(|flow| flow.phase == FlowPhase::Combat)
+    {
         crate::data_arena::spawn_data_arena_scene(commands, meshes, materials, snapshot);
     } else {
         commands.spawn((

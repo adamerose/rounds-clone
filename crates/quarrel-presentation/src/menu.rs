@@ -62,8 +62,12 @@ fn close_menu(mut closed: MessageReader<WindowClosed>, mut exit: MessageWriter<A
 }
 
 pub fn render_menu_png(output: &Path) -> Result<Vec<u8>, String> {
-    super::capture::render_scene_png(&AuthoritativeMatch::new(38).snapshot(), output, true)
-        .map(|(bytes, _)| bytes)
+    super::capture::render_scene_png(
+        &AuthoritativeMatch::new(38).snapshot(),
+        output,
+        super::capture::OffscreenView::Menu,
+    )
+    .map(|(bytes, _)| bytes)
 }
 
 fn setup_menu_camera(mut commands: Commands) {
@@ -108,7 +112,7 @@ pub(super) fn spawn_menu(commands: &mut Commands, menu: &Menu) {
     }
     text(
         commands,
-        "Click or use arrows / D-pad, Enter / A to start.\nSelect Address; Ctrl+A clears it for the host's IP and port.\nLocal: keyboard + mouse and one controller, or two controllers.",
+        "Click or use arrows / D-pad, Enter / A to start.\nSelect Address; Ctrl+A clears it for the host's IP and port.\nLocal: keyboard + mouse and one controller, or two controllers.\nConnect your controllers before starting the match.",
         -215.0,
         20.0,
     );
@@ -133,12 +137,20 @@ pub fn menu_match_args(selected: usize, address: &str) -> Result<Vec<String>, St
     let args = match selected {
         0 => vec!["visible-flow", "--ticks", "4294967295"],
         1 => vec![
-            "host", "--bind", "0.0.0.0", "--port", "7777", "--ticks", "36060",
+            "host",
+            "--bind",
+            "0.0.0.0",
+            "--port",
+            "7777",
+            "--interactive",
         ],
         2 => {
-            address
+            let endpoint = address
                 .parse::<std::net::SocketAddr>()
-                .map_err(|_| "Enter an IP address and port, for example 192.168.1.2:7777")?;
+                .map_err(|_| "Enter an IPv4 address and port, for example 192.168.1.2:7777")?;
+            if !endpoint.is_ipv4() {
+                return Err("Join requires an IPv4 address and port".into());
+            }
             vec![
                 "join",
                 "--address",
@@ -169,6 +181,7 @@ fn update_menu(
     visuals: Query<Entity, With<SceneVisual>>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    window.resizable = false;
     if let Some(child) = &mut menu.child {
         match child.try_wait() {
             Ok(Some(status)) => {
@@ -177,7 +190,8 @@ fn update_menu(
                 if status.success() {
                     menu.status.clear();
                 } else {
-                    menu.status = "Match could not start or connection ended. Check the address and try again.".into();
+                    menu.status =
+                        "Session ended or could not connect. Check the host and try again.".into();
                 }
             }
             Ok(None) => {

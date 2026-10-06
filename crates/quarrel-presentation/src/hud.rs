@@ -148,9 +148,9 @@ pub(super) fn spawn_flow_hud(
             }
             commands.spawn((
                 SceneVisual,
-                Text2d::new(format!(
-                    "F{} WINS",
-                    flow.winner.map_or(1, |winner| winner + 1)
+                Text2d::new(flow.winner.map_or_else(
+                    || "MATCH OVER".into(),
+                    |winner| format!("F{} WINS", winner + 1),
                 )),
                 TextFont {
                     font_size: FontSize::Px(38.0),
@@ -162,9 +162,9 @@ pub(super) fn spawn_flow_hud(
             commands.spawn((
                 SceneVisual,
                 Text2d::new(if flow.run_backs < flow.run_it_back_limit {
-                    "Keyboard: Y / N   Controller: A / B\nLocal second keyboard: K / L\nRun it back / New match - everyone must agree"
+                    "Keyboard: Y / N   Controller: A / B\nWith no controllers, F2 keyboard: K / L\nRun it back / New match - everyone must agree"
                 } else {
-                    "NEW MATCH: Keyboard N / Controller B\nLocal second keyboard: L\nEveryone must agree"
+                    "NEW MATCH: Keyboard N / Controller B\nWith no controllers, F2 keyboard: L\nEveryone must agree"
                 }),
                 TextFont {
                     font_size: FontSize::Px(20.0),

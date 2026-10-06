@@ -155,3 +155,10 @@ Automatic approval review refused deletion of the duplicate ticket081proof/test-
 The print/exec session's GDI CopyFromScreen call returned 'The handle is invalid' after the menu window centre was verified on monitor four.
 That optional desktop image is invalid evidence. Native verification uses the exact PID/window visibility and placement records plus the scripted match trace; rendered views come from GPU headless captures.
 The disposable native windows were closed. No placement failure or window exposure on another monitor occurred.
+
+## 2026-10-06 — Ticket 81 interactive cancellation changed the headless proof's exit condition
+
+The delayed menu join test reached play but failed its old successful-exit assertion after the host's scripted controller cancelled at its observation tick.
+Interactive cancellation has no bounded terminal handshake; the remaining peer detects authority silence, so a final unacknowledged snapshot need not satisfy both observation windows.
+The proof now requires each peer's first-fight event and permits only successful local cancellation or the documented authority-silence disconnect.
+Other startup and transport errors still fail it. Bounded automation's terminal acknowledgement tests remain unchanged.

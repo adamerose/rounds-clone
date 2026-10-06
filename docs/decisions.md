@@ -896,3 +896,15 @@ Both limits are enforced in the network crate. The worker was expressly limited 
 [Ticket #89](http://ivy.localhost/tickets/89?repo=rounds-clone) records the missing lifecycle outcome as an idea, preserving bounded automation rather than replacing its limits with larger guesses.
 The alternatives are to extend ticket 81's authorized scope to implement cancellable interactive sessions, or admit that separate network ticket before resuming UI delivery.
 Retries and larger constants would conceal the lifecycle distinction, while publishing the current menu would knowingly deliver the reproduced defect; neither is chosen.
+
+## 2026-10-06 — Ticket [#81](http://ivy.localhost/tickets/81?repo=rounds-clone) interactive lifecycle correction for run [#75](http://ivy.localhost/tickets/75?repo=rounds-clone)
+
+The orchestrator authorized the network correction, replacing the earlier worker scope restriction; the recorded review stop is resolved.
+Keep bounded connect/run APIs for automation, and add cancellable interactive preparation and run APIs with no join deadline or tick count.
+A client handle exists before handshaking, so the verified monitor-four waiting window can close it. Host cancellation also closes the authority handle and joins both threads.
+The alternative, increasing JOIN_WINDOW and MAX_LIVE_TICKS, would leave both product failures at arbitrary later times and weaken the existing bounded automation contract.
+Peer-loss watchdogs remain active after play starts. While waiting for the second peer, the host removes cancelled or silent reservations instead of abandoning its waiting session.
+Interactive server and client loops retain no growing tick trace or received-state history; bounded automation retains its evidence collections.
+Correct keyboard aim priority, IPv4 validation, intentional departure handling, fixed-size menu click mapping and winner fallback in the same review correction.
+Between fights use a plain backdrop rather than arena geometry under a fixed UI camera; this removes clipped arenas and geometry behind card descriptions.
+Controller assignment remains based on devices present, so the menu and README ask players to connect controllers before starting; stable hot-plug assignment is not added here.

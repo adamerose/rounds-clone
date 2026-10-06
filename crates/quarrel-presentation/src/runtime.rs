@@ -20,6 +20,7 @@ pub(super) fn setup_offscreen_scene(
     snapshot: Res<SceneSnapshot>,
     target: Res<CaptureTarget>,
     menu: Option<Res<super::menu::Menu>>,
+    view: Res<super::capture::OffscreenView>,
 ) {
     let (transform, bloom, chromatic, lens) = camera_state(&snapshot.0);
     commands.spawn((
@@ -36,6 +37,10 @@ pub(super) fn setup_offscreen_scene(
         chromatic,
         lens,
     ));
+    if matches!(*view, super::capture::OffscreenView::Waiting) {
+        spawn_waiting_scene(&mut commands);
+        return;
+    }
     if let Some(menu) = menu {
         super::menu::spawn_menu(&mut commands, &menu);
         return;
@@ -382,6 +387,38 @@ fn mouse_aim(
     Some(target - Vec2::new(actor.x_milli as f32, actor.y_milli as f32) / 1_000.0)
 }
 
+pub(super) fn setup_live_waiting_scene(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        super::scene::ui_projection(),
+        Hdr,
+        Bloom::default(),
+        ChromaticAberration::default(),
+        LensDistortion::default(),
+    ));
+    spawn_waiting_scene(&mut commands);
+}
+
+fn spawn_waiting_scene(commands: &mut Commands) {
+    commands.spawn((
+        SceneVisual,
+        CaptureElement::Background,
+        Sprite::from_color(Color::srgb_u8(7, 16, 28), Vec2::new(1280.0, 720.0)),
+        Transform::from_xyz(0.0, 0.0, -10.0),
+    ));
+    commands.spawn((
+        SceneVisual,
+        Text2d::new("Waiting for the other player...\nEscape or close the window to cancel"),
+        TextFont {
+            font_size: FontSize::Px(28.0),
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        TextLayout::justify(Justify::Center),
+        Transform::default(),
+    ));
+}
+
 pub(super) fn poll_live_snapshot(mut live: ResMut<LivePresentation>) {
     if let Some((snapshot, hash)) = live.handle.latest()
         && live.displayed_hash.as_deref() != Some(hash.as_str())
@@ -459,7 +496,7 @@ pub(super) fn verify_live_monitor_show(
     {
         camera.viewport = camera_viewport(snapshot, primary.0.physical_size());
     }
-    if lifetime.shown || live.displayed_snapshot.is_none() {
+    if lifetime.shown {
         return;
     }
     let monitor = monitors
@@ -512,9 +549,14 @@ pub(super) fn submit_live_input(
     live: Res<LivePresentation>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    if keys.just_pressed(KeyCode::Escape) {
+        live.handle.close();
+        exit.write(AppExit::Success);
+        return;
+    }
     if let Some(result) = live.handle.result() {
-        if result != "completed" || lifetime.shown {
-            exit.write(if result == "completed" {
+        if (result != "completed" && result != "local_close") || lifetime.shown {
+            exit.write(if result == "completed" || result == "local_close" {
                 AppExit::Success
             } else {
                 AppExit::error()

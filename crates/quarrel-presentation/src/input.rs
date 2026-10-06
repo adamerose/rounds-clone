@@ -61,7 +61,9 @@ pub fn keyboard_mouse_combat_input(
     mouse_aim: Option<Vec2>,
 ) -> PlayerInput {
     let mut input = keyboard_combat_input(keys, 0);
-    if let Some(aim) = mouse_aim.filter(|aim| aim.length_squared() > f32::EPSILON) {
+    if let Some(aim) =
+        mouse_aim.filter(|aim| input.aim_at_opponent && aim.length_squared() > f32::EPSILON)
+    {
         let scale = aim.x.abs().max(aim.y.abs());
         input.aim_x = (aim.x * 1_000.0 / scale) as i16;
         input.aim_y = (aim.y * 1_000.0 / scale) as i16;
@@ -244,6 +246,14 @@ mod tests {
         keyboard::{Key, KeyboardInput},
         mouse::MouseButtonInput,
     };
+
+    #[test]
+    fn keyboard_aim_takes_priority_over_a_parked_mouse() {
+        let mut keys = ButtonInput::default();
+        keys.press(KeyCode::KeyI);
+        let input = keyboard_mouse_combat_input(&keys, &ButtonInput::default(), Some(Vec2::X));
+        assert_eq!((input.aim_x, input.aim_y), (0, 1_000));
+    }
 
     fn flow() -> FlowSnapshot {
         AuthoritativeMatch::new(38).snapshot().flow.unwrap()

@@ -11,7 +11,7 @@ use std::fs;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -193,6 +193,15 @@ pub struct LiveClientReport {
 
 pub struct LiveServer {
     socket: ConditionedSocket,
+    closed: Arc<AtomicBool>,
+}
+
+#[derive(Clone)]
+pub struct LiveServerHandle(Arc<AtomicBool>);
+impl LiveServerHandle {
+    pub fn close(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
 }
 
 #[derive(Default)]
@@ -219,7 +228,17 @@ impl LiveServer {
             .map_err(|error| error.to_string())?;
         Ok(Self {
             socket: ConditionedSocket::new(socket, conditions, 0),
+            closed: Arc::new(AtomicBool::new(false)),
         })
+    }
+
+    pub fn handle(&self) -> LiveServerHandle {
+        LiveServerHandle(self.closed.clone())
+    }
+
+    /// Waits for both peers and plays until cancelled or a connected peer leaves.
+    pub fn run_interactive(self, config: MatchConfig) -> Result<LiveServerReport, String> {
+        self.run_session(config, None, None, RunFaults::default())
     }
 
     pub fn local_addr(&self) -> Result<SocketAddr, String> {
@@ -246,6 +265,16 @@ impl LiveServer {
         faults: RunFaults,
     ) -> Result<LiveServerReport, String> {
         valid_ticks(ticks)?;
+        self.run_session(config, Some(ticks), trace_path, faults)
+    }
+
+    fn run_session(
+        self,
+        config: MatchConfig,
+        ticks: Option<u32>,
+        trace_path: Option<&Path>,
+        faults: RunFaults,
+    ) -> Result<LiveServerReport, String> {
         config.validate()?;
         if config.fighter_count != 2 {
             return Err("live UDP currently supports exactly two fighters".to_owned());
@@ -256,10 +285,15 @@ impl LiveServer {
         let session = new_nonce();
         let mut peers: [Option<(SocketAddr, u64)>; 2] = [None, None];
         let join_until = Instant::now() + JOIN_WINDOW;
+        let mut joining_seen = [Instant::now(); 2];
         let mut max_received = 0;
         let mut max_sent = 0;
         let mut invalid_datagrams = 0;
-        while peers.iter().any(Option::is_none) && Instant::now() < join_until {
+        while peers.iter().any(Option::is_none) && (ticks.is_none() || Instant::now() < join_until)
+        {
+            if self.closed.load(Ordering::Relaxed) {
+                return Err("local_close".into());
+            }
             if let Some((packet, sender, size)) =
                 recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
             {
@@ -269,26 +303,54 @@ impl LiveServer {
                     client_id,
                     config: received_config,
                     nonce,
-                } = packet
+                } = &packet
                 {
-                    if protocol != LIVE_PROTOCOL || client_id > 1 || received_config != config {
+                    if *protocol != LIVE_PROTOCOL || *client_id > 1 || *received_config != config {
                         continue;
                     }
-                    let slot = &mut peers[usize::from(client_id)];
+                    let slot = &mut peers[usize::from(*client_id)];
                     if slot.is_none() {
-                        *slot = Some((sender, nonce));
+                        *slot = Some((sender, *nonce));
                     }
-                    if *slot == Some((sender, nonce)) {
+                    if *slot == Some((sender, *nonce)) {
+                        joining_seen[usize::from(*client_id)] = Instant::now();
                         max_sent = max_sent.max(send(
                             &self.socket,
                             sender,
                             &ServerPacket::Welcome {
                                 protocol: LIVE_PROTOCOL,
-                                client_id,
-                                nonce,
+                                client_id: *client_id,
+                                nonce: *nonce,
                                 session,
                             },
                         )?);
+                    }
+                } else if let Some(id) = peers
+                    .iter()
+                    .position(|peer| peer.is_some_and(|(address, _)| address == sender))
+                {
+                    match packet {
+                        ClientPacket::Input {
+                            session: received,
+                            client_id,
+                            ..
+                        } if received == session && usize::from(client_id) == id => {
+                            joining_seen[id] = Instant::now()
+                        }
+                        ClientPacket::Leave {
+                            session: received,
+                            client_id,
+                        } if received == session && usize::from(client_id) == id => {
+                            peers[id] = None
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            if ticks.is_none() {
+                for id in 0..2 {
+                    if joining_seen[id].elapsed() > PEER_WINDOW {
+                        peers[id] = None;
                     }
                 }
             }
@@ -306,13 +368,24 @@ impl LiveServer {
         let tick_period = Duration::from_secs_f64(1.0 / f64::from(TICKS_PER_SECOND));
         let mut next_tick = start + tick_period;
         let mut late_ticks = 0;
-        let mut trace = Vec::with_capacity(ticks as usize);
+        let mut trace = Vec::with_capacity(ticks.unwrap_or(0) as usize);
         let mut final_state = None;
-        for tick in 1..=ticks {
+        let mut tick = 0;
+        loop {
+            if Some(tick) == ticks {
+                break;
+            }
+            if self.closed.load(Ordering::Relaxed) {
+                return Err("local_close".into());
+            }
+            tick += 1;
             if faults.stall_at == Some(tick) {
                 std::thread::sleep(Duration::from_millis(150));
             }
             while Instant::now() < next_tick {
+                if self.closed.load(Ordering::Relaxed) {
+                    return Err("local_close".into());
+                }
                 if let Some((packet, sender, size)) =
                     recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
                 {
@@ -398,12 +471,14 @@ impl LiveServer {
             simulation.step(&inputs);
             let state = simulation.snapshot();
             let hash = hash_snapshot(&state);
-            trace.push(AppliedTick {
-                tick,
-                elapsed_micros: start.elapsed().as_micros(),
-                inputs: inputs.clone(),
-                hash: hash.clone(),
-            });
+            if ticks.is_some() {
+                trace.push(AppliedTick {
+                    tick,
+                    elapsed_micros: start.elapsed().as_micros(),
+                    inputs: inputs.clone(),
+                    hash: hash.clone(),
+                });
+            }
             let packet = ServerPacket::Snapshot {
                 session,
                 tick,
@@ -412,7 +487,7 @@ impl LiveServer {
                 state: Box::new(state.clone()),
             };
             for (id, peer) in peers.into_iter().enumerate() {
-                if tick != ticks || faults.drop_final_snapshot_for != Some(id) {
+                if Some(tick) != ticks || faults.drop_final_snapshot_for != Some(id) {
                     max_sent = max_sent.max(send(&self.socket, peer, &packet)?);
                 }
             }
@@ -426,6 +501,7 @@ impl LiveServer {
                 next_tick = Instant::now() + tick_period;
             }
         }
+        let ticks = ticks.expect("only bounded runs complete at a terminal tick");
         let elapsed = start.elapsed();
         let (state, hash) = final_state.expect("positive tick count");
         let trace_bytes = serde_json::to_vec(&trace).map_err(|error| error.to_string())?;
@@ -545,6 +621,7 @@ pub struct LiveClient {
     authority: SocketAddr,
     client_id: u8,
     session: u64,
+    pending_hello: Option<ClientPacket>,
     handle: LiveClientHandle,
     max_sent: usize,
     max_received: usize,
@@ -566,6 +643,26 @@ impl LiveClient {
         config: MatchConfig,
         conditions: NetworkConditions,
     ) -> Result<Self, String> {
+        let mut client = Self::prepare(address, client_id, config, conditions)?;
+        client.join(Some(JOIN_WINDOW))?;
+        Ok(client)
+    }
+
+    /// Prepares a cancellable client; its network thread performs the handshake.
+    pub fn connect_interactive(
+        address: impl ToSocketAddrs,
+        client_id: u8,
+        config: MatchConfig,
+    ) -> Result<Self, String> {
+        Self::prepare(address, client_id, config, NetworkConditions::from_env()?)
+    }
+
+    fn prepare(
+        address: impl ToSocketAddrs,
+        client_id: u8,
+        config: MatchConfig,
+        conditions: NetworkConditions,
+    ) -> Result<Self, String> {
         let conditions = conditions.validate()?;
         config.validate()?;
         if config.fighter_count != 2 || client_id > 1 {
@@ -582,54 +679,17 @@ impl LiveClient {
             .set_read_timeout(Some(READ_INTERVAL))
             .map_err(|error| error.to_string())?;
         let socket = ConditionedSocket::new(socket, conditions, u64::from(client_id) + 1);
-        let nonce = new_nonce();
-        let hello = ClientPacket::Hello {
-            protocol: LIVE_PROTOCOL,
-            client_id,
-            config,
-            nonce,
-        };
-        let until = Instant::now() + JOIN_WINDOW;
-        let mut resend = Instant::now();
-        let mut max_sent = 0;
-        let mut max_received = 0;
-        let mut invalid_datagrams = 0;
-        let session = loop {
-            if Instant::now() >= until {
-                return Err(
-                    "join_timeout: authority did not welcome this peer within 5 seconds".to_owned(),
-                );
-            }
-            if Instant::now() >= resend {
-                max_sent = max_sent.max(send(&socket, authority, &hello)?);
-                resend = Instant::now() + TERMINAL_INTERVAL;
-            }
-            if let Some((packet, sender, size)) =
-                recv::<ServerPacket>(&socket, &mut invalid_datagrams)?
-            {
-                if sender != authority {
-                    continue;
-                }
-                max_received = max_received.max(size);
-                if let ServerPacket::Welcome {
-                    protocol,
-                    client_id: welcomed,
-                    nonce: echoed,
-                    session,
-                } = packet
-                    && protocol == LIVE_PROTOCOL
-                    && welcomed == client_id
-                    && echoed == nonce
-                {
-                    break session;
-                }
-            }
-        };
         Ok(Self {
             socket,
             authority,
             client_id,
-            session,
+            session: 0,
+            pending_hello: Some(ClientPacket::Hello {
+                protocol: LIVE_PROTOCOL,
+                client_id,
+                config,
+                nonce: new_nonce(),
+            }),
             handle: LiveClientHandle(Arc::new(Mutex::new(Shared {
                 held: PlayerInput::default(),
                 edges: VecDeque::new(),
@@ -638,27 +698,90 @@ impl LiveClient {
                 close: false,
                 result: None,
             }))),
-            max_sent,
-            max_received,
-            invalid_datagrams,
+            max_sent: 0,
+            max_received: 0,
+            invalid_datagrams: 0,
         })
+    }
+
+    fn join(&mut self, window: Option<Duration>) -> Result<bool, String> {
+        let hello = self.pending_hello.take().expect("one handshake per client");
+        let ClientPacket::Hello { nonce, .. } = hello else {
+            unreachable!()
+        };
+        let until = window.map(|duration| Instant::now() + duration);
+        let mut resend = Instant::now();
+        loop {
+            if self.handle.0.lock().unwrap().close {
+                return Ok(false);
+            }
+            if until.is_some_and(|until| Instant::now() >= until) {
+                return Err(
+                    "join_timeout: authority did not welcome this peer within 5 seconds".into(),
+                );
+            }
+            if Instant::now() >= resend {
+                self.max_sent = self
+                    .max_sent
+                    .max(send(&self.socket, self.authority, &hello)?);
+                resend = Instant::now() + TERMINAL_INTERVAL;
+            }
+            if let Some((packet, sender, size)) =
+                recv::<ServerPacket>(&self.socket, &mut self.invalid_datagrams)?
+            {
+                if sender != self.authority {
+                    continue;
+                }
+                self.max_received = self.max_received.max(size);
+                if let ServerPacket::Welcome {
+                    protocol,
+                    client_id: welcomed,
+                    nonce: echoed,
+                    session,
+                } = packet
+                    && protocol == LIVE_PROTOCOL
+                    && welcomed == self.client_id
+                    && echoed == nonce
+                {
+                    self.session = session;
+                    return Ok(true);
+                }
+            }
+        }
     }
 
     pub fn handle(&self) -> LiveClientHandle {
         self.handle.clone()
     }
 
-    pub fn run(mut self, ticks: u32) -> Result<LiveClientReport, String> {
+    pub fn run(self, ticks: u32) -> Result<LiveClientReport, String> {
+        self.run_session(Some(ticks))
+    }
+
+    pub fn run_interactive(self) -> Result<LiveClientReport, String> {
+        self.run_session(None)
+    }
+
+    fn run_session(mut self, ticks: Option<u32>) -> Result<LiveClientReport, String> {
         let handle = self.handle.clone();
-        let result = self.run_inner(ticks);
+        let result = ticks.map_or(Ok(()), valid_ticks).and_then(|()| {
+            if self.pending_hello.is_some() {
+                match self.join(ticks.map(|_| JOIN_WINDOW)) {
+                    Ok(true) => self.run_inner(ticks),
+                    Ok(false) => Ok(self.report("local_close", 0, None, Vec::new())),
+                    Err(error) => Err(error),
+                }
+            } else {
+                self.run_inner(ticks)
+            }
+        });
         if let Err(error) = &result {
             handle.0.lock().unwrap().result = Some(format!("network_error: {error}"));
         }
         result
     }
 
-    fn run_inner(&mut self, ticks: u32) -> Result<LiveClientReport, String> {
-        valid_ticks(ticks)?;
+    fn run_inner(&mut self, ticks: Option<u32>) -> Result<LiveClientReport, String> {
         let mut last_tick = 0;
         let mut last_hash = None;
         let mut received = Vec::new();
@@ -680,7 +803,7 @@ impl LiveClient {
                     .map_err(|error| format!("drain live peer: {error}"))?;
                 return Ok(self.report("local_close", last_tick, last_hash, received));
             }
-            if last_authority.elapsed() > PEER_WINDOW {
+            if (ticks.is_some() || last_tick > 0) && last_authority.elapsed() > PEER_WINDOW {
                 return Ok(self.report("authority_silent", last_tick, last_hash, received));
             }
             if Instant::now() >= next_send {
@@ -750,7 +873,9 @@ impl LiveClient {
                         if tick > last_tick {
                             last_tick = tick;
                             last_hash = Some(hash.clone());
-                            received.push((tick, hash.clone()));
+                            if ticks.is_some() {
+                                received.push((tick, hash.clone()));
+                            }
                         }
                         if terminal {
                             let acknowledgement = ClientPacket::Ack {
@@ -771,7 +896,7 @@ impl LiveClient {
                                 .drain()
                                 .map_err(|error| format!("drain live peer: {error}"))?;
                             return Ok(self.report(
-                                if tick == ticks {
+                                if ticks.is_none() || Some(tick) == ticks {
                                     "completed"
                                 } else {
                                     "early_terminal"
@@ -1691,5 +1816,111 @@ mod regression_tests {
             thread::sleep(Duration::from_millis(2));
         }
         panic!("live state did not reach the expected condition");
+    }
+}
+
+#[cfg(test)]
+mod interactive_tests {
+    use super::*;
+    use std::thread;
+
+    #[test]
+    fn invalid_bounded_ticks_report_failure_without_waiting_to_connect() {
+        let server = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let client = LiveClient::connect_interactive(
+            server.local_addr().unwrap(),
+            0,
+            MatchConfig::default(),
+        )
+        .unwrap();
+        let handle = client.handle();
+        assert!(client.run(0).unwrap_err().contains("tick count"));
+        assert!(handle.result().unwrap().contains("network_error"));
+    }
+
+    #[test]
+    fn interactive_waiting_is_cancellable_and_releases_both_sockets() {
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_close = server.handle();
+        // Hold the socket without a receiver: the join stays pending beyond the automation window.
+        let client = LiveClient::connect_interactive(address, 0, MatchConfig::default()).unwrap();
+        let peer_address = client.socket.local_addr().unwrap();
+        let close = client.handle();
+        let run = thread::spawn(move || client.run_interactive().unwrap());
+        thread::sleep(JOIN_WINDOW + Duration::from_millis(200));
+        assert!(close.result().is_none());
+        assert!(!run.is_finished());
+        close.close();
+        assert_eq!(run.join().unwrap().result, "local_close");
+        UdpSocket::bind(peer_address).unwrap();
+        let authority = thread::spawn(move || server.run_interactive(MatchConfig::default()));
+        server_close.close();
+        assert_eq!(authority.join().unwrap().unwrap_err(), "local_close");
+        UdpSocket::bind(address).unwrap();
+    }
+
+    #[test]
+    fn interactive_client_accepts_authority_ticks_beyond_the_automation_cap() {
+        // The external authority boundary supplies valid snapshots beyond the old cutoff.
+        let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let client = LiveClient::connect_interactive(
+            socket.local_addr().unwrap(),
+            0,
+            MatchConfig::default(),
+        )
+        .unwrap();
+        let handle = client.handle();
+        let run = thread::spawn(move || client.run_interactive().unwrap());
+        let mut invalid = 0;
+        let (hello, peer, _) = recv::<ClientPacket>(&socket, &mut invalid)
+            .unwrap()
+            .unwrap();
+        let ClientPacket::Hello { nonce, .. } = hello else {
+            panic!("expected hello")
+        };
+        send(
+            &socket,
+            peer,
+            &ServerPacket::Welcome {
+                protocol: LIVE_PROTOCOL,
+                client_id: 0,
+                nonce,
+                session: 7,
+            },
+        )
+        .unwrap();
+        let mut state = AuthoritativeMatch::new(38).snapshot();
+        state.tick = MAX_LIVE_TICKS + 1;
+        let hash = hash_snapshot(&state);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while handle.latest().is_none() && Instant::now() < deadline {
+            send(
+                &socket,
+                peer,
+                &ServerPacket::Snapshot {
+                    session: 7,
+                    tick: state.tick,
+                    hash: hash.clone(),
+                    ack: [0, 0],
+                    state: Box::new(state.clone()),
+                },
+            )
+            .unwrap();
+            thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(handle.latest().unwrap().0.tick, MAX_LIVE_TICKS + 1);
+        assert!(handle.result().is_none());
+        handle.close();
+        let report = run.join().unwrap();
+        assert_eq!(report.result, "local_close");
+        assert_eq!(report.last_tick, MAX_LIVE_TICKS + 1);
+        assert!(
+            report.received.is_empty(),
+            "interactive sessions keep no unbounded history"
+        );
     }
 }

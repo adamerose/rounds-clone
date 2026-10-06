@@ -71,7 +71,7 @@ pub(super) fn spawn_draft_scene(
     commands.spawn((
         SceneVisual,
         Text2d::new(format!(
-            "{picking} picking\nKeyboard: A/D + Space    Controller: D-pad + A\nLocal second keyboard: Arrows + Enter"
+            "{picking} picking\nKeyboard: A/D + Space    Controller: D-pad + A\nWith no controllers, F2 keyboard: Arrows + Enter"
         )),
         TextFont {
             font_size: FontSize::Px(18.0),
