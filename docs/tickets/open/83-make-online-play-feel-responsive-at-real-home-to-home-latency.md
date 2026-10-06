@@ -1,12 +1,14 @@
 ---
 format: 3
 status: ready
+owner: codex:01a10fa3-aece-76f3-9658-406cb0d99123
 created: 2026-10-05T14:55:57Z
 origin: human-request
 tags: ["quarrel", "mvp", "network"]
 value: 10
 sessions:
   - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
+  - codex:01a10fa3-aece-76f3-9658-406cb0d99123
 execution: unattended
 parent: 75
 depends-on: [78, 79, 88]
