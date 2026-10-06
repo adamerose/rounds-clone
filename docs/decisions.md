@@ -807,3 +807,7 @@ The alternative, a separately maintained fixture asset directory, duplicates fil
 Normal matches continue watching live files. A valid arena name edit updates its cached name-to-file mapping so subsequent fights retain that file's identity.
 Restore general transport failure tests and capture provenance rather than treating them as footage-specific checks. Reject aliased PNG and metadata paths before rendering or connecting.
 The alternative would delete wanted development capabilities outside this ticket's profile removal. Local presentation and paced live networking retain their shipped 1v1 scope; fighter-count generality belongs to the match authority and scripted transport.
+
+## 2026-10-06 — Run #75 admits #85
+
+An independent check updated #85 to main after #78 (the join-timeout route is closed; the stale-session fixture still loops forever) and admitted it; #86 waits for #79 and #80 so its tests match the new combat and cards.
