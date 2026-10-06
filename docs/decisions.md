@@ -821,3 +821,7 @@ Pinch uses fixed and loose saws; Shuttle uses translating platforms and a rotati
 Use four explicit spawns, the existing 1280 by 720 camera frame, and solid basins around physics layouts to retain debris; open edges would let pieces leave during the required stability check.
 Verify shots through public player inputs against an unshot control, rather than applying test impulses or directly breaking supports.
 Reuse the root Cargo target with the repository's two-job cap and Cargo's build-directory file lock; no new target or parallel build is needed.
+
+## 2026-10-06 — Run #75 splits #88 out of #83
+
+With #82 closed and nothing else unblocked, the network-conditions simulator and the prediction-vs-rollback spike moved from #83 into #88 so they can run before #79 lands; an independent check admitted #88 and re-admitted the amended #83.
