@@ -1,6 +1,7 @@
 ---
 format: 3
 status: ready
+owner: codex:01a10fa3-aece-76f3-9658-406cb0d99123
 created: 2026-10-05T14:55:57Z
 origin: human-request
 tags: ["quarrel", "mvp", "network"]
