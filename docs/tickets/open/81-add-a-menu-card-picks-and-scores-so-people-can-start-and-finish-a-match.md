@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 owner: codex:01a10efb-452f-7e52-a19e-e83483327e9c
 created: 2026-10-05T14:13:11Z
 origin: agent-proposed
@@ -20,6 +20,25 @@ split-from: []
 
 Players need to start a match, see their offers, read the score and choose to run it back, without command-line flags.
 Style waits until after the MVP, so this is plain and readable rather than polished.
+
+## Blocked
+
+Fresh [review](http://ivy.localhost/sessions/claude/21d3df2e-8993-472b-aea0-ca439e61fa9a) rejected the menu candidate for two existing network lifecycle limits.
+Host without its partner exits after 5189 ms; Join alone exits after 5390 ms. Both enforce JOIN_WINDOW=5 seconds.
+Menu online play also passes MAX_LIVE_TICKS=36060, so the network authority ends after 601 seconds regardless of fight or consensus run-back progress.
+Fixing these requires network-crate work outside this worker's explicit instruction to "keep to the client, presentation and match-flow UI".
+[Idea #89](http://ivy.localhost/tickets/89?repo=rounds-clone) records cancellable interactive lifecycles while preserving bounded automation.
+
+1. Which scope should carry the network lifecycle fix needed to deliver this menu?
+   (a) Extend ticket 81's authorized scope to the necessary live-network lifecycle changes (recommended); preserve bounded CLI automation, implement cancellable interactive waiting/play, and re-review the complete candidate.
+   (b) Admit ticket 89 separately, deliver it first, and then resume ticket 81; the UI candidate stays unpublished until the dependency is usable.
+
+Candidate reviewed: e96974404f7ba7552dfffb802a424baecf7a603d..9a0005a6f3261c02a41aaff1d8529fb28b4827f5, verdict REQUEST_CHANGES.
+Held tip including the decision record: abd7c16069b93a835252e29d76d2a7f962cf755f.
+Clean detached worktree: `.ivy/worktrees/081-match-ui`. Neither code commit is in origin/main; the worktree and evidence stay in place.
+Evidence: `out/ticket081proof/report.md`, `review.json`, exact executable/test hashes, five inspected images and monitor-four logs.
+46 tests, format, strict all-target Clippy, locked build and doctests passed, but those checks did not cover delayed menu joining or long interactive sessions.
+The review's non-blocking notes are also retained in review.json for the next worker; no approval trailer has been added.
 
 ## Outcome
 
