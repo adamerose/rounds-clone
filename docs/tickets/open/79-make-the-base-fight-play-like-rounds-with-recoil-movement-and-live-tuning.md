@@ -54,3 +54,4 @@ Adam — this session, 2026-10-04:
 - 2026-10-05T15:03:20Z Admitted for run #75 after an independent contract check; its fixes were applied first.
 - 2026-10-06T02:13:14Z stage implement start — traced boundary defects: zero bullet gravity, 100 damage, no magazine/cooldown, grounded-only jump and instant edge elimination; implementing data-driven baseline.
 - 2026-10-06T02:26:10Z stage verify start — ten combat regressions pass; regenerated ordinary recording via public inputs; two-client 2400-tick smoke reaches loser draft and match end with matching states; edge and reflection PNGs rendered.
+- 2026-10-06T02:35:47Z verification correction — rejected a shared-target run that contained only 16 sim tests and a later mixed-branch snapshot compile. Retaining dependencies, forcing local source freshness across the Cargo queue, and freezing Cargo-produced test executables before serial execution. No clean target: disk headroom is below 1 GiB.
