@@ -941,3 +941,6 @@ A stance change replaces the fighter collider while retaining its body, velocity
 Choose a default recoil impulse of 800 with a 120 pixels/second cap. The former 72 produced only about 12 pixels/second; the new default provides a small observable boost and exercises the cap at the default fighter mass.
 Keep both network keyboard sets usable during drafts and votes as well as combat. Preserve reflection extensions on a new block press and let ballistic shots return from above the frame during their normal lifetime.
 Missing size fields in historical snapshots use the bundled standing dimensions. Report changed tuning failures to stderr as well as the existing query API, and document that mouse-cursor aim also applies to keyboard firing.
+
+Keep collider identity when a tuning edit leaves its shape unchanged; update mass and material values in place. Geometry edits still replace the collider to discard stale anchors.
+The alternative, rebuilding every collider on every edit, briefly removes support contacts and interrupts a held crouch even when only damage changes.

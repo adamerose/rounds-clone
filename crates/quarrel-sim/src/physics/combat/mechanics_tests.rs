@@ -620,3 +620,43 @@ fn old_snapshots_without_size_fields_keep_visible_standing_fighters() {
         assert_eq!(after.height_milli, before.height_milli);
     }
 }
+
+#[test]
+fn editing_damage_preserves_a_held_ground_crouch() {
+    let mut a = ArenaDefinition::load(&default_arena_directory().join("all-kinds.ron")).unwrap();
+    a.objects.retain(|object| object.id == 0);
+    a.chains.clear();
+    a.surfaces.clear();
+    a.spawns = vec![[-100.0, -258.0], [100.0, -258.0]];
+    let mut tuning = CombatTuning::default();
+    let mut game = game(a, tuning.clone());
+    idle(&mut game, 30);
+    let path =
+        std::env::temp_dir().join(format!("quarrel-79-crouch-edit-{}.ron", std::process::id()));
+    std::fs::write(&path, ron::to_string(&tuning).unwrap()).unwrap();
+    game.watch_tuning_file(&path).unwrap();
+    let input = PlayerInput {
+        crouch: true,
+        ..Default::default()
+    };
+    for _ in 0..15 {
+        game.step(&[input, PlayerInput::default()]);
+    }
+    tuning.damage_per_hit = 17;
+    std::fs::write(&path, ron::to_string(&tuning).unwrap()).unwrap();
+    let mut heights = Vec::new();
+    for _ in 0..15 {
+        game.step(&[input, PlayerInput::default()]);
+        let actor = &game.snapshot().players[0];
+        heights.push((actor.height_milli, actor.y_milli - actor.height_milli / 2));
+    }
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(game.tuning().damage_per_hit, 17);
+    for (height, feet) in heights {
+        assert_eq!(
+            height, 22_000,
+            "damage edit must preserve a held crouch on every tick"
+        );
+        assert!((feet + 280_000).abs() < 1_000);
+    }
+}

@@ -215,3 +215,6 @@ The positional regression failed immediately with feet at -177.213 instead of th
 Changing the collider's shape in place kept its old solver contacts. Replacing that collider on stance changes gives fresh anchors while retaining the body, velocity and mass; crouch and stand-up now both keep feet on the floor.
 Default recoil was only about 12 pixels/second at the chosen fighter mass. Raise its impulse to 800 and compare enabled versus disabled motion to check the 120 pixels/second cap with the shipped settings.
 The three-fighter progression fixture now uses a flat arena and current tuning/cards, so regenerating the ordinary recording cannot change its pathfinding needs.
+
+The second review approved the combat corrections but identified a tuning side effect. A damage-only edit recreated a crouched collider, removing support contacts before controls ran and restoring standing height for one tick.
+A public watch-file regression reproduced height44000 instead of22000 on that tick. Only actual shape changes now recreate colliders; the same regression passes with continuous crouch height and floor contact.

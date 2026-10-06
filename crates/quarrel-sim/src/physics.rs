@@ -345,14 +345,23 @@ impl PhysicsBoundary {
             .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
     }
     pub(crate) fn update_tuning(&mut self, tuning: CombatTuning) {
+        let radius_changed = self.tuning.player_radius != tuning.player_radius;
+        let crouch_height_changed = self.tuning.crouch_height_factor != tuning.crouch_height_factor;
         self.tuning = tuning;
         self.rapier.gravity = Vector::new(0.0, -self.tuning.gravity);
         for id in 0..self.players.len() {
-            self.set_crouch(id as u8, self.players[id].crouched);
+            if radius_changed || (self.players[id].crouched && crouch_height_changed) {
+                self.set_crouch(id as u8, self.players[id].crouched);
+            }
             let player = self.players[id];
             let body = &mut self.rapier.bodies[player.body];
             body.set_linear_damping(self.tuning.player_damping);
             let collider = &mut self.rapier.colliders[player.collider];
+            collider.set_mass(
+                std::f32::consts::PI
+                    * self.tuning.player_radius.powi(2)
+                    * self.tuning.player_density,
+            );
             collider.set_friction(self.tuning.player_friction);
             collider.set_restitution(self.tuning.player_restitution);
         }
