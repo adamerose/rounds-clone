@@ -60,3 +60,4 @@ Adam — this session, 2026-10-04:
 - 2026-10-06T02:26:57Z stage implement end session codex:01a10efa-f6e1-7720-9f5d-cc0a32f67b29 — twelve original RON cards, deterministic fading reactions, live reload, Grow/poison/explosion visuals and swept Drill accounting implemented
 - 2026-10-06T02:27:03Z stage verify start session codex:01a10efa-f6e1-7720-9f5d-cc0a32f67b29 — card and combo regressions, workspace checks and headless visual evidence; reconcile magazine integration when ticket 79 lands
 - 2026-10-06T03:24:51Z stage correction start — reproduced Shepherd ignoring opposite aim; rotate velocity through the shortest angle, preserving speed, with a boundary regression
+- 2026-10-06T03:47:49Z stage correction end — Shepherd reverses toward opposite aim; Drill shots still expire; saw and loose-object damage emits TakeDamage in the same tick; original arena fixtures use neutral cards
