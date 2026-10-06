@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: closed
 created: 2026-10-06T03:34:14Z
 origin: system-detected
 tags: ["quarrel", "mvp", "network"]
