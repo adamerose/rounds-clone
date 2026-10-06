@@ -48,3 +48,4 @@ Adam — this session, 2026-10-04:
 - 2026-10-05T15:04:03Z Admitted for run #75 after an independent contract check; its fixes were applied first.
 - 2026-10-06T02:14:17Z stage research start session codex:01a10efb-9238-7e12-aecc-c488e6f1fa44 — Claimed ticket; inspect data format, runtime and prepared-target locking on origin/main.
 - 2026-10-06T02:14:21Z stage research end session codex:01a10efb-9238-7e12-aecc-c488e6f1fa44 — Existing RON objects and public arena-preview cover the outcome; code changes stay in arena tests. Cargo uses its target .cargo-lock; no custom repository build wrapper exists.
+- 2026-10-06T02:16:09Z stage implement start session codex:01a10efb-9238-7e12-aecc-c488e6f1fa44 — Author ten original layouts and boundary tests for safe spawns, object-kind coverage, 1200 active physics ticks, shot-toppled stacks and released wrecking ball.
