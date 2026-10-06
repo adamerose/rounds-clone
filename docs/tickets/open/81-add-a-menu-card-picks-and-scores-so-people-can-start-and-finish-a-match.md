@@ -56,3 +56,4 @@ Adam — [this session](http://ivy.localhost/sessions/claude/b6830e28-b9c7-41d5-
 
 - 2026-10-05T14:13:11Z Drafted under run #75.
 - 2026-10-05T15:03:50Z Admitted for run #75 after an independent contract check; its fixes were applied first.
+- 2026-10-06T02:13:42Z stage implement start session codex:01a10efb-452f-7e52-a19e-e83483327e9c — Reuse existing flow and network commands; add menu and device-aware readable presentation.
