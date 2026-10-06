@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-06T02:28:31Z
 origin: system-detected
 tags: ["quarrel", "build", "verification"]
@@ -8,7 +8,8 @@ value: 8
 sessions:
   - codex:01a10efb-9238-7e12-aecc-c488e6f1fa44
 execution: unattended
-depends-on: []
+parent: 75
+depends-on: [79, 80, 81, 85, 88]
 supersedes: []
 split-from: []
 ---
@@ -21,15 +22,19 @@ A locked workspace test can reuse binaries produced from another checkout and re
 
 - Verification builds and tests the current checkout's source even when another worktree populated the shared target more recently.
 - Dependency artifacts remain reusable, and concurrent compilations remain serialized.
+- One repository verification command (for example `tools/verify.ps1`) runs format, strict Clippy, locked build and tests, executing test binaries snapshotted from this run's compiler-artifact messages; AGENTS.md names it.
 
 ## Decisions
 
 - Keep the configured shared target and two-job cap; this report does not authorize a clean Bevy dependency build or a new target.
+- Workspace-crate isolation (for example CARGO_INCREMENTAL=0 or per-worktree workspace outputs) must not change RUSTFLAGS, profiles or features in a way that invalidates the dependency artifacts. A clean build or new target needs the operator notice AGENTS.md requires, so stop as blocked first.
+- It runs after the parallel batch (#79, #80, #81, #85, #88) so its two-worktree evidence cannot disturb their verification.
 
 ## Evidence required
 
 - Two isolated worktrees with different simulation tests use the same prepared target in succession; each workspace test executes its own test names, including after the second checkout's source timestamp predates the first build.
 - The ordinary format, strict Clippy, build and test route remains supported.
+- A second worktree's build that runs while the first worktree's tests are executing does not change which tests the first run executes.
 
 ## Scratch
 
