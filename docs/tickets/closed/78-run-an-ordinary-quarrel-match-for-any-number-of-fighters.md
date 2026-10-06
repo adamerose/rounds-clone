@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a10e3b-a842-7822-a150-68dd15a3b423
+status: closed
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "match-flow"]
@@ -86,3 +85,5 @@ Adam — [this session](http://ivy.localhost/sessions/claude/b6830e28-b9c7-41d5-
 - 2026-10-06T00:29:48Z stage correction end session codex:01a10e3b-a842-7822-a150-68dd15a3b423 — embedded replay content restores content-independent playback; arena rename mapping survives the next fight; capture aliases/provenance and general transport regressions restored; stale living docs corrected
 - 2026-10-06T00:30:12Z stage verify end session codex:01a10e3b-a842-7822-a150-68dd15a3b423 — format, strict all-target Clippy, locked build and all 36 tests pass with none ignored; real UDP smoke agrees through drafts and match end; rename reproduction now observes second-fight edits; replay ignores expanded live content; opening, ready and consensus captures inspected
 - 2026-10-06T00:30:30Z stage review start session codex:01a10e3b-a842-7822-a150-68dd15a3b423 — prepare the complete corrected code range on current origin/main, rerun post-rebase checks, and send exact commits plus correction evidence to a fresh other-family Claude CLI reviewer
+- 2026-10-06T00:48:04Z stage review end session claude:171c00a4-8fca-43e8-bc09-eaba886a6d94 — approved candidate bb00c8dc5b4c3959b8ccb04d892a9d343f0b1258..bc6184b70e59eecdb8742e3285bdb428ea5f8993
+- 2026-10-06T00:48:04Z stage integration end session codex:01a10e3b-a842-7822-a150-68dd15a3b423 — integrated bc6184b70e59eecdb8742e3285bdb428ea5f8993 as bc6184b70e59eecdb8742e3285bdb428ea5f8993
