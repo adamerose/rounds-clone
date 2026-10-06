@@ -109,21 +109,11 @@ fn remote_shot_stops_at_the_wall_in_rendered_frames() {
         dazzle_pulses: 0,
         explosive_radius_milli: 0,
     }];
-    let mut after = before.clone();
-    after.tick += 6;
-    after.projectiles.clear();
-    let samples = [
-        PresentationSample {
-            state: before.clone(),
-            tuning: CombatTuning::default(),
-            input_ack: 0,
-        },
-        PresentationSample {
-            state: after,
-            tuning: CombatTuning::default(),
-            input_ack: 0,
-        },
-    ];
+    let samples = [PresentationSample {
+        state: before.clone(),
+        tuning: CombatTuning::default(),
+        input_ack: 0,
+    }];
     let mut view = ClientPresentation::new(0);
     let mut displayed = before.clone();
     for sequence in 1..=12 {

@@ -1,4 +1,4 @@
-use quarrel_sim::{CombatTuning, FlowPhase, LocalPrediction, MatchSnapshot, PlayerInput};
+use quarrel_sim::{CombatTuning, FlowPhase, MatchSnapshot, PlayerInput, ScenePrediction};
 use std::collections::VecDeque;
 
 #[derive(Clone)]
@@ -8,14 +8,16 @@ pub struct PresentationSample {
     pub input_ack: u64,
 }
 
-/// Client display state; authoritative observations and hashes remain separate.
+/// A current predicted world, corrected from the latest host observation.
 pub struct ClientPresentation {
     player: u8,
     pending: VecDeque<(u64, PlayerInput, f64)>,
     previous: PlayerInput,
-    remote_tick: Option<f64>,
-    observed_tick: u32,
     revision: Option<u32>,
+    observed_tick: Option<u32>,
+    last_scene: Option<MatchSnapshot>,
+    correction: Correction,
+    prediction: Option<ScenePrediction>,
 }
 
 impl ClientPresentation {
@@ -24,13 +26,15 @@ impl ClientPresentation {
             player,
             pending: VecDeque::new(),
             previous: PlayerInput::default(),
-            remote_tick: None,
-            observed_tick: 0,
             revision: None,
+            observed_tick: None,
+            last_scene: None,
+            correction: Correction::default(),
+            prediction: None,
         }
     }
 
-    /// Called after sampling devices and before constructing this frame's scene.
+    /// Sample devices first so this frame contains newly pressed controls.
     pub fn frame(
         &mut self,
         samples: &[PresentationSample],
@@ -39,11 +43,15 @@ impl ClientPresentation {
         seconds: f64,
     ) -> Option<MatchSnapshot> {
         let latest = samples.last()?;
-        let revision = latest.state.flow.as_ref().map(|flow| flow.phase_revision);
-        if revision != self.revision {
+        let seconds = seconds.clamp(0., 0.25);
+        let flow = latest.state.flow.as_ref();
+        let revision = flow.map(|flow| flow.phase_revision);
+        let changed = revision != self.revision;
+        if changed {
             self.pending.clear();
             self.previous = PlayerInput::default();
-            self.remote_tick = None;
+            self.observed_tick = None;
+            self.correction = Correction::default();
             self.revision = revision;
         }
         while self
@@ -53,86 +61,64 @@ impl ClientPresentation {
         {
             self.previous = self.pending.pop_front().unwrap().1;
         }
-        // Four seconds is beyond the transport's peer-silence window. Bound the
-        // input history even if a caller keeps drawing after disconnection.
-        if self.pending.len() == 256 {
-            self.pending.pop_front();
-        }
-        self.pending
-            .push_back((sequence, input, seconds.clamp(0., 0.25)));
-        let mut display = latest.state.clone();
-        if !display
-            .flow
-            .as_ref()
-            .is_some_and(|flow| flow.phase == FlowPhase::Combat)
-        {
-            return Some(display);
-        }
-        let clock = self
-            .remote_tick
-            .get_or_insert(latest.state.tick as f64 - 12.);
-        *clock += seconds.clamp(0., 0.25) * 60.;
-        if self.observed_tick != latest.state.tick {
-            *clock += (latest.state.tick as f64 - 12. - *clock) * 0.1;
-            self.observed_tick = latest.state.tick;
-        }
-        let compatible = samples
-            .iter()
-            .filter(|sample| sample.state.flow.as_ref().map(|flow| flow.phase_revision) == revision)
-            .collect::<Vec<_>>();
-        let before = compatible
-            .iter()
-            .rev()
-            .find(|sample| sample.state.tick as f64 <= *clock)
-            .copied()
-            .unwrap_or(compatible[0]);
-        let after = compatible
-            .iter()
-            .find(|sample| sample.state.tick as f64 >= *clock)
-            .copied()
-            .unwrap_or(latest);
-        let span = after.state.tick.saturating_sub(before.state.tick);
-        let fraction = if span == 0 {
-            0.
-        } else {
-            ((*clock - before.state.tick as f64) / span as f64).clamp(0., 1.)
-        };
-        interpolate(
-            &mut display,
-            &before.state,
-            &after.state,
-            fraction,
-            self.player,
-            &latest.tuning,
-        );
-        let mut prediction = LocalPrediction::new(
-            &latest.state,
-            self.player,
-            latest.tuning.clone(),
-            self.previous,
-        );
-        let mut budget = 0.;
-        let mut partial = PlayerInput::default();
-        for (_, held, dt) in &self.pending {
-            partial = PlayerInput {
-                jump: partial.jump || held.jump,
-                block: partial.block || held.block,
-                fire: partial.fire || held.fire,
-                ..*held
-            };
-            budget += dt * 60.;
-            while budget >= 1. {
-                prediction.step(partial);
-                budget -= 1.;
-                partial = *held;
+        let combat = flow.is_some_and(|flow| flow.phase == FlowPhase::Combat);
+        let mut display;
+        if combat {
+            if self.observed_tick != Some(latest.state.tick) {
+                if !changed && let Some(previous) = &self.last_scene {
+                    // Compare at the previous render time: including the new
+                    // input here would cancel this frame's jump or movement.
+                    let target = predict(
+                        &mut self.prediction,
+                        &latest.state,
+                        self.player,
+                        &latest.tuning,
+                        self.previous,
+                        &self.pending,
+                    );
+                    self.correction = Correction::between(previous, &target);
+                }
+                self.observed_tick = Some(latest.state.tick);
             }
+            let mut base = latest.state.clone();
+            // Apply position corrections before physics: collision poses and
+            // the visible world are the same scene, including moving supports.
+            self.correction.apply(&mut base);
+            if self.pending.len() == 256 {
+                self.pending.pop_front();
+            }
+            self.pending.push_back((sequence, input, seconds));
+            display = predict(
+                &mut self.prediction,
+                &base,
+                self.player,
+                &latest.tuning,
+                self.previous,
+                &self.pending,
+            );
+        } else {
+            if changed || self.prediction.is_none() {
+                prepare_prediction(
+                    &mut self.prediction,
+                    &latest.state,
+                    self.player,
+                    &latest.tuning,
+                    self.previous,
+                );
+            }
+            if changed
+                && flow.is_some_and(|flow| {
+                    matches!(flow.phase, FlowPhase::Result | FlowPhase::MatchEnd)
+                })
+                && let Some(previous) = &self.last_scene
+            {
+                self.correction = Correction::between(previous, &latest.state);
+            }
+            display = latest.state.clone();
+            self.correction.apply(&mut display);
         }
-        // A fractional render frame previews the next physics tick, so a press
-        // also appears immediately on displays faster than the simulation.
-        if budget > 0. || self.pending.len() == 1 {
-            prediction.step(partial);
-        }
-        prediction.apply(&mut display);
+        self.correction.weight *= (-15. * seconds).exp();
+        self.last_scene = Some(display.clone());
         Some(display)
     }
 }
@@ -141,264 +127,343 @@ fn blend(a: i32, b: i32, t: f64) -> i32 {
     (a as f64 + (b as f64 - a as f64) * t).round() as i32
 }
 
-fn interpolate(
-    display: &mut MatchSnapshot,
-    before: &MatchSnapshot,
-    after: &MatchSnapshot,
-    t: f64,
-    owned: u8,
+fn prepare_prediction<'a>(
+    cached: &'a mut Option<ScenePrediction>,
+    base: &MatchSnapshot,
+    player: u8,
     tuning: &CombatTuning,
-) {
-    for player in &mut display.players {
-        if player.id == owned {
-            continue;
-        }
-        if let Some(a) = before.players.iter().find(|p| p.id == player.id)
-            && let Some(b) = after.players.iter().find(|p| p.id == player.id)
-        {
-            let (health, alive) = (player.health, player.alive);
-            *player = if t >= 1. { b.clone() } else { a.clone() };
-            player.health = health;
-            player.alive = alive;
-            player.x_milli = blend(a.x_milli, b.x_milli, t);
-            player.y_milli = blend(a.y_milli, b.y_milli, t);
-            player.height_milli = blend(a.height_milli, b.height_milli, t);
-            let angle = (a.aim_y as f64).atan2(a.aim_x as f64);
-            let delta = ((b.aim_y as f64).atan2(b.aim_x as f64) - angle + std::f64::consts::PI)
-                .rem_euclid(std::f64::consts::TAU)
-                - std::f64::consts::PI;
-            player.aim_x = ((angle + delta * t).cos() * 1000.).round() as i16;
-            player.aim_y = ((angle + delta * t).sin() * 1000.).round() as i16;
+    previous: PlayerInput,
+) -> &'a mut ScenePrediction {
+    if let Some(prediction) = cached {
+        prediction.reset(base, player, tuning.clone(), previous);
+    } else {
+        *cached = Some(ScenePrediction::new(base, player, tuning.clone(), previous));
+    }
+    cached.as_mut().unwrap()
+}
+
+fn predict(
+    cached: &mut Option<ScenePrediction>,
+    base: &MatchSnapshot,
+    player: u8,
+    tuning: &CombatTuning,
+    previous: PlayerInput,
+    pending: &VecDeque<(u64, PlayerInput, f64)>,
+) -> MatchSnapshot {
+    if pending.is_empty() {
+        return base.clone();
+    }
+    let prediction = prepare_prediction(cached, base, player, tuning, previous);
+    let mut budget = 0.;
+    let mut partial = PlayerInput::default();
+    for (_, held, dt) in pending {
+        partial = PlayerInput {
+            jump: partial.jump || held.jump,
+            block: partial.block || held.block,
+            fire: partial.fire || held.fire,
+            ..*held
+        };
+        budget += dt * 60.;
+        while budget >= 1. - 1e-9 {
+            prediction.step(partial);
+            budget = (budget - 1.).max(0.);
+            partial = *held;
         }
     }
-    // Entity membership is authoritative; interpolate only matching identities.
-    display.projectiles.retain(|shot| shot.owner == owned);
-    let owned_ids = display
-        .projectiles
-        .iter()
-        .map(|shot| shot.id)
-        .collect::<Vec<_>>();
-    display.projectiles.extend(
-        before
+    let mut display = base.clone();
+    prediction.apply(&mut display);
+    if budget > 1e-9 {
+        let floor = display.clone();
+        prediction.step(partial);
+        prediction.apply(&mut display);
+        for (shown, before) in display.players.iter_mut().zip(&floor.players) {
+            shown.x_milli = blend(before.x_milli, shown.x_milli, budget);
+            shown.y_milli = blend(before.y_milli, shown.y_milli, budget);
+        }
+        if let (Some(shown), Some(before)) = (&mut display.arena_objects, &floor.arena_objects) {
+            for object in &mut shown.objects {
+                if let Some(old) = before.objects.iter().find(|old| old.id == object.id) {
+                    for (position, old) in object.position.iter_mut().zip(old.position) {
+                        *position = old + (*position - old) * budget as f32;
+                    }
+                    object.rotation =
+                        old.rotation + angle_delta(old.rotation, object.rotation) * budget as f32;
+                }
+            }
+        }
+        for shot in &mut display.projectiles {
+            let old = floor.projectiles.iter().find(|old| old.id == shot.id);
+            shot.x_milli = blend(
+                old.map_or(shot.previous_x_milli, |old| old.x_milli),
+                shot.x_milli,
+                budget,
+            );
+            shot.y_milli = blend(
+                old.map_or(shot.previous_y_milli, |old| old.y_milli),
+                shot.y_milli,
+                budget,
+            );
+        }
+    }
+    display
+}
+
+fn angle_delta(a: f32, b: f32) -> f32 {
+    (b - a + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
+}
+
+#[derive(Default)]
+struct Correction {
+    players: Vec<(u8, [i32; 2])>,
+    pieces: Vec<(u16, [f32; 2], f32)>,
+    shots: Vec<(u32, [i32; 2])>,
+    weight: f64,
+}
+
+impl Correction {
+    fn between(previous: &MatchSnapshot, target: &MatchSnapshot) -> Self {
+        let players = target
+            .players
+            .iter()
+            .filter_map(|p| {
+                previous
+                    .players
+                    .iter()
+                    .find(|old| old.id == p.id)
+                    .map(|old| (p.id, [old.x_milli - p.x_milli, old.y_milli - p.y_milli]))
+            })
+            .collect();
+        let shots = target
             .projectiles
             .iter()
-            .filter(|shot| shot.owner != owned && !owned_ids.contains(&shot.id))
-            .cloned(),
-    );
-    let terminal = terminal_shots(before, after, owned, t, tuning);
-    display.projectiles.retain_mut(|shot| {
-        if shot.owner == owned {
-            return true;
-        }
-        if let Some(a) = before.projectiles.iter().find(|p| p.id == shot.id)
-            && let Some(b) = after.projectiles.iter().find(|p| p.id == shot.id)
-        {
-            shot.x_milli = blend(a.x_milli, b.x_milli, t);
-            shot.y_milli = blend(a.y_milli, b.y_milli, t);
-            shot.previous_x_milli = blend(a.previous_x_milli, b.previous_x_milli, t);
-            shot.previous_y_milli = blend(a.previous_y_milli, b.previous_y_milli, t);
-        } else {
-            let Some(predicted) = terminal.iter().find(|predicted| predicted.id == shot.id) else {
-                return false;
-            };
-            *shot = predicted.clone();
-        }
-        true
-    });
-    if let Some(arena) = &mut display.arena_objects
-        && let Some(a) = &before.arena_objects
-        && let Some(b) = &after.arena_objects
-    {
-        for object in &mut arena.objects {
-            if let Some(a) = a.objects.iter().find(|piece| piece.id == object.id)
-                && let Some(b) = b.objects.iter().find(|piece| piece.id == object.id)
-            {
-                for axis in 0..2 {
-                    object.position[axis] =
-                        a.position[axis] + (b.position[axis] - a.position[axis]) * t as f32;
-                }
-                let angle = (b.rotation - a.rotation + std::f32::consts::PI)
-                    .rem_euclid(std::f32::consts::TAU)
-                    - std::f32::consts::PI;
-                object.rotation = a.rotation + angle * t as f32;
-            }
-        }
-    }
-}
-
-fn terminal_shots(
-    before: &MatchSnapshot,
-    after: &MatchSnapshot,
-    owned: u8,
-    t: f64,
-    tuning: &CombatTuning,
-) -> Vec<quarrel_sim::ProjectileSnapshot> {
-    let missing = |shot: &quarrel_sim::ProjectileSnapshot| {
-        shot.owner != owned && !after.projectiles.iter().any(|next| next.id == shot.id)
-    };
-    let owners = before
-        .projectiles
-        .iter()
-        .filter(|shot| missing(shot))
-        .map(|shot| shot.owner)
-        .collect::<std::collections::BTreeSet<_>>();
-    let elapsed = after.tick.saturating_sub(before.tick) as f64 * t;
-    let steps = elapsed.floor() as u32;
-    let fraction = elapsed.fract();
-    let mut visible = Vec::new();
-    for owner in owners {
-        // Reuse presentation-only CCD and fixed collider proxies. It never
-        // applies an impact or modifies host health, scores or choices.
-        let mut physics =
-            LocalPrediction::new(before, owner, tuning.clone(), PlayerInput::default());
-        for _ in 0..steps {
-            physics.step(PlayerInput::default());
-        }
-        let mut first = before.clone();
-        physics.apply(&mut first);
-        let mut next = before.clone();
-        if fraction > 0. {
-            physics.step(PlayerInput::default());
-            physics.apply(&mut next);
-        }
-        for mut shot in first
-            .projectiles
-            .into_iter()
-            .filter(|shot| shot.owner == owner && missing(shot))
-        {
-            if fraction > 0. {
-                let Some(end) = next
+            .filter_map(|p| {
+                previous
                     .projectiles
                     .iter()
-                    .find(|end| end.id == shot.id && end.owner == owner)
-                else {
-                    continue;
-                };
-                shot.x_milli = blend(shot.x_milli, end.x_milli, fraction);
-                shot.y_milli = blend(shot.y_milli, end.y_milli, fraction);
-                shot.previous_x_milli =
-                    blend(shot.previous_x_milli, end.previous_x_milli, fraction);
-                shot.previous_y_milli =
-                    blend(shot.previous_y_milli, end.previous_y_milli, fraction);
+                    .find(|old| old.id == p.id)
+                    .map(|old| (p.id, [old.x_milli - p.x_milli, old.y_milli - p.y_milli]))
+            })
+            .collect();
+        let mut pieces = Vec::new();
+        if let (Some(previous), Some(target)) = (&previous.arena_objects, &target.arena_objects) {
+            for p in &target.objects {
+                if let Some(old) = previous.objects.iter().find(|old| old.id == p.id) {
+                    pieces.push((
+                        p.id,
+                        [
+                            old.position[0] - p.position[0],
+                            old.position[1] - p.position[1],
+                        ],
+                        angle_delta(p.rotation, old.rotation),
+                    ));
+                }
             }
-            visible.push(shot);
+        }
+        Self {
+            players,
+            pieces,
+            shots,
+            weight: 1.,
         }
     }
-    visible
-}
 
+    fn apply(&self, state: &mut MatchSnapshot) {
+        for p in &mut state.players {
+            if let Some((_, offset)) = self.players.iter().find(|(id, _)| *id == p.id) {
+                p.x_milli += (offset[0] as f64 * self.weight).round() as i32;
+                p.y_milli += (offset[1] as f64 * self.weight).round() as i32;
+            }
+        }
+        for p in &mut state.projectiles {
+            if let Some((_, offset)) = self.shots.iter().find(|(id, _)| *id == p.id) {
+                let x = (offset[0] as f64 * self.weight).round() as i32;
+                let y = (offset[1] as f64 * self.weight).round() as i32;
+                p.x_milli += x;
+                p.previous_x_milli += x;
+                p.y_milli += y;
+                p.previous_y_milli += y;
+            }
+        }
+        if let Some(arena) = &mut state.arena_objects {
+            for object in &mut arena.objects {
+                if let Some((_, offset, angle)) =
+                    self.pieces.iter().find(|(id, _, _)| *id == object.id)
+                {
+                    for (position, offset) in object.position.iter_mut().zip(offset) {
+                        *position += *offset * self.weight as f32;
+                    }
+                    object.rotation += angle * self.weight as f32;
+                }
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
     use quarrel_sim::{AuthoritativeMatch, FlowAction, FlowCommand, MatchConfig};
-    #[test]
-    fn a_remote_terminal_segment_stops_at_arena_geometry() {
-        let mut before = combat();
-        before.arena.clear();
-        before.arena_objects.as_mut().unwrap().objects = vec![quarrel_sim::ArenaObject {
-            id: 900,
-            position: [40., 100.],
-            rotation: 0.,
-            shape: quarrel_sim::ArenaShape::Rectangle { size: [20., 300.] },
-            kind: quarrel_sim::ArenaKind::Solid,
-            color: [100, 100, 100],
-            mass: 1.,
-            health: None,
-            motion: None,
-        }];
-        before.arena_objects.as_mut().unwrap().chains.clear();
-        before.projectiles = vec![quarrel_sim::ProjectileSnapshot {
-            id: 42,
-            owner: 1,
-            x_milli: 0,
-            y_milli: 100000,
-            previous_x_milli: -60000,
-            previous_y_milli: 100000,
-            velocity_x_milli_per_second: 3600000,
-            velocity_y_milli_per_second: 0,
-            lifetime_ticks: 60,
-            dazzle_pulses: 0,
-            explosive_radius_milli: 0,
-        }];
-        let mut after = before.clone();
-        after.tick += 6;
-        after.projectiles.clear();
-        let mut display = after.clone();
-        interpolate(
-            &mut display,
-            &before,
-            &after,
-            0.5,
-            0,
-            &CombatTuning::default(),
-        );
-        assert!(
-            display.projectiles.is_empty(),
-            "a removed shot cannot fly through a visible wall"
-        );
-        assert_eq!(display.flow, after.flow);
-    }
-    #[test]
-    fn disappearing_remote_shot_keeps_moving_and_remote_aim_uses_buffered_time() {
-        let mut before = combat();
-        before.projectiles = vec![quarrel_sim::ProjectileSnapshot {
-            id: 42,
-            owner: 1,
-            x_milli: 0,
-            y_milli: 100000,
-            previous_x_milli: -60000,
-            previous_y_milli: 100000,
-            velocity_x_milli_per_second: 3600000,
-            velocity_y_milli_per_second: 0,
-            lifetime_ticks: 60,
-            dazzle_pulses: 0,
-            explosive_radius_milli: 0,
-        }];
-        before.players[1].aim_x = 1000;
-        before.players[1].aim_y = 0;
-        before.players[1].block_ticks = 0;
-        let mut after = before.clone();
-        after.tick += 6;
-        after.projectiles.clear();
-        after.players[1].aim_x = 0;
-        after.players[1].aim_y = 1000;
-        after.players[1].block_ticks = 10;
-        let mut display = after.clone();
-        interpolate(
-            &mut display,
-            &before,
-            &after,
-            0.5,
-            0,
-            &CombatTuning::default(),
-        );
-        assert_eq!(
-            display.projectiles[0].x_milli, 180000,
-            "last segment must keep moving"
-        );
-        assert_eq!(display.players[1].aim_x, display.players[1].aim_y);
-        assert_eq!(
-            display.players[1].block_ticks, 0,
-            "remote action state belongs to the earlier buffered sample"
-        );
-        assert_eq!(display.flow, after.flow);
-        // Reflection preserves identity while transferring ownership. The new
-        // local shot must replace its buffered remote identity, not duplicate it.
-        after.projectiles = before.projectiles.clone();
-        after.projectiles[0].owner = 0;
-        display = after.clone();
-        interpolate(
-            &mut display,
-            &before,
-            &after,
-            0.5,
-            0,
-            &CombatTuning::default(),
-        );
-        assert_eq!(display.projectiles.len(), 1);
-        assert_eq!(display.projectiles[0].owner, 0);
+    fn sample(state: MatchSnapshot) -> PresentationSample {
+        PresentationSample {
+            state,
+            tuning: CombatTuning::default(),
+            input_ack: 0,
+        }
     }
 
+    #[test]
+    fn current_world_advances_every_entity_without_changing_bullet_speed() {
+        for rate in [60, 240] {
+            let mut state = combat();
+            state.arena.clear();
+            let arena = state.arena_objects.as_mut().unwrap();
+            arena.objects.clear();
+            arena.chains.clear();
+            arena.frame = [-2000., -2000., 2000., 2000.];
+            arena.objects.push(quarrel_sim::ArenaObject {
+                id: 42,
+                position: [0., 400.],
+                rotation: 0.,
+                shape: quarrel_sim::ArenaShape::Rectangle { size: [20., 20.] },
+                kind: quarrel_sim::ArenaKind::Loose,
+                color: [100; 3],
+                mass: 1.,
+                health: None,
+                motion: None,
+            });
+            arena.velocities = vec![quarrel_sim::ArenaObjectVelocity {
+                id: 42,
+                linear: [600000, 0],
+                angular: 0,
+            }];
+            for (id, p) in state.players.iter_mut().enumerate() {
+                p.x_milli = if id == 0 { -500000 } else { 0 };
+                p.y_milli = 700000;
+                p.velocity_x_milli_per_second = if id == 0 { 0 } else { 600000 };
+                p.velocity_y_milli_per_second = 0;
+            }
+            state.projectiles = vec![quarrel_sim::ProjectileSnapshot {
+                id: 77,
+                owner: 1,
+                x_milli: -500000,
+                y_milli: 100000,
+                previous_x_milli: -560000,
+                previous_y_milli: 100000,
+                velocity_x_milli_per_second: 3600000,
+                velocity_y_milli_per_second: 0,
+                lifetime_ticks: 60,
+                dazzle_pulses: 0,
+                explosive_radius_milli: 0,
+            }];
+            let shown = ClientPresentation::new(0)
+                .frame(
+                    &[sample(state.clone())],
+                    1,
+                    PlayerInput::default(),
+                    1. / rate as f64,
+                )
+                .unwrap();
+            let seconds = 1. / rate as f64;
+            assert!((shown.players[1].x_milli as f64 - 600000. * seconds).abs() < 200.);
+            let piece = &shown.arena_objects.as_ref().unwrap().objects[0];
+            assert!((piece.position[0] as f64 - 600. * seconds).abs() < 0.2);
+            assert!(
+                (shown.projectiles[0].x_milli as f64 + 500000. - 3600000. * seconds).abs() < 100.
+            );
+            assert_eq!(shown.players[0].health, state.players[0].health);
+            assert_eq!(shown.flow, state.flow);
+        }
+    }
+
+    #[test]
+    fn a_new_host_sample_does_not_cancel_this_frames_input() {
+        let state = combat();
+        let mut view = ClientPresentation::new(0);
+        view.frame(
+            &[sample(state.clone())],
+            1,
+            PlayerInput::default(),
+            1. / 60.,
+        )
+        .unwrap();
+        let mut latest = sample(state);
+        latest.state.tick += 6;
+        latest.input_ack = 1;
+        let input = PlayerInput {
+            move_axis: -1,
+            jump: true,
+            fire: true,
+            block: true,
+            aim_x: 1000,
+            ..Default::default()
+        };
+        let shown = view.frame(&[latest.clone()], 2, input, 1. / 60.).unwrap();
+        assert!(shown.players[0].block_ticks > 0);
+        assert!(shown.projectiles.iter().any(|p| p.owner == 0));
+        assert!(shown.players[0].velocity_x_milli_per_second < 0);
+        assert_eq!(shown.flow, latest.state.flow);
+    }
+
+    #[test]
+    fn shipped_outline_world_frame_cpu_is_measured() {
+        let arena = quarrel_sim::MatchContent::load_default()
+            .unwrap()
+            .arenas
+            .into_iter()
+            .max_by_key(|a| {
+                a.surfaces
+                    .iter()
+                    .filter(|p| !p.outline_milli.is_empty())
+                    .count()
+            })
+            .unwrap();
+        let mut state = AuthoritativeMatch::from_arena(38, arena)
+            .unwrap()
+            .snapshot();
+        assert!(
+            state
+                .arena
+                .iter()
+                .filter(|p| !p.outline_milli.is_empty())
+                .count()
+                >= 18
+        );
+        let mut view = ClientPresentation::new(0);
+        // The normal client prepares geometry while the host presents Draft
+        // or Countdown, before a fighter can move or fire.
+        view.frame(
+            &[sample(state.clone())],
+            0,
+            PlayerInput::default(),
+            1. / 60.,
+        )
+        .unwrap();
+        state.flow.as_mut().unwrap().phase = FlowPhase::Combat;
+        state.flow.as_mut().unwrap().phase_revision += 1;
+        let mut timings = Vec::new();
+        for sequence in 1..=120_u64 {
+            if sequence % 6 == 0 {
+                state.tick += 6;
+            }
+            let start = std::time::Instant::now();
+            let mut observation = sample(state.clone());
+            observation.input_ack = sequence.saturating_sub(6);
+            view.frame(&[observation], sequence, PlayerInput::default(), 1. / 60.)
+                .unwrap();
+            timings.push(start.elapsed().as_secs_f64() * 1000.);
+        }
+        timings.sort_by(f64::total_cmp);
+        println!(
+            "shipped world: {} outlined surfaces; predictor CPU p50={:.3}ms p95={:.3}ms max={:.3}ms",
+            state
+                .arena
+                .iter()
+                .filter(|p| !p.outline_milli.is_empty())
+                .count(),
+            timings[60],
+            timings[114],
+            timings[119]
+        );
+    }
     fn combat() -> MatchSnapshot {
         let mut game = AuthoritativeMatch::with_config(MatchConfig::default()).unwrap();
         let state = game.snapshot();
@@ -422,7 +487,76 @@ mod tests {
         }
         panic!("opening draft did not enter combat")
     }
-
+    #[test]
+    fn result_keeps_the_world_clock_until_the_frozen_pose_is_reached() {
+        let mut first = combat();
+        first.players[1].x_milli = 0;
+        let mut second = first.clone();
+        second.tick += 6;
+        second.players[1].x_milli = 22000;
+        let mut samples = vec![sample(first), sample(second.clone())];
+        let mut view = ClientPresentation::new(0);
+        let mut previous = second.clone();
+        for sequence in 1..=6 {
+            previous = view
+                .frame(&samples, sequence, PlayerInput::default(), 1. / 60.)
+                .unwrap();
+        }
+        let mut result = second;
+        result.tick += 6;
+        result.players[1].x_milli = 44000;
+        let flow = result.flow.as_mut().unwrap();
+        flow.phase = FlowPhase::Result;
+        flow.phase_revision += 1;
+        samples.push(sample(result.clone()));
+        for sequence in 7..=60 {
+            let displayed = view
+                .frame(&samples, sequence, PlayerInput::default(), 1. / 60.)
+                .unwrap();
+            assert!(
+                (displayed.players[1].x_milli - previous.players[1].x_milli).abs() < 5000,
+                "Result must settle from the current predicted world"
+            );
+            assert_eq!(displayed.flow, result.flow);
+            previous = displayed;
+        }
+        assert_eq!(previous.players[1].x_milli, 44000);
+    }
+    #[test]
+    fn incoming_shots_and_damage_share_the_current_authority_timeline() {
+        let mut older = combat();
+        older.projectiles = vec![quarrel_sim::ProjectileSnapshot {
+            id: 42,
+            owner: 1,
+            x_milli: 0,
+            y_milli: 100000,
+            previous_x_milli: -60000,
+            previous_y_milli: 100000,
+            velocity_x_milli_per_second: 3600000,
+            velocity_y_milli_per_second: 0,
+            lifetime_ticks: 60,
+            dazzle_pulses: 0,
+            explosive_radius_milli: 0,
+        }];
+        let mut latest = older.clone();
+        latest.tick += 12;
+        latest.players[0].health -= 60;
+        latest.players[0].hit_flash_ticks = 6;
+        latest.projectiles.clear();
+        let shown = ClientPresentation::new(0)
+            .frame(
+                &[sample(older), sample(latest.clone())],
+                1,
+                PlayerInput::default(),
+                1. / 60.,
+            )
+            .unwrap();
+        assert_eq!(shown.players[0].health, latest.players[0].health);
+        assert!(
+            shown.projectiles.is_empty(),
+            "a confirmed hit cannot retain its incoming shot in the past"
+        );
+    }
     #[test]
     fn immediate_preview_reconciles_acknowledged_inputs_and_phase_changes() {
         let state = combat();
@@ -468,34 +602,5 @@ mod tests {
             view.frame(&[sample.clone()], 3, input, 1. / 60.).unwrap(),
             sample.state
         );
-    }
-
-    #[test]
-    fn remote_interpolation_blends_identity_and_shortest_rotation() {
-        let mut before = combat();
-        before.players[1].x_milli = 0;
-        let mut after = before.clone();
-        after.tick += 6;
-        after.players[1].x_milli = 6000;
-        let a = &mut before.arena_objects.as_mut().unwrap().objects[0];
-        a.rotation = 3.1;
-        a.position = [0., 0.];
-        let b = &mut after.arena_objects.as_mut().unwrap().objects[0];
-        b.rotation = -3.1;
-        b.position = [6., 0.];
-        let mut display = after.clone();
-        interpolate(
-            &mut display,
-            &before,
-            &after,
-            0.5,
-            0,
-            &CombatTuning::default(),
-        );
-        assert_eq!(display.players[1].x_milli, 3000);
-        let piece = &display.arena_objects.as_ref().unwrap().objects[0];
-        assert!((piece.rotation - std::f32::consts::PI).abs() < 0.001);
-        assert_eq!(piece.position, [3., 0.]);
-        assert_eq!(display.flow, after.flow);
     }
 }

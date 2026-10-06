@@ -68,6 +68,16 @@ pub(crate) struct PhysicsBoundary {
     bullets: BTreeMap<u32, BulletPhysics>,
 }
 impl PhysicsBoundary {
+    pub(crate) fn take_surface_colliders(&mut self) -> BTreeMap<Vec<[i32; 2]>, ColliderBuilder> {
+        std::mem::take(&mut self.surface_colliders)
+    }
+
+    pub(crate) fn restore_surface_colliders(
+        &mut self,
+        cache: BTreeMap<Vec<[i32; 2]>, ColliderBuilder>,
+    ) {
+        self.surface_colliders = cache;
+    }
     pub(crate) fn prediction_bullet(&mut self, shot: &ProjectileSnapshot) {
         let bullet = self
             .bullets
@@ -91,16 +101,13 @@ impl PhysicsBoundary {
             true,
         );
     }
-    pub(crate) fn prediction_poses(&mut self, players: &[PlayerSnapshot], owned: u8) {
+    pub(crate) fn prediction_poses(&mut self, players: &[PlayerSnapshot]) {
         for player in players {
             let crouched = player.height_milli < player.radius_milli * 2;
             if self.players[player.id as usize].crouched != crouched {
                 self.set_crouch(player.id, crouched);
             }
             let body = &mut self.rapier.bodies[self.players[player.id as usize].body];
-            if player.id != owned {
-                body.set_body_type(bevy_rapier2d::rapier::prelude::RigidBodyType::Fixed, true);
-            }
             body.set_translation(
                 Vector::new(player.x_milli as f32 / 1000., player.y_milli as f32 / 1000.),
                 true,
@@ -113,6 +120,36 @@ impl PhysicsBoundary {
                 true,
             );
         }
+    }
+    pub(crate) fn prediction_objects(&mut self, arena: &ArenaRenderSnapshot) {
+        for object in &arena.objects {
+            let Some((handle, _, _)) = self.object_bodies.get(&object.id) else {
+                continue;
+            };
+            let body = &mut self.rapier.bodies[*handle];
+            body.set_translation(Vector::from(object.position), true);
+            body.set_rotation(Rotation::new(object.rotation), true);
+            let velocity = arena
+                .velocities
+                .iter()
+                .find(|velocity| velocity.id == object.id);
+            body.set_linvel(
+                velocity.map_or(Vector::ZERO, |v| {
+                    Vector::new(v.linear[0] as f32, v.linear[1] as f32) / 1000.
+                }),
+                true,
+            );
+            body.set_angvel(velocity.map_or(0., |v| v.angular as f32 / 1000.), true);
+        }
+    }
+    pub(crate) fn object_velocity(&self, id: u16) -> Option<ArenaObjectVelocity> {
+        let (handle, _, _) = self.object_bodies.get(&id)?;
+        let body = &self.rapier.bodies[*handle];
+        Some(ArenaObjectVelocity {
+            id,
+            linear: [quantize(body.linvel().x), quantize(body.linvel().y)],
+            angular: quantize(body.angvel()),
+        })
     }
     pub(crate) fn new(fighter_count: usize, arena: &ArenaDefinition, tuning: CombatTuning) -> Self {
         let mut rapier = RapierWorld::new();
@@ -386,14 +423,9 @@ impl PhysicsBoundary {
                 angle += angular_velocity * time;
             }
             if let Some(motion) = &object.motion {
-                if !motion.path.is_empty() {
-                    let phase = (time / motion.period_seconds).fract() * motion.path.len() as f32;
-                    let i = phase.floor() as usize;
-                    let t = phase.fract();
-                    position += Vector::from(motion.path[i]) * (1.0 - t)
-                        + Vector::from(motion.path[(i + 1) % motion.path.len()]) * t;
-                }
-                angle += motion.angular_velocity * time;
+                let (offset, rotation) = motion.offset(tick);
+                position += Vector::from(offset);
+                angle += rotation;
             }
             let body = &mut self.rapier.bodies[*body];
             body.set_next_kinematic_translation(position);

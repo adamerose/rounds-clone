@@ -101,6 +101,22 @@ pub struct ArenaMotion {
     #[serde(default)]
     pub angular_velocity: f32,
 }
+impl ArenaMotion {
+    pub(crate) fn offset(&self, tick: u32) -> ([f32; 2], f32) {
+        let time = tick as f32 / TICKS_PER_SECOND as f32;
+        let mut position = [0., 0.];
+        if !self.path.is_empty() {
+            let phase = (time / self.period_seconds).fract() * self.path.len() as f32;
+            let i = phase.floor() as usize;
+            let t = phase.fract();
+            for (axis, value) in position.iter_mut().enumerate() {
+                *value =
+                    self.path[i][axis] * (1. - t) + self.path[(i + 1) % self.path.len()][axis] * t;
+            }
+        }
+        (position, self.angular_velocity * time)
+    }
+}
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArenaChain {
@@ -117,6 +133,17 @@ pub struct ArenaRenderSnapshot {
     pub objects: Vec<ArenaObject>,
     pub chains: Vec<ArenaChain>,
     pub spawns: Vec<[f32; 2]>,
+    #[serde(default)]
+    pub velocities: Vec<ArenaObjectVelocity>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ArenaObjectVelocity {
+    pub id: u16,
+    /// World units per second, multiplied by 1000.
+    pub linear: [i32; 2],
+    /// Radians per second, multiplied by 1000.
+    pub angular: i32,
 }
 
 pub fn default_arena_directory() -> PathBuf {

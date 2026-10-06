@@ -950,6 +950,12 @@ impl AuthoritativeMatch {
                     .cloned()
                     .collect(),
                 spawns: self.arena.spawns.clone(),
+                velocities: self
+                    .arena
+                    .objects
+                    .iter()
+                    .filter_map(|object| self.physics.object_velocity(object.id))
+                    .collect(),
             }),
             protocol: 12,
             seed: self.seed,

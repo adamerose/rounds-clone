@@ -189,7 +189,7 @@ pub fn run_interactive_visible(
         .map_err(|error| format!("receive final interactive state: {error}"))
 }
 
-/// Presents predicted local motion and buffered remote authoritative motion.
+/// Presents one current predicted world corrected from host snapshots.
 pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), String> {
     let closer = handle.clone();
     let result = App::new()

@@ -1187,3 +1187,15 @@ This supersedes the previous velocity-only terminal extrapolation decision. It r
 The alternative was a separate ray/shape-cast implementation over every arena shape; reusing existing physics avoids divergent polygon, circle and CCD behavior.
 A rendered before/after wall-contact fixture checks that yellow projectile pixels disappear at contact rather than appearing beyond the wall.
 
+## 2026-10-06 — Ticket #83 common current scene for run #75
+
+The orchestrator selected one current predicted world with host authority, replacing the delayed remote view. Fighters, shots and pieces now advance in the same physics world; remote bodies use their observed velocities, authored moving paths use the host formula, and local controls replay after the acknowledged input. Host health, deaths, scores, offers and picks remain authoritative.
+
+Correct position errors before running prediction so the rendered poses and collision bodies agree. Compare the previous frame against the new sample before adding this frame's input; otherwise correction cancels a fresh jump or movement. During Result, settle toward the frozen host pose while publishing the host phase and outcomes immediately. Fractional render frames interpolate the adjacent current physics ticks for all bodies without slowing bullets or retaining historical remote poses.
+
+Snapshots carry quantized linear and angular piece velocities, because restoring a loose body at zero velocity cannot reproduce its current motion. Reuse the existing Rapier physics and authored motion calculation. The alternatives were velocity guesses from two received samples, separate remote collision proxies, or a second physics implementation. Exact host velocities and one shared world are smaller and avoid different support or contact times.
+
+This supersedes this ticket's earlier buffered interpolation and terminal-shot prediction choices. Independent host snapshots still replace entity membership, so confirmed hits cannot leave their incoming shot visible. Prediction suppresses shots at contacts but cannot grant impacts, damage, reflections, deaths, points or cards.
+
+Preparing polygon collision shapes every frame took 332 ms median and 667 ms at the 95th percentile on the shipped 18-outline arena. Retain only the current arena's prepared shapes while rebuilding runtime bodies for each host observation and replay. Prepare those shapes during Draft or Countdown; after reuse, the measured median was 0.927 ms and 95th percentile 1.754 ms. Keeping runtime physics across corrections would need careful restoration of every contact and joint; retaining immutable shapes avoids that larger change.
+

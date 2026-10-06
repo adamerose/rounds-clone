@@ -19,7 +19,7 @@ mod physics;
 mod prediction;
 mod replay;
 mod snapshots;
-pub use prediction::LocalPrediction;
+pub use prediction::ScenePrediction;
 
 use arena::collider_for_surface;
 pub use arena_data::*;

@@ -47,8 +47,10 @@ Visible windows start hidden, require the designated 1920 by 1080 display at phy
 The paced live path ships two peers: an authority runs at 60 Hz, applies newest held controls, consumes bounded FIFO flow edges, and publishes received state for rendering.
 Session identities reject stale packets; consumed acknowledgements prevent repeated edge application; terminal snapshots are retransmitted until acknowledged or the bounded delivery window ends.
 Host and dedicated modes use the same authority loop. Live protocol 14 uses compressed MessagePack and full independent snapshots at 10 Hz.
-Clients predict the owned fighter and its shots against fixed authoritative collision proxies, replaying unacknowledged inputs after each host sample.
-A 200 ms buffer interpolates remote fighters, projectiles and arena pieces; phase revisions clear prediction and interpolation history.
+Clients replay unacknowledged local controls in one current physics scene containing every fighter, projectile and arena piece.
+Remote bodies continue with observed velocities; moving paths use the host's motion formula. Snapshots include piece velocities and host outcomes always replace predicted observations.
+Pose errors settle over subsequent frames inside the predicted physics scene; collision checks use the drawn poses. Result transitions settle toward the frozen host pose without resetting positions.
+Fractional render frames interpolate adjacent current physics ticks for every entity. Remote entities are never buffered behind local time, and projectile speed is unchanged.
 Prediction cannot apply damage, deaths, points or cards. Physics and tuning come from the host sample; no full-match rollback or local flow authority is created.
 Protocol changes reject mismatched peers. Steam invitations remain MVP work.
 Local keyboard/controller presentation and live sessions currently support the shipped 1v1 controls; the general simulation is also tested with three fighters.
