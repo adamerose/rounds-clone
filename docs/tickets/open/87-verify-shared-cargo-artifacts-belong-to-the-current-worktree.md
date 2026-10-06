@@ -38,3 +38,4 @@ Ticket 82's first workspace run executed 16 sim tests rather than its expected 2
 ## Work log
 
 - 2026-10-06T02:28:31Z Reported during ticket 82 verification; no build infrastructure implementation in this ticket.
+- 2026-10-06T02:54:41Z Ticket 81 confirmed both stale test executables and missing menu exports from another worktree presentation library. Timestamp refresh alone remained racy. CARGO_INCREMENTAL=0 produced separately keyed workspace artifacts while retaining dependencies; compiler-artifact-time executable copies and QUARREL_TEST_CLIENT then passed the expected 41 tests, including eight presentation tests rather than four. Evidence: root out/ticket081proof/test-artifacts.json and tests-exact.log; docs/postmortems.md in ticket 81 candidate.
