@@ -111,3 +111,61 @@ fn interactive_host_startup_failure_closes_the_waiting_client() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn headless_menu_join_waits_for_a_host_started_after_old_deadline() {
+    let reservation = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+    let address = reservation.local_addr().unwrap();
+    let mut join = Command::new(test_client())
+        .args([
+            "menu-start",
+            "--choice",
+            "2",
+            "--address",
+            &address.to_string(),
+            "--headless",
+            "--ticks",
+            "90",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(5_300));
+    if join.try_wait().unwrap().is_some() {
+        let output = join.wait_with_output().unwrap();
+        panic!(
+            "menu Join exited before Host started: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    drop(reservation);
+    let host = Command::new(test_client())
+        .args([
+            "menu-start",
+            "--choice",
+            "1",
+            "--headless",
+            "--port",
+            &address.port().to_string(),
+            "--ticks",
+            "90",
+        ])
+        .output()
+        .unwrap();
+    let join = join.wait_with_output().unwrap();
+    for output in [&host, &join] {
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("menuFirstFight"),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            output.status.success()
+                || String::from_utf8_lossy(&output.stderr).contains("live client authority_silent")
+                || String::from_utf8_lossy(&output.stderr).starts_with("peer_left: client "),
+            "unexpected menu failure: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}

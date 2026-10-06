@@ -157,8 +157,7 @@ pub fn menu_match_args(selected: usize, address: &str) -> Result<Vec<String>, St
                 address,
                 "--client",
                 "1",
-                "--ticks",
-                "36060",
+                "--interactive",
             ]
         }
         _ => return Err("Select Local, Host or Join to start".into()),
@@ -308,6 +307,7 @@ mod tests {
         );
         let join = menu_match_args(2, "127.0.0.1:7777").unwrap();
         assert!(join.windows(2).any(|pair| pair == ["--client", "1"]));
+        assert!(join.iter().any(|arg| arg == "--interactive"));
         assert!(menu_match_args(2, "bad address").is_err());
     }
 }

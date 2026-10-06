@@ -179,3 +179,7 @@ The original failure did not retain its rectangle. A fast startup trace then fou
 The helper had treated native handle creation as completed placement. It now checks all visible startup samples, waits for the application's placement marker, then checks the exact physical rectangle before showing or focusing.
 Per-monitor DPI coordinates are explicit and restored after inspection; paired legacy and physical measurements were equal in the controlled menu run, so DPI virtualization was not the demonstrated cause.
 The repeated menu, Join, Host and scripted local checks passed, and every exact native process closed. Required views remain GPU headless captures.
+
+## Ticket 81 correction review: menu Join omitted interactive mode
+
+The network constructor and native waiting checks worked, but the menu Join argument list still selected bounded mode. Review reproduced its five-second timeout through `menu-start --choice 2`. Earlier evidence started Host first, hiding this boundary error, and checked the waiting window through explicit CLI flags. Join now passes `--interactive`; a public client regression starts Join first, waits beyond the old deadline, then starts Host and requires both first-fight events. Native waiting evidence now also uses the menu Join translation and verifies client 1. The actual missing argument was corrected; no timeout was enlarged.

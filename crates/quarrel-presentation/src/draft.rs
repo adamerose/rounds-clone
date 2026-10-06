@@ -71,7 +71,8 @@ pub(super) fn spawn_draft_scene(
     commands.spawn((
         SceneVisual,
         Text2d::new(format!(
-            "{picking} picking\nKeyboard: A/D + Space    Controller: D-pad + A\nLocal only, no controllers: F2 keyboard: Arrows + Enter"
+            "{}\nKeyboard: A/D + Space    Controller: D-pad + A\nLocal only, no controllers: F2 keyboard: Arrows + Enter",
+            if picking.is_empty() { "All fighters ready".into() } else { format!("{picking} picking") }
         )),
         TextFont {
             font_size: FontSize::Px(18.0),
