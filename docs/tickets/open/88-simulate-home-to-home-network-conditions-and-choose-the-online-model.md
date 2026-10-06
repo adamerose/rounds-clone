@@ -40,3 +40,4 @@ This ticket builds the network-conditions simulator and runs the comparison now,
 ## Work log
 
 - 2026-10-06T03:01:53Z Split from #83 under run #75 so the latency work can start before #79 lands.
+- 2026-10-06T03:04:21Z Admitted for run #75 after an independent contract check.
