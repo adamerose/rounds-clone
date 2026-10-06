@@ -8,7 +8,8 @@ value: 6
 sessions:
   - codex:01a10e3b-a842-7822-a150-68dd15a3b423
 execution: unattended
-depends-on: [78]
+parent: 75
+depends-on: [78, 79, 80]
 supersedes: []
 split-from: []
 ---
