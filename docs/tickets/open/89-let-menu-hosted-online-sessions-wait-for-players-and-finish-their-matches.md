@@ -48,3 +48,4 @@ Adam — [worker scope](http://ivy.localhost/sessions/codex/01a10efb-452f-7e52-a
 
 - 2026-10-06T03:34:14Z Found by ticket 81's fresh [Claude reviewer](http://ivy.localhost/sessions/claude/21d3df2e-8993-472b-aea0-ca439e61fa9a).
 - 2026-10-06T03:34:14Z Snapshot menu host without a partner exited after 5189 ms with join_timeout; join alone exited after 5390 ms. Interactive menu args pass --ticks 36060 (601 seconds); code closes completed sessions during any current phase. Evidence: out/ticket081proof/review.json and its recorded scratch paths.
+- 2026-10-06T03:36:54Z Abandoned: folded into #81 by the run #75 orchestrator (scope option a).
