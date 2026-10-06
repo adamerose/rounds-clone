@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a10efb-9238-7e12-aecc-c488e6f1fa44
+status: closed
 created: 2026-10-05T14:13:11Z
 origin: human-request
 tags: ["quarrel", "mvp", "arenas"]
@@ -54,3 +53,5 @@ Adam — this session, 2026-10-04:
 - 2026-10-06T02:37:14Z stage verify end session codex:01a10efb-9238-7e12-aecc-c488e6f1fa44 — Fmt, strict workspace all-target Clippy, locked build, 40 copied workspace tests and doc-tests pass. Four arena tests run 20 active seconds for two/four fighters and shot scenarios. Inspected all ten PNGs: switchyard, terraces, keyhole, kiln, trestle, skybridge, lanterns, gatefall, pinch, shuttle; fresh build reproduces each PNG byte-for-byte. UDP 1200-tick smoke agrees through opening/loser drafts and match end; capture passes. Evidence root out/ticket-082; initial shared-target workspace logs invalid, corrected artifact-time snapshots and test lists retained. Build-cache follow-up ticket87 remains idea; human feel playtesting outside run75.
 - 2026-10-06T02:47:07Z stage review start session codex:01a10efb-9238-7e12-aecc-c488e6f1fa44 — Candidate 3d59be78dae18c06ebab13529fa6114f6562477c..9cadb9822227fae7b7e55f3dde65c27ab8be63fb; rebased append-only decision conflict preserves both entries and all source/assets hashes. Repeated fmt/strict Clippy/locked build and all40 copied tests pass. Fresh other-family Opus-high CLI reviews complete range and all ten PNGs; artifacts root out/ticket-082 and unique OS temporary parent.
 - 2026-10-06T02:52:49Z stage review end session claude:88ab2992-7f0a-4f3c-8c5d-f123b726ecfa — APPROVE exact 3d59be78dae18c06ebab13529fa6114f6562477c..9cadb9822227fae7b7e55f3dde65c27ab8be63fb. Read all ten PNGs, rehashed all39 artifacts and reran all4 arena tests. No blockers; optional renderer/feel/swing-test notes in root out/ticket-082/review.json. Reviewer made no files or GUI/process residue; candidate and root tracked status unchanged.
+- 2026-10-06T03:01:22Z stage review end session claude:88ab2992-7f0a-4f3c-8c5d-f123b726ecfa — approved candidate 3d59be78dae18c06ebab13529fa6114f6562477c..8dd1818b29cdd8e668cb53b61cb93720343effa3
+- 2026-10-06T03:01:22Z stage integration end session codex:01a10efb-9238-7e12-aecc-c488e6f1fa44 — integrated 8dd1818b29cdd8e668cb53b61cb93720343effa3 as 5f0aaf5e7eb8a16e0934a556461808fc060c189e
