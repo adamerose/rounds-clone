@@ -1,12 +1,14 @@
 ---
 format: 3
 status: ready
+owner: codex:01a10f2b-96f4-7a13-b1e9-bc4e76af3969
 created: 2026-10-06T03:01:53Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "network"]
 value: 8
 sessions:
   - claude:b7dbdddc-0b4a-4606-a5de-5229ea29df0b
+  - codex:01a10f2b-96f4-7a13-b1e9-bc4e76af3969
 execution: unattended
 parent: 75
 depends-on: []
