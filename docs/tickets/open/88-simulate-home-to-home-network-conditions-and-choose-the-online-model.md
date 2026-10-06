@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-06T03:01:53Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "network"]
@@ -21,9 +21,9 @@ This ticket builds the network-conditions simulator and runs the comparison now,
 
 ## Outcome
 
-- The UDP transport can add configurable delay, jitter and packet loss in both directions, set from a command-line option or config, for tests and manual play.
-- At 80 ms round trip, 20 ms jitter and 2 % loss, the current netcode's input-to-visible delay for the local fighter, snapshot size and bandwidth are measured and recorded.
-- A short spike compares client-side prediction of the local fighter with interpolation of everything else against rollback for this Rapier physics, on an arena with loose pieces, and records the numbers, the choice and the rejected option in `docs/decisions.md`.
+- The live UDP transport (`LiveServer`/`LiveClient`, crates/quarrel-network/src/live.rs) can add configurable delay, jitter and packet loss in both directions, set from a command-line option or config, for tests and manual play.
+- At 80 ms round trip, 20 ms jitter and 2 % loss, the current netcode's input-to-visible delay for the local fighter (ms from `LiveClientHandle::set_held` to the first `latest()` snapshot showing it, median and p95), snapshot size and bandwidth are measured and recorded.
+- A short spike compares client-side prediction of the local fighter with interpolation of everything else against rollback for this Rapier physics, on an arena with at least 30 loose pieces, records rollback's re-simulation cost per frame and whether two runs on this machine produce bit-identical state, and records the numbers, the choice and the rejected option in `docs/decisions.md`.
 
 ## Decisions
 
