@@ -171,3 +171,11 @@ A public CLI regression uses a malformed card fixture and requires prompt failur
 
 The first startup fixture used JSON, which the RON card loader ignores; the reproduced authority failure was an empty card pool rather than a parse failure.
 Waiting cancellation already restored the intended error exit. The regression now uses malformed RON and checks its file-specific error; runtime code is unchanged by that fixture correction.
+
+## 2026-10-06 — Ticket 81 window inspector sampled an unfinished hidden window
+
+The native menu inspector once rejected its centre and immediately closed the exact process; the application log subsequently recorded monitor-four placement.
+The original failure did not retain its rectangle. A fast startup trace then found hidden Join and Host windows outside the target before their placement marker, with no visible window outside monitor four.
+The helper had treated native handle creation as completed placement. It now checks all visible startup samples, waits for the application's placement marker, then checks the exact physical rectangle before showing or focusing.
+Per-monitor DPI coordinates are explicit and restored after inspection; paired legacy and physical measurements were equal in the controlled menu run, so DPI virtualization was not the demonstrated cause.
+The repeated menu, Join, Host and scripted local checks passed, and every exact native process closed. Required views remain GPU headless captures.
