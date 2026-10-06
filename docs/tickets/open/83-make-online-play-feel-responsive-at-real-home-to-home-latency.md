@@ -9,7 +9,7 @@ sessions:
   - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
 execution: unattended
 parent: 75
-depends-on: [78, 79]
+depends-on: [78, 79, 88]
 supersedes: []
 split-from: []
 ---
@@ -25,12 +25,10 @@ Today a client shows the host's JSON snapshot with no prediction, so a player's 
 - Remote fighters, shots and loose arena pieces move smoothly, without visible snapping in normal play.
 - Hits, deaths, points and card picks agree on every machine.
 - Snapshots use a compact binary encoding instead of JSON.
-- The transport can add configurable delay, jitter and loss for tests and for manual checks.
 
 ## Decisions
 
-- Start with a short spike that measures, at the conditions above, client-side prediction of the local fighter with interpolation of everything else against rollback for this Rapier physics; record the numbers, the choice and the rejected option in `docs/decisions.md`, then build the choice.
-  Prediction on a host-authoritative simulation is the expected answer, because rollback needs bit-identical physics on every machine and re-simulates every loose piece; the spike may overturn it with evidence.
+- Build the online model chosen and recorded by #88 in `docs/decisions.md`.
 - The host stays authoritative for hits, deaths, points and draws of card offers.
 - #74 is open and touches the network crate; this ticket must not break it.
 
@@ -39,7 +37,7 @@ Today a client shows the host's JSON snapshot with no prediction, so a player's 
 - An automated headless two-client match under the simulated conditions completes, with both clients reporting the same score and card picks as the host.
 - A measurement of local input to visible response under those conditions, at most one frame, recorded in the work log.
 - Snapshot bandwidth per client for a 1v1 on an arena with at least 30 loose pieces (an #82 arena or a test arena made for the measurement), recorded in the work log and below 30 KB/s.
-- The spike's comparison is in `docs/decisions.md`.
+- The measured gain over #88's baseline is in the work log.
 
 ## Chat excerpts
 
