@@ -771,6 +771,7 @@ impl LiveClient {
 
 #[cfg(test)]
 mod regression_tests {
+    // Keep endpoint clones until peer senders stop, even if an authority exits early.
     use super::*;
     #[test]
     fn ordinary_state_and_inputs_round_trip_in_live_packets() {
@@ -841,6 +842,7 @@ mod regression_tests {
     fn sessioned_live_clients_receive_terminal_state() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let authority_config = config.clone();
         let authority = thread::spawn(move || server.run(authority_config, 8, None).unwrap());
@@ -899,6 +901,7 @@ mod regression_tests {
     fn terminal_recovers_a_lost_final_snapshot() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let authority = thread::spawn({
             let config = config.clone();
@@ -941,6 +944,7 @@ mod regression_tests {
     fn vanished_peer_and_leave_stop_authority_with_bounded_results() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let authority = thread::spawn({
             let config = config.clone();
@@ -948,6 +952,7 @@ mod regression_tests {
         });
         let vanished = LiveClient::connect(address, 0, config.clone()).unwrap();
         let survivor = LiveClient::connect(address, 1, config).unwrap();
+        let _vanished_endpoint = vanished.socket.try_clone().unwrap();
         drop(vanished);
         let survivor = thread::spawn(move || survivor.run(300).unwrap());
         assert!(
@@ -958,6 +963,7 @@ mod regression_tests {
                 .starts_with("peer_silent: client 0")
         );
         assert_eq!(survivor.join().unwrap().result, "authority_silent");
+        drop(_endpoint);
         assert!(LiveServer::bind(address).is_ok());
     }
 
@@ -965,6 +971,7 @@ mod regression_tests {
     fn stale_session_and_invalid_hash_are_rejected() {
         let config = config();
         let fake = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let _endpoint = fake.try_clone().unwrap();
         let address = fake.local_addr().unwrap();
         let authority = thread::spawn(move || {
             let mut game = AuthoritativeMatch::with_config(MatchConfig::default()).unwrap();
@@ -1028,6 +1035,7 @@ mod regression_tests {
     fn public_handles_reliably_deliver_revisioned_opening_picks() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let authority = thread::spawn({
             let config = config.clone();
@@ -1108,6 +1116,7 @@ mod regression_tests {
             new_nonce()
         ));
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let server_config = match_config.clone();
         let server_trace = trace_path.clone();
@@ -1188,6 +1197,7 @@ mod regression_tests {
             new_nonce()
         ));
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let server_config = config.clone();
         let server_trace = trace_path.clone();
@@ -1232,6 +1242,7 @@ mod regression_tests {
     fn terminal_loss_and_local_close_are_bounded_and_ports_rebind() {
         let config = config();
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let server_config = config.clone();
         let authority = thread::spawn(move || {
@@ -1268,9 +1279,11 @@ mod regression_tests {
         assert_eq!(reports[0].result, "completed");
         assert_eq!(reports[1].result, "authority_silent");
         assert_eq!(reports[1].last_tick, 30);
+        drop(_endpoint);
         drop(LiveServer::bind(address).unwrap());
 
         let server = LiveServer::bind(address).unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let server_config = config.clone();
         let authority = thread::spawn(move || server.run(server_config, 300, None));
         let first_config = config.clone();
@@ -1295,7 +1308,133 @@ mod regression_tests {
             stopped.starts_with("peer_left:") || stopped.starts_with("peer_silent:"),
             "{stopped}"
         );
+        drop(_endpoint);
         assert!(LiveServer::bind(address).is_ok());
+    }
+
+    fn fixture_packet(
+        socket: &UdpSocket,
+        authority: &thread::JoinHandle<Result<LiveServerReport, String>>,
+        waiting_for: &str,
+        matches: impl Fn(&ServerPacket) -> bool,
+    ) -> Result<ServerPacket, String> {
+        let until = Instant::now() + JOIN_WINDOW;
+        loop {
+            match recv::<ServerPacket>(socket, &mut 0)? {
+                Some((packet, _, _)) if matches(&packet) => return Ok(packet),
+                None if authority.is_finished() => {
+                    return Err(format!(
+                        "fixture_authority_exited: waiting for {waiting_for}"
+                    ));
+                }
+                _ => {}
+            }
+            if Instant::now() >= until {
+                return Err(format!("fixture_packet_timeout: waiting for {waiting_for}"));
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn closed_fixed_loopback_port_is_silence_not_a_receive_failure() {
+        // Port 9 is outside Windows' dynamic UDP range; ephemeral fixtures cannot reuse it.
+        let unreachable = UdpSocket::bind("127.0.0.1:9").unwrap();
+        let address = unreachable.local_addr().unwrap();
+        drop(unreachable);
+        let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
+        sender
+            .set_read_timeout(Some(Duration::from_secs(1)))
+            .unwrap();
+        sender.send_to(b"probe", address).unwrap();
+        let error = sender.recv_from(&mut [0; 1]).unwrap_err();
+        assert_eq!(error.raw_os_error(), Some(10054));
+        sender.send_to(b"probe", address).unwrap();
+        assert!(recv::<ServerPacket>(&sender, &mut 0).unwrap().is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn receive_failure_other_than_port_unreachable_is_preserved() {
+        use std::os::windows::io::AsRawSocket;
+        #[link(name = "ws2_32")]
+        unsafe extern "system" {
+            fn shutdown(socket: usize, how: i32) -> i32;
+        }
+        let peer = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+        socket.connect(peer.local_addr().unwrap()).unwrap();
+        // Disable receiving without closing or transferring the owned socket handle.
+        assert_eq!(unsafe { shutdown(socket.as_raw_socket() as usize, 0) }, 0);
+        let error = socket.recv_from(&mut [0; 1]).unwrap_err();
+        assert_ne!(error.raw_os_error(), Some(10054));
+        assert!(!matches!(
+            error.kind(),
+            io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
+        ));
+        assert_eq!(
+            recv::<ServerPacket>(&socket, &mut 0).unwrap_err(),
+            format!("receive live packet: {error}")
+        );
+    }
+
+    #[test]
+    fn live_hello_collision_keeps_the_unsupported_protocol_error() {
+        let replacement = crate::BoundServer::bind("127.0.0.1:0").unwrap();
+        let address = replacement.local_addr().unwrap();
+        let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
+        send(
+            &sender,
+            address,
+            &ClientPacket::Hello {
+                protocol: LIVE_PROTOCOL,
+                client_id: 0,
+                config: config(),
+                nonce: new_nonce(),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            replacement.run(config(), 1).unwrap_err(),
+            format!("protocol {LIVE_PROTOCOL} is not supported"),
+        );
+    }
+
+    #[test]
+    fn stale_session_fixture_names_authority_exit() {
+        for waiting_for in ["welcome", "terminal"] {
+            let server = LiveServer::bind("127.0.0.1:0").unwrap();
+            let _endpoint = server.socket.try_clone().unwrap();
+            let address = server.local_addr().unwrap();
+            let authority = thread::spawn(move || server.run(config(), 0, None));
+            while !authority.is_finished() {
+                thread::yield_now();
+            }
+            assert!(LiveServer::bind(address).is_err());
+            let (sent, received) = std::sync::mpsc::channel();
+            let worker = thread::spawn(move || {
+                let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+                socket.set_read_timeout(Some(READ_INTERVAL)).unwrap();
+                let result = fixture_packet(&socket, &authority, waiting_for, |packet| {
+                    matches!(
+                        (waiting_for, packet),
+                        ("welcome", ServerPacket::Welcome { .. })
+                            | ("terminal", ServerPacket::Terminal { .. })
+                    )
+                });
+                let authority_error = authority.join().unwrap().unwrap_err();
+                sent.send((result.unwrap_err(), authority_error)).unwrap();
+            });
+            let (error, authority_error) = received
+                .recv_timeout(Duration::from_secs(1))
+                .expect("fixture kept waiting after authority failure");
+            assert_eq!(
+                error,
+                format!("fixture_authority_exited: waiting for {waiting_for}")
+            );
+            assert!(authority_error.contains("tick count"));
+            worker.join().unwrap();
+        }
     }
 
     #[test]
@@ -1307,11 +1446,11 @@ mod regression_tests {
             new_nonce()
         ));
         let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let _endpoint = server.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
         let server_config = config.clone();
         let server_trace = trace_path.clone();
-        let authority =
-            thread::spawn(move || server.run(server_config, 3, Some(&server_trace)).unwrap());
+        let authority = thread::spawn(move || server.run(server_config, 3, Some(&server_trace)));
         let peers = (0..2_u8)
             .map(|id| {
                 let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
@@ -1330,22 +1469,14 @@ mod regression_tests {
                     },
                 )
                 .unwrap();
-                let session = loop {
-                    if let Some((
-                        ServerPacket::Welcome {
-                            client_id,
-                            nonce: echoed,
-                            session,
-                            ..
-                        },
-                        _,
-                        _,
-                    )) = recv::<ServerPacket>(&socket, &mut 0).unwrap()
-                        && client_id == id
-                        && echoed == nonce
-                    {
-                        break session;
-                    }
+                let ServerPacket::Welcome { session, .. } =
+                    fixture_packet(&socket, &authority, "welcome", |packet| {
+                        matches!(packet, ServerPacket::Welcome { client_id, nonce: echoed, .. }
+                        if *client_id == id && *echoed == nonce)
+                    })
+                    .unwrap()
+                else {
+                    unreachable!()
                 };
                 (id, socket, session)
             })
@@ -1382,34 +1513,31 @@ mod regression_tests {
             .unwrap();
         }
         for (id, socket, _) in &peers {
-            loop {
-                if let Some((
-                    ServerPacket::Terminal {
-                        session: received,
-                        tick,
-                        hash,
-                        ..
-                    },
-                    _,
-                    _,
-                )) = recv::<ServerPacket>(socket, &mut 0).unwrap()
-                {
-                    send(
-                        socket,
-                        address,
-                        &ClientPacket::Ack {
-                            session: received,
-                            client_id: *id,
-                            tick,
-                            hash,
-                        },
-                    )
-                    .unwrap();
-                    break;
-                }
-            }
+            let ServerPacket::Terminal {
+                session: received,
+                tick,
+                hash,
+                ..
+            } = fixture_packet(socket, &authority, "terminal", |packet| {
+                matches!(packet, ServerPacket::Terminal { .. })
+            })
+            .unwrap()
+            else {
+                unreachable!()
+            };
+            send(
+                socket,
+                address,
+                &ClientPacket::Ack {
+                    session: received,
+                    client_id: *id,
+                    tick,
+                    hash,
+                },
+            )
+            .unwrap();
         }
-        assert_eq!(authority.join().unwrap().result, "completed");
+        assert_eq!(authority.join().unwrap().unwrap().result, "completed");
         let trace: Vec<AppliedTick> =
             serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
         fs::remove_file(trace_path).unwrap();

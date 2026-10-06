@@ -830,3 +830,24 @@ With #82 closed and nothing else unblocked, the network-conditions simulator and
 
 #81's review found the five-second join window and the 601-second play cutoff block the menu; the orchestrator widened #81's scope to fix them (the alternative, delivering #89 first, would leave the reviewed menu unpublished longer) and folded #89 into it.
 #87 (verify that shared Cargo artifacts belong to the current worktree) was admitted after an independent check and waits for the current parallel batch.
+
+## 2026-10-06 — Ticket #85 UDP fixtures for run #75
+
+Ticket #78 already keeps the absent-authority socket bound throughout LiveClient join attempts; current main has no released reservation in that fixture.
+Sending a live Hello to an already bound synchronous authority reproduces the unsupported-protocol error without releasing an ephemeral endpoint.
+The original cross-protocol packet sender remains unproven. Production protocol rejection and its timeouts stay unchanged.
+Other live fixtures intentionally stop their authority while peers still send, so keep cloned socket handles until those senders finish.
+Release the clones before existing port-rebind assertions. Keeping only the authority thread's handle would let Windows reuse its port during peer silence detection.
+The stale-session fixture checks authority completion while waiting for welcome and terminal packets, drains queued packets first, and names an exited authority.
+Use the existing five-second join budget for an authority that remains alive without producing the expected packet; this bounds fixture waits without extending production timeouts.
+A forced invalid-tick authority exit reproduced the old receive loop's hang; the retained regression checks both waits and endpoint retention after that exit.
+Serializing the suite or suppressing protocol errors would hide cross-test traffic, and changing runtime networking has no demonstrated justification here.
+
+Cloned handles stop Windows from returning ICMP port-unreachable resets in the peer-loss fixtures, so retain that coverage in a separate Windows receive-boundary check.
+Its closed destination is loopback port 9, outside this machine's UDP dynamic range (49152–65535), so parallel ephemeral fixtures cannot inherit it.
+The check first observes raw Winsock 10054, then proves `recv` reports silence; another owned socket with receiving shut down proves other I/O errors remain named receive failures.
+An existing service on port 9 makes the fixture fail at bind rather than sending probes to that service. Releasing another ephemeral port would recreate the cross-test isolation defect.
+After review exposed a shared-target run using a 14-test base binary for a 16-test source, isolate workspace artifacts for final verification.
+Retain compatible dependency artifacts from the prepared target, invalidate copied workspace outputs, and serialize this task's Cargo commands against the shared target lock.
+The first collision setup released and rebound a live authority port; a parallel repeat failed with Windows 10048 because the replacement bind could not claim it.
+Keep the cross-protocol packet check and endpoint-retention check separate: a real packet reaches the already bound synchronous authority, and a failed live authority retains its cloned endpoint.

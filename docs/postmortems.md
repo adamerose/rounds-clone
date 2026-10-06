@@ -113,3 +113,19 @@ Cargo releases its compilation lock before running all test executables; another
 Verification uses a locked workspace `--no-run` build and copies each executable when Cargo emits its artifact record, then runs those copies and checks all four arena test names.
 The artifact records identify this checkout and retain the same workspace test configuration. Logs, previews and hashes remain under the ignored `out/ticket-082/` parent in the integration root.
 [Ticket 87](http://ivy.localhost/tickets/87?repo=rounds-clone) records the build-infrastructure follow-up; this arena delivery changes no Cargo configuration or locking infrastructure.
+
+## 2026-10-06 — Ticket #85 shared Cargo artifacts obscured test provenance
+
+The worker linked its target to the root's prepared Cargo target while other ticket worktrees also used it.
+The final pre-review run passed 16 network tests, but the later rebased run executed a 14-test network binary missing both new regressions.
+The reviewer caught the mismatch between source test count and executed test names; the worker's initial claim that this was exact-source verification was incorrect.
+Cargo had reported a build-directory lock and finished successfully. That establishes process serialization, not that its cached workspace binary belongs to the current worktree.
+The exact fingerprint mechanism was not traced, so treating this as a proven Cargo implementation defect would overstate the evidence.
+Final verification uses a private target seeded only with compatible prepared artifacts, removes every copied workspace package output, and checks the executed regression names.
+A lock on the shared target prevents overlapping Cargo jobs during this private verification. The private target is removed with this worktree; the root target is retained.
+The same review found that endpoint clones removed the implicit Windows 10054 coverage. Explicit raw-socket reset and shutdown-error checks now retain that boundary coverage.
+Automatic command safety review rejected replacing the target junction. A separate `out/isolated-cargo-target` keeps the junction intact and is covered by the artifact-trust exception.
+The seed included 51.14 GiB of logical file data; package invalidation reported removing 21.9 GiB. Copying workspace artifacts only to remove them was avoidable I/O.
+The shutdown regression initially assumed Rust would expose raw Winsock 10058. Rust returned an I/O error without a raw code, so the check now verifies propagation of the actual non-reset, non-timeout error.
+The forced-rebind collision fixture introduced the same ephemeral-port gap this ticket removes. A later full parallel repeat failed at the replacement bind with Windows 10048.
+The retained collision check sends the live Hello to an already bound synchronous authority; the authority-exit regression separately proves exclusive endpoint ownership, without adding another release-and-rebind gap.
