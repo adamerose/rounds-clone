@@ -888,3 +888,11 @@ Drafts and results use a fixed 1280 by 720 camera so arena frame and origin cann
 Use the prepared target through the ignored worktree junction and Cargo's target-directory lock; keep the configured two-job cap and run this worker's Cargo commands sequentially.
 Disable incremental compilation for verification and snapshot Cargo's executable artifacts before running them. Parallel workers otherwise overwrite workspace fingerprints and executables, even with serialized builds.
 The alternative is a separate cold target per worker, duplicating the roughly 17 GiB dependency build and wasting the prepared cache.
+
+## 2026-10-06 — Ticket [#81](http://ivy.localhost/tickets/81?repo=rounds-clone) review stop for run [#75](http://ivy.localhost/tickets/75?repo=rounds-clone)
+
+The fresh reviewer reproduced Host exiting after roughly five seconds without its partner and found a 601-second online session cutoff that can end a fight or run-back.
+Both limits are enforced in the network crate. The worker was expressly limited to client, presentation and match-flow UI, so the candidate remains unpublished pending authority for network lifecycle work.
+[Ticket #89](http://ivy.localhost/tickets/89?repo=rounds-clone) records the missing lifecycle outcome as an idea, preserving bounded automation rather than replacing its limits with larger guesses.
+The alternatives are to extend ticket 81's authorized scope to implement cancellable interactive sessions, or admit that separate network ticket before resuming UI delivery.
+Retries and larger constants would conceal the lifecycle distinction, while publishing the current menu would knowingly deliver the reproduced defect; neither is chosen.
