@@ -49,3 +49,4 @@ Edits are confined to `#[cfg(test)]` fixtures in crates/quarrel-network. Ticket 
 - 2026-10-06T02:19:45Z stage implement start session codex:01a10efe-cc85-7522-81c7-22387758b422 — Retain test endpoint handles and name authority exit in stale-session waits.
 - 2026-10-06T02:20:21Z stage implement end session codex:01a10efe-cc85-7522-81c7-22387758b422 — Fixture-only endpoint clones and bounded stale-session waits implemented; forced-exit regression changed from failing to passing, 15 parallel network tests passed. Production bytes unchanged.
 - 2026-10-06T02:20:29Z stage verify start session codex:01a10efe-cc85-7522-81c7-22387758b422 — Run full locked default-parallel workspace tests with existing root Cargo target and two-job cap.
+- 2026-10-06T02:21:12Z stage implement start session codex:01a10efe-cc85-7522-81c7-22387758b422 — Preserve a deterministic cross-protocol collision check by explicitly rebinding a failed authority endpoint.
