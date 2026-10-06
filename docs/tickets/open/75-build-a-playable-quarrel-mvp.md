@@ -69,3 +69,4 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-05T14:16:48Z Contract updated to the settled design (loser picks, new arena every fight, ROUNDS basics plus recoil) and split into #76-#82; superseded tickets closed. The run is not yet started.
 - 2026-10-05T14:56:33Z Online play (#83 responsive netcode, #84 Steam invites) added to the MVP; no tied fights; run-backs go to 10 and 15.
 - 2026-10-06T02:10:52Z Orchestrator resumed in claude:b7dbdddc-0b4a-4606-a5de-5229ea29df0b after the previous process exited and missed #78's completion (reported as adamerose/ivy#3); #76-#78 closed.
+- 2026-10-06T04:12:56Z Control change: at most 2 parallel workers from the next launch, because concurrent Bevy debug links (about 4 GB each in link.exe) exhausted the machine's 32 GB RAM; Adam reported lag.
