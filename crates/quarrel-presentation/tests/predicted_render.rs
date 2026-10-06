@@ -53,4 +53,22 @@ fn next_frame_predicted_shot_and_block_render_offscreen() {
     let before = quarrel_presentation::render_png(&state, &output.join("before.png")).unwrap();
     let after = quarrel_presentation::render_png(&displayed, &output.join("after.png")).unwrap();
     assert_ne!(before, after);
+    let shot_pixels = |bytes: &[u8]| {
+        let mut reader = png::Decoder::new(std::io::Cursor::new(bytes))
+            .read_info()
+            .unwrap();
+        let mut pixels = vec![0; reader.output_buffer_size().unwrap()];
+        let frame = reader.next_frame(&mut pixels).unwrap();
+        assert_eq!(frame.color_type, png::ColorType::Rgb);
+        pixels[..frame.buffer_size()]
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .filter(|rgb| rgb[0] > 150 && rgb[1] > 130 && rgb[2] < 130)
+            .count()
+    };
+    assert!(
+        shot_pixels(&after) > shot_pixels(&before),
+        "the predicted shot must reach rendered pixels"
+    );
 }

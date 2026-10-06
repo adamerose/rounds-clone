@@ -12,6 +12,7 @@ pub struct LocalPrediction {
     block_held: bool,
     shots: Vec<ProjectileSnapshot>,
     next_shot: u32,
+    targets: Vec<u8>,
 }
 
 impl LocalPrediction {
@@ -64,6 +65,12 @@ impl LocalPrediction {
             block_held: previous.block,
             shots,
             next_shot: u32::MAX,
+            targets: state
+                .players
+                .iter()
+                .filter(|player| player.id != id && player.alive)
+                .map(|player| player.id)
+                .collect(),
         }
     }
 
@@ -160,7 +167,12 @@ impl LocalPrediction {
             p.jump_available = true;
         }
         self.shots.retain_mut(|shot| {
-            if self.physics.bullet_platform_contact(shot.id) {
+            if self.physics.bullet_platform_contact(shot.id)
+                || self
+                    .targets
+                    .iter()
+                    .any(|target| self.physics.prediction_fighter_contact(shot.id, *target))
+            {
                 self.physics.remove_bullet(shot.id);
                 return false;
             }
@@ -189,5 +201,95 @@ impl LocalPrediction {
             .projectiles
             .retain(|shot| shot.owner != self.player.id);
         state.projectiles.extend(self.shots.iter().cloned());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn predicted_shot_stops_at_opponent_without_inventing_a_reflection() {
+        let mut state = AuthoritativeMatch::new(38).snapshot();
+        state.arena.clear();
+        let arena = state.arena_objects.as_mut().unwrap();
+        arena.objects.clear();
+        arena.chains.clear();
+        arena.frame = [-1000., -1000., 1000., 1000.];
+        for (id, player) in state.players.iter_mut().enumerate() {
+            player.x_milli = if id == 0 { -300000 } else { 0 };
+            player.y_milli = 100000;
+            player.velocity_x_milli_per_second = 0;
+            player.velocity_y_milli_per_second = 0;
+        }
+        state.projectiles = vec![ProjectileSnapshot {
+            id: 42,
+            owner: 0,
+            x_milli: -100000,
+            y_milli: 100000,
+            previous_x_milli: -100000,
+            previous_y_milli: 100000,
+            velocity_x_milli_per_second: 3600000,
+            velocity_y_milli_per_second: 0,
+            lifetime_ticks: 90,
+            dazzle_pulses: 0,
+            explosive_radius_milli: 0,
+        }];
+        let mut prediction =
+            LocalPrediction::new(&state, 0, CombatTuning::default(), PlayerInput::default());
+        for _ in 0..8 {
+            prediction.step(PlayerInput::default());
+        }
+        prediction.apply(&mut state);
+        assert!(
+            state.projectiles.is_empty(),
+            "fighter contact cannot display an invented bounce"
+        );
+        assert_eq!(state.players[1].health, 100);
+    }
+
+    #[test]
+    fn authoritative_ground_support_survives_prediction_pose_restore() {
+        let mut game = AuthoritativeMatch::new(38);
+        let flow = game.snapshot().flow.unwrap();
+        game.step(
+            &(0..2)
+                .map(|id| PlayerInput {
+                    flow: Some(FlowCommand {
+                        phase_revision: flow.phase_revision,
+                        action: FlowAction::Confirm(flow.offers[id][0]),
+                    }),
+                    ..Default::default()
+                })
+                .collect::<Vec<_>>(),
+        );
+        for _ in 0..180 {
+            game.step(&[PlayerInput::default(); 2]);
+        }
+        let state = game.snapshot();
+        assert!(state.players[0].grounded);
+        let mut prediction =
+            LocalPrediction::new(&state, 0, game.tuning().clone(), PlayerInput::default());
+        assert!(
+            prediction.physics.player_support(0).0,
+            "pose restoration must preserve warmed support contacts"
+        );
+        let input = PlayerInput {
+            move_axis: 1,
+            ..Default::default()
+        };
+        prediction.step(input);
+        let mut shown = state.clone();
+        prediction.apply(&mut shown);
+        game.step(&[input, PlayerInput::default()]);
+        let actual = game.snapshot();
+        assert!(
+            (shown.players[0].velocity_x_milli_per_second
+                - actual.players[0].velocity_x_milli_per_second)
+                .abs()
+                < 2000,
+            "predicted ground control {} differs from authority {}",
+            shown.players[0].velocity_x_milli_per_second,
+            actual.players[0].velocity_x_milli_per_second
+        );
     }
 }

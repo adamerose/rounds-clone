@@ -1140,9 +1140,24 @@ mod regression_tests {
                             }
                             let samples = handle.presentation_samples();
                             let sequence = handle.set_held(input);
-                            let display = view.frame(&samples, sequence, input, 1. / 60.).unwrap();
+                            view.frame(&samples, sequence, input, 1. / 60.).unwrap();
                             if !measured && state.flow.as_ref().unwrap().phase == FlowPhase::Combat
                             {
+                                let mut probe_view = crate::ClientPresentation::new(id);
+                                let neutral = PlayerInput::default();
+                                let neutral_sequence = handle.set_held(neutral);
+                                let display = probe_view
+                                    .frame(&samples, neutral_sequence, neutral, 1. / 60.)
+                                    .unwrap();
+                                assert_eq!(display.players[id as usize].block_ticks, 0);
+                                assert!(!display.projectiles.iter().any(|shot| shot.owner == id));
+                                let mut control_view = crate::ClientPresentation::new(id);
+                                control_view
+                                    .frame(&samples, neutral_sequence, neutral, 1. / 60.)
+                                    .unwrap();
+                                let control = control_view
+                                    .frame(&samples, neutral_sequence + 1, neutral, 1. / 60.)
+                                    .unwrap();
                                 let start = Instant::now();
                                 let probe = PlayerInput {
                                     move_axis: -1,
@@ -1154,13 +1169,14 @@ mod regression_tests {
                                     ..Default::default()
                                 };
                                 let seq = handle.set_held(probe);
-                                let shown = view.frame(&samples, seq, probe, 1. / 60.).unwrap();
+                                let shown =
+                                    probe_view.frame(&samples, seq, probe, 1. / 60.).unwrap();
                                 let fighter = &shown.players[id as usize];
                                 assert_ne!(
                                     (fighter.x_milli, fighter.y_milli),
                                     (
-                                        display.players[id as usize].x_milli,
-                                        display.players[id as usize].y_milli
+                                        control.players[id as usize].x_milli,
+                                        control.players[id as usize].y_milli
                                     )
                                 );
                                 assert!(fighter.block_ticks > 0);

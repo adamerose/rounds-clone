@@ -154,17 +154,33 @@ fn interpolate(
         if let Some(a) = before.players.iter().find(|p| p.id == player.id)
             && let Some(b) = after.players.iter().find(|p| p.id == player.id)
         {
+            let (health, alive) = (player.health, player.alive);
+            *player = if t >= 1. { b.clone() } else { a.clone() };
+            player.health = health;
+            player.alive = alive;
             player.x_milli = blend(a.x_milli, b.x_milli, t);
             player.y_milli = blend(a.y_milli, b.y_milli, t);
+            player.height_milli = blend(a.height_milli, b.height_milli, t);
+            let angle = (a.aim_y as f64).atan2(a.aim_x as f64);
+            let delta = ((b.aim_y as f64).atan2(b.aim_x as f64) - angle + std::f64::consts::PI)
+                .rem_euclid(std::f64::consts::TAU)
+                - std::f64::consts::PI;
+            player.aim_x = ((angle + delta * t).cos() * 1000.).round() as i16;
+            player.aim_y = ((angle + delta * t).sin() * 1000.).round() as i16;
         }
     }
     // Entity membership is authoritative; interpolate only matching identities.
     display.projectiles.retain(|shot| shot.owner == owned);
+    let owned_ids = display
+        .projectiles
+        .iter()
+        .map(|shot| shot.id)
+        .collect::<Vec<_>>();
     display.projectiles.extend(
         before
             .projectiles
             .iter()
-            .filter(|shot| shot.owner != owned)
+            .filter(|shot| shot.owner != owned && !owned_ids.contains(&shot.id))
             .cloned(),
     );
     for shot in &mut display.projectiles {
@@ -178,6 +194,16 @@ fn interpolate(
             shot.y_milli = blend(a.y_milli, b.y_milli, t);
             shot.previous_x_milli = blend(a.previous_x_milli, b.previous_x_milli, t);
             shot.previous_y_milli = blend(a.previous_y_milli, b.previous_y_milli, t);
+        } else {
+            // The host removed this identity between samples. Continue its last
+            // observed trajectory until that removal reaches the buffered clock.
+            let seconds = after.tick.saturating_sub(before.tick) as f64 * t / 60.;
+            let dx = shot.velocity_x_milli_per_second as f64 * seconds;
+            let dy = shot.velocity_y_milli_per_second as f64 * seconds;
+            shot.x_milli = (shot.x_milli as f64 + dx).round() as i32;
+            shot.y_milli = (shot.y_milli as f64 + dy).round() as i32;
+            shot.previous_x_milli = (shot.previous_x_milli as f64 + dx).round() as i32;
+            shot.previous_y_milli = (shot.previous_y_milli as f64 + dy).round() as i32;
         }
     }
     if let Some(arena) = &mut display.arena_objects
@@ -205,6 +231,52 @@ fn interpolate(
 mod tests {
     use super::*;
     use quarrel_sim::{AuthoritativeMatch, FlowAction, FlowCommand, MatchConfig};
+    #[test]
+    fn disappearing_remote_shot_keeps_moving_and_remote_aim_uses_buffered_time() {
+        let mut before = combat();
+        before.projectiles = vec![quarrel_sim::ProjectileSnapshot {
+            id: 42,
+            owner: 1,
+            x_milli: 0,
+            y_milli: 100000,
+            previous_x_milli: -60000,
+            previous_y_milli: 100000,
+            velocity_x_milli_per_second: 3600000,
+            velocity_y_milli_per_second: 0,
+            lifetime_ticks: 60,
+            dazzle_pulses: 0,
+            explosive_radius_milli: 0,
+        }];
+        before.players[1].aim_x = 1000;
+        before.players[1].aim_y = 0;
+        before.players[1].block_ticks = 0;
+        let mut after = before.clone();
+        after.tick += 6;
+        after.projectiles.clear();
+        after.players[1].aim_x = 0;
+        after.players[1].aim_y = 1000;
+        after.players[1].block_ticks = 10;
+        let mut display = after.clone();
+        interpolate(&mut display, &before, &after, 0.5, 0);
+        assert_eq!(
+            display.projectiles[0].x_milli, 180000,
+            "last segment must keep moving"
+        );
+        assert_eq!(display.players[1].aim_x, display.players[1].aim_y);
+        assert_eq!(
+            display.players[1].block_ticks, 0,
+            "remote action state belongs to the earlier buffered sample"
+        );
+        assert_eq!(display.flow, after.flow);
+        // Reflection preserves identity while transferring ownership. The new
+        // local shot must replace its buffered remote identity, not duplicate it.
+        after.projectiles = before.projectiles.clone();
+        after.projectiles[0].owner = 0;
+        display = after.clone();
+        interpolate(&mut display, &before, &after, 0.5, 0);
+        assert_eq!(display.projectiles.len(), 1);
+        assert_eq!(display.projectiles[0].owner, 0);
+    }
 
     fn combat() -> MatchSnapshot {
         let mut game = AuthoritativeMatch::with_config(MatchConfig::default()).unwrap();

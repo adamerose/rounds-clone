@@ -1168,3 +1168,13 @@ Offscreen before/after captures separately verify that those predicted snapshot 
 The baseline in ticket 88 was 125.958–126.740 ms median and 157.959–172.611 ms p95 for authoritative aim visibility; local scene visibility now takes one frame (16.67 ms at 60 Hz).
 The new authoritative latest() timing is deliberately slower because it exposes received authority, not predicted display state.
 
+## 2026-10-06 — Ticket #83 presentation corrections for run #75
+
+Keep the warmed fighter collider when restoring an unchanged stance; replacing it discarded floor contacts and selected air control for the first predicted tick.
+A public-physics regression failed before the correction and now agrees with authoritative grounded movement.
+Suppress a local shot visual when its swept path or physical contact reaches a living opponent proxy. Do not invent a bounce, reflection, damage or impact; the host supplies those outcomes.
+Advance a disappearing remote shot along its last observed velocity through the final buffered interval instead of holding its old position. Full-sample removal still bounds its presentation lifetime.
+Use buffered remote action state and interpolate aim angle and crouch height alongside body position; preserve host health and elimination.
+The alternatives were a full projectile-effect simulator or extra shot-event protocol records. Neither is needed to stop the demonstrated visual defects without changing authority.
+The final neutral-baseline impaired probe starts with no owned projectile or active block, then measures the new movement, shot and block in its next scene frame.
+

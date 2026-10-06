@@ -93,7 +93,10 @@ impl PhysicsBoundary {
     }
     pub(crate) fn prediction_poses(&mut self, players: &[PlayerSnapshot], owned: u8) {
         for player in players {
-            self.set_crouch(player.id, player.height_milli < player.radius_milli * 2);
+            let crouched = player.height_milli < player.radius_milli * 2;
+            if self.players[player.id as usize].crouched != crouched {
+                self.set_crouch(player.id, crouched);
+            }
             let body = &mut self.rapier.bodies[self.players[player.id as usize].body];
             if player.id != owned {
                 body.set_body_type(bevy_rapier2d::rapier::prelude::RigidBodyType::Fixed, true);
@@ -874,6 +877,14 @@ impl PhysicsBoundary {
                         .is_some_and(|pair| pair.has_any_active_contact())
             })
         })
+    }
+    pub(crate) fn prediction_fighter_contact(&self, id: u32, target: u8) -> bool {
+        self.bullet_contact(id, target).is_some()
+            || self.bullets.get(&id).is_some_and(|bullet| {
+                self.rapier
+                    .contact_pair(bullet.collider, self.players[target as usize].collider)
+                    .is_some_and(|pair| pair.has_any_active_contact())
+            })
     }
     pub(crate) fn reflect_bullet(&mut self, id: u32, reflector: u8) {
         let center = self.player_pose(reflector).0;

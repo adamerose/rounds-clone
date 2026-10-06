@@ -387,3 +387,12 @@ The duplicate launch exited with code 1 at 05:35:15Z. Each JSON launch record na
 The autonomy skill already requires checking goal ownership before each step and forbids resuming an active worker. The superseded session's reasoning and the duplicate exit's cause were not inspected, so the reason it missed that precondition is unknown. A prepared Ivy report proposes considering an ownership check at the worker launcher, with legitimate reviewer launches and handoffs preserved. No public issue has been filed or new guidance imposed.
 
 Evidence remains in the two unattended JSON records under Ivy's home and [goal 75's work log](http://ivy.localhost/tickets/75?repo=72104b08f3e558c1). The [current orchestrator](http://ivy.localhost/sessions/codex/01a11f02-1a85-7e42-b5c7-6b3d99c6940c) observed the [superseded session](http://ivy.localhost/sessions/claude/a0d86392-754e-470a-b30a-fec894c3f7c6) gone before trying any interruption. The incident investigation and this journal change ran no Cargo build, changed no compiler settings, and retained the prepared target.
+## 2026-10-06 — Ticket #83 prediction and remote-shot correction
+
+The first complete checks passed, but the [fresh Claude review](http://ivy.localhost/sessions/claude/e33188b8-f727-4d9f-a071-eb6b0724346d) rejected the candidate's shot presentation.
+Fixed opponent proxies physically bounced local shot visuals, and remote shots absent from the next sample froze at their last position.
+The retained regressions reproduced both failures. The predictor now suppresses shots at swept or physical fighter contact without deciding a hit, and the final remote interval follows observed velocity.
+The author also reproduced discarded ground-support contacts: pose restoration replaced an unchanged collider after the warm-up step.
+Preserving its identity restored support and authoritative ground control. A second detached checkout kept the ongoing review's original range immutable during reproduction.
+Remote aim and stance now use the buffered moment. The impairment probe now compares a neutral scene without an owned shot or active block, removing ambiguity in its one-frame assertion.
+
