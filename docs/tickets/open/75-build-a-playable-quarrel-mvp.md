@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 owner: claude:b7dbdddc-0b4a-4606-a5de-5229ea29df0b
 created: 2026-10-05T01:09:00Z
 origin: human-request
@@ -20,6 +20,12 @@ split-from: []
 # Build a playable QUARREL MVP
 
 Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor described in `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md` milestone M1. This run turns the footage-replay codebase into an ordinary match two people can start and finish, adds the card system and the loser-picks draft, and delegates implementation to Sol workers.
+
+## Blocked
+
+Codex stopped serving every model on this machine's ChatGPT sign-in at about 07:32Z on 2026-10-06: a 401 on the responses websocket, then 'The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account' for gpt-6.1-sol, gpt-6.1-astra, gpt-6.1 and gpt-6. #80's worker died mid-review and could not be resumed; #83's worker will fail at its next model call.
+
+1. How should the run continue? (a) Adam fixes the Codex sign-in or plan (for example `codex login`), and the run resumes #80 and #83 on Sol. (b) Continue on Claude Opus workers until Codex works again, which spends Claude usage instead.
 
 ## Outcome
 
