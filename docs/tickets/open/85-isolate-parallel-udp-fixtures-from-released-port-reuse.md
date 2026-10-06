@@ -46,3 +46,4 @@ Edits are confined to `#[cfg(test)]` fixtures in crates/quarrel-network. Ticket 
 - 2026-10-06T02:15:16Z Admitted for run #75 after an independent contract check updated it to main at bc6184b.
 - 2026-10-06T02:16:36Z stage research start session codex:01a10efe-cc85-7522-81c7-22387758b422 — Inspect endpoint ownership and authority lifecycle.
 - 2026-10-06T02:19:42Z stage research end session codex:01a10efe-cc85-7522-81c7-22387758b422 — Ticket 78 closed absent-endpoint reuse; forced authority tick failure reproduces stale-session wait hang. Other authority teardown paths release endpoints while peers send.
+- 2026-10-06T02:19:45Z stage implement start session codex:01a10efe-cc85-7522-81c7-22387758b422 — Retain test endpoint handles and name authority exit in stale-session waits.
