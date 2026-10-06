@@ -1,5 +1,7 @@
 use quarrel_network::{LiveClient, LiveServer, ServerReport, send_inputs};
-use quarrel_presentation::{render_png, run_interactive_visible, run_live_visible, run_visible};
+use quarrel_presentation::{
+    render_menu_png, render_png, run_interactive_visible, run_live_visible, run_menu, run_visible,
+};
 use quarrel_sim::{
     AuthoritativeMatch, FlowPhase, InputRecording, MatchConfig, MatchContent, PlayerInput,
     automated_input, hash_snapshot, play_recording,
@@ -18,18 +20,30 @@ fn main() {
     }
 }
 fn run() -> Result<(), String> {
-    let args = env::args().collect::<Vec<_>>();
-    let mode = args.get(1).map(String::as_str).unwrap_or("local");
+    let mut args = env::args().collect::<Vec<_>>();
+    // Exercise the same menu selections without opening a window for network evidence.
+    if args.get(1).is_some_and(|mode| mode == "menu-start") {
+        let selected = argument(&args, "--choice", 0_usize)?;
+        let address = optional(&args, "--address").unwrap_or_else(|| "127.0.0.1:7777".into());
+        let menu_args = quarrel_presentation::menu_match_args(selected, &address)?;
+        let mut translated = vec![args[0].clone(), menu_args[0].clone()];
+        translated.extend(args.into_iter().skip(2));
+        translated.extend(menu_args.into_iter().skip(1));
+        args = translated;
+    }
+    let mode = args.get(1).map(String::as_str).unwrap_or("menu");
     let config = config(&args)?;
     let ticks = argument(&args, "--ticks", 2_400_u32)?;
     match mode {
+        "menu" => run_menu(),
+        "menu-capture" => render_menu_png(Path::new(&required(&args, "--output")?)).map(|_| ()),
         "local" => print(run_local(config, ticks)?),
         "replay" => { let path = required(&args, "--input")?; let recording: InputRecording = serde_json::from_slice(&fs::read(&path).map_err(|e| format!("read {path}: {e}"))?).map_err(|e| format!("decode {path}: {e}"))?; let states = play_recording(&recording)?; print(states.last().ok_or("empty replay")?) },
         "remote" => remote(&args, config, ticks),
         "capture" => capture(&args, config, ticks),
         "record" => { let output = PathBuf::from(required(&args, "--output")?); let recording = scripted_until_match_end(config, ticks)?; let recorded_ticks = recording.frames.len(); fs::write(&output, serde_json::to_vec_pretty(&recording).map_err(|e| e.to_string())?).map_err(|e| format!("write {}: {e}", output.display()))?; print(serde_json::json!({"output": output, "ticks": recorded_ticks})) },
         "visible" => { let state = state_after(config.clone(), ticks)?; run_visible(vec![state.clone(); 120])?; print(serde_json::json!({"stateSha256": hash_snapshot(&state)})) },
-        "visible-flow" => { let state = run_interactive_visible(config, ticks, args.iter().any(|argument| argument == "--automated"))?; print(serde_json::json!({"stateSha256": hash_snapshot(&state)})) },
+        "visible-flow" => { let state = run_interactive_visible(config, ticks, args.iter().any(|argument| argument == "--automated"))?; print(serde_json::json!({"stateSha256": hash_snapshot(&state), "flow": state.flow, "tick": state.tick})) },
         "arena-preview" => { let arena = PathBuf::from(required(&args, "--arena")?); let output = PathBuf::from(required(&args, "--output")?); let mut state = AuthoritativeMatch::from_arena_file(config.seed, &arena)?.snapshot(); state.flow = None; render_png(&state, &output)?; print(serde_json::json!({"arena": arena, "output": output, "stateSha256": hash_snapshot(&state)})) },
         "join" => join(&args, config, ticks),
         "host" => host(&args, config, ticks),
@@ -209,19 +223,65 @@ fn run_local(config: MatchConfig, ticks: u32) -> Result<ServerReport, String> {
 fn join(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> {
     let address = required(args, "--address")?;
     let id = argument(args, "--client", 0_u8)?;
-    run_live_client(address, id, config, ticks)
+    run_live_client(
+        address,
+        id,
+        config,
+        ticks,
+        args.iter().any(|arg| arg == "--headless"),
+    )
 }
 fn run_live_client(
     address: impl std::net::ToSocketAddrs,
     id: u8,
     config: MatchConfig,
     ticks: u32,
+    headless: bool,
 ) -> Result<(), String> {
     let client = LiveClient::connect(address, id, config)?;
     let handle = client.handle();
     let close = handle.clone();
     let network = std::thread::spawn(move || client.run(ticks));
-    let presentation = run_live_visible(handle, id);
+    let presentation = if headless {
+        let mut sent = None;
+        let mut first_fight = false;
+        let mut result = Ok(());
+        while handle.result().is_none() {
+            if let Some((state, _)) = handle.latest() {
+                if !first_fight
+                    && state
+                        .flow
+                        .as_ref()
+                        .is_some_and(|flow| flow.phase == FlowPhase::Combat)
+                {
+                    first_fight = true;
+                    println!(
+                        "{{\"event\":\"menuFirstFight\",\"client\":{id},\"tick\":{}}}",
+                        state.tick
+                    );
+                }
+                let input = automated_input(id, &state);
+                handle.set_held(input);
+                if let Some(command) = input.flow
+                    && sent != Some(command)
+                {
+                    if let Err(error) = handle.push_flow(command) {
+                        result = Err(error);
+                        break;
+                    }
+                    sent = Some(command);
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        result.and_then(|()| {
+            first_fight
+                .then_some(())
+                .ok_or_else(|| "headless menu session never reached first fight".into())
+        })
+    } else {
+        run_live_visible(handle, id)
+    };
     close.close();
     let report = network
         .join()
@@ -249,7 +309,13 @@ fn host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
     } else {
         address
     };
-    let client = run_live_client(peer, id, config, ticks);
+    let client = run_live_client(
+        peer,
+        id,
+        config,
+        ticks,
+        args.iter().any(|arg| arg == "--headless"),
+    );
     let report = authority
         .join()
         .map_err(|_| "live authority thread panicked".to_owned())??;

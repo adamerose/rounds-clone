@@ -19,6 +19,7 @@ pub(super) fn setup_offscreen_scene(
     mut materials: ResMut<Assets<ColorMaterial>>,
     snapshot: Res<SceneSnapshot>,
     target: Res<CaptureTarget>,
+    menu: Option<Res<super::menu::Menu>>,
 ) {
     let (transform, bloom, chromatic, lens) = camera_state(&snapshot.0);
     commands.spawn((
@@ -35,6 +36,10 @@ pub(super) fn setup_offscreen_scene(
         chromatic,
         lens,
     ));
+    if let Some(menu) = menu {
+        super::menu::spawn_menu(&mut commands, &menu);
+        return;
+    }
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot.0);
 }
 
@@ -91,12 +96,16 @@ pub(super) fn advance_interactive_scene(
     mut materials: ResMut<Assets<ColorMaterial>>,
     visuals: Query<Entity, With<SceneVisual>>,
     keys: Res<ButtonInput<KeyCode>>,
-    gamepads: Query<&Gamepad>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    gamepads: Query<(Entity, &Gamepad)>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
     time: Res<Time>,
     mut authority: ResMut<InteractiveAuthority>,
     mut scene: ResMut<SceneSnapshot>,
     mut lifetime: ResMut<VisibleLifetime>,
     mut camera: Single<CameraSettings<'_>, With<Camera2d>>,
+    mut scripted_phase: Local<Option<FlowPhase>>,
 ) {
     if !lifetime.shown {
         return;
@@ -107,16 +116,31 @@ pub(super) fn advance_interactive_scene(
     }
     let flow = scene.0.flow.as_ref();
     let fighters = flow.map_or(0, |flow| flow.scores.len());
+    let mut controllers = gamepads.iter().collect::<Vec<_>>();
+    controllers.sort_by_key(|(entity, _)| entity.to_bits());
+    let keyboard_player = (controllers.len() < 2).then_some(0);
+    let controller_start = usize::from(controllers.len() == 1);
     let mut direct = vec![None; fighters];
     if let Some(flow) = flow {
         for key in keys.get_just_pressed().copied() {
-            for (player, input) in direct.iter_mut().enumerate().take(2) {
-                if let Some(command) = keyboard_flow_command(key, player as u8, flow) {
-                    *input = Some(command);
+            if controllers.is_empty() {
+                for (player, input) in direct.iter_mut().enumerate().take(2) {
+                    if let Some(command) = keyboard_flow_command(key, player as u8, flow) {
+                        *input = Some(command);
+                    }
                 }
+            } else if let Some(player) = keyboard_player
+                && let Some(input) = direct.get_mut(player)
+                && let Some(command) = primary_keyboard_flow_command(key, player as u8, flow)
+            {
+                *input = Some(command);
             }
         }
-        for (player, gamepad) in gamepads.iter().take(fighters).enumerate() {
+        for (offset, (_, gamepad)) in controllers.iter().enumerate() {
+            let player = controller_start + offset;
+            if player >= fighters {
+                break;
+            }
             for button in gamepad.get_just_pressed().copied() {
                 if let Some(command) = gamepad_flow_command(button, player as u8, flow) {
                     direct[player] = Some(command);
@@ -129,10 +153,27 @@ pub(super) fn advance_interactive_scene(
             authority.pending_flow[player] = command;
         }
     }
-    let mut live = (0..fighters)
-        .map(|player| keyboard_combat_input(&keys, player as u8))
-        .collect::<Vec<_>>();
-    for (player, gamepad) in gamepads.iter().take(fighters).enumerate() {
+    let mut live = if controllers.is_empty() {
+        (0..fighters)
+            .map(|player| keyboard_combat_input(&keys, player as u8))
+            .collect()
+    } else {
+        vec![PlayerInput::default(); fighters]
+    };
+    if let Some(player) = keyboard_player
+        && let Some(input) = live.get_mut(player)
+    {
+        *input = keyboard_mouse_combat_input(
+            &keys,
+            &mouse_buttons,
+            mouse_aim(&scene.0, player as u8, &windows, &cameras),
+        );
+    }
+    for (offset, (_, gamepad)) in controllers.iter().enumerate() {
+        let player = controller_start + offset;
+        if player >= fighters {
+            break;
+        }
         live[player] = gamepad_combat_input(gamepad);
     }
     let steps = if authority.automated {
@@ -148,10 +189,19 @@ pub(super) fn advance_interactive_scene(
             break;
         }
         let observation = authority.simulation.snapshot();
+        if authority.automated {
+            let phase = observation.flow.as_ref().map(|flow| flow.phase);
+            if *scripted_phase != phase {
+                println!(
+                    "{{\"event\":\"scriptedDeviceFlow\",\"tick\":{},\"phase\":\"{}\"}}",
+                    observation.tick,
+                    phase.map_or("none".to_owned(), |phase| format!("{phase:?}"))
+                );
+                *scripted_phase = phase;
+            }
+        }
         let mut inputs = if authority.automated {
-            (0..fighters)
-                .map(|player| quarrel_sim::automated_input(player as u8, &observation))
-                .collect::<Vec<_>>()
+            scripted_device_inputs(fighters, &observation)
         } else {
             live.clone()
         };
@@ -186,6 +236,150 @@ pub(super) fn advance_interactive_scene(
     if authority.tick >= authority.limit {
         lifetime.frames = 3;
     }
+}
+
+fn scripted_device_inputs(fighters: usize, observation: &MatchSnapshot) -> Vec<PlayerInput> {
+    (0..fighters)
+        .map(|player| {
+            let mut source = quarrel_sim::automated_input(player as u8, observation);
+            // Automated play advances ten ticks per frame. Keep choice screens
+            // visible for thirty frames before the scripted device confirms.
+            let waiting = observation.flow.as_ref().is_some_and(|flow| {
+                matches!(flow.phase, FlowPhase::Draft | FlowPhase::MatchEnd)
+                    && flow.phase_tick < 300
+            });
+            if waiting {
+                source.flow = None;
+            } else if observation
+                .flow
+                .as_ref()
+                .is_some_and(|flow| flow.phase == FlowPhase::MatchEnd)
+            {
+                source.flow = Some(FlowCommand {
+                    phase_revision: observation.flow.as_ref().unwrap().phase_revision,
+                    action: FlowAction::VoteYes,
+                });
+            }
+            match player {
+                0 => scripted_keyboard_input(source, player as u8, observation.flow.as_ref()),
+                1 => scripted_gamepad_input(source, player as u8, observation.flow.as_ref()),
+                _ => source,
+            }
+        })
+        .collect()
+}
+
+fn scripted_keyboard_input(
+    source: PlayerInput,
+    player: u8,
+    flow: Option<&FlowSnapshot>,
+) -> PlayerInput {
+    let mut keys = ButtonInput::default();
+    let mut mouse_buttons = ButtonInput::default();
+    if source.move_axis < 0 {
+        keys.press(KeyCode::KeyA);
+    }
+    if source.move_axis > 0 {
+        keys.press(KeyCode::KeyD);
+    }
+    if source.jump {
+        keys.press(KeyCode::KeyW);
+    }
+    if source.block {
+        keys.press(KeyCode::KeyS);
+    }
+    if source.fire {
+        mouse_buttons.press(MouseButton::Left);
+    }
+    if source.aim_x < 0 {
+        keys.press(KeyCode::KeyJ);
+    }
+    if source.aim_x > 0 {
+        keys.press(KeyCode::KeyL);
+    }
+    if source.aim_y < 0 {
+        keys.press(KeyCode::KeyK);
+    }
+    if source.aim_y > 0 {
+        keys.press(KeyCode::KeyI);
+    }
+    let mut input = keyboard_mouse_combat_input(&keys, &mouse_buttons, None);
+    input.flow = source.flow.and_then(|wanted| {
+        flow.and_then(|flow| {
+            [
+                KeyCode::KeyY,
+                KeyCode::KeyN,
+                KeyCode::KeyA,
+                KeyCode::KeyD,
+                KeyCode::Space,
+            ]
+            .into_iter()
+            .find_map(|key| {
+                primary_keyboard_flow_command(key, player, flow)
+                    .filter(|command| command.action == wanted.action)
+            })
+        })
+    });
+    input
+}
+
+fn scripted_gamepad_input(
+    source: PlayerInput,
+    player: u8,
+    flow: Option<&FlowSnapshot>,
+) -> PlayerInput {
+    let mut gamepad = Gamepad::default();
+    gamepad
+        .analog_mut()
+        .set(GamepadAxis::LeftStickX, f32::from(source.move_axis));
+    gamepad
+        .analog_mut()
+        .set(GamepadAxis::RightStickX, f32::from(source.aim_x) / 1_000.0);
+    gamepad
+        .analog_mut()
+        .set(GamepadAxis::RightStickY, f32::from(source.aim_y) / 1_000.0);
+    if source.jump {
+        gamepad.digital_mut().press(GamepadButton::South);
+    }
+    if source.fire {
+        gamepad.digital_mut().press(GamepadButton::RightTrigger2);
+    }
+    if source.block {
+        gamepad.digital_mut().press(GamepadButton::West);
+    }
+    let mut input = gamepad_combat_input(&gamepad);
+    input.flow = source.flow.and_then(|wanted| {
+        flow.and_then(|flow| {
+            [
+                GamepadButton::South,
+                GamepadButton::East,
+                GamepadButton::DPadLeft,
+                GamepadButton::DPadRight,
+            ]
+            .into_iter()
+            .find_map(|button| {
+                gamepad_flow_command(button, player, flow)
+                    .filter(|command| command.action == wanted.action)
+            })
+        })
+    });
+    input
+}
+
+fn mouse_aim(
+    snapshot: &MatchSnapshot,
+    player: u8,
+    windows: &Query<&Window, With<PrimaryWindow>>,
+    cameras: &Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+) -> Option<Vec2> {
+    let cursor = windows.single().ok()?.cursor_position()?;
+    let (camera, transform) = cameras.single().ok()?;
+    let target = camera.viewport_to_world_2d(transform, cursor).ok()?;
+    let actor = snapshot
+        .players
+        .iter()
+        .find(|fighter| fighter.id == player)?;
+    Some(target - Vec2::new(actor.x_milli as f32, actor.y_milli as f32) / 1_000.0)
 }
 
 pub(super) fn poll_live_snapshot(mut live: ResMut<LivePresentation>) {
@@ -304,9 +498,16 @@ pub(super) fn verify_live_monitor_show(
     );
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "live input needs the concrete keyboard, mouse, controller, window, and camera resources"
+)]
 pub(super) fn submit_live_input(
     keys: Res<ButtonInput<KeyCode>>,
-    gamepads: Query<&Gamepad>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    gamepads: Query<(Entity, &Gamepad)>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
     lifetime: Res<VisibleLifetime>,
     live: Res<LivePresentation>,
     mut exit: MessageWriter<AppExit>,
@@ -324,9 +525,19 @@ pub(super) fn submit_live_input(
     if !lifetime.shown {
         return;
     }
-    let gamepad = gamepads.iter().next();
+    let mut controllers = gamepads.iter().collect::<Vec<_>>();
+    controllers.sort_by_key(|(entity, _)| entity.to_bits());
+    let gamepad = controllers.first().map(|(_, gamepad)| *gamepad);
     let input = gamepad.map_or_else(
-        || keyboard_combat_input(&keys, live.player),
+        || {
+            keyboard_mouse_combat_input(
+                &keys,
+                &mouse_buttons,
+                live.displayed_snapshot
+                    .as_ref()
+                    .and_then(|snapshot| mouse_aim(snapshot, live.player, &windows, &cameras)),
+            )
+        },
         gamepad_combat_input,
     );
     live.handle.set_held(input);
@@ -338,7 +549,7 @@ pub(super) fn submit_live_input(
         return;
     };
     for key in keys.get_just_pressed().copied() {
-        if let Some(command) = keyboard_flow_command(key, live.player, flow)
+        if let Some(command) = primary_keyboard_flow_command(key, live.player, flow)
             && let Err(error) = live.handle.push_flow(command)
         {
             eprintln!("submit keyboard flow command: {error}");
@@ -356,6 +567,15 @@ pub(super) fn submit_live_input(
                 return;
             }
         }
+    }
+}
+
+pub(super) fn close_interactive_window(
+    mut closed: MessageReader<WindowClosed>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if closed.read().next().is_some() {
+        exit.write(AppExit::Success);
     }
 }
 
@@ -428,4 +648,42 @@ pub(super) fn verify_monitor_show_and_exit(
 pub(super) fn is_project_display(monitor: &Monitor) -> bool {
     monitor.physical_position == PROJECT_DISPLAY_POSITION
         && monitor.physical_size() == PROJECT_DISPLAY_SIZE
+}
+
+#[cfg(test)]
+mod scripted_tests {
+    use super::*;
+
+    #[test]
+    fn device_script_displays_choices_before_confirming_and_reaches_run_back() {
+        let mut game = AuthoritativeMatch::with_config(quarrel_sim::MatchConfig {
+            target_score: 2,
+            ..default()
+        })
+        .unwrap();
+        let first = game.snapshot();
+        assert!(
+            scripted_device_inputs(2, &first)
+                .iter()
+                .all(|input| input.flow.is_none())
+        );
+        let mut saw_end = false;
+        for _ in 0..2400 {
+            let snapshot = game.snapshot();
+            saw_end |= snapshot.flow.as_ref().unwrap().phase == FlowPhase::MatchEnd;
+            let inputs = scripted_device_inputs(2, &snapshot)
+                .into_iter()
+                .enumerate()
+                .map(|(player, input)| {
+                    input.with_progressive_observation(player as u8, Some(&snapshot))
+                })
+                .collect::<Vec<_>>();
+            game.step(&inputs);
+            if game.snapshot().flow.as_ref().unwrap().run_backs > 0 {
+                assert!(saw_end);
+                return;
+            }
+        }
+        panic!("device script did not reach a run-back");
+    }
 }

@@ -139,3 +139,19 @@ The first offline spike command could not resolve uncached `bincode`; resolving 
 The final rebased verification copied each test executable as Cargo emitted it; all 43 tests passed from those copies. The later documentation phase failed because `rustdoc` could not find `libquarrel_sim-e3fdc65f5faf41ff.rlib` in the shared target while other Cargo commands were active. Test executable copies do not protect rustdoc's external libraries. Repeating documentation checks after those commands finished passed, with candidate source timestamps refreshed and the dependency target retained; [ticket 87](http://ivy.localhost/tickets/87?repo=rounds-clone) owns the shared-build isolation problem.
 
 The verification helper initially waited for every Cargo process, including an already-built network test, and delayed the final checks unnecessarily. The corrected helper waits for active compilation or queued builds; running test executables do not consume Cargo compiler jobs. No unrelated process was stopped.
+## 2026-10-06 — Shared Cargo target overwrote ticket 81 verification executables
+
+Parallel run 75 workers serialized builds through Cargo's target lock, but Cargo releases that lock before a workspace's test executables finish.
+Ticket 81's first workspace test command ran ticket 82's presentation and simulation binaries after its longer network tests; the test counts exposed the mismatch.
+That result is not evidence for ticket 81. Snapshot each executable from Cargo's compiler-artifact output during locked compilation, then run the copies.
+Client subprocess tests accept QUARREL_TEST_CLIENT to use the same snapshotted client; ordinary Cargo tests still default to CARGO_BIN_EXE_quarrel-client.
+Keep one prepared target and two build jobs. The snapshots are verification evidence, not a second Cargo target or a clean build.
+The shared fingerprint cache can also treat another worktree's workspace test binary as fresh. Confirm the expected test names, not only Cargo's fresh marker.
+Refreshing workspace source timestamps did not prevent a later build from reusing another worktree's presentation library; the compiler then rejected the missing menu exports.
+Verification now uses CARGO_INCREMENTAL=0 plus executable snapshots and checks the expected test names. External dependency artifacts remain reusable.
+One snapshot compile batch failed, but the initial JSON collector did not forward Cargo's compiler-message records, so its exact diagnostic was lost.
+The collector now forwards rendered diagnostics; the next foreground compile passed. No source change was made to hide that unexplained build failure.
+Automatic approval review refused deletion of the duplicate ticket081proof/test-bin/quarrel-client/quarrel-client.exe artifact with 'blocked by policy'; it remains.
+The print/exec session's GDI CopyFromScreen call returned 'The handle is invalid' after the menu window centre was verified on monitor four.
+That optional desktop image is invalid evidence. Native verification uses the exact PID/window visibility and placement records plus the scripted match trace; rendered views come from GPU headless captures.
+The disposable native windows were closed. No placement failure or window exposure on another monitor occurred.

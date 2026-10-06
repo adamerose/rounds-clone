@@ -50,7 +50,7 @@ pub(super) fn spawn_flow_hud(
                 ..default()
             },
             TextColor(fighter_color(fighter)),
-            Transform::from_xyz(-600.0, y, 35.0),
+            Transform::from_xyz(-570.0, y, 35.0),
         ));
         for pip in 0..flow.target_score.min(12) {
             let filled = pip < score;
@@ -132,7 +132,7 @@ pub(super) fn spawn_flow_hud(
             for (fighter, vote) in flow.rematch_votes.iter().enumerate() {
                 let choice = match vote {
                     quarrel_sim::RematchVote::Pending => "PENDING",
-                    quarrel_sim::RematchVote::Yes => "YES",
+                    quarrel_sim::RematchVote::Yes => "RUN IT BACK",
                     quarrel_sim::RematchVote::No => "NEW MATCH",
                 };
                 commands.spawn((
@@ -148,10 +148,23 @@ pub(super) fn spawn_flow_hud(
             }
             commands.spawn((
                 SceneVisual,
+                Text2d::new(format!(
+                    "F{} WINS",
+                    flow.winner.map_or(1, |winner| winner + 1)
+                )),
+                TextFont {
+                    font_size: FontSize::Px(38.0),
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                Transform::from_xyz(0.0, 240.0, 31.0),
+            ));
+            commands.spawn((
+                SceneVisual,
                 Text2d::new(if flow.run_backs < flow.run_it_back_limit {
-                    "F1: Y / N   F2: K / L   CONTROLLER: A / B\nRun it back / New match - everyone must agree"
+                    "Keyboard: Y / N   Controller: A / B\nLocal second keyboard: K / L\nRun it back / New match - everyone must agree"
                 } else {
-                    "NEW MATCH: F1 N   F2 L   CONTROLLER B\nEveryone must agree"
+                    "NEW MATCH: Keyboard N / Controller B\nLocal second keyboard: L\nEveryone must agree"
                 }),
                 TextFont {
                     font_size: FontSize::Px(20.0),

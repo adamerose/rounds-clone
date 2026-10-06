@@ -28,6 +28,13 @@ Use `quarrel-client replay --input assets/replays/ordinary-match.json` to print 
 
 ## Play locally
 
+The client opens a menu when launched without arguments. Select Local match, Host on port 7777, or Join; type the host's IP address and port in Address.
+Click a choice, or use arrows/D-pad and Enter/south button. The menu returns when the match window closes.
+For local play, one controller controls fighter two and keyboard/mouse controls fighter one; two controllers control both fighters.
+Keyboard/mouse uses A/D, W jump, S or right mouse block, Space or left mouse fire, and mouse aim. Existing keyboard aim and two-keyboard controls remain available.
+Online players each use their own primary keyboard/mouse layout or controller. Card choices and match-end votes use the same device as combat.
+Headless UI evidence: `quarrel-client menu-capture --output out/menu.png`; `menu-start --choice 1|2 --headless --ticks 90` exercises the same host/join menu selections.
+
 ```powershell
 out/cargo-target/debug/quarrel-client visible-flow --seed 38 --ticks 18000
 ```

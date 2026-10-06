@@ -23,13 +23,23 @@ pub(super) fn spawn_draft_scene(
         TextColor(Color::WHITE),
         Transform::from_xyz(0.0, 260.0, 26.0),
     ));
+    let picking = flow
+        .offers
+        .iter()
+        .enumerate()
+        .filter(|(fighter, offers)| !offers.is_empty() && flow.selected[*fighter].is_none())
+        .map(|(fighter, _)| format!("F{}", fighter + 1))
+        .collect::<Vec<_>>()
+        .join(" and ");
     for (fighter, offers) in flow.offers.iter().enumerate() {
         let selected = flow.selected.get(fighter).copied().flatten();
         let hovered = flow.hovered.get(fighter).copied().flatten();
         let row_y = 150.0 - fighter as f32 * 230.0;
         commands.spawn((
             SceneVisual,
-            Text2d::new(if selected.is_some() || offers.is_empty() {
+            Text2d::new(if offers.is_empty() {
+                format!("F{}\nWAITING", fighter + 1)
+            } else if selected.is_some() {
                 format!("F{}\nREADY", fighter + 1)
             } else {
                 format!("F{}", fighter + 1)
@@ -60,7 +70,9 @@ pub(super) fn spawn_draft_scene(
     }
     commands.spawn((
         SceneVisual,
-        Text2d::new("F1: A/D + Space    F2: Arrows + Enter    Controller: D-pad + A"),
+        Text2d::new(format!(
+            "{picking} picking\nKeyboard: A/D + Space    Controller: D-pad + A\nLocal second keyboard: Arrows + Enter"
+        )),
         TextFont {
             font_size: FontSize::Px(18.0),
             ..default()

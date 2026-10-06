@@ -16,8 +16,8 @@ fn capture_renders_the_ordinary_opening_draft_with_provenance() {
     let dir = fresh_directory();
     let output = dir.join("draft.png");
     let metadata_path = dir.join("metadata.json");
-    let executable = env!("CARGO_BIN_EXE_quarrel-client");
-    let result = Command::new(executable)
+    let executable = test_client();
+    let result = Command::new(&executable)
         .args(["capture", "--seed", "38", "--ticks", "0", "--output"])
         .arg(&output)
         .arg("--metadata")
@@ -44,7 +44,7 @@ fn capture_renders_the_ordinary_opening_draft_with_provenance() {
     );
     assert_eq!(
         metadata["executableSha256"],
-        format!("{:x}", Sha256::digest(fs::read(executable).unwrap()))
+        format!("{:x}", Sha256::digest(fs::read(&executable).unwrap()))
     );
 }
 
@@ -57,7 +57,7 @@ fn capture_and_remote_reject_output_aliases_before_rendering_or_connecting() {
         ("capture", "--output", "--metadata"),
         ("remote", "--render-output", "--render-metadata"),
     ] {
-        let result = Command::new(env!("CARGO_BIN_EXE_quarrel-client"))
+        let result = Command::new(test_client())
             .current_dir(&dir)
             .args([mode, output_flag, "frame.png", metadata_flag])
             .arg(&sentinel)
@@ -70,4 +70,10 @@ fn capture_and_remote_reject_output_aliases_before_rendering_or_connecting() {
         assert_eq!(fs::read(&sentinel).unwrap(), b"preserve this file");
     }
     fs::remove_dir_all(&dir).unwrap();
+}
+
+fn test_client() -> std::path::PathBuf {
+    std::env::var_os("QUARREL_TEST_CLIENT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_quarrel-client").into())
 }

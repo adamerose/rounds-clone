@@ -9,6 +9,14 @@ pub(super) fn render_png_with_readiness(
     snapshot: &MatchSnapshot,
     output: &Path,
 ) -> Result<(Vec<u8>, CaptureReadiness), String> {
+    render_scene_png(snapshot, output, false)
+}
+
+pub(super) fn render_scene_png(
+    snapshot: &MatchSnapshot,
+    output: &Path,
+    menu: bool,
+) -> Result<(Vec<u8>, CaptureReadiness), String> {
     let render_plugin = RenderPlugin {
         synchronous_pipeline_compilation: true,
         ..default()
@@ -33,6 +41,9 @@ pub(super) fn render_png_with_readiness(
     .add_systems(Update, update_capture_scene_readiness);
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, update_pipeline_readiness);
+    if menu {
+        app.init_resource::<super::menu::Menu>();
+    }
     app.finish();
     app.cleanup();
     let mut sub_apps = std::mem::take(app.sub_apps_mut());
@@ -146,7 +157,12 @@ pub fn run_interactive_visible(
         .add_systems(Update, create_monitor_four_window)
         .add_systems(
             Update,
-            (verify_monitor_show_and_exit, advance_interactive_scene).chain(),
+            (
+                verify_monitor_show_and_exit,
+                advance_interactive_scene,
+                close_interactive_window,
+            )
+                .chain(),
         );
     if !app.run().is_success() {
         return Err("interactive replay exited before verifying the project display".to_owned());

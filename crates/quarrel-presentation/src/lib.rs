@@ -46,6 +46,7 @@ mod data_arena;
 mod draft;
 mod hud;
 mod input;
+mod menu;
 
 mod runtime;
 mod scene;
@@ -53,7 +54,9 @@ mod scene;
 pub use capture::{render_png, run_interactive_visible, run_live_visible, run_visible};
 pub use input::{
     gamepad_combat_input, gamepad_flow_command, keyboard_combat_input, keyboard_flow_command,
+    keyboard_mouse_combat_input, primary_keyboard_flow_command,
 };
+pub use menu::{menu_match_args, render_menu_png, run_menu};
 
 #[derive(Resource)]
 struct SceneSnapshot(MatchSnapshot);

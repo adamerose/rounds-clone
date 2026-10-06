@@ -55,6 +55,23 @@ pub fn keyboard_combat_input(keys: &ButtonInput<KeyCode>, player: u8) -> PlayerI
     }
 }
 
+pub fn keyboard_mouse_combat_input(
+    keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    mouse_aim: Option<Vec2>,
+) -> PlayerInput {
+    let mut input = keyboard_combat_input(keys, 0);
+    if let Some(aim) = mouse_aim.filter(|aim| aim.length_squared() > f32::EPSILON) {
+        let scale = aim.x.abs().max(aim.y.abs());
+        input.aim_x = (aim.x * 1_000.0 / scale) as i16;
+        input.aim_y = (aim.y * 1_000.0 / scale) as i16;
+        input.aim_at_opponent = false;
+    }
+    input.fire |= mouse_buttons.pressed(MouseButton::Left);
+    input.block |= mouse_buttons.pressed(MouseButton::Right);
+    input
+}
+
 pub fn gamepad_combat_input(gamepad: &Gamepad) -> PlayerInput {
     let movement = gamepad.left_stick().x;
     let aim = gamepad.right_stick();
@@ -135,6 +152,27 @@ pub fn keyboard_flow_command(key: KeyCode, player: u8, flow: &FlowSnapshot) -> O
     }
 }
 
+/// Maps the primary keyboard layout to the assigned player's flow offer.
+pub fn primary_keyboard_flow_command(
+    key: KeyCode,
+    player: u8,
+    flow: &FlowSnapshot,
+) -> Option<FlowCommand> {
+    let key = if player == 0 {
+        key
+    } else {
+        match key {
+            KeyCode::KeyY => KeyCode::KeyK,
+            KeyCode::KeyN => KeyCode::KeyL,
+            KeyCode::KeyA => KeyCode::ArrowLeft,
+            KeyCode::KeyD => KeyCode::ArrowRight,
+            KeyCode::Space => KeyCode::Enter,
+            _ => return None,
+        }
+    };
+    keyboard_flow_command(key, player, flow)
+}
+
 pub fn gamepad_flow_command(
     button: GamepadButton,
     player: u8,
@@ -155,7 +193,16 @@ pub fn gamepad_flow_command(
         GamepadButton::DPadRight if is_draft_phase(flow.phase) => {
             draft_navigation_command(player, flow, 1)
         }
-        GamepadButton::South if is_draft_phase(flow.phase) => flow.hovered[usize::from(player)]
+        GamepadButton::South if is_draft_phase(flow.phase) => flow
+            .hovered
+            .get(usize::from(player))
+            .copied()
+            .flatten()
+            .or_else(|| {
+                flow.offers
+                    .get(usize::from(player))
+                    .and_then(|offers| offers.first().copied())
+            })
             .map(|item| FlowCommand {
                 phase_revision: flow.phase_revision,
                 action: FlowAction::Confirm(item),
@@ -191,6 +238,12 @@ pub(super) fn draft_navigation_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::input::{
+        ButtonState, InputPlugin,
+        gamepad::{RawGamepadAxisChangedEvent, RawGamepadButtonChangedEvent, RawGamepadEvent},
+        keyboard::{Key, KeyboardInput},
+        mouse::MouseButtonInput,
+    };
 
     fn flow() -> FlowSnapshot {
         AuthoritativeMatch::new(38).snapshot().flow.unwrap()
@@ -237,6 +290,17 @@ mod tests {
     }
 
     #[test]
+    fn primary_keyboard_can_choose_the_assigned_players_offer() {
+        let draft = flow();
+        assert_eq!(
+            primary_keyboard_flow_command(KeyCode::Space, 1, &draft)
+                .unwrap()
+                .action,
+            FlowAction::Confirm(draft.offers[1][0])
+        );
+    }
+
+    #[test]
     fn navigation_ignores_empty_and_already_selected_offers() {
         let mut state = flow();
         state.offers[0].clear();
@@ -244,5 +308,124 @@ mod tests {
         let mut state = flow();
         state.selected[0] = state.offers[0].first().copied();
         assert!(draft_navigation_command(0, &state, 1).is_none());
+    }
+
+    #[test]
+    fn keyboard_mouse_and_simulated_gamepad_produce_combat_inputs() {
+        let mut keys = ButtonInput::default();
+        keys.press(KeyCode::KeyD);
+        let mut mouse = ButtonInput::default();
+        mouse.press(MouseButton::Left);
+        mouse.press(MouseButton::Right);
+        let keyboard = keyboard_mouse_combat_input(&keys, &mouse, Some(Vec2::new(-2.0, 1.0)));
+        assert_eq!(keyboard.move_axis, 1);
+        assert_eq!((keyboard.aim_x, keyboard.aim_y), (-1_000, 500));
+        assert!(keyboard.fire && keyboard.block);
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, InputPlugin));
+        let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+        app.world_mut()
+            .write_message(RawGamepadEvent::Button(RawGamepadButtonChangedEvent::new(
+                gamepad,
+                GamepadButton::RightTrigger2,
+                1.0,
+            )));
+        app.world_mut()
+            .write_message(RawGamepadEvent::Axis(RawGamepadAxisChangedEvent::new(
+                gamepad,
+                GamepadAxis::LeftStickX,
+                -1.0,
+            )));
+        app.world_mut()
+            .write_message(RawGamepadEvent::Axis(RawGamepadAxisChangedEvent::new(
+                gamepad,
+                GamepadAxis::RightStickY,
+                1.0,
+            )));
+        app.update();
+        let controller = gamepad_combat_input(app.world().get::<Gamepad>(gamepad).unwrap());
+        assert_eq!(controller.move_axis, -1);
+        assert_eq!((controller.aim_x, controller.aim_y), (0, 1_000));
+        assert!(controller.fire);
+    }
+
+    #[test]
+    fn bevy_device_events_drive_a_match_from_draft_to_combat() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, InputPlugin));
+        let window = app.world_mut().spawn_empty().id();
+        let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+        let mut game = AuthoritativeMatch::new(38);
+        let draft = game.snapshot().flow.unwrap();
+        app.world_mut().write_message(KeyboardInput {
+            key_code: KeyCode::Space,
+            logical_key: Key::Character(" ".into()),
+            state: ButtonState::Pressed,
+            text: Some(" ".into()),
+            repeat: false,
+            window,
+        });
+        app.world_mut()
+            .write_message(RawGamepadEvent::Button(RawGamepadButtonChangedEvent::new(
+                gamepad,
+                GamepadButton::South,
+                1.0,
+            )));
+        app.update();
+        let keyboard =
+            keyboard_mouse_combat_input(app.world().resource(), app.world().resource(), None);
+        let controller = gamepad_combat_input(app.world().get::<Gamepad>(gamepad).unwrap());
+        game.step(&[
+            PlayerInput {
+                flow: primary_keyboard_flow_command(KeyCode::Space, 0, &draft),
+                ..keyboard
+            },
+            PlayerInput {
+                flow: gamepad_flow_command(GamepadButton::South, 1, &draft),
+                ..controller
+            },
+        ]);
+        assert_eq!(game.snapshot().flow.unwrap().phase, FlowPhase::Combat);
+
+        app.world_mut().write_message(KeyboardInput {
+            key_code: KeyCode::KeyD,
+            logical_key: Key::Character("d".into()),
+            state: ButtonState::Pressed,
+            text: Some("d".into()),
+            repeat: false,
+            window,
+        });
+        app.world_mut().write_message(MouseButtonInput {
+            button: MouseButton::Left,
+            state: ButtonState::Pressed,
+            window,
+        });
+        app.world_mut()
+            .write_message(RawGamepadEvent::Axis(RawGamepadAxisChangedEvent::new(
+                gamepad,
+                GamepadAxis::LeftStickX,
+                -1.0,
+            )));
+        app.world_mut()
+            .write_message(RawGamepadEvent::Button(RawGamepadButtonChangedEvent::new(
+                gamepad,
+                GamepadButton::RightTrigger2,
+                1.0,
+            )));
+        app.update();
+        let inputs = [
+            keyboard_mouse_combat_input(
+                app.world().resource(),
+                app.world().resource(),
+                Some(Vec2::X),
+            ),
+            gamepad_combat_input(app.world().get::<Gamepad>(gamepad).unwrap()),
+        ];
+        assert_eq!(inputs[0].move_axis, 1);
+        assert!(inputs[0].fire && inputs[1].fire);
+        assert_eq!(inputs[1].move_axis, -1);
+        game.step(&inputs);
+        assert!(game.snapshot().metrics.shots_fired > 0);
     }
 }
