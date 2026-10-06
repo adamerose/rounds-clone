@@ -56,3 +56,4 @@ Adam — this session, 2026-10-04:
 
 - 2026-10-05T14:13:11Z Drafted under run #75.
 - 2026-10-05T15:03:36Z Admitted for run #75 after an independent contract check; its fixes were applied first.
+- 2026-10-06T02:17:22Z stage implement start session codex:01a10efa-f6e1-7720-9f5d-cc0a32f67b29 — extend card stats and event rules; reuse shared Cargo target with native build-directory locking
