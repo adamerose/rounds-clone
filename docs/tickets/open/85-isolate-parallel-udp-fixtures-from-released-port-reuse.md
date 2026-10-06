@@ -1,6 +1,6 @@
 ---
 format: 3
-status: idea
+status: ready
 created: 2026-10-05T21:57:36Z
 origin: system-detected
 tags: ["quarrel", "network", "tests"]
@@ -8,6 +8,7 @@ value: 6
 sessions:
   - codex:01a10d8d-8dee-7fb1-8831-37de3ce8c719
 execution: unattended
+parent: 75
 depends-on: []
 supersedes: []
 split-from: []
@@ -29,13 +30,14 @@ Keep the production protocol behavior and the existing checks for missing author
 
 Fix the test isolation or the demonstrated owning boundary; do not lengthen timeouts, suppress protocol errors or skip checks to make the suite pass.
 Do not redesign production networking without evidence that the public runtime has the same defect.
+Edits are confined to `#[cfg(test)]` fixtures in crates/quarrel-network. Ticket 81 may touch the same files: rebase onto it if it lands first.
 
 ## Evidence required
 
-- Reproduce the released-port collision deterministically, preserving the observed unsupported network protocol 12 error as evidence.
+- Show on current main whether any fixture still releases a reserved endpoint while a live sender targets it. If one does, reproduce the collision deterministically and keep the resulting unsupported-protocol error. If none does, record that #78 closed the route.
 - Run the complete default-parallel locked workspace suite with all checks enabled.
 - Show that the stale-session fixture exits when its authority fails instead of looping forever.
 
 ## Work log
 
-- 2026-10-05T21:57:36Z Discovered in ticket 77's final verification. Retained logs: out/ticket-077-delivery/ticket-077-entry-tests.log and ticket-077-final-tests.log. Sources: crates/quarrel-network/src/live.rs join_timeout_and_bad_state_are_named_failures and old_session_input_from_a_current_peer_is_ignored; lib.rs two_udp_clients_stream_monotonic_inputs_and_progressive_snapshots.
+- 2026-10-05T21:57:36Z Discovered in ticket 77's final verification. Retained logs: out/ticket-077-delivery/ticket-077-entry-tests.log and ticket-077-final-tests.log. Sources: crates/quarrel-network/src/live.rs join_timeout_keeps_the_absent_socket_bound (fixed by #78 to hold its socket; base bc6184b) and old_session_input_from_a_current_peer_is_ignored; lib.rs two_udp_clients_stream_monotonic_inputs_and_progressive_snapshots.
