@@ -825,3 +825,8 @@ Reuse the root Cargo target with the repository's two-job cap and Cargo's build-
 ## 2026-10-06 — Run #75 splits #88 out of #83
 
 With #82 closed and nothing else unblocked, the network-conditions simulator and the prediction-vs-rollback spike moved from #83 into #88 so they can run before #79 lands; an independent check admitted #88 and re-admitted the amended #83.
+
+## 2026-10-06 — Run #75: #81 owns the menu's network lifecycle fixes; #87 admitted
+
+#81's review found the five-second join window and the 601-second play cutoff block the menu; the orchestrator widened #81's scope to fix them (the alternative, delivering #89 first, would leave the reviewed menu unpublished longer) and folded #89 into it.
+#87 (verify that shared Cargo artifacts belong to the current worktree) was admitted after an independent check and waits for the current parallel batch.
