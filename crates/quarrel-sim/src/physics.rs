@@ -68,6 +68,49 @@ pub(crate) struct PhysicsBoundary {
     bullets: BTreeMap<u32, BulletPhysics>,
 }
 impl PhysicsBoundary {
+    pub(crate) fn prediction_bullet(&mut self, shot: &ProjectileSnapshot) {
+        let bullet = self
+            .bullets
+            .get_mut(&shot.id)
+            .expect("spawned prediction bullet");
+        bullet.lifetime = shot.lifetime_ticks;
+        bullet.previous = Vector::new(
+            shot.previous_x_milli as f32 / 1000.,
+            shot.previous_y_milli as f32 / 1000.,
+        );
+        let body = &mut self.rapier.bodies[bullet.body];
+        body.set_translation(
+            Vector::new(shot.x_milli as f32 / 1000., shot.y_milli as f32 / 1000.),
+            true,
+        );
+        body.set_linvel(
+            Vector::new(
+                shot.velocity_x_milli_per_second as f32 / 1000.,
+                shot.velocity_y_milli_per_second as f32 / 1000.,
+            ),
+            true,
+        );
+    }
+    pub(crate) fn prediction_poses(&mut self, players: &[PlayerSnapshot], owned: u8) {
+        for player in players {
+            self.set_crouch(player.id, player.height_milli < player.radius_milli * 2);
+            let body = &mut self.rapier.bodies[self.players[player.id as usize].body];
+            if player.id != owned {
+                body.set_body_type(bevy_rapier2d::rapier::prelude::RigidBodyType::Fixed, true);
+            }
+            body.set_translation(
+                Vector::new(player.x_milli as f32 / 1000., player.y_milli as f32 / 1000.),
+                true,
+            );
+            body.set_linvel(
+                Vector::new(
+                    player.velocity_x_milli_per_second as f32 / 1000.,
+                    player.velocity_y_milli_per_second as f32 / 1000.,
+                ),
+                true,
+            );
+        }
+    }
     pub(crate) fn new(fighter_count: usize, arena: &ArenaDefinition, tuning: CombatTuning) -> Self {
         let mut rapier = RapierWorld::new();
         rapier.gravity = Vector::new(0.0, -tuning.gravity);

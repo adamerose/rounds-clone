@@ -6,6 +6,8 @@ use sha2::{Digest, Sha256};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
+mod presentation;
+pub use presentation::{ClientPresentation, PresentationSample};
 
 pub const NETWORK_PROTOCOL: u16 = 15;
 pub const MAX_NETWORK_TICKS: u32 = 6_000;

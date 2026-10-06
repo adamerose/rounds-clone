@@ -16,8 +16,10 @@ mod cards;
 pub use cards::*;
 mod flow;
 mod physics;
+mod prediction;
 mod replay;
 mod snapshots;
+pub use prediction::LocalPrediction;
 
 use arena::collider_for_surface;
 pub use arena_data::*;

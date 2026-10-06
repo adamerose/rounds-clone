@@ -189,8 +189,7 @@ pub fn run_interactive_visible(
         .map_err(|error| format!("receive final interactive state: {error}"))
 }
 
-/// Presents only the newest state accepted from an authority. Input is sent to
-/// the assigned client slot; this function never owns a simulation.
+/// Presents predicted local motion and buffered remote authoritative motion.
 pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), String> {
     let closer = handle.clone();
     let result = App::new()
@@ -202,6 +201,7 @@ pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), Stri
         .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
         .insert_resource(LivePresentation {
             handle,
+            prediction: quarrel_network::ClientPresentation::new(player),
             player,
             displayed_hash: None,
             displayed_snapshot: None,
@@ -219,9 +219,9 @@ pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), Stri
             Update,
             (
                 poll_live_snapshot,
+                submit_live_input,
                 advance_live_scene,
                 verify_live_monitor_show,
-                submit_live_input,
             )
                 .chain(),
         )

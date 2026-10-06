@@ -1,5 +1,5 @@
 use crate::conditions::{ConditionedSocket, DatagramSocket};
-use crate::{NetworkConditions, NetworkTraffic};
+use crate::{NetworkConditions, NetworkTraffic, PresentationSample};
 use quarrel_sim::{
     AuthoritativeMatch, FlowCommand, MatchConfig, MatchSnapshot, PlayerInput, TICKS_PER_SECOND,
     hash_snapshot,
@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 use std::fs;
 use std::io;
+use std::io::{Read, Write};
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -17,7 +18,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub const MAX_LIVE_TICKS: u32 = 36_060;
 // The sessioned datagrams are deliberately distinct from the synchronous UDP schema.
-const LIVE_PROTOCOL: u16 = 16;
+const LIVE_PROTOCOL: u16 = 17;
+const SNAPSHOT_STRIDE: u32 = 6;
 const MAX_DATAGRAM: usize = 65_507;
 const JOIN_WINDOW: Duration = Duration::from_secs(5);
 const PEER_WINDOW: Duration = Duration::from_secs(3);
@@ -81,6 +83,8 @@ enum ServerPacket {
         tick: u32,
         hash: String,
         ack: [u64; 2],
+        input_ack: [u64; 2],
+        tuning: quarrel_sim::CombatTuning,
         state: Box<MatchSnapshot>,
     },
     Terminal {
@@ -88,6 +92,8 @@ enum ServerPacket {
         tick: u32,
         hash: String,
         ack: [u64; 2],
+        input_ack: [u64; 2],
+        tuning: quarrel_sim::CombatTuning,
         state: Box<MatchSnapshot>,
     },
     /// Keeps welcomed peers connected while the authority waits for the other peer.
@@ -97,12 +103,34 @@ enum ServerPacket {
 }
 
 fn encode<T: Serialize>(packet: &T) -> Result<Vec<u8>, String> {
-    let bytes =
-        serde_json::to_vec(packet).map_err(|error| format!("encode live packet: {error}"))?;
+    let raw =
+        rmp_serde::to_vec_named(packet).map_err(|error| format!("encode live packet: {error}"))?;
+    let mut compressor =
+        flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+    compressor
+        .write_all(&raw)
+        .map_err(|error| error.to_string())?;
+    let mut bytes = b"Q14".to_vec();
+    bytes.extend(compressor.finish().map_err(|error| error.to_string())?);
     if bytes.len() > MAX_DATAGRAM {
         return Err(format!("live packet is too large: {} bytes", bytes.len()));
     }
     Ok(bytes)
+}
+
+fn decode<T: for<'a> Deserialize<'a>>(bytes: &[u8]) -> Result<T, String> {
+    let payload = bytes
+        .strip_prefix(b"Q14")
+        .ok_or("unsupported live encoding")?;
+    let mut raw = Vec::new();
+    flate2::read::ZlibDecoder::new(payload)
+        .take(1_048_577)
+        .read_to_end(&mut raw)
+        .map_err(|error| error.to_string())?;
+    if raw.len() > 1_048_576 {
+        return Err("live packet decompression limit".into());
+    }
+    rmp_serde::from_slice(&raw).map_err(|error| error.to_string())
 }
 
 fn send<T: Serialize>(
@@ -123,7 +151,7 @@ fn recv<T: for<'a> Deserialize<'a>>(
 ) -> Result<Option<(T, SocketAddr, usize)>, String> {
     let mut bytes = vec![0; MAX_DATAGRAM];
     match socket.recv_from(&mut bytes) {
-        Ok((length, address)) => match serde_json::from_slice(&bytes[..length]) {
+        Ok((length, address)) => match decode(&bytes[..length]) {
             Ok(packet) => Ok(Some((packet, address, length))),
             Err(_) => {
                 *invalid_datagrams = invalid_datagrams.saturating_add(1);
@@ -279,13 +307,27 @@ impl LiveServer {
         trace_path: Option<&Path>,
         faults: RunFaults,
     ) -> Result<LiveServerReport, String> {
+        self.run_match(config, ticks, trace_path, faults, None)
+    }
+
+    fn run_match(
+        self,
+        config: MatchConfig,
+        ticks: Option<u32>,
+        trace_path: Option<&Path>,
+        faults: RunFaults,
+        simulation: Option<AuthoritativeMatch>,
+    ) -> Result<LiveServerReport, String> {
         config.validate()?;
         if config.fighter_count != 2 {
             return Err("live UDP currently supports exactly two fighters".to_owned());
         }
         // Prepare arena collision geometry before welcoming peers and starting
         // the live input/silence clocks.
-        let mut simulation = AuthoritativeMatch::with_config(config.clone())?;
+        let mut simulation = match simulation {
+            Some(game) => game,
+            None => AuthoritativeMatch::with_config(config.clone())?,
+        };
         let session = new_nonce();
         let mut peers: [Option<(SocketAddr, u64)>; 2] = [None, None];
         let join_until = Instant::now() + JOIN_WINDOW;
@@ -508,10 +550,14 @@ impl LiveServer {
                 tick,
                 hash: hash.clone(),
                 ack,
+                input_ack: sequence,
+                tuning: simulation.tuning().clone(),
                 state: Box::new(state.clone()),
             };
             for (id, peer) in peers.into_iter().enumerate() {
-                if Some(tick) != ticks || faults.drop_final_snapshot_for != Some(id) {
+                if (tick % SNAPSHOT_STRIDE == 0 || Some(tick) == ticks)
+                    && (Some(tick) != ticks || faults.drop_final_snapshot_for != Some(id))
+                {
                     max_sent = max_sent.max(send(&self.socket, peer, &packet)?);
                 }
             }
@@ -540,6 +586,8 @@ impl LiveServer {
             tick: ticks,
             hash: hash.clone(),
             ack,
+            input_ack: sequence,
+            tuning: simulation.tuning().clone(),
             state: Box::new(state),
         };
         let until = Instant::now() + TERMINAL_WINDOW;
@@ -602,6 +650,8 @@ impl LiveServer {
 
 struct Shared {
     held: PlayerInput,
+    sequence: u64,
+    samples: VecDeque<PresentationSample>,
     edges: VecDeque<(u64, FlowCommand)>,
     next_edge: u64,
     latest: Option<(MatchSnapshot, String)>,
@@ -613,11 +663,17 @@ struct Shared {
 pub struct LiveClientHandle(Arc<Mutex<Shared>>);
 
 impl LiveClientHandle {
-    pub fn set_held(&self, input: PlayerInput) {
-        self.0.lock().unwrap().held = PlayerInput {
+    pub fn set_held(&self, input: PlayerInput) -> u64 {
+        let mut shared = self.0.lock().unwrap();
+        shared.sequence += 1;
+        shared.held = PlayerInput {
             flow: None,
             ..input.validated()
         };
+        shared.sequence
+    }
+    pub fn presentation_samples(&self) -> Vec<PresentationSample> {
+        self.0.lock().unwrap().samples.iter().cloned().collect()
     }
     pub fn push_flow(&self, flow: FlowCommand) -> Result<(), String> {
         let mut shared = self.0.lock().unwrap();
@@ -719,6 +775,8 @@ impl LiveClient {
             }),
             handle: LiveClientHandle(Arc::new(Mutex::new(Shared {
                 held: PlayerInput::default(),
+                sequence: 0,
+                samples: VecDeque::new(),
                 edges: VecDeque::new(),
                 next_edge: 0,
                 latest: None,
@@ -812,7 +870,6 @@ impl LiveClient {
         let mut last_tick = 0;
         let mut last_hash = None;
         let mut received = Vec::new();
-        let mut sequence = 0;
         let mut next_send = Instant::now();
         let mut last_authority = Instant::now();
         loop {
@@ -835,11 +892,10 @@ impl LiveClient {
                 return Ok(self.report("authority_silent", last_tick, last_hash, received));
             }
             if Instant::now() >= next_send {
-                let (held, edge) = {
+                let (held, edge, sequence) = {
                     let shared = self.handle.0.lock().unwrap();
-                    (shared.held, shared.edges.front().cloned())
+                    (shared.held, shared.edges.front().cloned(), shared.sequence)
                 };
-                sequence += 1;
                 self.max_sent = self.max_sent.max(send(
                     &self.socket,
                     self.authority,
@@ -876,6 +932,8 @@ impl LiveClient {
                         tick,
                         hash,
                         ack,
+                        input_ack,
+                        tuning,
                         state,
                     }
                     | ServerPacket::Terminal {
@@ -883,6 +941,8 @@ impl LiveClient {
                         tick,
                         hash,
                         ack,
+                        input_ack,
+                        tuning,
                         state,
                     } if session == self.session => {
                         if tick != state.tick || hash != hash_snapshot(&state) {
@@ -904,6 +964,14 @@ impl LiveClient {
                                 shared.edges.pop_front();
                             }
                             if tick > last_tick {
+                                if shared.samples.len() == 32 {
+                                    shared.samples.pop_front();
+                                }
+                                shared.samples.push_back(PresentationSample {
+                                    state: (*state).clone(),
+                                    tuning,
+                                    input_ack: input_ack[self.client_id as usize],
+                                });
                                 shared.latest = Some(((*state).clone(), hash.clone()));
                             }
                         }
@@ -977,6 +1045,166 @@ mod regression_tests {
     // Keep endpoint clones until peer senders stop, even if an authority exits early.
     use super::*;
     #[test]
+    fn impaired_predicted_match_with_32_loose_pieces() {
+        use quarrel_sim::{
+            ArenaDefinition, ArenaKind, ArenaObject, ArenaShape, FlowPhase, MatchContent,
+        };
+        let conditions = NetworkConditions {
+            delay_ms: 40,
+            jitter_ms: 20,
+            loss_basis_points: 200,
+            seed: 83,
+        };
+        let config = MatchConfig {
+            target_score: 1,
+            ..Default::default()
+        };
+        let mut objects = vec![ArenaObject {
+            id: 0,
+            position: [0., -30.],
+            rotation: 0.,
+            shape: ArenaShape::Rectangle { size: [1800., 60.] },
+            kind: ArenaKind::Solid,
+            color: [60, 70, 80],
+            mass: 1.,
+            health: None,
+            motion: None,
+        }];
+        for id in 1..=32 {
+            objects.push(ArenaObject {
+                id,
+                position: [
+                    -700. + (id % 16) as f32 * 90.,
+                    140. + (id / 16) as f32 * 100.,
+                ],
+                rotation: id as f32 * 0.03,
+                shape: ArenaShape::Rectangle { size: [20., 20.] },
+                kind: ArenaKind::Loose,
+                color: [90, 100, 110],
+                mass: 2.,
+                health: None,
+                motion: None,
+            });
+        }
+        let arena = ArenaDefinition {
+            name: "32 loose pieces bandwidth".into(),
+            frame: [-1000., -200., 1000., 900.],
+            spawns: vec![[-200., 35.], [200., 35.]],
+            objects,
+            chains: Vec::new(),
+            surfaces: Vec::new(),
+            legacy_bodies: Vec::new(),
+            legacy_saws: Vec::new(),
+        };
+        let mut content = MatchContent::load_default().unwrap();
+        content.arenas = vec![arena];
+        let game = AuthoritativeMatch::with_content(config.clone(), content).unwrap();
+        let server = LiveServer::bind_with_conditions("127.0.0.1:0", conditions).unwrap();
+        let _endpoint = server.socket.socket.try_clone().unwrap();
+        let address = server.local_addr().unwrap();
+        let ticks = 1200;
+        let authority_config = config.clone();
+        let authority = std::thread::spawn(move || {
+            server
+                .run_match(
+                    authority_config,
+                    Some(ticks),
+                    None,
+                    RunFaults::default(),
+                    Some(game),
+                )
+                .unwrap()
+        });
+        let clients = (0..2_u8)
+            .map(|id| {
+                let config = config.clone();
+                std::thread::spawn(move || {
+                    let client =
+                        LiveClient::connect_with_conditions(address, id, config, conditions)
+                            .unwrap();
+                    let handle = client.handle();
+                    let worker = std::thread::spawn(move || client.run(ticks).unwrap());
+                    let mut view = crate::ClientPresentation::new(id);
+                    let mut revision = None;
+                    let mut measured = false;
+                    let mut frame_count = 0;
+                    while !worker.is_finished() {
+                        if let Some((state, _)) = handle.latest() {
+                            let mut input = quarrel_sim::automated_input(id, &state)
+                                .with_progressive_observation(id, Some(&state));
+                            if let Some(command) = input.flow.take()
+                                && revision != Some(command.phase_revision)
+                            {
+                                handle.push_flow(command).unwrap();
+                                revision = Some(command.phase_revision);
+                            }
+                            let samples = handle.presentation_samples();
+                            let sequence = handle.set_held(input);
+                            let display = view.frame(&samples, sequence, input, 1. / 60.).unwrap();
+                            if !measured && state.flow.as_ref().unwrap().phase == FlowPhase::Combat
+                            {
+                                let start = Instant::now();
+                                let probe = PlayerInput {
+                                    move_axis: -1,
+                                    jump: true,
+                                    aim_x: 1000,
+                                    aim_y: 317,
+                                    fire: true,
+                                    block: true,
+                                    ..Default::default()
+                                };
+                                let seq = handle.set_held(probe);
+                                let shown = view.frame(&samples, seq, probe, 1. / 60.).unwrap();
+                                let fighter = &shown.players[id as usize];
+                                assert_ne!(
+                                    (fighter.x_milli, fighter.y_milli),
+                                    (
+                                        display.players[id as usize].x_milli,
+                                        display.players[id as usize].y_milli
+                                    )
+                                );
+                                assert!(fighter.block_ticks > 0);
+                                assert!(shown.projectiles.iter().any(|shot| shot.owner == id));
+                                assert_eq!(shown.flow, state.flow); // Prediction cannot grant points or picks.
+                                println!(
+                                    "client {id} input-to-scene: 1 frame; predictor_cpu_ms={:.3}",
+                                    start.elapsed().as_secs_f64() * 1000.
+                                );
+                                measured = true;
+                            }
+                            frame_count += 1;
+                        }
+                        std::thread::sleep(Duration::from_secs_f64(1. / 60.));
+                    }
+                    let report = worker.join().unwrap();
+                    assert!(measured && frame_count > 100);
+                    (report, handle.latest().unwrap().0)
+                })
+            })
+            .collect::<Vec<_>>();
+        let server = authority.join().unwrap();
+        assert_eq!(server.result, "completed");
+        let bandwidth = server.traffic.sent_bytes as f64 / 2. / (server.elapsed_ms as f64 / 1000.);
+        println!(
+            "32-piece authority: max_datagram={} per_peer_payload_Bps={bandwidth:.1} reduction_from_88={:.2}%",
+            server.max_sent_datagram,
+            (1. - bandwidth / 351220.) * 100.
+        );
+        assert!(bandwidth < 30_000., "bandwidth {bandwidth}");
+        for client in clients {
+            let (report, state) = client.join().unwrap();
+            assert_eq!(report.result, "completed");
+            assert_eq!(
+                report.state_hash.as_deref(),
+                Some(server.state_hash.as_str())
+            );
+            let flow = state.flow.unwrap();
+            assert_eq!(flow.phase, FlowPhase::MatchEnd);
+            assert_eq!(flow.scores.iter().copied().max(), Some(1));
+            assert!(flow.loadouts.iter().all(|cards| !cards.is_empty()));
+        }
+    }
+    #[test]
     fn impaired_two_client_match_measures_input_to_snapshot() {
         let conditions = NetworkConditions {
             delay_ms: 40,
@@ -985,7 +1213,7 @@ mod regression_tests {
             seed: 88,
         };
         let config = MatchConfig::default();
-        let ticks = 720;
+        let ticks = 1200;
         let server = LiveServer::bind_with_conditions("127.0.0.1:0", conditions).unwrap();
         let _endpoint = server.socket.socket.try_clone().unwrap();
         let address = server.local_addr().unwrap();
@@ -1047,7 +1275,7 @@ mod regression_tests {
             server.elapsed_ms,
             server.mean_rate_hz,
             server.max_sent_datagram,
-            server.mean_rate_hz * server.max_sent_datagram as f64
+            server.mean_rate_hz / SNAPSHOT_STRIDE as f64 * server.max_sent_datagram as f64
         );
         for client in clients {
             let client = client.join().unwrap();
@@ -1068,11 +1296,12 @@ mod regression_tests {
             tick: state.tick,
             hash: hash_snapshot(&state),
             ack: [0, 0],
+            input_ack: [0, 0],
+            tuning: quarrel_sim::CombatTuning::default(),
             state: Box::new(state.clone()),
         };
         let bytes = encode(&packet).unwrap();
-        let decoded: ServerPacket =
-            serde_json::from_slice(&bytes).expect("ordinary snapshot decode");
+        let decoded: ServerPacket = decode(&bytes).expect("ordinary snapshot decode");
         let ServerPacket::Snapshot { state: decoded, .. } = decoded else {
             panic!("wrong packet")
         };
@@ -1084,8 +1313,7 @@ mod regression_tests {
             held: PlayerInput::default(),
             edge: None,
         };
-        let _: ClientPacket =
-            serde_json::from_slice(&encode(&input).unwrap()).expect("input decode");
+        let _: ClientPacket = decode(&encode(&input).unwrap()).expect("input decode");
     }
     use std::thread;
 
@@ -1100,6 +1328,8 @@ mod regression_tests {
     fn held_input_and_flow_edges_remain_separate() {
         let handle = LiveClientHandle(Arc::new(Mutex::new(Shared {
             held: PlayerInput::default(),
+            sequence: 0,
+            samples: VecDeque::new(),
             edges: VecDeque::new(),
             next_edge: 0,
             latest: None,
@@ -1292,6 +1522,8 @@ mod regression_tests {
                     tick: 1,
                     hash: hash_snapshot(&state),
                     ack: [0, 0],
+                    input_ack: [0, 0],
+                    tuning: quarrel_sim::CombatTuning::default(),
                     state: Box::new(state.clone()),
                 },
             )
@@ -1304,6 +1536,8 @@ mod regression_tests {
                     tick: 1,
                     hash: "invalid".into(),
                     ack: [0, 0],
+                    input_ack: [0, 0],
+                    tuning: quarrel_sim::CombatTuning::default(),
                     state: Box::new(state),
                 },
             )
@@ -1366,6 +1600,8 @@ mod regression_tests {
     fn edge_queue_rejects_overflow_without_losing_order_or_held_updates() {
         let handle = LiveClientHandle(Arc::new(Mutex::new(Shared {
             held: PlayerInput::default(),
+            sequence: 0,
+            samples: VecDeque::new(),
             edges: VecDeque::new(),
             next_edge: 0,
             latest: None,
@@ -1665,7 +1901,7 @@ mod regression_tests {
     }
 
     #[test]
-    fn live_hello_collision_keeps_the_unsupported_protocol_error() {
+    fn binary_live_hello_is_rejected_by_the_synchronous_json_endpoint() {
         let replacement = crate::BoundServer::bind("127.0.0.1:0").unwrap();
         let address = replacement.local_addr().unwrap();
         let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
@@ -1682,7 +1918,7 @@ mod regression_tests {
         .unwrap();
         assert_eq!(
             replacement.run(config(), 1).unwrap_err(),
-            format!("protocol {LIVE_PROTOCOL} is not supported"),
+            "expected value at line 1 column 1",
         );
     }
 
@@ -2055,6 +2291,8 @@ mod interactive_tests {
                     tick: state.tick,
                     hash: hash.clone(),
                     ack: [0, 0],
+                    input_ack: [0, 0],
+                    tuning: quarrel_sim::CombatTuning::default(),
                     state: Box::new(state.clone()),
                 },
             )

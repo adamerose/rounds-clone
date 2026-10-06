@@ -1148,3 +1148,23 @@ Rejected: a separate test lock, which would bound test runs against each other b
 
 - Round 1 withheld admission until the contract named the exact frozen targeted executable, finite deadline, failure-before/pass-after evidence, and complete supported verification command. The retained rejected log and three later successful timing trials were available; successful reruns did not establish a cause.
 - Round 2 approved the amended contract at risk 3: the five-second host window and peer launch after 3500 ms are explicit, the small boundary proof is separate from the full `tools/verify.ps1` delivery check, and dependencies 87 and 91 are named. No operator decision is open. This admission does not approve implementation.
+## 2026-10-06 — Ticket #83 responsive online presentation for run #75
+
+Use ticket 88's host-authoritative model with an owned-fighter Rapier predictor and fixed proxies for authoritative arena pieces and the other fighter.
+Reconstruct from the newest host sample and replay a bounded history of unacknowledged local controls; input sequence acknowledgements are independent of reliable draft-command acknowledgements.
+Predict movement, crouch, jump, recoil, ammunition, cooldowns, shot visuals and block visuals only. Health, elimination, impacts, points, offers and picks remain host observations.
+A phase revision discards presentation history. Host samples also carry combat tuning so live tuning edits reach prediction.
+The alternative, a second full match authority or rollback checkpoint, would duplicate flow and damage decisions that the chosen model expressly leaves on the host.
+
+Send full independent compressed MessagePack snapshots at 10 Hz while the authority stays at 60 Hz; interpolate remote identities through a 200 ms buffer on each rendered frame.
+Named MessagePack fields preserve the existing tagged enums and optional/defaulted snapshot fields. Zlib reuses the lockfile's compression library; decoded data is capped at 1 MiB.
+The 20 Hz compressed candidate still used about 40 KB/s per peer before adding loose pieces. Ten Hz measured about 22 KB/s with 32 loose pieces, below the 30 KB/s contract.
+The alternative, acknowledged static-state dictionaries and delta chains, would add loss-dependent reconstruction and resynchronization machinery; independent full samples recover on the next arrival.
+Protocol 14 is distinct from the scripted JSON protocol, which remains unchanged. The old cross-protocol fixture now checks that a binary live hello is rejected by the JSON endpoint.
+
+The headless frame driver uses the same ClientPresentation::frame method that runs between device sampling and scene construction in the visible Update chain.
+One frame shows a changed fighter pose, local shot and active block without waiting for host acknowledgement, under 80 ms RTT, 20 ms jitter and 2% datagram loss.
+Offscreen before/after captures separately verify that those predicted snapshot fields reach the real scene renderer. Display scanout and two-home router fragmentation remain unmeasured.
+The baseline in ticket 88 was 125.958–126.740 ms median and 157.959–172.611 ms p95 for authoritative aim visibility; local scene visibility now takes one frame (16.67 ms at 60 Hz).
+The new authoritative latest() timing is deliberately slower because it exposes received authority, not predicted display state.
+

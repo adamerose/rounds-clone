@@ -425,17 +425,10 @@ pub(super) fn advance_live_scene(
     visuals: Query<Entity, With<SceneVisual>>,
     mut cameras: Query<CameraSettings<'_>, With<Camera2d>>,
     live: Res<LivePresentation>,
-    mut rendered_hash: Local<Option<String>>,
 ) {
     let Some(snapshot) = live.displayed_snapshot.as_ref() else {
         return;
     };
-    let Some(hash) = live.displayed_hash.as_ref() else {
-        return;
-    };
-    if rendered_hash.as_ref() == Some(hash) {
-        return;
-    }
     let (transform, bloom, chromatic, lens) = camera_state(snapshot);
     if let Ok((
         mut camera_transform,
@@ -466,11 +459,6 @@ pub(super) fn advance_live_scene(
         commands.entity(entity).despawn();
     }
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
-    println!(
-        "{{\"event\":\"presented\",\"tick\":{},\"hash\":\"{}\"}}",
-        snapshot.tick, hash
-    );
-    *rendered_hash = Some(hash.clone());
 }
 
 pub(super) fn verify_live_monitor_show(
@@ -530,13 +518,14 @@ pub(super) fn verify_live_monitor_show(
     reason = "live input needs the concrete keyboard, mouse, controller, window, and camera resources"
 )]
 pub(super) fn submit_live_input(
+    time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     gamepads: Query<(Entity, &Gamepad)>,
     windows: Query<&Window, With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
     lifetime: Res<VisibleLifetime>,
-    live: Res<LivePresentation>,
+    mut live: ResMut<LivePresentation>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if keys.just_pressed(KeyCode::Escape) {
@@ -568,7 +557,11 @@ pub(super) fn submit_live_input(
             .as_ref()
             .and_then(|snapshot| mouse_aim(snapshot, live.player, &windows, &cameras)),
     );
-    live.handle.set_held(input);
+    let sequence = live.handle.set_held(input);
+    let samples = live.handle.presentation_samples();
+    live.displayed_snapshot =
+        live.prediction
+            .frame(&samples, sequence, input, time.delta_secs_f64());
     let Some(flow) = live
         .displayed_snapshot
         .as_ref()

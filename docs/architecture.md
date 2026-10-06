@@ -43,11 +43,14 @@ Rendering never applies damage or cards. Impact records retain their twelve-tick
 Capture waits for rendering and screenshot completion before writing PNG bytes. Metadata hashes the executable, frame and authority state; output and metadata destinations must differ.
 Visible windows start hidden, require the designated 1920 by 1080 display at physical position `(364,-1080)`, and appear only after placement is verified.
 
-`quarrel-network` owns JSON wire records and direct-IP UDP sessions. The scripted path supports configurable fighter counts, progressive snapshots and final state agreement.
+`quarrel-network` owns direct-IP UDP sessions. The scripted path retains JSON, configurable fighter counts, progressive snapshots and final state agreement.
 The paced live path ships two peers: an authority runs at 60 Hz, applies newest held controls, consumes bounded FIFO flow edges, and publishes received state for rendering.
 Session identities reject stale packets; consumed acknowledgements prevent repeated edge application; terminal snapshots are retransmitted until acknowledged or the bounded delivery window ends.
-Host and dedicated modes use the same authority loop. Clients neither predict transforms nor construct a local authority for presentation.
-Protocol changes reject mismatched peers. Steam invitations, compact snapshots and responsive play at realistic latency remain MVP work.
+Host and dedicated modes use the same authority loop. Live protocol 14 uses compressed MessagePack and full independent snapshots at 10 Hz.
+Clients predict the owned fighter and its shots against fixed authoritative collision proxies, replaying unacknowledged inputs after each host sample.
+A 200 ms buffer interpolates remote fighters, projectiles and arena pieces; phase revisions clear prediction and interpolation history.
+Prediction cannot apply damage, deaths, points or cards. Physics and tuning come from the host sample; no full-match rollback or local flow authority is created.
+Protocol changes reject mismatched peers. Steam invitations remain MVP work.
 Local keyboard/controller presentation and live sessions currently support the shipped 1v1 controls; the general simulation is also tested with three fighters.
 
 ## Verification

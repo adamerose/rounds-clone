@@ -73,7 +73,9 @@ out/cargo-target/debug/quarrel-client join --address 127.0.0.1:41000 --client 1 
 ```
 
 Local keyboard/controller presentation and paced live sessions support the shipped two fighters. The general simulation and scripted transport also accept other fighter counts.
-Direct-IP UDP development sessions use one authority. Steam invitations and prediction are later MVP tickets.
+Direct-IP UDP sessions use one authority. Live clients predict their own movement, shots and blocks each rendered frame and buffer remote motion for 200 ms.
+Hits, deaths, points and card picks remain authoritative. Full compressed MessagePack snapshots arrive at 10 Hz; the simulation runs at 60 Hz.
+Steam invitations remain a later MVP ticket.
 
 ## Card data and match configuration
 
