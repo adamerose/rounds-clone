@@ -1848,7 +1848,7 @@ mod interactive_tests {
         let server_close = server.handle();
         // Hold the socket without a receiver: the join stays pending beyond the automation window.
         let client = LiveClient::connect_interactive(address, 0, MatchConfig::default()).unwrap();
-        let peer_address = client.socket.local_addr().unwrap();
+        let peer_address = client.socket.socket.local_addr().unwrap();
         let close = client.handle();
         let run = thread::spawn(move || client.run_interactive().unwrap());
         thread::sleep(JOIN_WINDOW + Duration::from_millis(200));
