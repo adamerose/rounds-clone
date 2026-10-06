@@ -12,6 +12,8 @@ pub const MAX_INSPECTED_PROJECTILES: usize = 64;
 
 mod arena;
 mod arena_data;
+mod cards;
+pub use cards::*;
 mod flow;
 mod physics;
 mod replay;

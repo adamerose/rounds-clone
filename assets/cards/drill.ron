@@ -1,0 +1,7 @@
+(
+    id: "drill",
+    name: "Borer",
+    description: "Shots bore through a short stretch of terrain, but hit softer.",
+    stat_changes: (damage_factor_milli: 800),
+    event_rules: [(on: Fire, effects: [Drill(110)])],
+)

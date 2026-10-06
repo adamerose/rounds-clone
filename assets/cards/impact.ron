@@ -1,1 +1,0 @@
-(id: "impact", name: "Impact", description: "Shots deal 20 more damage.", stat_changes: (damage: 20))

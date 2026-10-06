@@ -1,1 +1,0 @@
-(id: "velocity", name: "Velocity", description: "Shots travel 20 percent faster.", stat_changes: (projectile_speed_milli: 1200))

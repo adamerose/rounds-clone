@@ -145,7 +145,15 @@ fn consensus_can_change_and_run_backs_keep_cards_and_scores_to_ten_then_fifteen(
 }
 #[test]
 fn stale_commands_are_rejected_and_repeated_cards_stack() {
-    let mut flow = authority(2, 5);
+    let pool = load_card_directory(&default_card_directory()).unwrap();
+    let mut flow = FlowAuthority::with_config(
+        MatchConfig {
+            offer_size: pool.len(),
+            ..Default::default()
+        },
+        pool,
+    )
+    .unwrap();
     pick(&mut flow);
     let first = flow.snapshot().loadouts[1][0];
     win(&mut flow, 0);
@@ -234,4 +242,23 @@ fn newly_added_card_file_is_offered_and_duplicate_ids_are_rejected() {
     std::fs::remove_file(&duplicate).unwrap();
     std::fs::remove_file(&file).unwrap();
     std::fs::remove_dir(&path).unwrap();
+}
+
+#[test]
+fn logical_card_content_rejects_the_same_invalid_rules_as_files() {
+    let mut cards = load_card_directory(&default_card_directory()).unwrap();
+    cards[0].event_rules = vec![EventRule {
+        on: CardEvent::Fire,
+        max_depth: 8,
+        effects: vec![CardEffect::ExtraShots {
+            count: 0,
+            spread_milliradians: 0,
+        }],
+    }];
+    assert!(
+        FlowAuthority::with_config(MatchConfig::default(), cards)
+            .err()
+            .unwrap()
+            .contains("effect out of range")
+    );
 }

@@ -1,0 +1,7 @@
+(
+    id: "echo",
+    name: "Afterbeat",
+    description: "Each block repeats once a moment later, but shots hit softer.",
+    stat_changes: (damage_factor_milli: 900),
+    event_rules: [(on: Block, max_depth: 0, effects: [RepeatBlock(delay_ticks: 12)])],
+)

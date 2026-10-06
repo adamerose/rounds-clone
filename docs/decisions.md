@@ -1001,3 +1001,115 @@ When a bounded authority's join window closes, it sends `JoinTimeout` four times
 Interactive clients now also notice an authority that disappears before play; previously they waited until cancelled. Running-session silence, snapshots and the terminal handshake are unchanged.
 Rejected: telling the client the authority's remaining join time in `Welcome`, because the client's own deadline then races the first snapshot and needs padding; and lengthening the client's silence bound before play, which the contract rules out.
 #83's unpublished candidate also moves the protocol to 14; whichever lands second takes the next number.
+
+## 2026-10-06 — Ticket 80 under run 75: card rules and live tuning
+
+The twelve cards extend the admitted RON format with event rules and multiplicative damage/fire-interval factors.
+Existing additive stats remain supported; copies multiply factors and contribute another copy of each rule.
+An event carries the source shot and its reaction depth, so triggered shots use current fighter stats while an existing shot retains its launch damage.
+First reactions are guaranteed; each further generation halves its chance, with depth eight, 128 processed reactions per tick and 256 pending reactions and 512 active projectiles for reaction shots as deterministic bounds.
+Echo runs only on a primary block and schedules one repeat after twelve ticks; that repeat still runs Teleport and Radar.
+This makes the requested two-blink/two-shot combo reliable while authored self-triggering rules fade and stop.
+The alternatives were hard-coded card handlers or a scripting language; explicit serializable effects meet the ticket without either.
+Impact is an additional event for fighter or terrain collisions, so explosions also work when a shot hits a wall.
+Poison ticks count as hits, but carry no projectile and therefore cannot poison again; Reload reacts to every tick.
+Live card reload checks every fifteen ticks, updates held copies and catalog metadata together, and preserves current offers and loadouts.
+Malformed edits retain the last valid catalog and expose card_reload_error(); removal of held/offered IDs is rejected to preserve draft validity.
+Health changes affect the next fighter reset; in-flight shots keep their launch stats and future shots use the new stats.
+The alternative of redrawing offers or replacing held IDs would change decisions players already made.
+Cargo worktrees reuse the root target by junction, keep the configured two-job cap, and serialize compilation using Cargo's native build-directory lock.
+
+Drill charges the union of swept terrain intervals, including walls crossed between ticks, and stops inside terrain when its distance is spent.
+
+Poison ticks every ten ticks for three seconds, so its Hit rules can keep Spray firing after the first landed shot.
+The CLI capture tests accept QUARREL_TEST_CLIENT_EXE to run an immutable copy of the just-built candidate.
+This avoids another worker replacing the shared executable after Cargo releases its compile lock; the copy is hashed and used for captures too.
+The alternative of separate cold targets would discard compatible artifacts and add about 17 GiB per worker.
+
+The initial Cargo results were rejected after old card-parser binaries and old snapshot metadata appeared.
+Ticket 87 owns the general shared-target identity guard; this delivery forces local source freshness and freezes Cargo-produced test executables as well as the client.
+The frozen copies are hashed, checked against dependency paths and used directly; workspace dependencies remain cached.
+Consultation with claude:0e148d96-3b69-4ef7-a1cf-e94b3e24227c confirmed the timestamp collision and this temporary verification route.
+
+Shepherd rotates shot velocity through the shortest angle toward current aim, preserving speed.
+Blending normalized direction vectors could never reverse a shot aimed exactly backward; the regression reproduces that missed case.
+
+The original arena tests picked arbitrary live cards and assumed base firing cadence.
+Their fixture now clears card stats and event rules so stack toppling remains evidence for base physics; card tests retain the live twelve-card pool.
+Changing arena shot counts to match a random offer would hide the fixture dependency.
+
+## 2026-10-06 — Ticket 80 review corrections under run 75
+
+Impact snapshots describe visible effects, so retain only their twelve-tick display window and the latest sixty-four records.
+Cumulative hit and explosion counts stay in metrics. Retaining every visual impact until the fight ends made repeated misses exceed the live datagram limit.
+Hit and Impact rules use the swept contact point; deriving their position from the shot's final pose could put a fast-shot blast beyond its victim.
+Use Rapier's ray query on the expanded hit circle to find the first contact, rather than projecting to the segment's closest point.
+At queue capacity, primary events displace the deepest, latest pending reaction and execute before secondary events.
+This preserves primary block abilities under poison pressure and keeps imminent Echo repeats ahead of distant poison ticks without introducing another status system.
+Fire flight changes are launch properties on every shot, including reaction shots; further triggered effects still fade.
+The alternative of fading the whole Fire event randomly removed the current weapon's Bounce, Grow, Steer or Drill from a reaction shot.
+The Poison/Spray/Reload regression now compares the same stats with Reload removed, so its firing-rate assertion proves a benefit from the rule.
+The parallel base-fight delivery must extend Reload to the magazine when that baseline lands; this candidate uses the current cooldown-based weapon.
+
+## 2026-10-06 — Ticket 80 stream visibility under run 75
+
+Keep the newest 64 projectiles in the bounded network/render snapshot, in ascending ID order. The previous oldest-first inspection limit hid newly fired threats after Hailstorm stacks built an upward stream. Removing shots above the arena would prevent future returning arcs from the parallel base-fight work; increasing the packet limit risks UDP size failures. Choosing recent threats preserves the existing wire bound and is easy to revise.
+
+Flight cards still damage breakable pieces on contact entry, before deciding whether the shot bounces, drills or stops. Ignoring piece damage for these cards was an unintended branch-order effect, not a downside authored in their files. A shot does not repeatedly damage a piece while it remains inside it; leaving and contacting it again permits another hit.
+
+## 2026-10-06 — Ticket 80 current-shot explosions and menu reconciliation under run 75
+
+Firecracker uses the ordinary event-rule depth limit instead of excluding all reaction shots. Watchfire promises the current weapon, and Firecracker promises exploding hits; a guaranteed first reaction shot therefore needs the same explosion rule. Deeper triggers still fade and the existing depth, queue and tick budgets remain. Keeping the depth-zero cutoff would make those card descriptions false; adding a separate explosion mode is unnecessary. Positive authored explosion damage rounds up to one, as poison already does, rather than producing a zero-damage hit that reloads a weapon or flashes a target.
+
+The landed menu delivery added the same frozen-client test hook independently. Keep its QUARREL_TEST_CLIENT hook for both capture and menu tests and remove this ticket's duplicate helper rather than adding an alias. Reconciliation preserves every menu/network lifecycle change and both record histories. The roadmap now describes the twelve cards that replace its five placeholders.
+
+## 2026-10-06 — Ticket 80 reconciles the landed base fight under run 75
+
+Ticket 79 landed first. Preserve its primary magazine/reload gate, pressed block and cooldown gate, extended reflections, stored jumps, crouch, recoil cap, damaging edge returns and selective live tuning. Card stats multiply the current tuning values; Grow changes the actual projectile radius and damage, including against the crouched hit shape. Shot contact uses the first entry on that expanded shape, retaining the reviewed contact-centred blast behavior.
+
+Reload restores the current magazine size and clears both the reload and firing waits. This extends the earlier card behavior to the landed weapon and preserves the admitted poison/spray/reload synergy. Retaining a firing wait after reload is plausible but would discard the existing immediate-reload benefit; omitting magazine refill would leave the card ineffective after three shots. Reaction shots remain ability-supplied shots: they use current damage, speed and flight rules without spending primary ammunition or resetting its cadence. Echo extends the active block without shortening a reflected extension or removing the primary cooldown.
+
+One shared health mutation keeps the base-fight damage behavior. Its callers emit either ordinary TakeDamage or contextual card events, once each, so periodic and edge damage can trigger authored rules without restarting card generations. Base-mechanics and arena fixtures clear both stat changes and rules; card fixtures retain the real pool. The snapshot overflow regression uses the supported 128-round magazine tuning to exceed the existing 64-projectile limit under the new ammo system. The six unpublished card commits were consolidated before resolving the same overlap once; prior review results and exact reproduction artifacts remain in the evidence.
+
+The first combined simulation run passed all fifteen base-mechanics cases but exposed two card-fixture assumptions: a Kill teleport moved 90 pixels while native recoil moved its shooter15.4 pixels backward, and flat 600-pixel pressure shots missed under bullet gravity until their source recoiled off the edge. The event check now compares identical public inputs without the rule; the queue-pressure fixture compensates the ballistic arc. The wire-overflow fixture loads its128-round setting through the public file watcher and fills it through the normal reload gate. These retain the measured outcomes rather than lowering limits or changing base physics.
+
+Primary and reaction shots share the tuned, capped and switchable recoil at their common launch boundary. Keeping recoil only at the primary-input caller would make Watchfire and ExtraShots use a different weapon behavior. Only primary inputs spend ammunition and set firing cadence; generated ability shots still have those authored benefits. The Echo/Blink/Watchfire displacement check compares identical block shots without Blink, so native recoil does not obscure its two teleports.
+
+
+## 2026-10-06 — Ticket 80 sustained stream and coherent effects under run 75
+
+Hailstorm adds 27 magazine rounds per held copy to the live base magazine. Its fast cadence and weak individual shots now form a sustained stream, rather than three shots followed by the ordinary reload. An additive, default-zero stat fits the existing card format and stacks without altering the native weapon. Shortening every reload would change ordinary weapons; giving Hailstorm free shots would bypass the magazine mechanic. Reload, fight reset and ordinary reload fill the effective magazine; live edits clamp a smaller magazine without supplying free ammunition. Large magazines show a numeric round count instead of a HUD line that could extend off-screen.
+
+Fade selects whether a triggered event runs. Once selected, an explosion applies its ring, shove and damage together; a poison effect delivers its scheduled pulses without another probability roll. Their resulting Hit and TakeDamage events still inherit the next generation and fade normally, and depth, queue and per-tick bounds remain. Keeping independent rolls on damage made visible explosions randomly harmless and silently halved reaction poison. Explosion area damage retains the existing area/periodic damage behavior: block intercepts projectiles, rather than granting immunity to an area effect. Native recoil is capped per actual shot; ExtraShots has no shipped caller and adds no aggregate burst mode.
+
+A public replay with accepted zero base damage exposed this ticket's minimum-one clamp changing that tuning to one. Literal zero now remains zero through shot growth, explosion and poison; positive fractional card damage still rounds up to one. Zero-damage contact retains physical impact and Hit rules but emits no TakeDamage event. This preserves the live tuning contract without weakening the positive-damage regression.
+
+
+## 2026-10-06 — Ticket 80 safe blink destinations under run 75
+
+Blink Step stops at the first solid obstruction along its aim and stays inside the arena frame with room for the fighter's current standing or crouched shape. A linear shape cast uses the actual fighter and live terrain colliders, including moving and breakable pieces. Separating or tangent contact at the starting floor does not cancel an open-space blink. Preserving unchecked teleport distance would trap fighters below floors or between side walls and damaging screen edges; checking only a destination could still cross thin terrain and land beyond it. This constrains an existing movement effect without changing ordinary movement or introducing a new collision mode.
+
+The existing two-pixel shot contact margin is now bullet_hit_margin in live tuning, with a default of two for older pinned recordings. It preserves the reviewed first-contact behavior while meeting the base-fight requirement that shot numbers can be tuned. Stacked Hailstorm retains its authored compounding damage downside: two copies fire faster and have more rounds but only one damage per shot. Changing those balance choices would be a separate product judgment; the required stats and rules still stack.
+
+The shipped sweep now has 54 surviving idle cases out of 57. The other three aim outward off small platforms on ice, teal and yellow-crate into unobstructed air; each recovers through ordinary stored jump and movement with full health and no edge returns. They are not floor/wall traps. Requiring support below every blink destination would remove midair and gap-crossing movement and add an unrequested aim restriction, so preserve that platforming risk. The public recordings and recovery controls remain in the ticket evidence.
+
+
+## 2026-10-06 — Ticket 80 resting contact and protocol versions under run 75
+
+The Gatefall minimal reproduction reports a zero-time floor hit with approach -0.0000008306038 pixels and normal (-0.000000009228931, 1), cancelling a clear horizontal blink at x=-492.282. Native resting contact already permits 0.5 pixels of penetration. Blink now ignores only near-start contact whose total approach fits that native allowance, rather than treating numerical normal noise as a wall. Real downward floor and side-wall approaches still stop. This uses the existing physics tolerance instead of adding a card-specific magic distance, skipping whole supporting platforms or lifting the fighter artificially. Sixty sampled supported positions include the exact failed position; public shipped-floor and double-blink reproductions are repeated.
+
+The snapshot additions change state hashes as well as serialized fields. Advance synchronous UDP from version12 to14 and sessioned live UDP from13 to15 so older clients fail the existing version checks rather than a later state hash or packet decode. Both new versions remain distinct from either old schema, preserving the live-hello collision guard. The alternative of new synchronous13 would collide with the old live13 hello. No compatibility mode or new transport is added. Card reload retains the admitted fifteen-tick behavior; optimizing disk reads is separate stewardship work.
+
+## 2026-10-09 — Ticket 80 under run 75: cast every part of concave terrain
+
+Choose per-part casts using Rapier's existing convex decomposition. A near-zero tangent contact may be ignored for that part, while the other parts still stop the blink. Review 8 reproduced a column crossing on shipped Lime and an embedded fighter in a concave lab floor. Ignoring a whole compound collider was the cause. Keeping that skip, lifting fighters before casting, or restricting blinks to grounded destinations would hide the collision error or change the requested capability. The shipped Lime regression fails before the correction and passes afterward; public replays retain the lab trap and shipped inputs.
+
+Upstream introduced live schema version 14 for waiting peers. Advance this ticket's synchronous/live versions to 15/16 so both changed schemas remain distinct from existing versions. Keeping 14/15 would reuse the old live identifier for the new synchronous schema. Preserve upstream waiting-peer, loopback socket and idle-controller behavior, and all existing card outcomes. This is an update to the version guard, with no new transport or compatibility mode.
+
+## 2026-10-09 — Ticket 80 under run 75: apply contact allowance throughout Blink
+
+Choose a smaller query shape derived from the live fighter collider's local half-extents and Rapier's existing allowed_linear_error. Keep the physical body and full-size frame bounds unchanged, and continue casting every convex terrain part. The ball and crouched ellipse are symmetric about both local axes; scaling each extent inward by the allowance stays inside the body and moves its points by at most that allowance, plus float rounding. Cap the inset at half the smaller extent so accepted tiny positive tuning values cannot collapse the shape or invert polygon normals. This is bounded query clearance, not a claim of exact signed-distance erosion for an ellipse.
+
+Review 10 reproduced a 52.343 px Blink across the shipped Teal platforms' 8 px gap instead of 90 px. Resting penetration of about 0.011 px made the next platform corner a late collision; the previous time-zero-only exception could not help. The separate-platform regression reproduced 53.317 px, then passed for standing and crouched fighters with full-distance, grounded, healthy landings after 30 ticks. The compound-column assertion now permits the engine's actual allowance while still rejecting a crossing and requiring ordinary escape movement.
+
+A negative target_distance does not shrink this library's support-map cast. Skipping a later hit by its normal or endpoint could hide a wall. Do not use those alternatives, artificial lifts, grounded-only restrictions or a new movement mode. Remove the old time-zero exception so two allowances cannot accumulate. A body already deeper inside a surface may move away, but cannot blink farther into it. A continuing read-only other-family consultation agreed with the approach and checked the installed scaling API; its two results retain the same native session identity under out/ticket080proof.

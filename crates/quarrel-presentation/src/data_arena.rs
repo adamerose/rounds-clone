@@ -64,6 +64,7 @@ pub(super) fn spawn_data_arena_scene(
     }
     spawn_fighters(commands, meshes, materials, snapshot);
     spawn_projectiles(commands, meshes, materials, snapshot);
+    spawn_card_impacts(commands, meshes, materials, snapshot);
 }
 
 fn spawn_legacy_surface(
@@ -432,7 +433,11 @@ fn spawn_fighters(
             Text2d::new(if player.reload_ticks > 0 {
                 format!("RELOAD {:.1}", f32::from(player.reload_ticks) / 60.0)
             } else {
-                "|".repeat(usize::from(player.ammunition))
+                if player.ammunition > 12 {
+                    format!("{} ROUNDS", player.ammunition)
+                } else {
+                    "|".repeat(usize::from(player.ammunition))
+                }
             }),
             TextFont {
                 font_size: FontSize::Px(12.0),
@@ -475,7 +480,7 @@ fn spawn_projectiles(
         );
         commands.spawn((
             SceneVisual,
-            Mesh2d(meshes.add(Circle::new(5.0))),
+            Mesh2d(meshes.add(Circle::new(projectile.radius_milli as f32 / 1000.0))),
             MeshMaterial2d(materials.add(Color::srgb_u8(255, 243, 158))),
             Transform::from_xyz(end.x, end.y, 12.0),
         ));
@@ -504,5 +509,40 @@ fn shape_radius(shape: &ArenaShape) -> f32 {
             .iter()
             .map(|vertex| Vec2::from(*vertex).length())
             .fold(0.0, f32::max),
+    }
+}
+
+fn spawn_card_impacts(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    snapshot: &MatchSnapshot,
+) {
+    for impact in &snapshot.impacts {
+        let age = snapshot.tick.saturating_sub(impact.tick);
+        if age > quarrel_sim::IMPACT_LIFETIME_TICKS || (impact.radius_milli == 0 && !impact.poison)
+        {
+            continue;
+        }
+        let radius = if impact.poison {
+            28.0
+        } else {
+            impact.radius_milli as f32 / 1000.0 * (0.6 + age as f32 / 30.0)
+        };
+        let color = if impact.poison {
+            Color::srgba_u8(125, 240, 90, 180)
+        } else {
+            Color::srgba_u8(255, 160, 55, 180)
+        };
+        commands.spawn((
+            SceneVisual,
+            Mesh2d(meshes.add(Annulus::new((radius - 3.0).max(0.0), radius))),
+            MeshMaterial2d(materials.add(color)),
+            Transform::from_xyz(
+                impact.x_milli as f32 / 1000.0,
+                impact.y_milli as f32 / 1000.0,
+                13.0,
+            ),
+        ));
     }
 }

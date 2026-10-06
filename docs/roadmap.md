@@ -3,13 +3,13 @@
 Each milestone ends with something the group can play, followed by a play session whose notes go in `docs/playtests/`.
 Those notes decide what comes next; this list is a plan, not a contract.
 
-## Where things stand (2026-10-05)
+## Where things stand (2026-10-06)
 
 The Rust/Bevy/Rapier foundation runs ordinary matches: a 60 Hz authority, general fighter vectors, opening and loser drafts, one point per fight, seeded tie resolution and unanimous end choices.
-Data arenas rotate without repeats and retain their object physics and live editing. Five data-driven placeholder stat cards support the general offer and loadout path.
+Data arenas rotate without repeats and retain their object physics and live editing. Twelve original data-defined cards combine stats and event rules, with copies that stack and live-edited files.
 The shared renderer, local 1v1 controls, UDP client/host/dedicated split, headless captures and CI remain in use. A short input recording pins its starting content and checks replay determinism.
 Footage profiles, fixed source offers and the ROUNDS card catalog have been removed. Ten original arenas cover static layouts, physics stacks, hanging platforms, a released wrecking ball, saws and moving pieces.
-Base-fight tuning, event-rule cards and production online play remain ahead.
+Base-fight movement, recoil, magazines and block timing are live-tuned from a file. Production online play remains ahead.
 
 ## M1 — The MVP: a real match, online with friends
 

@@ -1,0 +1,7 @@
+(
+    id: "poison",
+    name: "Slow Burn",
+    description: "Weaker hits poison opponents for three seconds, and each poison tick counts as a hit.",
+    stat_changes: (damage_factor_milli: 350),
+    event_rules: [(on: Hit, effects: [Poison(ticks: 18, interval_ticks: 10, damage_milli: 180)])],
+)

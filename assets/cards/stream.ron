@@ -1,0 +1,7 @@
+(
+    id: "stream",
+    name: "Hailstorm",
+    description: "Fire a rapid stream of much weaker shots from a larger magazine.",
+    stat_changes: (magazine_bonus: 27, damage_factor_milli: 180, fire_interval_factor_milli: 180),
+    event_rules: [],
+)

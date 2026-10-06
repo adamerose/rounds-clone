@@ -1,0 +1,7 @@
+(
+    id: "steer",
+    name: "Shepherd",
+    description: "Guide slower shots with your aim.",
+    stat_changes: (projectile_speed_milli: 450),
+    event_rules: [(on: Fire, effects: [Steer(80)])],
+)

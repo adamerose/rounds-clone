@@ -1,0 +1,7 @@
+(
+    id: "rebound",
+    name: "Rubber Round",
+    description: "Shots bounce three times, but hit a little softer.",
+    stat_changes: (damage_factor_milli: 800),
+    event_rules: [(on: Fire, effects: [Bounce(3)])],
+)

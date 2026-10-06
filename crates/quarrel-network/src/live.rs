@@ -17,7 +17,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub const MAX_LIVE_TICKS: u32 = 36_060;
 // The sessioned datagrams are deliberately distinct from the synchronous UDP schema.
-const LIVE_PROTOCOL: u16 = 14;
+const LIVE_PROTOCOL: u16 = 16;
 const MAX_DATAGRAM: usize = 65_507;
 const JOIN_WINDOW: Duration = Duration::from_secs(5);
 const PEER_WINDOW: Duration = Duration::from_secs(3);

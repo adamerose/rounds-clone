@@ -279,3 +279,86 @@ The ownership refusal below was a routine handoff check, with no recorded loss o
 Ticket #59 records the old owner being released and the new coordinator taking ownership about one minute later, following Adam's renewed instruction.
 
 - **Guard evidence:** Ticket #59; occurrence 1; `- 2026-10-02T14:30:40Z guard session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — own refused: #59 is owned by codex:01a0fb88-1e6f-7a80-88cc-62fc856e1443; Ivy has no live observation that the session ended; release the ticket to hand it over`; judged by codex:01a114f0-227b-7711-828e-c62f2606df5c.
+
+## 2026-10-06 — Shared Cargo target replaced a CLI under ticket 80's tests
+
+The card sim passed, but `cargo test --workspace --locked -- --test-threads=1` launched a shared `quarrel-client.exe` that rejected the new card fields.
+The error named the old four-field StatChanges parser; ticket 79 was compiling against the same prepared target at the time.
+Cargo's native build-directory lock serializes compilation, not later integration-test access to a shared executable.
+The capture tests now accept QUARREL_TEST_CLIENT_EXE, and this worker freezes and hashes the just-built client before testing and rendering.
+This preserves the shared dependency cache and the two-job cap while binding CLI evidence to the candidate binary.
+
+A subsequent build also reused old simulation metadata, so freezing only the client was not enough.
+Ticket 87 independently records the shared-package timestamp collision and owns the durable build correction.
+For this candidate, source timestamps force local workspace compilation; Cargo artifact messages supply frozen test and product executables.
+Copies stay under this real worktree, are hashed and checked against compiler dependency paths, and run directly so later builds cannot replace them.
+No package clean or cold dependency build was executed. The consultant confirmed this route and noted that the PDB error's cause remains unconfirmed.
+
+The artifact guard initially checked the top-level product dependency file as soon as Cargo emitted an executable.
+Cargo had not yet replaced that aggregate file, so the guard rejected it and closing its output pipe stopped the build.
+Product evidence now binds the fresh compiler artifact to this worktree through manifest_path and target.src_path; test dependency files remain checked.
+
+A PowerShell verification command continued after a rebase stopped on a records conflict.
+That run checked an intermediate tree, so it was stopped by terminating only its verified Python/Cargo process tree and its evidence was rejected.
+Finish reconciliation in a separate successful command before launching dependent verification; native command failures do not stop PowerShell automatically.
+
+The final frozen suite once reported authority_silent from the existing FIFO live-network fixture; the same executable passed the focused reproduction immediately.
+The failure log is retained as network-rejected.log. Network production and fixture source bytes are unchanged by this card candidate.
+The complete serial network suite is checked again after native builds and captures finish; this does not claim to fix the intermittent failure.
+Ticket 85 owns UDP fixture isolation, and ticket 86 owns the broader networking regression coverage.
+
+## 2026-10-06 — Repeated card impacts could end a live match
+
+The independent review of ticket 80 reproduced 334 explosion records after twelve thousand ticks of firing into terrain in one fight.
+The compact snapshot reached 69,739 bytes, beyond the live UDP packet limit, because visual impacts were kept until a fight reset.
+The renderer only needed twelve ticks of history. The authority now expires those records and retains at most sixty-four, while metrics remain cumulative.
+A three-thousand-tick regression fires the explosive bounce/spray combination and checks history age, count, packet headroom and continuing explosions.
+A second reproduction showed a fast projectile placing its blast beyond the victim; hit rules now use the first swept contact instead of the final bullet pose.
+Regressions also exposed fading flight modifiers and a full poison queue dropping primary abilities. The corrected suite covers both.
+
+## 2026-10-06 — Rapid cards exposed an inspection-only snapshot limit
+
+Fresh review reproduced a newest-shot visibility failure with two Hailstorms: sixty-four old upward shots filled the snapshot, hiding all eight shots later aimed at the opponent. The authority retained those new shots and could still deal damage, so rendering and gameplay disagreed. Snapshots now keep the latest sixty-four in stable ID order, with a public-input regression. Flight-card branches also bypassed breakable damage; piece contact is now handled before those branches, with one damage application per continuous contact.
+
+The first correction used swept object rays for ordinary physical shots as well as drilling sensors. That consumed shots before their native collision impulse and broke the existing trestle-toppling regression. Swept detection is required for drilling sensors only; ordinary shots retain native contact timing. The failing complete simulation run is retained with the corrected evidence.
+
+
+## 2026-10-06 — Ticket 80 magazine reconciliation exposed weak stream and split effect results
+
+The fourth independent review used sustained public replays after the native magazine landed. Hailstorm fired only 21 shots in 600 ticks versus 14 ordinary shots, with much lower damage, because the card changed cadence but retained a three-round magazine. It now supplies a stackable larger magazine, with a ten-second firing regression and the original ordinary weapon as control. Another reproduction showed reaction explosions displaying their ring and shove while damage independently failed its deeper fade roll. Damage now follows the selected effect; generated triggers still fade. The effect regression failed with 60 damage instead of 84 before correction and also checks all eighteen reaction poison pulses.
+
+The earlier frozen-client hook name QUARREL_TEST_CLIENT_EXE describes the pre-menu candidate. After the menu delivery, both suites use QUARREL_TEST_CLIENT; the final verification manifest names that current hook. Older reviews and their exact products remain archived as rejected or superseded evidence.
+
+
+## 2026-10-06 — Ticket 80 open-floor blink evidence missed terrain traps
+
+The fifth fresh review followed Blink Step after downward and outward blocks on shipped geometry. Unchecked move_player placed the fighter beneath the floor or behind a side wall; the floor prevented recovery and repeated edge returns killed the holder. The review reproduced 41 teleport-only deaths in 57 arena/direction cases with surviving no-teleport controls. A Gatefall downward regression failed before correction. Blink now sweeps the actual fighter shape against live terrain and clips travel to the frame. Open-space distance and movement remain covered, and the shipped sweep is repeated through the frozen public client.
+
+The chained reviews and repeated native builds were costly because early evidence stayed on an open lab floor and did not follow movement consequences on shipped terrain. Retain both small boundary regressions and the public shipped-arena sweep; another lab-only capture would not have prevented this failure. No clean target was used, and builds reused the shared cache under its lock and two-job cap.
+
+The full simulation check exposed a damage-event fixture aiming its teleport deeper into a contacting saw. The corrected safety constraint stops that path. The fixture now aims away from the hazard and still requires the same-tick TakeDamage teleport, rather than bypassing obstacle checks or weakening the timing assertion.
+
+The first sweep check incorrectly required survival while idle after every direction, including blinking off a small platform. It reported three remaining falls after the collision fix. Public recovery replays for ice, teal and yellow-crate each return to their platform at full health with no edge returns; the trapped Gatefall case could not do that before correction. Verification now names these cases and checks recovery instead of requiring blink to prevent ordinary falling. The failed zero-fall assertion is retained, and no native rebuild was repeated for this evidence correction.
+
+
+## 2026-10-06 — Ticket 80 shape cast disagreed with native resting contact
+
+The sixth fresh review found 28 cancelled standing blinks across 186 grounded horizontal cases, including a required combo that teleported once instead of twice. The stopping cast treated a shallow floor contact as approach because its normal had a tiny horizontal component. The exact flat-floor boundary regression failed at x=-492.282 with zero travel; the diagnostic measured approach -0.0000008306038 at time zero. Blink now honors the native physics penetration allowance for near-start tangent contacts, while genuine approaches still stop. The temporary diagnostic is removed and retained in blink-contact-red.log; the small regression covers sixty positions and directions.
+
+The later journal rebase script used a DOTALL expression with unbounded marker-line matches, so it could consume text beyond a conflict. Rebase stopped before checks or publication. Abort that attempt and rebuild both records from committed upstream text plus the exact owned suffix; verify every upstream nonblank line remains. Consolidate the six unpublished owned commits before resolving the append conflict once. The preserved candidate ref and old review artifacts retain the earlier range. No rejected reconciliation result was verified or published.
+
+## 2026-10-09 — Ticket 80: a support contact hid another part of a concave collider
+
+Fresh review 8 found that the numerical tangent-contact correction skipped the entire collider. A concave arena outline becomes a compound collider, so its floor and column can share a handle. On shipped Lime, public inputs moved the fighter from -495.731 to -585.731 through cross 9; splitting that cross into rectangles stopped the blink at -500. A lab reproduction also left the fighter embedded. The earlier tests used separate floor and wall colliders and did not cover this boundary.
+
+Cast each convex part and apply the starting-contact tolerance to that part alone. The new shipped-arena regression produced the exact red displacement and then passed after correction, including ordinary movement away from the wall. Keep the raw verdict, exact recordings, source hashes and rejected client in out/ticket080proof. Repeated complete review rounds have been costly; this round found a supported boundary defect, so delivery still requires the correction and fresh approval. No clean build or private Cargo target was used.
+
+The first correction proof also asserted full health after 90 ticks of continuous jump-left. Once the trapped fighter could move again, that input carried it into the arena's damaging edge. Keep compound-public-overstrict.log and the complete original recording. Verify ordinary walking recovery for 90 ticks and the first ten ticks of the same jumping escape; both stay healthy and move away from the wall. This corrects the proof's assumption without changing movement or edge damage.
+
+The following review was interrupted when the launched worker and supervisor disappeared. Its JSON result was empty, no matching reviewer process remained, and its scratch directory ended with an incomplete probe file. No verdict or approval was recoverable. Preserve review-9-interrupted-artifacts and the exact candidate ref, then start a fresh review. The already verified source and copied binaries are unchanged; do not repeat a native build. Resolve the machine-selected skill junction to the canonical Playbook before invoking sibling helpers.
+
+## 2026-10-09 — Ticket 80: Blink stopped at a later floor corner
+
+Review 10 confirmed the per-part fix prevented compound wall crossings, then found a separate short Blink on unmodified Teal. The starting floor and the next platform share a height, but native resting contact sinks the body by about 0.011 px. A zero-time contact exception did not cover that later platform corner. The existing horizontal sweep only rejected near-zero displacement, so a partial 52 px Blink escaped its predicate.
+
+Add a two-platform gap regression that requires the full 90 px in both stances and a healthy grounded landing after settling. Apply the existing contact allowance to the cast shape along the entire path and remove the initial-contact exception. Preserve the raw rejection, exact public Teal inputs and earlier column/trap controls. The separate-platform test failed before this correction and the six focused Blink regressions passed afterward. Refresh replay states and captures against the new product; ordinary geometry bumps larger than the allowance remain solid.

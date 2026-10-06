@@ -1,0 +1,7 @@
+(
+    id: "explode",
+    name: "Firecracker",
+    description: "Hits explode and shove nearby opponents, but fire slower.",
+    stat_changes: (fire_interval_factor_milli: 1500),
+    event_rules: [(on: Impact, effects: [Explode(radius: 120, damage_milli: 400)]), (on: Bounce, effects: [Explode(radius: 120, damage_milli: 400)])],
+)

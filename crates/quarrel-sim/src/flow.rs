@@ -64,10 +64,30 @@ pub struct GameplayModifiers {
     pub health_bonus: u16,
     pub damage_bonus: u16,
     pub movement_bonus: u16,
+    #[serde(default)]
+    pub damage_factor_milli: u16,
+    #[serde(default)]
+    pub fire_interval_factor_milli: u16,
+    #[serde(default)]
+    pub magazine_bonus: u16,
 }
 pub type FighterCapabilities = GameplayModifiers;
+pub(crate) fn factor(value: u16) -> u32 {
+    if value == 0 { 1000 } else { u32::from(value) }
+}
+fn stack_factor(a: u16, b: u16) -> u16 {
+    (factor(a) * factor(b) / 1000).clamp(1, u32::from(u16::MAX)) as u16
+}
+
 impl FighterCapabilities {
     fn accumulate(&mut self, change: Self) {
+        self.damage_factor_milli =
+            stack_factor(self.damage_factor_milli, change.damage_factor_milli);
+        self.fire_interval_factor_milli = stack_factor(
+            self.fire_interval_factor_milli,
+            change.fire_interval_factor_milli,
+        );
+        self.magazine_bonus = self.magazine_bonus.saturating_add(change.magazine_bonus);
         self.health_bonus = self.health_bonus.saturating_add(change.health_bonus);
         self.damage_bonus = self.damage_bonus.saturating_add(change.damage_bonus);
         self.movement_bonus = self.movement_bonus.saturating_add(change.movement_bonus);
@@ -87,6 +107,8 @@ pub struct ItemDefinition {
     pub rules: Vec<String>,
     pub palette_rgb: [u8; 3],
     pub modifiers: GameplayModifiers,
+    #[serde(default)]
+    pub event_rules: Vec<EventRule>,
 }
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -95,6 +117,9 @@ pub struct StatChanges {
     pub damage: u16,
     pub movement_speed: u16,
     pub projectile_speed_milli: u16,
+    pub damage_factor_milli: u16,
+    pub fire_interval_factor_milli: u16,
+    pub magazine_bonus: u16,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -103,6 +128,8 @@ pub struct CardFile {
     pub name: String,
     pub description: String,
     pub stat_changes: StatChanges,
+    #[serde(default)]
+    pub event_rules: Vec<EventRule>,
 }
 pub fn default_card_directory() -> PathBuf {
     if let Some(path) = std::env::var_os("QUARREL_CARD_DIR") {
@@ -153,13 +180,18 @@ pub fn load_card_directory(path: &Path) -> Result<Vec<ItemDefinition>, String> {
         if catalog.iter().any(|c: &ItemDefinition| c.id == id) {
             return Err(format!("duplicate card id {}", card.id));
         }
+        validate_rules(&card.event_rules).map_err(|e| format!("{}: {e}", file.display()))?;
         let changes = card.stat_changes;
         catalog.push(ItemDefinition {
             id,
             title: card.name,
             rules: vec![card.description],
             palette_rgb: [90, 190, 160],
+            event_rules: card.event_rules,
             modifiers: GameplayModifiers {
+                magazine_bonus: changes.magazine_bonus,
+                damage_factor_milli: changes.damage_factor_milli,
+                fire_interval_factor_milli: changes.fire_interval_factor_milli,
                 health_bonus: changes.health,
                 damage_bonus: changes.damage,
                 movement_bonus: changes.movement_speed,
@@ -265,6 +297,9 @@ pub struct FlowAuthority {
 impl FlowAuthority {
     pub fn with_config(config: MatchConfig, catalog: Vec<ItemDefinition>) -> Result<Self, String> {
         config.validate()?;
+        for card in &catalog {
+            validate_rules(&card.event_rules)?;
+        }
         let unique: std::collections::BTreeSet<_> = catalog.iter().map(|item| item.id).collect();
         if unique.len() != catalog.len() {
             return Err("duplicate card IDs".into());
@@ -308,6 +343,50 @@ impl FlowAuthority {
     }
     pub fn capabilities(&self, player: u8) -> FighterCapabilities {
         self.snapshot.capabilities[usize::from(player)]
+    }
+    pub(crate) fn rules_for(&self, player: u8) -> Vec<EventRule> {
+        self.snapshot.loadouts[usize::from(player)]
+            .iter()
+            .flat_map(|id| {
+                self.snapshot
+                    .catalog
+                    .iter()
+                    .find(|c| c.id == *id)
+                    .into_iter()
+                    .flat_map(|c| c.event_rules.clone())
+            })
+            .collect()
+    }
+    pub(crate) fn replace_catalog(&mut self, catalog: Vec<ItemDefinition>) -> Result<(), String> {
+        if catalog.len() < self.config.offer_size {
+            return Err("offer size exceeds card pool".into());
+        }
+        if self
+            .snapshot
+            .loadouts
+            .iter()
+            .flatten()
+            .chain(self.snapshot.offers.iter().flatten())
+            .any(|id| !catalog.iter().any(|c| c.id == *id))
+        {
+            return Err("cannot remove cards held or currently offered during a match".into());
+        }
+        self.snapshot.catalog = catalog;
+        for (index, held) in self.snapshot.loadouts.iter().enumerate() {
+            let mut cap = FighterCapabilities::default();
+            for id in held {
+                cap.accumulate(
+                    self.snapshot
+                        .catalog
+                        .iter()
+                        .find(|c| c.id == *id)
+                        .unwrap()
+                        .modifiers,
+                );
+            }
+            self.snapshot.capabilities[index] = cap;
+        }
+        Ok(())
     }
     pub fn accepts_combat(&self) -> bool {
         self.snapshot.phase == FlowPhase::Combat

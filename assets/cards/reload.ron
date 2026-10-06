@@ -1,0 +1,7 @@
+(
+    id: "reload",
+    name: "Second Wind",
+    description: "Every hit, including poison, reloads your gun, but shots hit softer.",
+    stat_changes: (damage_factor_milli: 800),
+    event_rules: [(on: Hit, effects: [Reload])],
+)

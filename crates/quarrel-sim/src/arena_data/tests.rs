@@ -24,6 +24,14 @@ fn original(slug: &str) -> ArenaDefinition {
 }
 
 fn game(arena: ArenaDefinition, fighters: usize) -> AuthoritativeMatch {
+    let mut cards =
+        load_card_directory(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/cards"))
+            .unwrap();
+    // Arena physics uses base shots, independent of whichever card the offer puts first.
+    for card in &mut cards {
+        card.modifiers = Default::default();
+        card.event_rules.clear();
+    }
     AuthoritativeMatch::with_content(
         MatchConfig {
             fighter_count: fighters,
@@ -31,10 +39,7 @@ fn game(arena: ArenaDefinition, fighters: usize) -> AuthoritativeMatch {
         },
         MatchContent {
             tuning: CombatTuning::default(),
-            cards: load_card_directory(
-                &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/cards"),
-            )
-            .unwrap(),
+            cards,
             arenas: vec![arena],
         },
     )

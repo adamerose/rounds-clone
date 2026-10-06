@@ -24,6 +24,8 @@ pub struct CombatTuning {
     pub crouch_height_factor: f32,
     pub crouch_gravity_factor: f32,
     pub bullet_radius: f32,
+    #[serde(default = "default_hit_margin")]
+    pub bullet_hit_margin: f32,
     pub bullet_speed: f32,
     pub bullet_gravity_factor: f32,
     pub bullet_density: f32,
@@ -48,6 +50,9 @@ pub struct CombatTuning {
     pub recoil_enabled: bool,
     pub recoil_impulse: f32,
     pub recoil_speed_cap: f32,
+}
+fn default_hit_margin() -> f32 {
+    2.0
 }
 impl Default for CombatTuning {
     fn default() -> Self {
@@ -87,6 +92,7 @@ impl CombatTuning {
             ("crouch_height_factor", self.crouch_height_factor),
             ("crouch_gravity_factor", self.crouch_gravity_factor),
             ("bullet_radius", self.bullet_radius),
+            ("bullet_hit_margin", self.bullet_hit_margin),
             ("bullet_speed", self.bullet_speed),
             ("bullet_gravity_factor", self.bullet_gravity_factor),
             ("bullet_density", self.bullet_density),

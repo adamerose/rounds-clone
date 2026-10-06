@@ -1,4 +1,6 @@
 use super::*;
+mod reactions;
+use reactions::*;
 
 pub struct AuthoritativeMatch {
     arena: ArenaDefinition,
@@ -26,6 +28,12 @@ pub struct AuthoritativeMatch {
     phase: FlowPhase,
     observed_fight: u32,
     observed_match: u32,
+    card_path: Option<std::path::PathBuf>,
+    card_reload_error: Option<String>,
+    reactions: std::collections::VecDeque<Reaction>,
+    reaction_random: SeededRandom,
+    reaction_budget_tick: u32,
+    reaction_budget: usize,
 }
 
 impl AuthoritativeMatch {
@@ -48,6 +56,7 @@ impl AuthoritativeMatch {
             CombatTuning::default(),
         )?;
         game.watch_tuning_file(&default_tuning_path())?;
+        game.card_path = Some(default_card_directory());
         Ok(game)
     }
     pub fn with_content(config: MatchConfig, content: MatchContent) -> Result<Self, String> {
@@ -162,13 +171,22 @@ impl AuthoritativeMatch {
             phase: FlowPhase::Draft,
             observed_fight: 0,
             observed_match: 0,
+            card_path: None,
+            card_reload_error: None,
+            reactions: Default::default(),
+            reaction_random: SeededRandom(config.seed),
+            reaction_budget_tick: 0,
+            reaction_budget: 0,
             flow,
         })
     }
     pub fn step(&mut self, inputs: &[PlayerInput]) {
         self.tick = self.tick.saturating_add(1);
+        self.impacts
+            .retain(|impact| self.tick.saturating_sub(impact.tick) <= IMPACT_LIFETIME_TICKS);
         self.reload_arena_if_changed();
         self.reload_tuning_if_changed();
+        self.reload_cards_if_changed();
         let observation = self.snapshot();
         let inputs = inputs
             .iter()
@@ -198,6 +216,7 @@ impl AuthoritativeMatch {
             let entity = self.player_entities[index];
             let capabilities = self.flow.capabilities(index as u8);
             let mut fire = None;
+            let mut blocked = false;
             {
                 let mut actor = self.world.entity_mut(entity);
                 let mut state = actor.get_mut::<PlayerState>().expect("player state");
@@ -207,7 +226,10 @@ impl AuthoritativeMatch {
                 if state.reload_ticks > 0 {
                     state.reload_ticks -= 1;
                     if state.reload_ticks == 0 {
-                        state.ammunition = self.tuning.magazine_size;
+                        state.ammunition = self
+                            .tuning
+                            .magazine_size
+                            .saturating_add(capabilities.magazine_bonus);
                     }
                 }
                 state.hit_flash_ticks = state.hit_flash_ticks.saturating_sub(1);
@@ -232,6 +254,7 @@ impl AuthoritativeMatch {
                     state.block_ticks = state.block_ticks.max(self.tuning.block_duration_ticks);
                     state.block_cooldown = self.tuning.block_cooldown_ticks;
                     self.metrics.block_activations += 1;
+                    blocked = true;
                 }
                 if acts
                     && state.stun_ticks == 0
@@ -255,10 +278,14 @@ impl AuthoritativeMatch {
                     && state.reload_ticks == 0
                     && state.ammunition > 0
                 {
-                    state.fire_cooldown = self
-                        .tuning
-                        .fire_cooldown_ticks
-                        .saturating_add(capabilities.fire_cooldown_extra_ticks);
+                    state.fire_cooldown = ((u32::from(
+                        self.tuning
+                            .fire_cooldown_ticks
+                            .saturating_add(capabilities.fire_cooldown_extra_ticks),
+                    ) * factor(capabilities.fire_interval_factor_milli)
+                        / 1000)
+                        .clamp(1, u32::from(u16::MAX)))
+                        as u16;
                     state.ammunition -= 1;
                     if state.ammunition == 0 {
                         state.reload_ticks = self.tuning.reload_ticks;
@@ -266,37 +293,18 @@ impl AuthoritativeMatch {
                     fire = Some((state.id, state.aim));
                 }
             }
+            if blocked {
+                self.queue_event(index as u8, CardEvent::Block, None, None, 0);
+            }
             if let Some((owner, aim)) = fire {
-                let id = self.next_projectile_id;
-                self.next_projectile_id += 1;
-                self.physics.spawn_bullet(
-                    id,
-                    owner,
-                    aim,
-                    self.tuning.bullet_speed
-                        * f32::from(capabilities.projectile_speed_factor.milli)
-                        / 1000.0,
-                );
-                self.physics.recoil(owner, aim);
-                let entity = self
-                    .world
-                    .spawn(ProjectileState {
-                        id,
-                        owner,
-                        dazzle_pulses: capabilities.dazzle_stun_pulses,
-                        dazzle_stun_ticks: capabilities.dazzle_stun_ticks,
-                        explosive_radius_milli: capabilities.explosion_radius_milli,
-                    })
-                    .id();
-                self.projectile_entities.insert(id, entity);
-                self.metrics.shots_fired += 1;
-                if self.tuning.recoil_enabled {
-                    self.metrics.recoil_impulses += 1;
-                }
+                self.fire_shot(owner, aim, 0);
             }
         }
+        self.process_reactions();
+        self.update_card_projectiles();
         self.physics.update_arena_motion(&self.arena, self.tick);
         self.physics.step();
+        let mut landed = Vec::new();
         for (index, entity) in self.player_entities.iter().copied().enumerate() {
             let (grounded, wall) = self.physics.player_support(index as u8);
             if grounded {
@@ -304,13 +312,21 @@ impl AuthoritativeMatch {
             }
             let mut actor = self.world.entity_mut(entity);
             let mut state = actor.get_mut::<PlayerState>().expect("player state");
+            if !state.grounded && grounded {
+                landed.push(index as u8);
+            }
             state.grounded = grounded;
             if grounded || wall != 0.0 {
                 state.jump_available = true;
             }
         }
+        for player in landed {
+            self.queue_event(player, CardEvent::Land, None, None, 0);
+        }
         self.resolve_projectiles();
+        self.process_reactions();
         self.apply_object_damage();
+        self.process_reactions();
         for index in 0..self.player_entities.len() {
             let state = *self
                 .world
@@ -331,6 +347,7 @@ impl AuthoritativeMatch {
                 self.metrics.ring_outs += 1;
             }
         }
+        self.process_reactions();
         let alive = self
             .player_entities
             .iter()
@@ -341,25 +358,34 @@ impl AuthoritativeMatch {
                     .is_some_and(|state| state.alive)
             })
             .collect::<Vec<_>>();
+        // These records serve the transient renderer; cumulative outcomes live in metrics.
+        self.impacts.drain(..self.impacts.len().saturating_sub(64));
         self.flow.record_survivors(&alive);
     }
     /// Applies ordinary damage, including periodic effect ticks. Blocking only
     /// intercepts shots and edge impacts at their respective contact boundaries.
     /// Returns true when this application eliminates a living fighter.
     pub fn damage_fighter(&mut self, fighter: u8, damage: u16) -> Result<bool, String> {
+        let applied = self.apply_damage(fighter, damage)?;
+        if applied.is_some() {
+            self.queue_event(fighter, CardEvent::TakeDamage, None, None, 0);
+        }
+        Ok(applied.unwrap_or(false))
+    }
+    fn apply_damage(&mut self, fighter: u8, damage: u16) -> Result<Option<bool>, String> {
         let entity = *self
             .player_entities
             .get(usize::from(fighter))
             .ok_or("fighter is outside the match")?;
         let mut actor = self.world.entity_mut(entity);
         let mut state = actor.get_mut::<PlayerState>().expect("player state");
-        if !state.alive {
-            return Ok(false);
+        if !state.alive || damage == 0 {
+            return Ok(None);
         }
         state.health = state.health.saturating_sub(damage);
         state.hit_flash_ticks = self.tuning.hit_flash_ticks;
         state.alive = state.health > 0;
-        Ok(!state.alive)
+        Ok(Some(!state.alive))
     }
     fn apply_object_damage(&mut self) {
         for (_, fighter, damage) in self.physics.object_contacts() {
@@ -368,7 +394,7 @@ impl AuthoritativeMatch {
         }
     }
     fn resolve_projectiles(&mut self) {
-        let mut removals = Vec::new();
+        let mut removals = BTreeSet::new();
         for (id, entity) in self
             .projectile_entities
             .iter()
@@ -380,6 +406,52 @@ impl AuthoritativeMatch {
                 .entity(entity)
                 .get::<ProjectileState>()
                 .expect("projectile state");
+            if self
+                .physics
+                .bullet_pose(id)
+                .is_none_or(|(position, _, _, life)| {
+                    life == 0
+                        || position.x < self.arena.frame[0] - 200.0
+                        || position.x > self.arena.frame[2] + 200.0
+                        || position.y < self.arena.frame[1] - 100.0
+                })
+            {
+                removals.insert(id);
+            }
+            let object_contact = self.physics.bullet_object_contact(id);
+            let touching_object = object_contact.map(|(piece, _)| piece);
+            self.world
+                .entity_mut(entity)
+                .get_mut::<ProjectileState>()
+                .unwrap()
+                .touching_object = touching_object;
+            if let Some((piece, impulse)) = object_contact
+                && projectile.touching_object != Some(piece)
+            {
+                self.damage_arena_piece(piece, self.tuning.shot_object_damage);
+                if self.physics.object_pose(piece).is_some() {
+                    self.physics.apply_object_impulse(piece, impulse);
+                }
+            }
+            if projectile.drill_remaining > 0.0 {
+                let (spent, exhausted) = self.physics.drill_step(id, projectile.drill_remaining);
+                self.world
+                    .entity_mut(entity)
+                    .get_mut::<ProjectileState>()
+                    .unwrap()
+                    .drill_remaining = (projectile.drill_remaining - spent).max(0.0);
+                if exhausted {
+                    self.queue_event(
+                        projectile.owner,
+                        CardEvent::Impact,
+                        None,
+                        Some(id),
+                        projectile.depth,
+                    );
+                    removals.insert(id);
+                    continue;
+                }
+            }
             let target = self
                 .player_entities
                 .iter()
@@ -431,13 +503,11 @@ impl AuthoritativeMatch {
                     .bullet_pose(id)
                     .map(|(_, _, velocity, _)| velocity.normalize_or_zero())
                     .unwrap_or(Vector::X);
-                let damage = self
-                    .tuning
-                    .damage_per_hit
-                    .saturating_add(self.flow.capabilities(projectile.owner).damage_bonus);
+                let damage = self.shot_damage(projectile);
                 let eliminated = self
-                    .damage_fighter(target, damage)
-                    .expect("contact fighter");
+                    .apply_damage(target, damage)
+                    .expect("contact fighter")
+                    .unwrap_or(false);
                 let knockback_scale;
                 {
                     let mut target_actor = self.world.entity_mut(target_entity);
@@ -450,6 +520,34 @@ impl AuthoritativeMatch {
                 }
                 self.physics
                     .apply_impulse(target, velocity * self.tuning.hit_impulse * knockback_scale);
+                self.queue_event_at(
+                    projectile.owner,
+                    CardEvent::Hit,
+                    Some(target),
+                    Some(id),
+                    projectile.depth,
+                    position,
+                );
+                if damage > 0 {
+                    self.queue_event_at(
+                        target,
+                        CardEvent::TakeDamage,
+                        Some(projectile.owner),
+                        Some(id),
+                        projectile.depth,
+                        position,
+                    );
+                }
+                if eliminated {
+                    self.queue_event_at(
+                        projectile.owner,
+                        CardEvent::Kill,
+                        Some(target),
+                        Some(id),
+                        projectile.depth,
+                        position,
+                    );
+                }
                 self.metrics.hits += 1;
                 self.metrics.health_scaled_knockbacks += 1;
                 self.impacts.push(ImpactSnapshot {
@@ -467,24 +565,64 @@ impl AuthoritativeMatch {
                     impulse_y_milli: quantize(
                         velocity.y * self.tuning.hit_impulse * knockback_scale,
                     ),
+                    radius_milli: 0,
+                    poison: false,
                 });
-                removals.push(id);
-            } else if let Some((piece, impulse)) = self.physics.bullet_object_contact(id) {
-                self.damage_arena_piece(piece, self.tuning.shot_object_damage);
-                if self.physics.object_pose(piece).is_some() {
-                    // Consume the projectile while preserving its absorbed momentum.
-                    self.physics.apply_object_impulse(piece, impulse);
+                self.queue_event_at(
+                    projectile.owner,
+                    CardEvent::Impact,
+                    Some(target),
+                    Some(id),
+                    projectile.depth,
+                    position,
+                );
+                removals.insert(id);
+            } else if projectile.drill_remaining > 0.0 {
+                // Swept terrain distance was charged before testing fighter contacts.
+            } else if self.physics.bullet_platform_contact(id)
+                && (projectile.bounces > 0 || projectile.touching_terrain)
+            {
+                if !projectile.touching_terrain {
+                    let mut actor = self.world.entity_mut(entity);
+                    let mut state = actor.get_mut::<ProjectileState>().unwrap();
+                    state.bounces -= 1;
+                    state.touching_terrain = true;
+                    self.queue_event(
+                        projectile.owner,
+                        CardEvent::Bounce,
+                        None,
+                        Some(id),
+                        projectile.depth,
+                    );
                 }
-                removals.push(id);
+            } else if object_contact.is_some() {
+                self.queue_event(
+                    projectile.owner,
+                    CardEvent::Impact,
+                    None,
+                    Some(id),
+                    projectile.depth,
+                );
+                removals.insert(id);
             } else if self.physics.bullet_platform_contact(id)
                 || self
                     .physics
                     .bullet_pose(id)
                     .is_none_or(|(_, _, _, life)| life == 0)
             {
-                removals.push(id);
+                if self.physics.bullet_platform_contact(id) {
+                    self.queue_event(
+                        projectile.owner,
+                        CardEvent::Impact,
+                        None,
+                        Some(id),
+                        projectile.depth,
+                    );
+                }
+                removals.insert(id);
             }
         }
+        self.process_reactions();
         for id in removals {
             self.physics.remove_bullet(id);
             if let Some(entity) = self.projectile_entities.remove(&id) {
@@ -512,6 +650,7 @@ impl AuthoritativeMatch {
             .unwrap_or_default();
         self.physics.replace_arena(&self.arena);
         self.clear_projectiles();
+        self.reactions.clear();
         self.impacts.clear();
         self.reset_players();
     }
@@ -534,7 +673,7 @@ impl AuthoritativeMatch {
             state.grounded = false;
             state.block_held = false;
             state.block_cooldown = 0;
-            state.ammunition = self.tuning.magazine_size;
+            state.ammunition = self.tuning.magazine_size.saturating_add(cap.magazine_bonus);
             state.reload_ticks = 0;
         }
     }
@@ -668,7 +807,11 @@ impl AuthoritativeMatch {
         for entity in &self.player_entities {
             let mut actor = self.world.entity_mut(*entity);
             let mut state = actor.get_mut::<PlayerState>().unwrap();
-            state.ammunition = state.ammunition.min(tuning.magazine_size);
+            state.ammunition = state.ammunition.min(
+                tuning
+                    .magazine_size
+                    .saturating_add(self.flow.capabilities(state.id).magazine_bonus),
+            );
         }
         self.physics.update_tuning(tuning.clone());
         self.tuning = tuning;
@@ -767,11 +910,20 @@ impl AuthoritativeMatch {
                     lifetime_ticks: lifetime,
                     dazzle_pulses: state.dazzle_pulses,
                     explosive_radius_milli: state.explosive_radius_milli,
+                    radius_milli: quantize(
+                        self.tuning.bullet_radius
+                            * (1.0 + state.distance / 100.0 * f32::from(state.growth) / 1000.0)
+                                .min(6.0),
+                    ),
+                    damage: self.shot_damage(*state),
                 })
             })
             .collect::<Vec<_>>();
         projectiles.sort_by_key(|p| p.id);
-        projectiles.truncate(MAX_INSPECTED_PROJECTILES);
+        // Keep newly fired threats when rapid-fire cards exceed the wire limit.
+        if projectiles.len() > MAX_INSPECTED_PROJECTILES {
+            projectiles.drain(..projectiles.len() - MAX_INSPECTED_PROJECTILES);
+        }
         MatchSnapshot {
             arena_objects: Some(ArenaRenderSnapshot {
                 frame: self.arena.frame,
@@ -1124,3 +1276,6 @@ mod arena_runtime_tests {
 
 #[cfg(test)]
 mod mechanics_tests;
+
+#[cfg(test)]
+mod card_tests;

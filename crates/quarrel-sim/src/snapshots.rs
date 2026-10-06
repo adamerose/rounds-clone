@@ -1,4 +1,7 @@
 use super::*;
+
+pub const IMPACT_LIFETIME_TICKS: u32 = 12;
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 pub struct PlayerInput {
     pub move_axis: i8,
@@ -84,6 +87,10 @@ pub struct ImpactSnapshot {
     pub eliminated: bool,
     pub impulse_x_milli: i32,
     pub impulse_y_milli: i32,
+    #[serde(default)]
+    pub radius_milli: i32,
+    #[serde(default)]
+    pub poison: bool,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -146,6 +153,10 @@ pub struct ProjectileSnapshot {
     pub lifetime_ticks: u16,
     pub dazzle_pulses: u8,
     pub explosive_radius_milli: i32,
+    #[serde(default = "base_bullet_radius")]
+    pub radius_milli: i32,
+    #[serde(default)]
+    pub damage: u16,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
@@ -189,4 +200,8 @@ pub struct MatchSnapshot {
 
 pub(crate) fn quantize(value: f32) -> i32 {
     (value * 1_000.0).round() as i32
+}
+
+fn base_bullet_radius() -> i32 {
+    5000
 }

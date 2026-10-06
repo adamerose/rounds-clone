@@ -80,16 +80,21 @@ Every file has a unique string `id`, a `name`, a one-sentence `description` and 
 
 ```ron
 (
-    id: "stamina",
-    name: "Stamina",
-    description: "Gain 20 health.",
-    stat_changes: (health: 20),
+    id: "grow",
+    name: "Long Haul",
+    description: "Shots grow and hit harder with distance, but start weaker.",
+    stat_changes: (damage_factor_milli: 700),
+    event_rules: [(on: Fire, effects: [Grow(180)])],
 )
 ```
 
-The placeholder format supports added health, added shot damage, added movement speed in world units per second, and a projectile-speed multiplier in thousandths.
+The format supports added health, damage, movement speed and magazine rounds (`magazine_bonus`), and projectile-speed, damage and fire-interval multipliers in thousandths.
+`event_rules` contains `on`, optional `max_depth` (default 8), and `effects`, as the twelve bundled cards demonstrate.
+Events are Fire, Hit, Impact, Block, Bounce, Land, TakeDamage and Kill; effects include shots, reloads, teleports, repeat blocks, explosions, poison and in-flight changes.
 Omitted changes are neutral. Taking the same card again stacks its changes; an offer contains no repeated card.
-The five original placeholder stat cards are replaced and the format extended by ticket 80.
+Normal matches reload the pool every fifteen ticks; invalid edits retain the last valid cards and expose `card_reload_error()`.
+Held and offered IDs cannot be removed during a match. New files enter later offers, and edits to held cards affect future shots.
+Every shot inherits current Fire flight changes. First reactions are reliable; further triggered generations halve their chance and stop at depth eight. Echo repeats a primary block once.
 Set `QUARREL_CARD_DIR` to select a different pool. Empty pools, duplicate IDs and offers larger than the pool are rejected.
 
 `MatchConfig` controls fighter count, target score, offer size, run-back limit and seed.
@@ -105,7 +110,7 @@ See `docs/legacy-prototype.md` for read-only lookup examples.
 Combat values live in `assets/tuning.ron` (pixels, pixels/second, and ticks at 60 Hz).
 Ordinary matches reload valid edits every 15 ticks without resetting scores, health or cards;
 invalid edits retain the last valid values, print a rejection once per changed error, and are available through `tuning_reload_error()`.
-A magazine holds three shots and automatically reloads when empty. Press block again after
+The base magazine holds three shots and automatically reloads when empty. Press block again after
 its cooldown; holding it does not repeat it. Ground/wall contact restores one jump, crouching
 halves the grounded collider and accelerates falling, and all four arena edges damage and
 push inward. An active block at an edge cancels that damage and launches inward.

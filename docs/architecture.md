@@ -11,9 +11,12 @@ Every fighter picks one card before combat. The last survivor earns a point; if 
 After a brief result phase, every nonwinner picks another card. The first fighter to the target reaches `MatchEnd`.
 Votes remain visible and changeable until everyone agrees. A run-back retains points and cards and increases the original target; a new match resets both.
 
-Cards load from sorted `assets/cards/*.ron` files. Each has a string ID, name, description and stat changes, converted to a stable hashed `ItemId` and fighter modifiers.
-Offers draw without replacement within a row and may contain cards already owned. The five placeholder cards change health, shot damage, movement speed or projectile speed.
-Event-rule cards and a larger original catalog belong to later work. No footage profile, fixed offer list or source card enum drives the match.
+Cards load from sorted `assets/cards/*.ron` files. Each has a string ID, name, description, stat changes and event rules, converted to a stable hashed `ItemId` and fighter modifiers.
+Offers draw without replacement within a row and may contain cards already owned. The twelve original cards change shot stats and react to combat events; copies stack stats and rules.
+Blink movement sweeps the current fighter shape against live terrain and clips travel to the arena frame; open-space blinks retain their authored distance.
+Shots inherit current Fire flight changes at launch. The reaction queue carries shot identity and generation; further triggered events fade, stop at depth eight, and obey per-tick and pending limits. Damage from a selected effect is delivered without another fade roll. No footage profile, fixed offer list or source card enum drives the match.
+Normal matches reload cards every fifteen ticks; malformed edits or removal of held/offered IDs retain the current catalog and expose `card_reload_error()`.
+Reload updates held modifiers and future shots; existing shots retain launch stats, and health changes apply at the next fighter reset. Magazine bonuses stack on live tuning; reducing the magazine clamps loaded rounds, while increases take effect on the next refill.
 
 `PlayerInput` is the public control boundary. Revisioned `FlowCommand` values reject actions from an earlier phase and apply an entire tick's commands before transitions.
 `automated_input` uses the same boundary; automation cannot write scores, health, loadouts or phases.
@@ -36,7 +39,7 @@ Unchanged contour colliders are cached at the physics boundary to avoid repeatin
 ## Presentation and transport
 
 `quarrel-presentation` reads immutable snapshots. Its shared scene draws data arenas, fighters, shots, cards, scores and consensus choices for visible play and offscreen PNGs.
-Rendering never applies damage or cards. Arena camera proportions are preserved; offscreen captures letterbox the declared frame.
+Rendering never applies damage or cards. Impact records retain their twelve-tick visual window and at most sixty-four entries; metrics retain cumulative outcomes. Arena camera proportions are preserved; offscreen captures letterbox the declared frame.
 Capture waits for rendering and screenshot completion before writing PNG bytes. Metadata hashes the executable, frame and authority state; output and metadata destinations must differ.
 Visible windows start hidden, require the designated 1920 by 1080 display at physical position `(364,-1080)`, and appear only after placement is verified.
 

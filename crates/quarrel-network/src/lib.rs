@@ -7,7 +7,7 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
-pub const NETWORK_PROTOCOL: u16 = 12;
+pub const NETWORK_PROTOCOL: u16 = 15;
 pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM: usize = 65_507;
 

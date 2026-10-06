@@ -28,6 +28,15 @@ pub(crate) struct ProjectileState {
     pub(crate) dazzle_pulses: u8,
     pub(crate) dazzle_stun_ticks: u16,
     pub(crate) explosive_radius_milli: i32,
+    pub(crate) damage: u16,
+    pub(crate) depth: u8,
+    pub(crate) bounces: u8,
+    pub(crate) growth: u16,
+    pub(crate) steering: u16,
+    pub(crate) drill_remaining: f32,
+    pub(crate) distance: f32,
+    pub(crate) touching_terrain: bool,
+    pub(crate) touching_object: Option<u16>,
 }
 #[derive(Clone, Copy)]
 struct PlayerPhysics {
@@ -259,16 +268,34 @@ impl PhysicsBoundary {
         self.object_bodies
             .iter()
             .find_map(|(&object, (_, collider, _))| {
-                self.rapier
+                let shape = &self.rapier.colliders[*collider];
+                let position = self.rapier.bodies[bullet.body].translation();
+                let contact = self
+                    .rapier
                     .contact_pair(bullet.collider, *collider)
                     .is_some_and(|pair| pair.has_any_active_contact())
-                    .then(|| {
-                        (
-                            object,
-                            self.rapier.bodies[bullet.body].linvel()
-                                * self.rapier.colliders[bullet.collider].mass(),
-                        )
-                    })
+                    || (self.rapier.colliders[bullet.collider].is_sensor()
+                        && (self.rapier.intersection_pair(bullet.collider, *collider)
+                            == Some(true)
+                            || shape
+                                .shape()
+                                .cast_ray(
+                                    shape.position(),
+                                    &bevy_rapier2d::rapier::prelude::Ray::new(
+                                        bullet.previous,
+                                        position - bullet.previous,
+                                    ),
+                                    1.0,
+                                    true,
+                                )
+                                .is_some()));
+                contact.then(|| {
+                    (
+                        object,
+                        self.rapier.bodies[bullet.body].linvel()
+                            * self.rapier.colliders[bullet.collider].mass(),
+                    )
+                })
             })
     }
     pub(crate) fn remove_object(&mut self, id: u16, chains: &[ArenaChain]) {
@@ -613,27 +640,195 @@ impl PhysicsBoundary {
         let bullet = self.bullets.get(&id)?;
         let position = self.rapier.bodies[bullet.body].translation();
         let target_position = self.player_pose(target).0;
-        let radii = Vector::new(
-            self.tuning.player_radius + self.tuning.bullet_radius,
-            self.player_half_height(target) + self.tuning.bullet_radius,
-        );
-        let start = (bullet.previous - target_position) / radii;
-        let segment = (position - bullet.previous) / radii;
-        let fraction = if segment.length_squared() > 0.0 {
-            (-start.dot(segment) / segment.length_squared()).clamp(0.0, 1.0)
-        } else {
-            0.0
+        let fighter_radii = Vector::new(self.tuning.player_radius, self.player_half_height(target));
+        let bullet_radius = self.rapier.colliders[bullet.collider]
+            .shape()
+            .as_ball()
+            .unwrap()
+            .radius;
+        let hit_radii =
+            fighter_radii + Vector::splat(bullet_radius + self.tuning.bullet_hit_margin);
+        let start = (bullet.previous - target_position) / hit_radii;
+        let segment = (position - bullet.previous) / hit_radii;
+        let fraction = bevy_rapier2d::rapier::parry::query::RayCast::cast_ray(
+            &bevy_rapier2d::rapier::parry::shape::Ball::new(1.0),
+            &bevy_rapier2d::rapier::prelude::Pose::IDENTITY,
+            &bevy_rapier2d::rapier::prelude::Ray::new(start, segment),
+            1.0,
+            true,
+        )?;
+        Some(target_position + (start + segment * fraction).normalize_or_zero() * fighter_radii)
+    }
+    pub(crate) fn drill_step(&mut self, id: u32, budget: f32) -> (f32, bool) {
+        use bevy_rapier2d::rapier::prelude::Ray;
+        let Some(bullet) = self.bullets.get(&id) else {
+            return (0.0, false);
         };
-        let closest = start + segment * fraction;
-        (closest.length_squared() <= 1.0).then_some(target_position + closest * radii)
+        let from = bullet.previous;
+        let to = self.rapier.bodies[bullet.body].translation();
+        let delta = to - from;
+        let length = delta.length();
+        if length < f32::EPSILON {
+            return (0.0, false);
+        }
+        let mut intervals = self
+            .platforms
+            .iter()
+            .filter_map(|handle| {
+                let collider = &self.rapier.colliders[*handle];
+                let enter = collider.shape().cast_ray(
+                    collider.position(),
+                    &Ray::new(from, delta),
+                    1.0,
+                    true,
+                )?;
+                let reverse_enter = collider.shape().cast_ray(
+                    collider.position(),
+                    &Ray::new(to, -delta),
+                    1.0,
+                    true,
+                )?;
+                Some((enter, 1.0 - reverse_enter))
+            })
+            .collect::<Vec<_>>();
+        intervals.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut spent = 0.0;
+        let mut last_exit = 0.0f32;
+        for (enter, exit) in intervals {
+            let enter = enter.max(last_exit);
+            if exit <= enter {
+                continue;
+            }
+            let distance = (exit - enter) * length;
+            if spent + distance > budget {
+                let stop = enter + (budget - spent).max(0.0) / length;
+                self.rapier.bodies[bullet.body].set_translation(from + delta * stop, true);
+                return (budget, true);
+            }
+            spent += distance;
+            last_exit = exit;
+        }
+        (spent, false)
+    }
+    pub(crate) fn line_of_sight(&self, from: Vector, to: Vector) -> bool {
+        use bevy_rapier2d::rapier::prelude::Ray;
+        let delta = to - from;
+        let ray = Ray::new(from, delta);
+        !self.platforms.iter().any(|handle| {
+            let collider = &self.rapier.colliders[*handle];
+            collider
+                .shape()
+                .cast_ray(collider.position(), &ray, 1.0, true)
+                .is_some()
+        })
+    }
+    pub(crate) fn blink_player(&mut self, id: u8, delta: Vector, frame: [f32; 4]) {
+        use bevy_rapier2d::rapier::parry::query::{ShapeCastOptions, cast_shapes};
+        let player = self.players[usize::from(id)];
+        let origin = self.player_pose(id).0;
+        let radii = Vector::new(self.tuning.player_radius, self.player_half_height(id));
+        let mut fraction = 1.0f32;
+        for (axis, low, high) in [(0, frame[0], frame[2]), (1, frame[1], frame[3])] {
+            if delta[axis] > 0.0 {
+                fraction =
+                    fraction.min(((high - radii[axis] - origin[axis]) / delta[axis]).max(0.0));
+            } else if delta[axis] < 0.0 {
+                fraction =
+                    fraction.min(((low + radii[axis] - origin[axis]) / delta[axis]).max(0.0));
+            }
+        }
+        let shape = &self.rapier.colliders[player.collider];
+        // Apply the solver's contact allowance throughout the path, including later
+        // platform corners. Keep the physical fighter and frame bounds unchanged.
+        // Current fighters are a ball or ellipse symmetric about both local axes.
+        let extents = shape.shape().compute_local_aabb().half_extents();
+        let allowance = self
+            .rapier
+            .integration_parameters
+            .allowed_linear_error()
+            .min(extents.min_element() * 0.5);
+        let query_shape = shape
+            .shape()
+            .scale_dyn((extents - Vector::splat(allowance)) / extents, 16)
+            .expect("fighter shapes support positive scaling");
+        for handle in &self.platforms {
+            let obstacle = &self.rapier.colliders[*handle];
+            // A support contact must not hide a later wall in the same concave outline.
+            let single = [(Default::default(), obstacle.shared_shape().clone())];
+            let parts = obstacle
+                .shape()
+                .as_compound()
+                .map_or(single.as_slice(), |c| c.shapes());
+            for (local_pose, part) in parts {
+                let pose = obstacle.position() * local_pose;
+                if let Some(hit) = cast_shapes(
+                    &pose,
+                    Vector::ZERO,
+                    part.as_ref(),
+                    shape.position(),
+                    delta,
+                    query_shape.as_ref(),
+                    ShapeCastOptions {
+                        max_time_of_impact: fraction,
+                        stop_at_penetration: false,
+                        ..Default::default()
+                    },
+                )
+                .expect("arena and fighter shapes support linear casts")
+                {
+                    fraction = fraction.min(hit.time_of_impact.max(0.0));
+                }
+            }
+        }
+        self.move_player(id, origin + delta * fraction);
+    }
+    pub(crate) fn move_player(&mut self, id: u8, position: Vector) {
+        self.rapier.bodies[self.players[usize::from(id)].body].set_translation(position, true);
+        self.rapier
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
+    }
+    pub(crate) fn configure_bullet(&mut self, id: u32, radius: f32, drilling: bool) {
+        if let Some(bullet) = self.bullets.get(&id) {
+            if self.rapier.colliders[bullet.collider]
+                .shape()
+                .as_ball()
+                .unwrap()
+                .radius
+                != radius
+            {
+                self.rapier.colliders[bullet.collider]
+                    .set_shape(bevy_rapier2d::rapier::prelude::SharedShape::ball(radius));
+            }
+            self.rapier.colliders[bullet.collider].set_sensor(drilling);
+        }
+    }
+    pub(crate) fn steer_bullet(&mut self, id: u32, aim: Vector, amount: f32) {
+        if let Some(bullet) = self.bullets.get(&id) {
+            let body = &mut self.rapier.bodies[bullet.body];
+            let velocity = body.linvel();
+            let turn = (velocity.x * aim.y - velocity.y * aim.x).atan2(velocity.dot(aim)) * amount;
+            let (sin, cos) = turn.sin_cos();
+            body.set_linvel(
+                Vector::new(
+                    velocity.x * cos - velocity.y * sin,
+                    velocity.x * sin + velocity.y * cos,
+                ),
+                true,
+            );
+        }
     }
 
     pub(crate) fn bullet_platform_contact(&self, id: u32) -> bool {
         self.bullets.get(&id).is_some_and(|bullet| {
             self.platforms.iter().any(|platform| {
                 self.rapier
-                    .contact_pair(bullet.collider, *platform)
-                    .is_some_and(|pair| pair.has_any_active_contact())
+                    .intersection_pair(bullet.collider, *platform)
+                    .unwrap_or(false)
+                    || self
+                        .rapier
+                        .contact_pair(bullet.collider, *platform)
+                        .is_some_and(|pair| pair.has_any_active_contact())
             })
         })
     }

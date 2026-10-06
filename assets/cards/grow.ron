@@ -1,0 +1,7 @@
+(
+    id: "grow",
+    name: "Long Haul",
+    description: "Shots grow and hit harder with distance, but start weaker.",
+    stat_changes: (damage_factor_milli: 700),
+    event_rules: [(on: Fire, effects: [Grow(180)])],
+)

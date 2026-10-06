@@ -1,0 +1,7 @@
+(
+    id: "teleport",
+    name: "Blink Step",
+    description: "Blocking blinks forward as far as space allows, but shots hit softer.",
+    stat_changes: (damage_factor_milli: 850),
+    event_rules: [(on: Block, effects: [Teleport(distance: 90)])],
+)

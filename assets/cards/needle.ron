@@ -1,0 +1,7 @@
+(
+    id: "needle",
+    name: "Needlework",
+    description: "Shots fly much faster and hit harder, but fire much slower.",
+    stat_changes: (projectile_speed_milli: 2400, damage_factor_milli: 1700, fire_interval_factor_milli: 1900),
+    event_rules: [],
+)

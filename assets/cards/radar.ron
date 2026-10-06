@@ -1,0 +1,7 @@
+(
+    id: "radar",
+    name: "Watchfire",
+    description: "Blocking fires your current shot at an opponent in sight, but normal fire is slower.",
+    stat_changes: (fire_interval_factor_milli: 1200),
+    event_rules: [(on: Block, effects: [FireAtOpponent])],
+)

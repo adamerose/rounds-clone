@@ -14,6 +14,7 @@ fn game(arena: ArenaDefinition, tuning: CombatTuning) -> AuthoritativeMatch {
     let mut cards = load_card_directory(&default_card_directory()).unwrap();
     for card in &mut cards {
         card.modifiers = Default::default();
+        card.event_rules.clear();
     }
     let mut game = AuthoritativeMatch::with_content(
         MatchConfig::default(),
