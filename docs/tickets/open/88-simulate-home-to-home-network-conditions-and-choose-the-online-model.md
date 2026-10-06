@@ -43,3 +43,4 @@ This ticket builds the network-conditions simulator and runs the comparison now,
 
 - 2026-10-06T03:01:53Z Split from #83 under run #75 so the latency work can start before #79 lands.
 - 2026-10-06T03:04:21Z Admitted for run #75 after an independent contract check.
+- 2026-10-06T03:07:39Z stage implement start session codex:01a10f2b-96f4-7a13-b1e9-bc4e76af3969 — Outbound queues apply one delay per direction; live protocol and simulation stay unchanged.
