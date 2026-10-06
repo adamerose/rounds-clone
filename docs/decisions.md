@@ -908,3 +908,7 @@ Interactive server and client loops retain no growing tick trace or received-sta
 Correct keyboard aim priority, IPv4 validation, intentional departure handling, fixed-size menu click mapping and winner fallback in the same review correction.
 Between fights use a plain backdrop rather than arena geometry under a fixed UI camera; this removes clipped arenas and geometry behind card descriptions.
 Controller assignment remains based on devices present, so the menu and README ask players to connect controllers before starting; stable hot-plug assignment is not added here.
+
+## Ticket 81 — run #75: retain ticket 88 transport simulation
+
+After ticket 88 landed, both bounded and interactive clients prepare the same conditioned UDP socket. A private preparation function preserves the public bounded `connect_with_conditions` entry point and the interactive cancellation handle. This keeps the simulator working in menu sessions without duplicating handshake setup. Alternatives were separate constructors with duplicated setup, or dropping simulator support from interactive play; neither preserves both tickets as simply.
