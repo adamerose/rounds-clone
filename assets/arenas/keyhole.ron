@@ -1,0 +1,18 @@
+// Original QUARREL layout: two routes around a central shield with staggered cover above.
+(
+    name: "Keyhole",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (0.0, -170.0), shape: Polygon(vertices: [(-110.0, -134.0), (110.0, -134.0), (70.0, 30.0), (-70.0, 30.0)]), kind: Solid, color: (72, 177, 185)),
+        (id: 11, position: (-310.0, -205.0), shape: Rectangle(size: (130.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 12, position: (310.0, -205.0), shape: Rectangle(size: (130.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 13, position: (-220.0, -75.0), shape: Rectangle(size: (140.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 14, position: (230.0, 10.0), shape: Rectangle(size: (160.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 15, position: (-80.0, 60.0), shape: Rectangle(size: (130.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 16, position: (-260.0, 190.0), shape: Rectangle(size: (160.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 17, position: (80.0, 195.0), shape: Rectangle(size: (140.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 18, position: (355.0, 160.0), shape: Circle(radius: 38.0), kind: Solid, color: (72, 177, 185)),
+    ],
+)

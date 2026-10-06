@@ -1,0 +1,24 @@
+// Original QUARREL layout: three slender piers supporting a wide loose deck.
+(
+    name: "Trestle",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 1, position: (-610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 2, position: (610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 3, position: (-310.0, -175.0), shape: Rectangle(size: (100.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 4, position: (310.0, -175.0), shape: Rectangle(size: (100.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 5, position: (0.0, 180.0), shape: Rectangle(size: (160.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-180.0, -254.0), shape: Rectangle(size: (26.0, 100.0)), kind: Loose, color: (183, 142, 97), mass: 1.1),
+        (id: 11, position: (-180.0, -191.0), shape: Rectangle(size: (148.0, 24.0)), kind: Loose, color: (183, 142, 97), mass: 1.4),
+        (id: 12, position: (-152.0, -139.0), shape: Rectangle(size: (24.0, 80.0)), kind: Breakable(loose: true), color: (217, 116, 98), mass: 0.8, health: Some(50)),
+        (id: 13, position: (0.0, -254.0), shape: Rectangle(size: (26.0, 100.0)), kind: Loose, color: (183, 142, 97), mass: 1.1),
+        (id: 14, position: (0.0, -191.0), shape: Rectangle(size: (148.0, 24.0)), kind: Loose, color: (183, 142, 97), mass: 1.4),
+        (id: 15, position: (28.0, -139.0), shape: Rectangle(size: (24.0, 80.0)), kind: Breakable(loose: true), color: (217, 116, 98), mass: 0.8, health: Some(50)),
+        (id: 16, position: (180.0, -254.0), shape: Rectangle(size: (26.0, 100.0)), kind: Loose, color: (183, 142, 97), mass: 1.1),
+        (id: 17, position: (180.0, -191.0), shape: Rectangle(size: (148.0, 24.0)), kind: Loose, color: (183, 142, 97), mass: 1.4),
+        (id: 18, position: (208.0, -139.0), shape: Rectangle(size: (24.0, 80.0)), kind: Breakable(loose: true), color: (217, 116, 98), mass: 0.8, health: Some(50)),
+        (id: 30, position: (0.0, -87.0), shape: Rectangle(size: (510.0, 22.0)), kind: Loose, color: (183, 142, 97), mass: 2.0),
+    ],
+)

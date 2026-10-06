@@ -1,0 +1,17 @@
+// Original QUARREL layout: unequal terraces with a low tunnel and a high exposed crossing.
+(
+    name: "Terraces",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-250.0, -248.0), shape: Rectangle(size: (220.0, 112.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 11, position: (185.0, -278.0), shape: Rectangle(size: (210.0, 52.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 12, position: (-150.0, -70.0), shape: Rectangle(size: (340.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 13, position: (315.0, -140.0), shape: Rectangle(size: (140.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 14, position: (40.0, 55.0), shape: Rectangle(size: (180.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 15, position: (-340.0, 60.0), shape: Rectangle(size: (130.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 16, position: (265.0, 180.0), shape: Rectangle(size: (150.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 17, position: (-100.0, 210.0), shape: Circle(radius: 45.0), kind: Solid, color: (72, 177, 185)),
+    ],
+)

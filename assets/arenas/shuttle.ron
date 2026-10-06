@@ -1,0 +1,19 @@
+// Original QUARREL layout: a rising lift, a lateral ferry and a rotating high bridge.
+(
+    name: "Shuttle",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 1, position: (-610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 2, position: (610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 3, position: (-370.0, -190.0), shape: Rectangle(size: (100.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 4, position: (370.0, -190.0), shape: Rectangle(size: (100.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 5, position: (0.0, -195.0), shape: Rectangle(size: (90.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 6, position: (200.0, 50.0), shape: Rectangle(size: (130.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 7, position: (-280.0, 185.0), shape: Rectangle(size: (130.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-210.0, -165.0), shape: Rectangle(size: (140.0, 20.0)), kind: Solid, color: (124, 192, 119), motion: Some((path: [(0.0, 0.0), (0.0, 225.0)], period_seconds: 6.0))),
+        (id: 11, position: (40.0, -60.0), shape: Rectangle(size: (130.0, 20.0)), kind: Solid, color: (124, 192, 119), motion: Some((path: [(0.0, 0.0), (250.0, 0.0)], period_seconds: 5.0))),
+        (id: 12, position: (0.0, 195.0), shape: Rectangle(size: (160.0, 18.0)), kind: Solid, color: (124, 192, 119), motion: Some((path: [], period_seconds: 8.0, angular_velocity: 0.5))),
+    ],
+)

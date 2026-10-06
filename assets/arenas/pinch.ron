@@ -1,0 +1,20 @@
+// Original QUARREL layout: two fixed saws guard a raised lane; a loose saw rolls below.
+(
+    name: "Pinch",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 1, position: (-610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 2, position: (610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 3, position: (-330.0, -175.0), shape: Rectangle(size: (120.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 4, position: (330.0, -175.0), shape: Rectangle(size: (120.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 5, position: (0.0, -80.0), shape: Rectangle(size: (200.0, 20.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 6, position: (-240.0, 60.0), shape: Rectangle(size: (180.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 7, position: (210.0, 160.0), shape: Rectangle(size: (150.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-120.0, -55.0), shape: Circle(radius: 32.0), kind: Saw(loose: false, teeth: 12, angular_velocity: 3.0), color: (238, 113, 78)),
+        (id: 11, position: (120.0, -55.0), shape: Circle(radius: 32.0), kind: Saw(loose: false, teeth: 12, angular_velocity: -3.0), color: (238, 113, 78)),
+        (id: 12, position: (0.0, -265.0), shape: Circle(radius: 26.0), kind: Saw(loose: true, teeth: 10, angular_velocity: 4.0), color: (238, 113, 78), mass: 1.5),
+        (id: 13, position: (0.0, 280.0), shape: Polygon(vertices: [(-60.0, -16.0), (60.0, -16.0), (0.0, 30.0)]), kind: Solid, color: (72, 177, 185)),
+    ],
+)

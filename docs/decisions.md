@@ -811,3 +811,13 @@ The alternative would delete wanted development capabilities outside this ticket
 ## 2026-10-06 — Run #75 admits #85
 
 An independent check updated #85 to main after #78 (the join-timeout route is closed; the stale-session fixture still loops forever) and admitted it; #86 waits for #79 and #80 so its tests match the new combat and cards.
+
+## 2026-10-06 — Ticket [#82](http://ivy.localhost/tickets/82?repo=rounds-clone) original arenas for run [#75](http://ivy.localhost/tickets/75?repo=rounds-clone)
+
+Author ten layouts with the existing object and chain format; adding a second arena format or a generator to the game would duplicate working loading and rendering.
+Switchyard, Terraces and Keyhole are static; Kiln and Trestle are physics stacks; Skybridge and Lanterns hang their central platforms on chains.
+Gatefall holds its ball on a breakable shelf with a permanent chain to a fixed anchor. Breaking a chain endpoint would drop the ball rather than swing it into the middle.
+Pinch uses fixed and loose saws; Shuttle uses translating platforms and a rotating bridge. Background props remain dark, loose pieces brown, breakable pieces red and moving pieces green.
+Use four explicit spawns, the existing 1280 by 720 camera frame, and solid basins around physics layouts to retain debris; open edges would let pieces leave during the required stability check.
+Verify shots through public player inputs against an unshot control, rather than applying test impulses or directly breaking supports.
+Reuse the root Cargo target with the repository's two-job cap and Cargo's build-directory file lock; no new target or parallel build is needed.

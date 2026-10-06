@@ -1,0 +1,17 @@
+// Original QUARREL layout: a zigzag climb through alternating open firing lanes.
+(
+    name: "Switchyard",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-260.0, -220.0), shape: Rectangle(size: (180.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 11, position: (60.0, -100.0), shape: Rectangle(size: (240.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 12, position: (-190.0, 20.0), shape: Rectangle(size: (160.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 13, position: (150.0, 140.0), shape: Rectangle(size: (200.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 14, position: (390.0, -200.0), shape: Rectangle(size: (100.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 15, position: (-390.0, -60.0), shape: Rectangle(size: (90.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 16, position: (360.0, 40.0), shape: Rectangle(size: (100.0, 24.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 17, position: (0.0, 240.0), shape: Polygon(vertices: [(-70.0, -24.0), (70.0, -24.0), (40.0, 24.0), (-40.0, 24.0)]), kind: Solid, color: (72, 177, 185)),
+    ],
+)

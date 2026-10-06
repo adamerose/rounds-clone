@@ -1,0 +1,24 @@
+// Original QUARREL layout: three suspended stepping stones over an open basin.
+(
+    name: "Skybridge",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 1, position: (-610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 2, position: (610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 3, position: (-375.0, -190.0), shape: Rectangle(size: (110.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 4, position: (375.0, -190.0), shape: Rectangle(size: (110.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-220.0, -80.0), shape: Rectangle(size: (190.0, 24.0)), kind: Loose, color: (183, 142, 97), mass: 3.0),
+        (id: 11, position: (220.0, -80.0), shape: Rectangle(size: (190.0, 24.0)), kind: Loose, color: (183, 142, 97), mass: 3.0),
+        (id: 12, position: (0.0, 45.0), shape: Rectangle(size: (180.0, 24.0)), kind: Loose, color: (183, 142, 97), mass: 3.0),
+        (id: 13, position: (-110.0, 170.0), shape: Rectangle(size: (100.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 14, position: (260.0, 175.0), shape: Rectangle(size: (110.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 20, position: (0.0, 100.0), shape: Rectangle(size: (28.0, 340.0)), kind: Background, color: (25, 55, 66)),
+    ],
+    chains: [
+        (id: 0, body_a: None, body_b: 10, anchor: (-220.0, 240.0), length: 320.0),
+        (id: 1, body_a: None, body_b: 11, anchor: (220.0, 240.0), length: 320.0),
+        (id: 2, body_a: None, body_b: 12, anchor: (0.0, 280.0), length: 235.0),
+    ],
+)

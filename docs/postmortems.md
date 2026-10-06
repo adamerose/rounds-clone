@@ -101,3 +101,15 @@ The recording also depended on the current live asset pool: adding cards changed
 A separate dedicated-server reproduction used two real UDP peers to rename an active arena and edit it again in the next fight; the second edit was never observed.
 The watcher updated its shuffled definition but left the file mapping under the previous name. Rename updates now move both path and cached-source keys together, with a regression across a public-input fight transition.
 Architecture and roadmap descriptions still named retired profiles; they now describe the ordinary match and its remaining 1v1 presentation/live-transport scope.
+
+## 2026-10-06 — Shared Cargo artifacts hid [ticket 82](http://ivy.localhost/tickets/82?repo=rounds-clone)'s arena tests
+
+The first locked workspace test run reported success but ran only 16 simulation tests, missing all four new arena tests.
+The shared target's `quarrel_sim-646de60163062f7a.d` named [ticket 85](http://ivy.localhost/tickets/85?repo=rounds-clone)'s worktree and omitted `arena_data/tests.rs`.
+Its network binary also ran two tests absent from this candidate. Cargo's build-directory lock prevented concurrent compilation but did not make those cached artifacts belong to this checkout.
+The other worktree had produced newer artifacts than this checkout's source timestamps, so Cargo reused them; the focused simulation command used a different feature-unified artifact and had run the correct 20 tests.
+The first workspace result is invalid evidence. Refreshing this checkout's crate source timestamps forced its six crates to rebuild while retaining dependencies and the two-job cap, but the subsequent run still executed an overwritten simulation binary.
+Cargo releases its compilation lock before running all test executables; another worker can replace a later executable while earlier tests run.
+Verification uses a locked workspace `--no-run` build and copies each executable when Cargo emits its artifact record, then runs those copies and checks all four arena test names.
+The artifact records identify this checkout and retain the same workspace test configuration. Logs, previews and hashes remain under the ignored `out/ticket-082/` parent in the integration root.
+[Ticket 87](http://ivy.localhost/tickets/87?repo=rounds-clone) records the build-infrastructure follow-up; this arena delivery changes no Cargo configuration or locking infrastructure.

@@ -1,0 +1,25 @@
+// Original QUARREL layout: paired hanging shelves with smaller blocks slung beneath.
+(
+    name: "Lanterns",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 1, position: (-610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 2, position: (610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 3, position: (-350.0, -195.0), shape: Rectangle(size: (100.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 4, position: (350.0, -195.0), shape: Rectangle(size: (100.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 5, position: (0.0, -180.0), shape: Rectangle(size: (90.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-210.0, -50.0), shape: Rectangle(size: (170.0, 24.0)), kind: Loose, color: (183, 142, 97), mass: 3.5),
+        (id: 11, position: (210.0, 70.0), shape: Rectangle(size: (170.0, 24.0)), kind: Loose, color: (183, 142, 97), mass: 3.5),
+        (id: 12, position: (-210.0, -140.0), shape: Rectangle(size: (64.0, 28.0)), kind: Loose, color: (183, 142, 97), mass: 0.8),
+        (id: 13, position: (210.0, -20.0), shape: Rectangle(size: (64.0, 28.0)), kind: Breakable(loose: true), color: (217, 116, 98), mass: 0.8, health: Some(50)),
+        (id: 14, position: (0.0, 195.0), shape: Polygon(vertices: [(-65.0, -18.0), (65.0, -18.0), (45.0, 18.0), (-45.0, 18.0)]), kind: Solid, color: (72, 177, 185)),
+    ],
+    chains: [
+        (id: 0, body_a: None, body_b: 10, anchor: (-210.0, 270.0), length: 320.0),
+        (id: 1, body_a: None, body_b: 11, anchor: (210.0, 290.0), length: 220.0),
+        (id: 2, body_a: Some(10), body_b: 12, anchor: (0.0, 0.0), length: 90.0),
+        (id: 3, body_a: Some(11), body_b: 13, anchor: (0.0, 0.0), length: 90.0),
+    ],
+)

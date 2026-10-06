@@ -1,0 +1,22 @@
+// Original QUARREL layout: shoot the red shelf to release a ball toward the central crossing.
+(
+    name: "Gatefall",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 1, position: (-610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 2, position: (610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 3, position: (305.0, -180.0), shape: Rectangle(size: (150.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 4, position: (100.0, -65.0), shape: Rectangle(size: (130.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 5, position: (-75.0, -195.0), shape: Rectangle(size: (100.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 6, position: (330.0, 40.0), shape: Rectangle(size: (150.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 7, position: (140.0, 155.0), shape: Rectangle(size: (120.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-315.0, 18.0), shape: Rectangle(size: (150.0, 28.0)), kind: Breakable(loose: false), color: (217, 116, 98), health: Some(50)),
+        (id: 11, position: (-300.0, 80.0), shape: Circle(radius: 48.0), kind: Loose, color: (183, 142, 97), mass: 8.0),
+        (id: 12, position: (-60.0, 140.0), shape: Rectangle(size: (22.0, 260.0)), kind: Background, color: (25, 55, 66)),
+    ],
+    chains: [
+        (id: 0, body_a: None, body_b: 11, anchor: (-60.0, 260.0), length: 300.0),
+    ],
+)

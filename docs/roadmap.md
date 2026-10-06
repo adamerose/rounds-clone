@@ -8,7 +8,8 @@ Those notes decide what comes next; this list is a plan, not a contract.
 The Rust/Bevy/Rapier foundation runs ordinary matches: a 60 Hz authority, general fighter vectors, opening and loser drafts, one point per fight, seeded tie resolution and unanimous end choices.
 Data arenas rotate without repeats and retain their object physics and live editing. Five data-driven placeholder stat cards support the general offer and loadout path.
 The shared renderer, local 1v1 controls, UDP client/host/dedicated split, headless captures and CI remain in use. A short input recording pins its starting content and checks replay determinism.
-Footage profiles, fixed source offers and the ROUNDS card catalog have been removed. Base-fight tuning, event-rule cards, original arenas and production online play remain ahead.
+Footage profiles, fixed source offers and the ROUNDS card catalog have been removed. Ten original arenas cover static layouts, physics stacks, hanging platforms, a released wrecking ball, saws and moving pieces.
+Base-fight tuning, event-rule cards and production online play remain ahead.
 
 ## M1 — The MVP: a real match, online with friends
 

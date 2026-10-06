@@ -1,0 +1,26 @@
+// Original QUARREL layout: two narrow brick towers carrying one breakable lintel.
+(
+    name: "Kiln",
+    frame: (-640.0, -360.0, 640.0, 360.0),
+    spawns: [(-540.0, -277.0), (540.0, -277.0), (-440.0, -277.0), (440.0, -277.0)],
+    objects: [
+        (id: 0, position: (0.0, -318.0), shape: Rectangle(size: (1240.0, 28.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 1, position: (-610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 2, position: (610.0, 4.0), shape: Rectangle(size: (20.0, 616.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 3, position: (-290.0, -135.0), shape: Rectangle(size: (110.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 4, position: (290.0, -80.0), shape: Rectangle(size: (110.0, 18.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 5, position: (0.0, 170.0), shape: Rectangle(size: (180.0, 20.0)), kind: Solid, color: (72, 177, 185)),
+        (id: 10, position: (-130.0, -274.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 11, position: (-130.0, -212.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 12, position: (-130.0, -150.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 13, position: (-130.0, -88.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 14, position: (-130.0, -26.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 15, position: (130.0, -274.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 16, position: (130.0, -212.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 17, position: (130.0, -150.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 18, position: (130.0, -88.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 19, position: (130.0, -26.0), shape: Rectangle(size: (28.0, 60.0)), kind: Loose, color: (183, 142, 97), mass: 0.2),
+        (id: 30, position: (0.0, 16.0), shape: Rectangle(size: (288.0, 20.0)), kind: Breakable(loose: true), color: (217, 116, 98), mass: 0.4, health: Some(75)),
+        (id: 31, position: (0.0, -275.0), shape: Rectangle(size: (70.0, 58.0)), kind: Background, color: (25, 55, 66)),
+    ],
+)
