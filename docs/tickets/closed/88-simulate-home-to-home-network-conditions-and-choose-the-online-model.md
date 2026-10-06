@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a10f2b-96f4-7a13-b1e9-bc4e76af3969
+status: closed
 created: 2026-10-06T03:01:53Z
 origin: agent-proposed
 tags: ["quarrel", "mvp", "network"]
@@ -59,3 +58,5 @@ This ticket builds the network-conditions simulator and runs the comparison now,
 - 2026-10-06T04:04:52Z stage correction end session codex:01a10f2b-96f4-7a13-b1e9-bc4e76af3969 — Combined ticket85/88 candidate passes fmt, strict all-target Clippy, locked build, 47 frozen-executable tests (21 network) and all doc phases, no failures or skips. Impaired run completes with matching terminal hashes; latest debug medians/p95 140.550/173.078 ms and 126.684/201.811 ms; max snapshot6222 bytes; authority payload698078.1 B/s total. New fixtures preserve raw endpoint lifetimes beneath the wrapper.
 - 2026-10-06T04:05:00Z stage review start session codex:01a10f2b-96f4-7a13-b1e9-bc4e76af3969 — Fresh other-family review of the full candidate including ticket85 compatibility fixes and both preserved record entries.
 - 2026-10-06T04:15:33Z Integration check note: installed Ivy check-all.mjs cannot run in this onboarded game repository: ENOENT scanning playbook/skills, which is absent here. Ticket validation and the game workspace format, Clippy, build, test, and documentation checks are the applicable verification; generic check-all is unavailable, not a game assertion failure.
+- 2026-10-06T04:19:31Z stage review end session claude:bd861049-1072-414e-8f36-78756246754a — approved candidate 0289395079aa6f9051ecf33c2afee6c36d76061f..78f7cddd0ba6d11c046353ba91df8743c94f946f
+- 2026-10-06T04:19:31Z stage integration end session codex:01a10f2b-96f4-7a13-b1e9-bc4e76af3969 — integrated 78f7cddd0ba6d11c046353ba91df8743c94f946f as 074e4500093b077ccce2f1f9d661af2f977fa130
