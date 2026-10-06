@@ -52,3 +52,4 @@ Adam — this session, 2026-10-04:
 
 - 2026-10-05T14:13:11Z Drafted under run #75.
 - 2026-10-05T15:03:20Z Admitted for run #75 after an independent contract check; its fixes were applied first.
+- 2026-10-06T02:13:14Z stage implement start — traced boundary defects: zero bullet gravity, 100 damage, no magazine/cooldown, grounded-only jump and instant edge elimination; implementing data-driven baseline.
