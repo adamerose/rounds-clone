@@ -84,3 +84,4 @@ Adam — this session, 2026-10-04:
 - 2026-10-06T06:14:37Z stage review end session claude:8e9b0b9c-c323-4536-a4fe-8635b1becb54 — Rejected: three-round Hailstorm lacks sustained stream; secondary damage rerolls fade after its effect already ran.
 - 2026-10-06T06:14:46Z stage correction start session codex:01a10efa-f6e1-7720-9f5d-cc0a32f67b29 — Add stackable stream magazine stat; keep selected explosion/poison damage coherent with its effect.
 - 2026-10-06T06:17:39Z stage correction end session codex:01a10efa-f6e1-7720-9f5d-cc0a32f67b29 — Added magazine stat (30/57 rounds), selected effect damage, numeric large-magazine HUD, preserved literal zero tuning. Both review regressions red before correction; 77 simulation tests pass.
+- 2026-10-06T06:17:50Z stage verify start session codex:01a10efa-f6e1-7720-9f5d-cc0a32f67b29 — Rebased complete four-commit candidate onto current origin/main; rebuild compiler-bound frozen products and full supported-interface checks.
