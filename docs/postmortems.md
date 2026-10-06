@@ -218,3 +218,8 @@ The three-fighter progression fixture now uses a flat arena and current tuning/c
 
 The second review approved the combat corrections but identified a tuning side effect. A damage-only edit recreated a crouched collider, removing support contacts before controls ran and restoring standing height for one tick.
 A public watch-file regression reproduced height44000 instead of22000 on that tick. Only actual shape changes now recreate colliders; the same regression passes with continuous crouch height and floor contact.
+
+The final delivery rebase met the landed menu ticket after verification, requiring another full check and review of the input reconciliation.
+Keep its device assignment and camera cursor conversion, and correct its scripted S-block binding to Shift because S now crouches.
+An initial conflict script used Windows' default text encoding and stopped before resolving anything; a chained Git step still staged conflict markers.
+Abort that unfinished rebase, redo it with explicit UTF-8 and checked exit status, and reject remaining markers before continuing. No invalid commit was published.

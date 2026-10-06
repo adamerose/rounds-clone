@@ -944,3 +944,8 @@ Missing size fields in historical snapshots use the bundled standing dimensions.
 
 Keep collider identity when a tuning edit leaves its shape unchanged; update mass and material values in place. Geometry edits still replace the collider to discard stale anchors.
 The alternative, rebuilding every collider on every edit, briefly removes support contacts and interrupts a held crouch even when only damage changes.
+
+Reconcile the landed menu work from [#81](http://ivy.localhost/tickets/81?repo=rounds-clone) using its camera-to-world cursor conversion and controller assignment.
+Keep this ticket's Space/W jump, S crouch, Shift block and F fire bindings, and both network keyboard sets. The menu and cancellable online lifecycle stay intact.
+The alternative was a second manual viewport conversion beside the rendering camera; using the camera preserves letterboxing and the menu's separate UI projection.
+The scripted keyboard source now sends block through Shift and crouch through S, so it exercises the same controls as a person.
