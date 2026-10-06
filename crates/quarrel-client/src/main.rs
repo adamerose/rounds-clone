@@ -247,6 +247,16 @@ fn run_live_client(
     } else {
         LiveClient::connect(address, id, config)?
     };
+    present_live_client(client, id, ticks, headless, interactive)
+}
+
+fn present_live_client(
+    client: LiveClient,
+    id: u8,
+    ticks: u32,
+    headless: bool,
+    interactive: bool,
+) -> Result<(), String> {
     let handle = client.handle();
     let close = handle.clone();
     let network = std::thread::spawn(move || {
@@ -319,40 +329,54 @@ fn host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
     let server = LiveServer::bind(format!("{bind}:{port}"))?;
     let address = server.local_addr()?;
     println!("{{\"event\":\"listening\",\"address\":\"{address}\"}}");
-    let server_config = config.clone();
-    let trace = optional(args, "--trace").map(PathBuf::from);
-    let interactive = args.iter().any(|arg| arg == "--interactive");
-    let server_close = server.handle();
-    let authority = std::thread::spawn(move || {
-        if interactive {
-            server.run_interactive(server_config)
-        } else {
-            server.run(server_config, ticks, trace.as_deref())
-        }
-    });
     let peer = if address.ip().is_unspecified() {
         std::net::SocketAddr::from(([127, 0, 0, 1], address.port()))
     } else {
         address
     };
-    let client = run_live_client(
-        peer,
-        id,
-        config,
-        ticks,
-        args.iter().any(|arg| arg == "--headless"),
-        args.iter().any(|arg| arg == "--interactive"),
-    );
+    let interactive = args.iter().any(|arg| arg == "--interactive");
+    let headless = args.iter().any(|arg| arg == "--headless");
+    let prepared = if interactive {
+        Some(LiveClient::connect_interactive(peer, id, config.clone())?)
+    } else {
+        None
+    };
+    let client_close = prepared.as_ref().map(LiveClient::handle);
+    let server_config = config.clone();
+    let trace = optional(args, "--trace").map(PathBuf::from);
+    let server_close = server.handle();
+    let authority = std::thread::spawn(move || {
+        let result = if interactive {
+            server.run_interactive(server_config)
+        } else {
+            server.run(server_config, ticks, trace.as_deref())
+        };
+        let interrupted = result.is_err()
+            && client_close
+                .as_ref()
+                .is_some_and(|handle| !handle.is_closed());
+        if interrupted {
+            client_close.unwrap().close();
+        }
+        (result, interrupted)
+    });
+    let client = match prepared {
+        Some(client) => present_live_client(client, id, ticks, headless, interactive),
+        None => run_live_client(peer, id, config, ticks, headless, false),
+    };
     if interactive {
         server_close.close();
     }
-    let report = authority
+    let (report, interrupted) = authority
         .join()
         .map_err(|_| "live authority thread panicked".to_owned())?;
     if interactive {
         match &report {
             Ok(report) => print(report)?,
             Err(error) => print(serde_json::json!({"event":"authorityEnded", "result":error}))?,
+        }
+        if interrupted {
+            return Err(report.unwrap_err());
         }
         client?;
         return match report {

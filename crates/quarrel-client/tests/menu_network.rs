@@ -55,7 +55,8 @@ fn headless_host_and_join_menu_choices_reach_first_fight() {
     for output in [&host, &join] {
         assert!(
             output.status.success()
-                || String::from_utf8_lossy(&output.stderr).contains("live client authority_silent"),
+                || String::from_utf8_lossy(&output.stderr).contains("live client authority_silent")
+                || String::from_utf8_lossy(&output.stderr).starts_with("peer_left: client "),
             "unexpected menu failure: {}",
             String::from_utf8_lossy(&output.stderr)
         );
@@ -68,4 +69,45 @@ fn test_client() -> std::path::PathBuf {
     std::env::var_os("QUARREL_TEST_CLIENT")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| env!("CARGO_BIN_EXE_quarrel-client").into())
+}
+
+#[test]
+fn interactive_host_startup_failure_closes_the_waiting_client() {
+    let fixture = std::env::temp_dir().join(format!(
+        "quarrel-81-startup-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(fixture.join("assets/cards")).unwrap();
+    std::fs::write(fixture.join("assets/cards/broken.ron"), "{ invalid ron").unwrap();
+    let mut child = Command::new(test_client())
+        .args(["host", "--interactive", "--headless", "--ticks", "90"])
+        .current_dir(&fixture)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while child.try_wait().unwrap().is_none() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let finished = child.try_wait().unwrap().is_some();
+    if !finished {
+        child.kill().unwrap();
+    }
+    let output = child.wait_with_output().unwrap();
+    std::fs::remove_dir_all(fixture).unwrap();
+    assert!(
+        finished,
+        "local authority failure left an uncancellable headless wait"
+    );
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("broken.ron"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

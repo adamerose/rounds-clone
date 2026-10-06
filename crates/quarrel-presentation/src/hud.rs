@@ -162,9 +162,9 @@ pub(super) fn spawn_flow_hud(
             commands.spawn((
                 SceneVisual,
                 Text2d::new(if flow.run_backs < flow.run_it_back_limit {
-                    "Keyboard: Y / N   Controller: A / B\nWith no controllers, F2 keyboard: K / L\nRun it back / New match - everyone must agree"
+                    "Keyboard: Y / N   Controller: A / B\nLocal only, no controllers: F2 keyboard: K / L\nRun it back / New match - everyone must agree"
                 } else {
-                    "NEW MATCH: Keyboard N / Controller B\nWith no controllers, F2 keyboard: L\nEveryone must agree"
+                    "NEW MATCH: Keyboard N / Controller B\nLocal only, no controllers: F2 keyboard: L\nEveryone must agree"
                 }),
                 TextFont {
                     font_size: FontSize::Px(20.0),

@@ -611,6 +611,9 @@ impl LiveClientHandle {
     pub fn close(&self) {
         self.0.lock().unwrap().close = true;
     }
+    pub fn is_closed(&self) -> bool {
+        self.0.lock().unwrap().close
+    }
     pub fn result(&self) -> Option<String> {
         self.0.lock().unwrap().result.clone()
     }

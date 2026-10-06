@@ -162,3 +162,12 @@ The delayed menu join test reached play but failed its old successful-exit asser
 Interactive cancellation has no bounded terminal handshake; the remaining peer detects authority silence, so a final unacknowledged snapshot need not satisfy both observation windows.
 The proof now requires each peer's first-fight event and permits only successful local cancellation or the documented authority-silence disconnect.
 Other startup and transport errors still fail it. Bounded automation's terminal acknowledgement tests remain unchanged.
+
+## 2026-10-06 — Ticket 81 uncapped waiting exposed a missing local-authority failure signal
+
+A host with a malformed card file failed before welcoming peers, but its newly uncapped client kept waiting because the authority thread's error was read only after presentation returned.
+The headless reproduction timed out with only a listening event. Interactive host preparation now gives the authority a client handle; an authority failure cancels waiting and returns its original error after both threads join.
+A public CLI regression uses a malformed card fixture and requires prompt failure naming that file. This preserves indefinite waiting for an absent remote host while ending a locally failed host.
+
+The first startup fixture used JSON, which the RON card loader ignores; the reproduced authority failure was an empty card pool rather than a parse failure.
+Waiting cancellation already restored the intended error exit. The regression now uses malformed RON and checks its file-specific error; runtime code is unchanged by that fixture correction.
