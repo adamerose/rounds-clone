@@ -949,3 +949,21 @@ Reconcile the landed menu work from [#81](http://ivy.localhost/tickets/81?repo=r
 Keep this ticket's Space/W jump, S crouch, Shift block and F fire bindings, and both network keyboard sets. The menu and cancellable online lifecycle stay intact.
 The alternative was a second manual viewport conversion beside the rendering camera; using the camera preserves letterboxing and the menu's separate UI projection.
 The scripted keyboard source now sends block through Shift and crouch through S, so it exercises the same controls as a person.
+
+## 2026-10-06 — Ticket [#83](http://ivy.localhost/tickets/83?repo=rounds-clone) blocked presentation choice for run [#75](http://ivy.localhost/tickets/75?repo=rounds-clone)
+
+Keep the online model selected in [#88](http://ivy.localhost/tickets/88?repo=rounds-clone) binding until the operator revisits it. Do not publish the current game-code candidate.
+The candidate meets its local-frame and bandwidth gates, but buffered bodies and current authoritative combat effects disagree in time.
+The [third independent review](http://ivy.localhost/sessions/claude/7e224bc4-45be-4714-ada8-11cec4737c98) found round-end fast-forwarding and damage appearing before the buffered incoming shot.
+Three retained boundary fixtures reproduce that Result jump, retained past projectile membership after a confirmed removal, and a moving support pinned during prediction.
+A [continuing consultation](http://ivy.localhost/sessions/claude/1e60ef7f-1ce5-426a-925e-0e10136083ea) confirmed that moving shots to current time instead leaves their buffered shooter behind; shortening the buffer reduces the gap but cannot remove it.
+Owned-shot collisions against current proxies can likewise occur away from a buffered target. The consultation's proposed catch-up animation changes visible bullet speed and does not remove short-flight damage delay.
+
+1. Which presentation model should this ticket build? (a) Recommended: retain host authority but permit a common current predicted scene for fighters, shots and pieces, corrected from host snapshots; this revisits the choice to buffer remote fighters and pieces and needs a revised admitted contract. (b) Keep buffered fighters/pieces and explicitly permit delayed or accelerated projectile/effect presentation; this changes visible combat timing, so the acceptable discrepancy must be specified.
+
+This is an operator choice because it revisits the explicitly selected model or changes how combat looks and can be reacted to. The delegated authority covers reversible technical implementation, not that choice.
+The fixed proxy and transition corrections can follow the choice; they do not authorize silently changing the model or accepting a known defect. Only this ticket is blocked; other work in the run may continue.
+
+The consultant recommends time-warped shots inside the buffered model. That requires explicit acceptance of a 2x visual catch-up burst and still draws short-flight hits after current damage.
+The worker instead recommends (a) because it aims to keep launch and impact on one scene timeline without deliberately changing projectile speed. This is a recommendation to revisit the model, not a claim that its replacement is implemented or verified.
+Buffering remote shots was the candidate's choice; #88 selected buffering for remote fighters and pieces.

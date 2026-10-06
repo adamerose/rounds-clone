@@ -223,3 +223,20 @@ The final delivery rebase met the landed menu ticket after verification, requiri
 Keep its device assignment and camera cursor conversion, and correct its scripted S-block binding to Shift because S now crouches.
 An initial conflict script used Windows' default text encoding and stopped before resolving anything; a chained Git step still staged conflict markers.
 Abort that unfinished rebase, redo it with explicit UTF-8 and checked exit status, and reject remaining markers before continuing. No invalid commit was published.
+
+## 2026-10-06 — Buffered combat presentation blocks ticket [#83](http://ivy.localhost/tickets/83?repo=rounds-clone)
+
+Three independent reviews exposed separate gaps in the online presentation. Earlier corrections fixed projectile bounce/freeze, buffered aim, floor support, mouse origin and terminal wall contact.
+The last candidate passed 88 tests, strict Clippy, format, locked build, renders and agreeing two-client smoke; the impaired 32-piece probe measured one scene frame and 23,086.5 payload B/s per peer.
+Those gates did not cover timeline coherence. The [third review](http://ivy.localhost/sessions/claude/7e224bc4-45be-4714-ada8-11cec4737c98) found the Result transition clearing a 200 ms world buffer and current damage paired with older incoming shots.
+New boundary regressions fail for both and for a kinematic support kept fixed by the local predictor. They are saved as an uncommitted reproduction patch, not failing repository tests.
+The [consultation](http://ivy.localhost/sessions/claude/1e60ef7f-1ce5-426a-925e-0e10136083ea) rejected simply drawing current shots over buffered fighters: it creates a launch gap and leaves owned-shot impacts at current proxies away from drawn targets.
+Accepting that gap, time-warping bullets or replacing buffered fighters with a current predicted scene needs an operator presentation decision. The chosen model was explicit, so only this ticket is blocked.
+
+The unapproved range is `5889452dd6713c7679e4a8135f8f80a9a4404325..c3f5d614dc8d4bcf0803c6691936d4908486babc`.
+It stays in `.ivy/worktrees/083-responsive-online-correction` and `refs/ivy/candidates/83-review3`; the original review checkout stays intact. No game code from either is on `origin/main`.
+Review/consult results, full test output, frame images and the exact failing-fixture patch are retained under ignored `out/netcode-evidence/`.
+Repeated full checks and serial reviews added cost. One full test output was lost at a context boundary and repeated from cache to retain checkable evidence; keep tool session identifiers and output files before image-heavy calls.
+Display scanout, actual two-home routing and predictor performance on shipped outlined arenas remain unmeasured. After the decision, verify timeline boundaries and those arenas rather than treating the 32-box CPU measurement as a full frame-budget result.
+
+All four frame PNGs and the smoke terminal JSON are now retained. The three failure stdout files accompany the reproduction patch; Cargo's expected test-failure exit code is 101, not the initial wrapper's mistaken 1.
