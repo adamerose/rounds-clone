@@ -52,3 +52,4 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-05T14:55:57Z Drafted under run #75.
 - 2026-10-05T15:04:18Z Admitted for run #75 after an independent contract check; its fixes were applied first.
 - 2026-10-06T03:04:00Z Contract amended: the simulator and the prediction-vs-rollback spike moved to #88, which #83 now depends on; re-admitted for run #75 after an independent check.
+- 2026-10-06T05:19:55Z stage implement start session codex:01a10fa3-aece-76f3-9658-406cb0d99123 — Traced hash-gated rendering; implementing local prediction, remote interpolation and compressed MessagePack snapshots.
