@@ -12,6 +12,11 @@ pub(crate) struct PlayerState {
     pub(crate) hit_flash_ticks: u8,
     pub(crate) grounded: bool,
     pub(crate) jump_held: bool,
+    pub(crate) block_held: bool,
+    pub(crate) block_cooldown: u16,
+    pub(crate) ammunition: u16,
+    pub(crate) reload_ticks: u16,
+    pub(crate) jump_available: bool,
     pub(crate) alive: bool,
     pub(crate) stun_ticks: u16,
     pub(crate) stun_pulses_remaining: u8,
@@ -28,17 +33,20 @@ pub(crate) struct ProjectileState {
 struct PlayerPhysics {
     body: RigidBodyHandle,
     collider: ColliderHandle,
+    crouched: bool,
 }
 #[derive(Clone, Copy)]
 struct BulletPhysics {
     body: RigidBodyHandle,
     collider: ColliderHandle,
     previous: Vector,
+    incoming_velocity: Vector,
     lifetime: u16,
 }
 
 pub(crate) struct PhysicsBoundary {
     rapier: RapierWorld,
+    tuning: CombatTuning,
     players: Vec<PlayerPhysics>,
     spawns: Vec<Vector>,
     platforms: Vec<ColliderHandle>,
@@ -51,35 +59,40 @@ pub(crate) struct PhysicsBoundary {
     bullets: BTreeMap<u32, BulletPhysics>,
 }
 impl PhysicsBoundary {
-    pub(crate) fn new(fighter_count: usize, arena: &ArenaDefinition) -> Self {
+    pub(crate) fn new(fighter_count: usize, arena: &ArenaDefinition, tuning: CombatTuning) -> Self {
         let mut rapier = RapierWorld::new();
-        rapier.gravity = Vector::new(0.0, -1_500.0);
+        rapier.gravity = Vector::new(0.0, -tuning.gravity);
         rapier.integration_parameters.dt = 1.0 / TICKS_PER_SECOND as f32;
         rapier.integration_parameters.max_ccd_substeps = 4;
         rapier.integration_parameters.normalized_max_linear_velocity = 5_000.0;
         let platforms = Vec::new();
-        let spawns = distributed_spawns(fighter_count, arena);
+        let spawns = distributed_spawns(fighter_count, arena, tuning.player_radius);
         let players = spawns
             .iter()
             .map(|spawn| {
                 let (body, collider) = rapier.insert(
                     RigidBodyBuilder::dynamic()
                         .translation(*spawn)
-                        .linear_damping(0.7)
+                        .linear_damping(tuning.player_damping)
                         .angular_damping(8.0)
                         .lock_rotations()
                         .ccd_enabled(true)
                         .can_sleep(false),
-                    ColliderBuilder::ball(PLAYER_RADIUS)
-                        .density(0.004)
-                        .friction(0.55)
-                        .restitution(0.05),
+                    ColliderBuilder::ball(tuning.player_radius)
+                        .density(tuning.player_density)
+                        .friction(tuning.player_friction)
+                        .restitution(tuning.player_restitution),
                 );
-                PlayerPhysics { body, collider }
+                PlayerPhysics {
+                    body,
+                    collider,
+                    crouched: false,
+                }
             })
             .collect();
         Self {
             rapier,
+            tuning,
             players,
             spawns,
             platforms,
@@ -188,7 +201,7 @@ impl PhysicsBoundary {
             );
             self.arena_chains.insert(chain.id, handle);
         }
-        self.spawns = distributed_spawns(self.players.len(), arena);
+        self.spawns = distributed_spawns(self.players.len(), arena, self.tuning.player_radius);
         self.reset();
     }
     pub(crate) fn object_pose(&self, id: u16) -> Option<(Vector, Vector, f32, ArenaKind)> {
@@ -315,7 +328,11 @@ impl PhysicsBoundary {
         }
     }
     pub(crate) fn reset(&mut self) {
-        for (player, spawn) in self.players.iter().zip(&self.spawns) {
+        for (player, spawn) in self.players.iter_mut().zip(&self.spawns) {
+            player.crouched = false;
+            self.rapier.colliders[player.collider].set_shape(
+                bevy_rapier2d::rapier::prelude::SharedShape::ball(self.tuning.player_radius),
+            );
             let body = &mut self.rapier.bodies[player.body];
             body.set_translation(*spawn, true);
             body.set_linvel(Vector::ZERO, true);
@@ -327,51 +344,235 @@ impl PhysicsBoundary {
             .bodies
             .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
     }
+    pub(crate) fn update_tuning(&mut self, tuning: CombatTuning) {
+        self.tuning = tuning;
+        self.rapier.gravity = Vector::new(0.0, -self.tuning.gravity);
+        for id in 0..self.players.len() {
+            self.set_crouch(id as u8, self.players[id].crouched);
+            let player = self.players[id];
+            let body = &mut self.rapier.bodies[player.body];
+            body.set_linear_damping(self.tuning.player_damping);
+            let collider = &mut self.rapier.colliders[player.collider];
+            collider.set_friction(self.tuning.player_friction);
+            collider.set_restitution(self.tuning.player_restitution);
+        }
+        for bullet in self.bullets.values() {
+            self.rapier.bodies[bullet.body]
+                .set_gravity_scale(self.tuning.bullet_gravity_factor, true);
+            let collider = &mut self.rapier.colliders[bullet.collider];
+            collider.set_shape(bevy_rapier2d::rapier::prelude::SharedShape::ball(
+                self.tuning.bullet_radius,
+            ));
+            collider.set_density(self.tuning.bullet_density);
+            collider.set_restitution(self.tuning.bullet_restitution);
+        }
+    }
+    fn set_crouch(&mut self, id: u8, crouched: bool) {
+        let player = &mut self.players[usize::from(id)];
+        let previous_height = self.rapier.colliders[player.collider]
+            .compute_aabb()
+            .half_extents()
+            .y;
+        player.crouched = crouched;
+        let radius = self.tuning.player_radius;
+        let height = if crouched {
+            self.tuning.crouch_height_factor
+        } else {
+            1.0
+        };
+        let shape = if crouched {
+            let points = (0..16)
+                .map(|i| {
+                    let angle = i as f32 * std::f32::consts::TAU / 16.0;
+                    Vector::new(angle.cos() * radius, angle.sin() * radius * height)
+                })
+                .collect::<Vec<_>>();
+            bevy_rapier2d::rapier::prelude::SharedShape::convex_hull(&points)
+                .expect("ellipse is convex")
+        } else {
+            bevy_rapier2d::rapier::prelude::SharedShape::ball(radius)
+        };
+        // A stance change needs new contact anchors, not the old circle's solver cache.
+        let mut collider = self
+            .rapier
+            .remove_collider(player.collider)
+            .expect("fighter collider");
+        collider.set_shape(shape);
+        let body = &mut self.rapier.bodies[player.body];
+        body.set_translation(
+            body.translation() + Vector::new(0.0, radius * height - previous_height),
+            true,
+        );
+        // Keep mass independent of crouch so impulses have the same strength.
+        collider.set_mass(std::f32::consts::PI * radius * radius * self.tuning.player_density);
+        player.collider = self.rapier.colliders.insert_with_parent(
+            collider,
+            player.body,
+            &mut self.rapier.bodies,
+        );
+    }
+    pub(crate) fn player_half_height(&self, id: u8) -> f32 {
+        self.tuning.player_radius
+            * if self.players[usize::from(id)].crouched {
+                self.tuning.crouch_height_factor
+            } else {
+                1.0
+            }
+    }
     pub(crate) fn set_player_control(
         &mut self,
         id: u8,
         input: PlayerInput,
-        grounded: bool,
+        jump_available: bool,
+        jump_pressed: bool,
         released: bool,
         movement_bonus: u16,
     ) -> bool {
+        let (grounded, wall) = self.player_support(id);
+        let crouched = input.crouch && grounded;
+        if self.players[usize::from(id)].crouched != crouched {
+            self.set_crouch(id, crouched);
+        }
         let body = &mut self.rapier.bodies[self.players[usize::from(id)].body];
+        body.set_gravity_scale(
+            if input.crouch && !grounded {
+                self.tuning.crouch_gravity_factor
+            } else {
+                1.0
+            },
+            true,
+        );
         let mut velocity = body.linvel();
         let control = if input.move_axis == 0 {
-            if grounded { 0.02 } else { 0.0 }
+            if grounded {
+                self.tuning.ground_braking
+            } else {
+                0.0
+            }
         } else if grounded {
-            0.18
+            self.tuning.ground_control
         } else {
-            AIR_CONTROL
+            self.tuning.air_control
         };
-        let speed = RUN_SPEED + f32::from(movement_bonus);
+        let speed = self.tuning.run_speed + f32::from(movement_bonus);
         if grounded || input.move_axis != 0 {
             velocity.x += (f32::from(input.move_axis) * speed - velocity.x) * control;
         }
         if released && !grounded && velocity.y > 0.0 {
-            velocity.y *= JUMP_RELEASE_CUT;
+            velocity.y *= self.tuning.jump_release_cut;
         }
-        let jumped = input.jump && grounded;
+        if wall != 0.0 && f32::from(input.move_axis) * wall < 0.0 && !input.crouch {
+            velocity.y = velocity.y.max(-self.tuning.wall_slide_speed);
+        }
+        let jumped = jump_pressed && jump_available;
         if jumped {
-            velocity.y = JUMP_SPEED;
+            velocity.y = self.tuning.jump_speed;
+            if wall != 0.0 {
+                velocity.x = wall * self.tuning.wall_jump_speed;
+            }
         }
         body.set_linvel(velocity, true);
         jumped
     }
+    pub(crate) fn player_support(&self, id: u8) -> (bool, f32) {
+        let player = self.players[usize::from(id)].collider;
+        let mut grounded = false;
+        let mut wall = 0.0;
+        for platform in &self.platforms {
+            let Some(pair) = self.rapier.contact_pair(player, *platform) else {
+                continue;
+            };
+            for manifold in &pair.manifolds {
+                if manifold.data.solver_contacts.is_empty() {
+                    continue;
+                }
+                let normal =
+                    manifold.data.normal * if pair.collider1 == player { -1.0 } else { 1.0 };
+                let player_velocity = self.player_pose(id).1;
+                let platform_velocity = self.rapier.colliders[*platform]
+                    .parent()
+                    .map(|body| self.rapier.bodies[body].linvel())
+                    .unwrap_or(Vector::ZERO);
+                // Rapier retains the launch contact for this tick; separating bodies have left it.
+                if (player_velocity - platform_velocity).dot(normal)
+                    > self.tuning.support_velocity_tolerance
+                {
+                    continue;
+                }
+                if normal.y > self.tuning.support_normal_threshold {
+                    grounded = true;
+                } else if normal.x.abs() > self.tuning.support_normal_threshold {
+                    wall = normal.x.signum();
+                }
+            }
+        }
+        (grounded, wall)
+    }
+    pub(crate) fn recoil(&mut self, id: u8, aim: Vector) {
+        if !self.tuning.recoil_enabled {
+            return;
+        }
+        let body = &mut self.rapier.bodies[self.players[usize::from(id)].body];
+        let before = body.linvel();
+        body.apply_impulse(-aim * self.tuning.recoil_impulse, true);
+        let boost = (body.linvel() - before).clamp_length_max(self.tuning.recoil_speed_cap);
+        body.set_linvel(before + boost, true);
+    }
+    pub(crate) fn return_from_edge(&mut self, id: u8, frame: [f32; 4], blocking: bool) -> bool {
+        let body = &mut self.rapier.bodies[self.players[usize::from(id)].body];
+        let mut position = body.translation();
+        let mut normal = Vector::ZERO;
+        if position.x < frame[0] {
+            position.x = frame[0] + self.tuning.edge_inset;
+            normal.x = 1.0;
+        }
+        if position.x > frame[2] {
+            position.x = frame[2] - self.tuning.edge_inset;
+            normal.x = -1.0;
+        }
+        if position.y < frame[1] {
+            position.y = frame[1] + self.tuning.edge_inset;
+            normal.y = 1.0;
+        }
+        if position.y > frame[3] {
+            position.y = frame[3] - self.tuning.edge_inset;
+            normal.y = -1.0;
+        }
+        if normal == Vector::ZERO {
+            return false;
+        }
+        let speed = if blocking {
+            self.tuning.edge_block_speed
+        } else {
+            self.tuning.edge_push_speed
+        };
+        let mut velocity = body.linvel();
+        if normal.x != 0.0 {
+            velocity.x = normal.x * speed;
+        }
+        if normal.y != 0.0 {
+            velocity.y = normal.y * speed;
+        }
+        body.set_translation(position, true);
+        body.set_linvel(velocity, true);
+        true
+    }
     pub(crate) fn spawn_bullet(&mut self, id: u32, owner: u8, aim: Vector, speed: f32) {
         let shooter = &self.rapier.bodies[self.players[usize::from(owner)].body];
-        let origin = shooter.translation() + aim * (PLAYER_RADIUS + BULLET_RADIUS + 4.0);
+        let origin = shooter.translation()
+            + aim
+                * (self.tuning.player_radius + self.tuning.bullet_radius + self.tuning.muzzle_gap);
         let (body, collider) = self.rapier.insert(
             RigidBodyBuilder::dynamic()
                 .translation(origin)
                 .linvel(aim * speed)
-                .gravity_scale(0.0)
+                .gravity_scale(self.tuning.bullet_gravity_factor)
                 .ccd_enabled(true)
                 .can_sleep(false),
-            ColliderBuilder::ball(BULLET_RADIUS)
-                .density(0.0005)
+            ColliderBuilder::ball(self.tuning.bullet_radius)
+                .density(self.tuning.bullet_density)
                 .friction(0.0)
-                .restitution(0.8),
+                .restitution(self.tuning.bullet_restitution),
         );
         self.bullets.insert(
             id,
@@ -379,7 +580,8 @@ impl PhysicsBoundary {
                 body,
                 collider,
                 previous: origin,
-                lifetime: BULLET_LIFETIME,
+                incoming_velocity: aim * speed,
+                lifetime: self.tuning.bullet_lifetime_ticks,
             },
         );
     }
@@ -389,6 +591,7 @@ impl PhysicsBoundary {
     pub(crate) fn step(&mut self) {
         for bullet in self.bullets.values_mut() {
             bullet.previous = self.rapier.bodies[bullet.body].translation();
+            bullet.incoming_velocity = self.rapier.bodies[bullet.body].linvel();
             bullet.lifetime = bullet.lifetime.saturating_sub(1);
         }
         self.rapier.step();
@@ -397,31 +600,25 @@ impl PhysicsBoundary {
         let body = &self.rapier.bodies[self.players[usize::from(id)].body];
         (body.translation(), body.linvel())
     }
-    pub(crate) fn player_grounded(&self, id: u8) -> bool {
-        let player = self.players[usize::from(id)].collider;
-        self.platforms.iter().any(|platform| {
-            self.rapier
-                .contact_pair(player, *platform)
-                .is_some_and(|pair| pair.has_any_active_contact())
-        })
-    }
     pub(crate) fn bullet_contact(&self, id: u32, target: u8) -> Option<Vector> {
         let bullet = self.bullets.get(&id)?;
         let position = self.rapier.bodies[bullet.body].translation();
         let target_position = self.player_pose(target).0;
-        let segment = position - bullet.previous;
-        let length_squared = segment.length_squared();
-        let fraction = if length_squared > 0.0 {
-            ((target_position - bullet.previous).dot(segment) / length_squared).clamp(0.0, 1.0)
+        let radii = Vector::new(
+            self.tuning.player_radius + self.tuning.bullet_radius,
+            self.player_half_height(target) + self.tuning.bullet_radius,
+        );
+        let start = (bullet.previous - target_position) / radii;
+        let segment = (position - bullet.previous) / radii;
+        let fraction = if segment.length_squared() > 0.0 {
+            (-start.dot(segment) / segment.length_squared()).clamp(0.0, 1.0)
         } else {
             0.0
         };
-        let closest = bullet.previous + segment * fraction;
-        (closest.distance_squared(target_position) <= (PLAYER_RADIUS + BULLET_RADIUS + 2.0).powi(2))
-            .then_some(
-                target_position + (closest - target_position).normalize_or_zero() * PLAYER_RADIUS,
-            )
+        let closest = start + segment * fraction;
+        (closest.length_squared() <= 1.0).then_some(target_position + closest * radii)
     }
+
     pub(crate) fn bullet_platform_contact(&self, id: u32) -> bool {
         self.bullets.get(&id).is_some_and(|bullet| {
             self.platforms.iter().any(|platform| {
@@ -431,14 +628,21 @@ impl PhysicsBoundary {
             })
         })
     }
-    pub(crate) fn reflect_bullet(&mut self, id: u32) {
-        if let Some(bullet) = self.bullets.get(&id) {
+    pub(crate) fn reflect_bullet(&mut self, id: u32, reflector: u8) {
+        let center = self.player_pose(reflector).0;
+        if let Some(bullet) = self.bullets.get_mut(&id) {
+            let returning = -bullet.incoming_velocity;
+            // The swept hit may be detected after the endpoint passed the fighter.
+            // Return from outside its collider, using velocity before solver response.
+            let origin = center
+                + returning.normalize_or(Vector::X)
+                    * (self.tuning.player_radius
+                        + self.tuning.bullet_radius
+                        + self.tuning.muzzle_gap);
             let body = &mut self.rapier.bodies[bullet.body];
-            let incoming = body.linvel();
-            body.set_linvel(
-                Vector::new(-incoming.x, incoming.x.abs() * 0.22 - incoming.y),
-                true,
-            );
+            body.set_translation(origin, true);
+            body.set_linvel(returning, true);
+            bullet.previous = origin;
         }
     }
     pub(crate) fn bullet_pose(&self, id: u32) -> Option<(Vector, Vector, Vector, u16)> {
@@ -463,7 +667,7 @@ impl PhysicsBoundary {
         }
     }
 }
-fn distributed_spawns(count: usize, arena: &ArenaDefinition) -> Vec<Vector> {
+fn distributed_spawns(count: usize, arena: &ArenaDefinition, radius: f32) -> Vec<Vector> {
     let base = arena
         .spawns
         .iter()
@@ -475,8 +679,8 @@ fn distributed_spawns(count: usize, arena: &ArenaDefinition) -> Vec<Vector> {
             if index < base.len() {
                 base[index]
             } else {
-                let left = arena.frame[0] + PLAYER_RADIUS * 2.0;
-                let right = arena.frame[2] - PLAYER_RADIUS * 2.0;
+                let left = arena.frame[0] + radius * 2.0;
+                let right = arena.frame[2] - radius * 2.0;
                 let y = base.first().map_or(0.0, |spawn| spawn.y);
                 let fraction = (index + 1) as f32 / (count + 1) as f32;
                 Vector::new(left + (right - left) * fraction, y)

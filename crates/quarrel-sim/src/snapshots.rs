@@ -1,8 +1,4 @@
 use super::*;
-pub fn projectile_launch_speed(capabilities: FighterCapabilities) -> f32 {
-    BULLET_SPEED * f32::from(capabilities.projectile_speed_factor.milli) / 1_000.0
-}
-
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 pub struct PlayerInput {
     pub move_axis: i8,
@@ -10,6 +6,8 @@ pub struct PlayerInput {
     pub aim_y: i16,
     pub aim_at_opponent: bool,
     pub jump: bool,
+    #[serde(default)]
+    pub crouch: bool,
     pub fire: bool,
     pub block: bool,
     pub flow: Option<FlowCommand>,
@@ -113,6 +111,25 @@ pub struct PlayerSnapshot {
     pub grounded: bool,
     pub alive: bool,
     pub stun_ticks: u16,
+    #[serde(default)]
+    pub ammunition: u16,
+    #[serde(default)]
+    pub reload_ticks: u16,
+    #[serde(default)]
+    pub block_cooldown_ticks: u16,
+    #[serde(default)]
+    pub jump_available: bool,
+    #[serde(default = "default_player_radius_milli")]
+    pub radius_milli: i32,
+    #[serde(default = "default_player_height_milli")]
+    pub height_milli: i32,
+}
+
+fn default_player_radius_milli() -> i32 {
+    quantize(CombatTuning::default().player_radius)
+}
+fn default_player_height_milli() -> i32 {
+    default_player_radius_milli() * 2
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]

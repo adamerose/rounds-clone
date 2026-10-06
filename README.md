@@ -32,7 +32,7 @@ The client opens a menu when launched without arguments. Select Local match, Hos
 Click a choice, or use arrows/D-pad and Enter/south button. The menu returns when the match window closes.
 Connect controllers before starting; reconnecting or changing their count can change fighter assignment.
 For local play, one controller controls fighter two and keyboard/mouse controls fighter one; two controllers control both fighters.
-Keyboard/mouse uses A/D, W jump, S or right mouse block, Space or left mouse fire, and mouse aim. Existing keyboard aim and two-keyboard controls remain available.
+Keyboard/mouse uses A/D, Space/W jump, S crouch, Shift or right mouse block, F or left mouse fire, and mouse aim. Existing keyboard aim and two-keyboard controls remain available.
 Interactive Host/Join waits until cancelled and has no timed match cutoff. Escape or close the waiting/game window to leave.
 Online players each use their own primary keyboard/mouse layout or controller. Card choices and match-end votes use the same device as combat.
 Headless UI evidence: `quarrel-client menu-capture --output out/menu.png`; `menu-start --choice 1|2 --headless --ticks 90` exercises the same host/join menu selections.
@@ -48,13 +48,17 @@ Project windows open hidden and appear only after placement on monitor four is v
 | Input | Fighter one | Fighter two |
 |---|---|---|
 | Move or navigate draft | A / D | Left / Right |
-| Jump | W | Up |
-| Block | S | Down |
-| Fire or confirm card | Space | Enter |
+| Jump | Space / W | Up |
+| Crouch | S | Down |
+| Block | Right mouse / Left Shift | Right Shift |
+| Fire | Left mouse / F | Enter |
+| Confirm card | Space | Enter |
 | Aim up / left / down / right | I / J / K / L | Numpad 8 / 4 / 5 / 6 |
 | Run it back / new match | Y / N | K / L |
 
-Controllers use the left stick to move, right stick to aim, south button to jump, west button to block and right trigger to fire.
+Fighter one aims at the mouse cursor; keyboard aim keys take priority over the cursor.
+
+Controllers use the left stick to move, right stick to aim, south button to jump, west button to block and right trigger to fire. Down on the left stick crouches.
 D-pad and south button choose a card. At match end, south chooses run it back and east chooses a new match.
 
 ## Live development sessions
@@ -96,3 +100,16 @@ Arena authoring and previews are documented in `docs/design-docs/arena-data.html
 
 The final Godot and C# prototype is preserved by the annotated tag `archive/godot-csharp-prototype-2026-09-03`.
 See `docs/legacy-prototype.md` for read-only lookup examples.
+
+Combat values live in `assets/tuning.ron` (pixels, pixels/second, and ticks at 60 Hz).
+Ordinary matches reload valid edits every 15 ticks without resetting scores, health or cards;
+invalid edits retain the last valid values, print a rejection once per changed error, and are available through `tuning_reload_error()`.
+A magazine holds three shots and automatically reloads when empty. Press block again after
+its cooldown; holding it does not repeat it. Ground/wall contact restores one jump, crouching
+halves the grounded collider and accelerates falling, and all four arena edges damage and
+push inward. An active block at an edge cancels that damage and launches inward.
+Set `recoil_enabled: false` to compare movement without firing recoil. Recordings pin their
+starting tuning. Replays do not watch the live file.
+
+Each network peer uses the fighter-one keyboard bindings for its own fighter.
+Fighter-two keys also work as aliases in a network client.

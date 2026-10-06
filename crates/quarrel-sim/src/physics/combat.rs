@@ -2,6 +2,10 @@ use super::*;
 
 pub struct AuthoritativeMatch {
     arena: ArenaDefinition,
+    tuning: CombatTuning,
+    tuning_path: Option<std::path::PathBuf>,
+    tuning_source: String,
+    tuning_reload_error: Option<String>,
     arena_bag: Vec<ArenaDefinition>,
     arena_index: usize,
     arena_path: Option<std::path::PathBuf>,
@@ -35,7 +39,16 @@ impl AuthoritativeMatch {
     pub fn with_config(config: MatchConfig) -> Result<Self, String> {
         let catalog = load_card_directory(&default_card_directory())?;
         let (arenas, paths, sources) = arena_file_map()?;
-        Self::create(config, catalog, arenas, paths, sources)
+        let mut game = Self::create(
+            config,
+            catalog,
+            arenas,
+            paths,
+            sources,
+            CombatTuning::default(),
+        )?;
+        game.watch_tuning_file(&default_tuning_path())?;
+        Ok(game)
     }
     pub fn with_content(config: MatchConfig, content: MatchContent) -> Result<Self, String> {
         Self::create(
@@ -44,6 +57,7 @@ impl AuthoritativeMatch {
             content.arenas,
             BTreeMap::new(),
             BTreeMap::new(),
+            content.tuning,
         )
     }
     pub fn from_arena(seed: u64, definition: ArenaDefinition) -> Result<Self, String> {
@@ -54,6 +68,7 @@ impl AuthoritativeMatch {
         Self::with_content(
             config,
             MatchContent {
+                tuning: CombatTuning::default(),
                 cards: load_card_directory(&default_card_directory())?,
                 arenas: vec![definition],
             },
@@ -77,8 +92,10 @@ impl AuthoritativeMatch {
         mut arenas: Vec<ArenaDefinition>,
         arena_files: BTreeMap<String, std::path::PathBuf>,
         arena_sources: BTreeMap<String, String>,
+        tuning: CombatTuning,
     ) -> Result<Self, String> {
         config.validate()?;
+        tuning.validate()?;
         arenas = arenas
             .into_iter()
             .map(Self::prepare_definition)
@@ -104,6 +121,11 @@ impl AuthoritativeMatch {
                         hit_flash_ticks: 0,
                         grounded: true,
                         jump_held: false,
+                        jump_available: true,
+                        block_held: false,
+                        block_cooldown: 0,
+                        ammunition: tuning.magazine_size,
+                        reload_ticks: 0,
                         alive: true,
                         stun_ticks: 0,
                         stun_pulses_remaining: 0,
@@ -112,10 +134,14 @@ impl AuthoritativeMatch {
             })
             .collect();
         let flow = FlowAuthority::with_config(config.clone(), catalog)?;
-        let mut physics = PhysicsBoundary::new(config.fighter_count, &arena);
+        let mut physics = PhysicsBoundary::new(config.fighter_count, &arena, tuning.clone());
         physics.replace_arena(&arena);
         Ok(Self {
             physics,
+            tuning,
+            tuning_path: None,
+            tuning_source: String::new(),
+            tuning_reload_error: None,
             arena,
             arena_bag: arenas,
             // The first combat advances this cursor to the first shuffled arena.
@@ -142,6 +168,7 @@ impl AuthoritativeMatch {
     pub fn step(&mut self, inputs: &[PlayerInput]) {
         self.tick = self.tick.saturating_add(1);
         self.reload_arena_if_changed();
+        self.reload_tuning_if_changed();
         let observation = self.snapshot();
         let inputs = inputs
             .iter()
@@ -176,6 +203,13 @@ impl AuthoritativeMatch {
                 let mut state = actor.get_mut::<PlayerState>().expect("player state");
                 state.fire_cooldown = state.fire_cooldown.saturating_sub(1);
                 state.block_ticks = state.block_ticks.saturating_sub(1);
+                state.block_cooldown = state.block_cooldown.saturating_sub(1);
+                if state.reload_ticks > 0 {
+                    state.reload_ticks -= 1;
+                    if state.reload_ticks == 0 {
+                        state.ammunition = self.tuning.magazine_size;
+                    }
+                }
                 state.hit_flash_ticks = state.hit_flash_ticks.saturating_sub(1);
                 state.stun_ticks = state.stun_ticks.saturating_sub(1);
                 if state.stun_pulses_remaining > 0 {
@@ -184,6 +218,9 @@ impl AuthoritativeMatch {
                     state.stun_pulses_remaining -= 1;
                     self.metrics.dazzle_stun_pulses += 1;
                 }
+                let jump_pressed = input.jump && !state.jump_held;
+                let block_pressed = input.block && !state.block_held;
+                state.block_held = input.block;
                 let released = state.jump_held && !input.jump;
                 state.jump_held = input.jump;
                 let acts = state.alive && state.health > 0;
@@ -191,8 +228,9 @@ impl AuthoritativeMatch {
                     state.aim = Vector::new(f32::from(input.aim_x), f32::from(input.aim_y))
                         .normalize_or_zero();
                 }
-                if acts && input.block && state.block_ticks == 0 {
-                    state.block_ticks = BLOCK_DURATION;
+                if acts && block_pressed && state.block_cooldown == 0 {
+                    state.block_ticks = state.block_ticks.max(self.tuning.block_duration_ticks);
+                    state.block_cooldown = self.tuning.block_cooldown_ticks;
                     self.metrics.block_activations += 1;
                 }
                 if acts
@@ -200,26 +238,46 @@ impl AuthoritativeMatch {
                     && self.physics.set_player_control(
                         state.id,
                         input,
-                        state.grounded,
+                        state.jump_available,
+                        jump_pressed,
                         released,
                         capabilities.movement_bonus,
                     )
                 {
                     self.metrics.jumps += 1;
                     state.grounded = false;
+                    state.jump_available = false;
                 }
-                if acts && state.stun_ticks == 0 && input.fire && state.fire_cooldown == 0 {
-                    state.fire_cooldown =
-                        FIRE_COOLDOWN.saturating_add(capabilities.fire_cooldown_extra_ticks);
+                if acts
+                    && state.stun_ticks == 0
+                    && input.fire
+                    && state.fire_cooldown == 0
+                    && state.reload_ticks == 0
+                    && state.ammunition > 0
+                {
+                    state.fire_cooldown = self
+                        .tuning
+                        .fire_cooldown_ticks
+                        .saturating_add(capabilities.fire_cooldown_extra_ticks);
+                    state.ammunition -= 1;
+                    if state.ammunition == 0 {
+                        state.reload_ticks = self.tuning.reload_ticks;
+                    }
                     fire = Some((state.id, state.aim));
                 }
             }
             if let Some((owner, aim)) = fire {
                 let id = self.next_projectile_id;
                 self.next_projectile_id += 1;
-                self.physics
-                    .spawn_bullet(id, owner, aim, projectile_launch_speed(capabilities));
-                self.physics.apply_impulse(owner, -aim * RECOIL_IMPULSE);
+                self.physics.spawn_bullet(
+                    id,
+                    owner,
+                    aim,
+                    self.tuning.bullet_speed
+                        * f32::from(capabilities.projectile_speed_factor.milli)
+                        / 1000.0,
+                );
+                self.physics.recoil(owner, aim);
                 let entity = self
                     .world
                     .spawn(ProjectileState {
@@ -232,33 +290,45 @@ impl AuthoritativeMatch {
                     .id();
                 self.projectile_entities.insert(id, entity);
                 self.metrics.shots_fired += 1;
-                self.metrics.recoil_impulses += 1;
+                if self.tuning.recoil_enabled {
+                    self.metrics.recoil_impulses += 1;
+                }
             }
         }
         self.physics.update_arena_motion(&self.arena, self.tick);
         self.physics.step();
         for (index, entity) in self.player_entities.iter().copied().enumerate() {
-            let grounded = self.physics.player_grounded(index as u8);
+            let (grounded, wall) = self.physics.player_support(index as u8);
             if grounded {
                 self.metrics.platform_contact_ticks += 1;
             }
             let mut actor = self.world.entity_mut(entity);
-            actor
-                .get_mut::<PlayerState>()
-                .expect("player state")
-                .grounded = grounded;
+            let mut state = actor.get_mut::<PlayerState>().expect("player state");
+            state.grounded = grounded;
+            if grounded || wall != 0.0 {
+                state.jump_available = true;
+            }
         }
         self.resolve_projectiles();
         self.apply_object_damage();
-        for (index, entity) in self.player_entities.iter().copied().enumerate() {
-            let (position, _) = self.physics.player_pose(index as u8);
-            if position.x.abs() > KILL_X || position.y < KILL_Y {
-                let mut actor = self.world.entity_mut(entity);
-                let mut state = actor.get_mut::<PlayerState>().expect("player state");
-                if state.alive {
-                    state.alive = false;
-                    self.metrics.ring_outs += 1;
+        for index in 0..self.player_entities.len() {
+            let state = *self
+                .world
+                .entity(self.player_entities[index])
+                .get::<PlayerState>()
+                .expect("player state");
+            if state.alive
+                && self.physics.return_from_edge(
+                    index as u8,
+                    self.arena.frame,
+                    state.block_ticks > 0,
+                )
+            {
+                if state.block_ticks == 0 {
+                    self.damage_fighter(index as u8, self.tuning.edge_damage)
+                        .expect("configured fighter");
                 }
+                self.metrics.ring_outs += 1;
             }
         }
         let alive = self
@@ -273,17 +343,28 @@ impl AuthoritativeMatch {
             .collect::<Vec<_>>();
         self.flow.record_survivors(&alive);
     }
+    /// Applies ordinary damage, including periodic effect ticks. Blocking only
+    /// intercepts shots and edge impacts at their respective contact boundaries.
+    /// Returns true when this application eliminates a living fighter.
+    pub fn damage_fighter(&mut self, fighter: u8, damage: u16) -> Result<bool, String> {
+        let entity = *self
+            .player_entities
+            .get(usize::from(fighter))
+            .ok_or("fighter is outside the match")?;
+        let mut actor = self.world.entity_mut(entity);
+        let mut state = actor.get_mut::<PlayerState>().expect("player state");
+        if !state.alive {
+            return Ok(false);
+        }
+        state.health = state.health.saturating_sub(damage);
+        state.hit_flash_ticks = self.tuning.hit_flash_ticks;
+        state.alive = state.health > 0;
+        Ok(!state.alive)
+    }
     fn apply_object_damage(&mut self) {
         for (_, fighter, damage) in self.physics.object_contacts() {
-            let mut actor = self
-                .world
-                .entity_mut(self.player_entities[usize::from(fighter)]);
-            let mut state = actor.get_mut::<PlayerState>().unwrap();
-            if state.alive {
-                state.health = state.health.saturating_sub(damage);
-                state.hit_flash_ticks = 6;
-                state.alive = state.health > 0;
-            }
+            self.damage_fighter(fighter, damage)
+                .expect("physics fighter belongs to this match");
         }
     }
     fn resolve_projectiles(&mut self) {
@@ -325,7 +406,18 @@ impl AuthoritativeMatch {
                     .block_ticks
                     > 0;
                 if blocking {
-                    self.physics.reflect_bullet(id);
+                    self.physics.reflect_bullet(id, target);
+                    self.world
+                        .entity_mut(target_entity)
+                        .get_mut::<PlayerState>()
+                        .unwrap()
+                        .block_ticks = self
+                        .world
+                        .entity(target_entity)
+                        .get::<PlayerState>()
+                        .unwrap()
+                        .block_ticks
+                        .saturating_add(self.tuning.block_extension_ticks);
                     let mut projectile_entity = self.world.entity_mut(entity);
                     projectile_entity
                         .get_mut::<ProjectileState>()
@@ -339,22 +431,25 @@ impl AuthoritativeMatch {
                     .bullet_pose(id)
                     .map(|(_, _, velocity, _)| velocity.normalize_or_zero())
                     .unwrap_or(Vector::X);
-                let damage = DAMAGE_PER_HIT
+                let damage = self
+                    .tuning
+                    .damage_per_hit
                     .saturating_add(self.flow.capabilities(projectile.owner).damage_bonus);
-                let (eliminated, knockback_scale);
+                let eliminated = self
+                    .damage_fighter(target, damage)
+                    .expect("contact fighter");
+                let knockback_scale;
                 {
                     let mut target_actor = self.world.entity_mut(target_entity);
                     let mut state = target_actor.get_mut::<PlayerState>().expect("player state");
-                    state.health = state.health.saturating_sub(damage);
-                    state.hit_flash_ticks = 6;
                     state.stun_ticks = state.stun_ticks.max(projectile.dazzle_stun_ticks);
                     state.stun_pulses_remaining = projectile.dazzle_pulses;
-                    eliminated = state.health == 0;
-                    knockback_scale = 1.0 + f32::from(100u16.saturating_sub(state.health)) / 70.0;
-                    state.alive &= !eliminated;
+                    knockback_scale = 1.0
+                        + f32::from(100u16.saturating_sub(state.health))
+                            / self.tuning.knockback_health_scale;
                 }
                 self.physics
-                    .apply_impulse(target, velocity * HIT_IMPULSE * knockback_scale);
+                    .apply_impulse(target, velocity * self.tuning.hit_impulse * knockback_scale);
                 self.metrics.hits += 1;
                 self.metrics.health_scaled_knockbacks += 1;
                 self.impacts.push(ImpactSnapshot {
@@ -366,12 +461,16 @@ impl AuthoritativeMatch {
                     y_milli: quantize(position.y),
                     damage,
                     eliminated,
-                    impulse_x_milli: quantize(velocity.x * HIT_IMPULSE * knockback_scale),
-                    impulse_y_milli: quantize(velocity.y * HIT_IMPULSE * knockback_scale),
+                    impulse_x_milli: quantize(
+                        velocity.x * self.tuning.hit_impulse * knockback_scale,
+                    ),
+                    impulse_y_milli: quantize(
+                        velocity.y * self.tuning.hit_impulse * knockback_scale,
+                    ),
                 });
                 removals.push(id);
             } else if let Some((piece, impulse)) = self.physics.bullet_object_contact(id) {
-                self.damage_arena_piece(piece, 25);
+                self.damage_arena_piece(piece, self.tuning.shot_object_damage);
                 if self.physics.object_pose(piece).is_some() {
                     // Consume the projectile while preserving its absorbed momentum.
                     self.physics.apply_object_impulse(piece, impulse);
@@ -381,11 +480,7 @@ impl AuthoritativeMatch {
                 || self
                     .physics
                     .bullet_pose(id)
-                    .is_none_or(|(position, _, _, life)| {
-                        life == 0
-                            || position.x.abs() > KILL_X + 200.0
-                            || position.y < KILL_Y - 100.0
-                    })
+                    .is_none_or(|(_, _, _, life)| life == 0)
             {
                 removals.push(id);
             }
@@ -435,6 +530,12 @@ impl AuthoritativeMatch {
             state.stun_ticks = 0;
             state.stun_pulses_remaining = 0;
             state.jump_held = false;
+            state.jump_available = true;
+            state.grounded = false;
+            state.block_held = false;
+            state.block_cooldown = 0;
+            state.ammunition = self.tuning.magazine_size;
+            state.reload_ticks = 0;
         }
     }
     fn prepare_definition(mut definition: ArenaDefinition) -> Result<ArenaDefinition, String> {
@@ -555,6 +656,55 @@ impl AuthoritativeMatch {
             Err(error) => self.arena_reload_error = Some(error.to_string()),
         }
     }
+    /// Watch a tuning file without resetting health, timers, scores or drafted cards.
+    pub fn watch_tuning_file(&mut self, path: &std::path::Path) -> Result<(), String> {
+        let source = std::fs::read_to_string(path).map_err(|error| error.to_string())?;
+        self.apply_tuning(CombatTuning::parse(&source)?);
+        self.tuning_source = source;
+        self.tuning_path = Some(path.to_owned());
+        Ok(())
+    }
+    fn apply_tuning(&mut self, tuning: CombatTuning) {
+        for entity in &self.player_entities {
+            let mut actor = self.world.entity_mut(*entity);
+            let mut state = actor.get_mut::<PlayerState>().unwrap();
+            state.ammunition = state.ammunition.min(tuning.magazine_size);
+        }
+        self.physics.update_tuning(tuning.clone());
+        self.tuning = tuning;
+    }
+    fn reload_tuning_if_changed(&mut self) {
+        let Some(path) = &self.tuning_path else {
+            return;
+        };
+        if !self.tick.is_multiple_of(15) {
+            return;
+        }
+        let previous_error = self.tuning_reload_error.clone();
+        match std::fs::read_to_string(path) {
+            Ok(source) if source == self.tuning_source => self.tuning_reload_error = None,
+            Ok(source) => match CombatTuning::parse(&source) {
+                Ok(tuning) => {
+                    self.apply_tuning(tuning);
+                    self.tuning_source = source;
+                    self.tuning_reload_error = None;
+                }
+                Err(error) => self.tuning_reload_error = Some(error),
+            },
+            Err(error) => self.tuning_reload_error = Some(error.to_string()),
+        }
+        if self.tuning_reload_error != previous_error
+            && let Some(error) = &self.tuning_reload_error
+        {
+            eprintln!("tuning reload rejected: {error}");
+        }
+    }
+    pub fn tuning(&self) -> &CombatTuning {
+        &self.tuning
+    }
+    pub fn tuning_reload_error(&self) -> Option<&str> {
+        self.tuning_reload_error.as_deref()
+    }
     fn clear_projectiles(&mut self) {
         self.physics.clear_bullets();
         for entity in std::mem::take(&mut self.projectile_entities).into_values() {
@@ -590,6 +740,12 @@ impl AuthoritativeMatch {
                     grounded: state.grounded,
                     alive: state.alive,
                     stun_ticks: state.stun_ticks,
+                    ammunition: state.ammunition,
+                    reload_ticks: state.reload_ticks,
+                    block_cooldown_ticks: state.block_cooldown,
+                    jump_available: state.jump_available,
+                    radius_milli: quantize(self.tuning.player_radius),
+                    height_milli: quantize(self.physics.player_half_height(index as u8) * 2.0),
                 }
             })
             .collect();
@@ -965,3 +1121,6 @@ mod arena_runtime_tests {
         std::fs::remove_file(path).unwrap();
     }
 }
+
+#[cfg(test)]
+mod mechanics_tests;

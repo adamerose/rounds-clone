@@ -291,6 +291,9 @@ fn scripted_keyboard_input(
         keys.press(KeyCode::KeyW);
     }
     if source.block {
+        keys.press(KeyCode::ShiftLeft);
+    }
+    if source.crouch {
         keys.press(KeyCode::KeyS);
     }
     if source.fire {
@@ -572,8 +575,8 @@ pub(super) fn submit_live_input(
     let gamepad = controllers.first().map(|(_, gamepad)| *gamepad);
     let input = gamepad.map_or_else(
         || {
-            keyboard_mouse_combat_input(
-                &keys,
+            crate::input::mouse_combat_input(
+                crate::input::single_player_keyboard_input(&keys),
                 &mouse_buttons,
                 live.displayed_snapshot
                     .as_ref()
@@ -591,7 +594,7 @@ pub(super) fn submit_live_input(
         return;
     };
     for key in keys.get_just_pressed().copied() {
-        if let Some(command) = primary_keyboard_flow_command(key, live.player, flow)
+        if let Some(command) = crate::input::single_player_flow_command(key, live.player, flow)
             && let Err(error) = live.handle.push_flow(command)
         {
             eprintln!("submit keyboard flow command: {error}");

@@ -408,13 +408,38 @@ fn spawn_fighters(
         commands.spawn((
             SceneVisual,
             CaptureElement::Character,
-            Mesh2d(meshes.add(Circle::new(22.0))),
+            Mesh2d(meshes.add(Ellipse::new(
+                player.radius_milli as f32 / 1000.0,
+                player.height_milli as f32 / 2000.0,
+            ))),
             MeshMaterial2d(materials.add(if player.alive {
                 color
             } else {
                 color.with_alpha(0.35)
             })),
             Transform::from_xyz(point.x, point.y, 8.0),
+        ));
+        if player.block_ticks > 0 {
+            commands.spawn((
+                SceneVisual,
+                Mesh2d(meshes.add(Annulus::new(30.0, 33.0))),
+                MeshMaterial2d(materials.add(Color::WHITE)),
+                Transform::from_xyz(point.x, point.y, 9.0),
+            ));
+        }
+        commands.spawn((
+            SceneVisual,
+            Text2d::new(if player.reload_ticks > 0 {
+                format!("RELOAD {:.1}", f32::from(player.reload_ticks) / 60.0)
+            } else {
+                "|".repeat(usize::from(player.ammunition))
+            }),
+            TextFont {
+                font_size: FontSize::Px(12.0),
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Transform::from_xyz(point.x, point.y + 38.0, 9.0),
         ));
         let aim = Vec2::new(f32::from(player.aim_x), f32::from(player.aim_y)).normalize_or(Vec2::X);
         segment(

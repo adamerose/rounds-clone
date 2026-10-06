@@ -39,12 +39,15 @@ pub fn automated_input(player: u8, state: &MatchSnapshot) -> PlayerInput {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MatchContent {
+    #[serde(default)]
+    pub tuning: CombatTuning,
     pub cards: Vec<ItemDefinition>,
     pub arenas: Vec<ArenaDefinition>,
 }
 impl MatchContent {
     pub fn load_default() -> Result<Self, String> {
         Ok(Self {
+            tuning: CombatTuning::load(&default_tuning_path())?,
             cards: load_card_directory(&default_card_directory())?,
             arenas: load_arena_directory(&default_arena_directory())?,
         })
@@ -95,7 +98,15 @@ mod tests {
             target_score: 2,
             ..Default::default()
         };
-        let mut game = AuthoritativeMatch::with_config(config).unwrap();
+        // A flat arena tests match progression without relying on bot pathfinding.
+        let mut content = MatchContent::load_default().unwrap();
+        let mut arena =
+            ArenaDefinition::load(&default_arena_directory().join("all-kinds.ron")).unwrap();
+        arena.objects.retain(|object| object.id == 0);
+        arena.chains.clear();
+        arena.surfaces.clear();
+        content.arenas = vec![arena];
+        let mut game = AuthoritativeMatch::with_content(config, content).unwrap();
         for _ in 0..2_400 {
             let state = game.snapshot();
             assert_eq!(state.players.len(), 3);

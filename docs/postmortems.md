@@ -183,3 +183,35 @@ The repeated menu, Join, Host and scripted local checks passed, and every exact 
 ## Ticket 81 correction review: menu Join omitted interactive mode
 
 The network constructor and native waiting checks worked, but the menu Join argument list still selected bounded mode. Review reproduced its five-second timeout through `menu-start --choice 2`. Earlier evidence started Host first, hiding this boundary error, and checked the waiting window through explicit CLI flags. Join now passes `--interactive`; a public client regression starts Join first, waits beyond the old deadline, then starts Host and requires both first-fight events. Native waiting evidence now also uses the menu Join translation and verifies client 1. The actual missing argument was corrected; no timeout was enlarged.
+
+## 2026-10-06 — Ticket [#79](http://ivy.localhost/tickets/79?repo=rounds-clone) combat regression findings
+
+The first recorded-match regression still used inputs authored for straight bullets and one-hit kills; those inputs never completed a fight under the new baseline.
+Regenerate this development fixture through the public record command and pin its tuning with its other starting content.
+A ground-jump test caught a spent jump being restored on the launch tick. Rapier retains the contact manifold from the solve even after the fighter moves away.
+Support now checks velocity relative to the contacted body along the contact normal, so separating contacts cannot restore a jump; the immediate repress regression remains.
+Crouch initially changed height around the fighter center, temporarily removing floor contact and restoring standing height next tick.
+Keep the feet anchored on shape changes and check held crouch across thirty physics ticks, including the actual collision bounds.
+
+A shared-target workspace test command succeeded with sixteen simulation tests although this worktree contains twenty-six.
+Another worker's newer package artifacts were considered fresh across checkouts. Cargo's build lock prevents concurrent compilation but does not make different worktrees' source contents identical.
+Do not count that result as candidate evidence. Refreshing timestamps before entering the build queue was insufficient: a later compile received another branch's snapshot types.
+Keep local source timestamps ahead of the build queue temporarily to force local rebuilds without discarding dependency artifacts.
+Ask Cargo to build every workspace test executable, copy those executables into this ticket's artifact directory immediately, then run each copy serially and confirm the new regression names.
+Restore ordinary timestamps after verification. This isolates test execution as well as compilation; a separate native target was initially impractical with less than 1 GiB free.
+Session ownership initially refused because the launched Codex inherited the parent's Claude identity too. Pass `--session codex:<CODEX_THREAD_ID>` explicitly to the helper; environment enumeration is unnecessary.
+
+The final reflection render showed a shot still inside its blocker on the next tick. Its recorded horizontal velocity had changed back to +1497.09 pixels/second after the authority reversed it.
+The swept hit was detected after its endpoint had passed the fighter, so reversing there sent it through its new owner's collider.
+Return from outside the reflector, using the incoming velocity saved before solver response. This retains ordinary fighter/projectile collision behaviour.
+The reflection regression follows the next tick and checks both continued return velocity and return displacement, rather than only the instant reversal.
+
+Rebasing onto [#82](http://ivy.localhost/tickets/82?repo=rounds-clone) reproduced two assumptions tied to the former baseline: four scheduled shots without reload, and three-player smoke completion across whichever maps exist today.
+The stack test retains four shots and its toppling check, allowing the new reload. Match progression uses the recording's pinned starting content, while ordinary two-client smoke still checks the live pool.
+The arcing shot needed a higher strike on Trestle's pier to topple it. A focused reproduction passed after aiming at its upper portion; the test still checks four actual shots and a toppled stack.
+
+The first independent review found that checking crouch height alone had missed an 11-pixel gap under a stationary fighter.
+The positional regression failed immediately with feet at -177.213 instead of the floor's -180, then showed the gap persisting during held crouch.
+Changing the collider's shape in place kept its old solver contacts. Replacing that collider on stance changes gives fresh anchors while retaining the body, velocity and mass; crouch and stand-up now both keep feet on the floor.
+Default recoil was only about 12 pixels/second at the chosen fighter mass. Raise its impulse to 800 and compare enabled versus disabled motion to check the 120 pixels/second cap with the shipped settings.
+The three-fighter progression fixture now uses a flat arena and current tuning/cards, so regenerating the ordinary recording cannot change its pathfinding needs.

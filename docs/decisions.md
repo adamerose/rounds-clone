@@ -912,3 +912,32 @@ Controller assignment remains based on devices present, so the menu and README a
 ## Ticket 81 — run #75: retain ticket 88 transport simulation
 
 After ticket 88 landed, both bounded and interactive clients prepare the same conditioned UDP socket. A private preparation function preserves the public bounded `connect_with_conditions` entry point and the interactive cancellation handle. This keeps the simulator working in menu sessions without duplicating handshake setup. Alternatives were separate constructors with duplicated setup, or dropping simulator support from interactive play; neither preserves both tickets as simply.
+
+## 2026-10-06 — Ticket [#79](http://ivy.localhost/tickets/79?repo=rounds-clone) base combat for run [#75](http://ivy.localhost/tickets/75?repo=rounds-clone)
+
+Choose starting combat numbers in `assets/tuning.ron`, in pixels and 60 Hz ticks, with the same fifteen-tick content polling used for arena edits.
+The alternative was a separate watcher thread; polling keeps edits on the authority tick and avoids races. Reject invalid edits and retain the last valid values with a reported error.
+Pin starting tuning alongside cards and arenas in recordings. Replays use that content rather than observing the live file.
+The existing ordinary-match fixture assumes straight bullets and one-hit kills; regenerate it through the public record command after the new combat passes its boundary checks.
+A jump press spends one stored jump. Floor and side-wall normals restore it; ceiling contact does not. Require release before another jump or block so holding a button cannot auto-repeat a block.
+Crouch changes the physical collider and the rendered height together, keeps the feet anchored, and preserves mass. The alternative, visual-only squash, would not fit through cover.
+The automatic reload starts at magazine exhaustion. Fire cooldown and reload are separate timers; block cooldown starts on activation and reflection adds time only to the active block.
+Edges use each arena's declared frame, including its top, and set inward velocity after clamping the position inside. Fixed damage and launch speeds preserve the decision against impact-scaled edge damage.
+Recoil caps the velocity change contributed by each shot, preserving jump and knockback velocity; capping total fighter velocity would truncate those existing movement sources.
+Keep W as a jump alias and F/Shift as keyboard fire/block alternatives alongside Space, S and the mouse controls. The second keyboard slot keeps arrows and Enter, with Down crouch and right Shift block.
+Reuse the root `out/cargo-target` through an ignored junction and Cargo's exclusive target-directory build lock, so parallel workers queue without multiplying compiler jobs.
+
+Shots, arena contact and edges share `damage_fighter()` for health and elimination. Projectile reflection and edge launches intercept their own contacts before damage; general damage remains independent of block state.
+Test periodic damage through this public authority boundary while a block is active. This keeps the baseline independent of the particular poison card that ticket [#80](http://ivy.localhost/tickets/80?repo=rounds-clone) adds.
+
+Each network peer uses primary keyboard bindings for its assigned fighter; keep the second keyboard bindings as aliases. Reusing the local slot index would give the second home arrow controls and reject Space jump.
+Primary draft keys map to the assigned offer, preserving the player's identity and the existing secondary keys. Local shared-keyboard bindings remain separate.
+
+The new arena range from [#82](http://ivy.localhost/tickets/82?repo=rounds-clone) is preserved. Its spawn checks read the tuned radius, and its four-shot stack tests fire again after the magazine reloads.
+Keep the three-fighter progression test on a flat arena with the default current tuning and cards; its simple driver cannot navigate every future authored map. The alternative is unrelated bot pathfinding work.
+The ordinary two-client smoke still uses the full current live pool and reaches match end with matching client states.
+
+A stance change replaces the fighter collider while retaining its body, velocity and mass. Changing the shape in place retained solver contacts from the old standing circle and lifted a stationary crouch above the floor.
+Choose a default recoil impulse of 800 with a 120 pixels/second cap. The former 72 produced only about 12 pixels/second; the new default provides a small observable boost and exercises the cap at the default fighter mass.
+Keep both network keyboard sets usable during drafts and votes as well as combat. Preserve reflection extensions on a new block press and let ballistic shots return from above the frame during their normal lifetime.
+Missing size fields in historical snapshots use the bundled standing dimensions. Report changed tuning failures to stderr as well as the existing query API, and document that mouse-cursor aim also applies to keyboard firing.

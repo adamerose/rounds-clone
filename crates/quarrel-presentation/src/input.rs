@@ -1,8 +1,8 @@
 use super::*;
 
 /// Local two-player controls, expressed entirely as authority inputs.
-/// Orange: A/D, W jump, S block, Space fire, I/J/K/L aim.
-/// Blue: arrows, Enter fire, numpad 8/4/5/6 aim. Resting aim tracks the opponent.
+/// Orange: A/D, Space/W jump, S crouch, Shift block, F fire, I/J/K/L aim.
+/// Blue: arrows (down crouches), right Shift block, Enter fire, numpad aim.
 pub fn keyboard_combat_input(keys: &ButtonInput<KeyCode>, player: u8) -> PlayerInput {
     let [
         left,
@@ -19,8 +19,8 @@ pub fn keyboard_combat_input(keys: &ButtonInput<KeyCode>, player: u8) -> PlayerI
             KeyCode::KeyA,
             KeyCode::KeyD,
             KeyCode::KeyW,
-            KeyCode::KeyS,
-            KeyCode::Space,
+            KeyCode::ShiftLeft,
+            KeyCode::KeyF,
             KeyCode::KeyI,
             KeyCode::KeyJ,
             KeyCode::KeyK,
@@ -31,7 +31,7 @@ pub fn keyboard_combat_input(keys: &ButtonInput<KeyCode>, player: u8) -> PlayerI
             KeyCode::ArrowLeft,
             KeyCode::ArrowRight,
             KeyCode::ArrowUp,
-            KeyCode::ArrowDown,
+            KeyCode::ShiftRight,
             KeyCode::Enter,
             KeyCode::Numpad8,
             KeyCode::Numpad4,
@@ -48,7 +48,12 @@ pub fn keyboard_combat_input(keys: &ButtonInput<KeyCode>, player: u8) -> PlayerI
         aim_x,
         aim_y,
         aim_at_opponent: aim_x == 0 && aim_y == 0,
-        jump: keys.pressed(jump),
+        jump: keys.pressed(jump) || (player == 0 && keys.pressed(KeyCode::Space)),
+        crouch: keys.pressed(if player == 0 {
+            KeyCode::KeyS
+        } else {
+            KeyCode::ArrowDown
+        }),
         block: keys.pressed(block),
         fire: keys.pressed(fire),
         ..PlayerInput::default()
@@ -60,7 +65,15 @@ pub fn keyboard_mouse_combat_input(
     mouse_buttons: &ButtonInput<MouseButton>,
     mouse_aim: Option<Vec2>,
 ) -> PlayerInput {
-    let mut input = keyboard_combat_input(keys, 0);
+    mouse_combat_input(keyboard_combat_input(keys, 0), mouse_buttons, mouse_aim)
+}
+
+/// Applies cursor aim computed by the rendering camera, preserving keyboard aim.
+pub(super) fn mouse_combat_input(
+    mut input: PlayerInput,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    mouse_aim: Option<Vec2>,
+) -> PlayerInput {
     if let Some(aim) =
         mouse_aim.filter(|aim| input.aim_at_opponent && aim.length_squared() > f32::EPSILON)
     {
@@ -72,6 +85,51 @@ pub fn keyboard_mouse_combat_input(
     input.fire |= mouse_buttons.pressed(MouseButton::Left);
     input.block |= mouse_buttons.pressed(MouseButton::Right);
     input
+}
+/// A network peer owns one fighter: primary controls work for either assigned ID,
+/// while the second local keyboard bindings remain available as aliases.
+pub(super) fn single_player_keyboard_input(keys: &ButtonInput<KeyCode>) -> PlayerInput {
+    let mut input = keyboard_combat_input(keys, 0);
+    let aliases = keyboard_combat_input(keys, 1);
+    if input.move_axis == 0 {
+        input.move_axis = aliases.move_axis;
+    }
+    if input.aim_at_opponent {
+        input.aim_x = aliases.aim_x;
+        input.aim_y = aliases.aim_y;
+        input.aim_at_opponent = aliases.aim_at_opponent;
+    }
+    input.jump |= aliases.jump;
+    input.crouch |= aliases.crouch;
+    input.fire |= aliases.fire;
+    input.block |= aliases.block;
+    input
+}
+pub(super) fn single_player_flow_command(
+    key: KeyCode,
+    player: u8,
+    flow: &FlowSnapshot,
+) -> Option<FlowCommand> {
+    let key = if player == 0 {
+        match key {
+            KeyCode::ArrowLeft => KeyCode::KeyA,
+            KeyCode::ArrowRight => KeyCode::KeyD,
+            KeyCode::Enter => KeyCode::Space,
+            KeyCode::KeyK => KeyCode::KeyY,
+            KeyCode::KeyL => KeyCode::KeyN,
+            _ => key,
+        }
+    } else {
+        match key {
+            KeyCode::KeyA => KeyCode::ArrowLeft,
+            KeyCode::KeyD => KeyCode::ArrowRight,
+            KeyCode::Space => KeyCode::Enter,
+            KeyCode::KeyY => KeyCode::KeyK,
+            KeyCode::KeyN => KeyCode::KeyL,
+            _ => key,
+        }
+    };
+    keyboard_flow_command(key, player, flow)
 }
 
 pub fn gamepad_combat_input(gamepad: &Gamepad) -> PlayerInput {
@@ -87,6 +145,7 @@ pub fn gamepad_combat_input(gamepad: &Gamepad) -> PlayerInput {
         aim_y: (aim.y * 1_000.0) as i16,
         aim_at_opponent: aim.length_squared() < 0.04,
         jump: gamepad.pressed(GamepadButton::South),
+        crouch: gamepad.left_stick().y < -0.5 || gamepad.pressed(GamepadButton::DPadDown),
         fire: gamepad.pressed(GamepadButton::RightTrigger2),
         block: gamepad.pressed(GamepadButton::West),
         ..PlayerInput::default()
@@ -253,6 +312,101 @@ mod tests {
         keys.press(KeyCode::KeyI);
         let input = keyboard_mouse_combat_input(&keys, &ButtonInput::default(), Some(Vec2::X));
         assert_eq!((input.aim_x, input.aim_y), (0, 1_000));
+    }
+
+    #[test]
+    fn keyboard_slots_preserve_jump_crouch_fire_and_block_controls() {
+        let mut keys = ButtonInput::default();
+        for key in [
+            KeyCode::KeyA,
+            KeyCode::Space,
+            KeyCode::KeyS,
+            KeyCode::KeyF,
+            KeyCode::ShiftLeft,
+        ] {
+            keys.press(key);
+        }
+        let first = keyboard_combat_input(&keys, 0);
+        assert_eq!(first.move_axis, -1);
+        assert!(first.jump && first.crouch && first.fire && first.block);
+        assert!(!keyboard_combat_input(&keys, 1).jump);
+        keys.clear();
+        for key in [
+            KeyCode::ArrowRight,
+            KeyCode::ArrowUp,
+            KeyCode::ArrowDown,
+            KeyCode::Enter,
+            KeyCode::ShiftRight,
+        ] {
+            keys.press(key);
+        }
+        let second = keyboard_combat_input(&keys, 1);
+        assert_eq!(second.move_axis, 1);
+        assert!(second.jump && second.crouch && second.fire && second.block);
+    }
+    #[test]
+    fn network_peers_get_primary_controls_and_keep_secondary_aliases() {
+        let mut keys = ButtonInput::default();
+        for key in [KeyCode::Space, KeyCode::KeyA, KeyCode::KeyS] {
+            keys.press(key);
+        }
+        let input = single_player_keyboard_input(&keys);
+        assert!(input.jump && input.crouch);
+        assert_eq!(input.move_axis, -1);
+        let mut aliases = ButtonInput::default();
+        for key in [KeyCode::ArrowUp, KeyCode::ArrowRight, KeyCode::Enter] {
+            aliases.press(key);
+        }
+        let input = single_player_keyboard_input(&aliases);
+        assert!(input.jump && input.fire);
+        assert_eq!(input.move_axis, 1);
+    }
+    #[test]
+    fn network_primary_confirm_and_navigation_use_the_assigned_offer() {
+        let flow = flow();
+        for player in 0..2 {
+            assert_eq!(
+                single_player_flow_command(KeyCode::Space, player, &flow)
+                    .unwrap()
+                    .action,
+                FlowAction::Confirm(flow.hovered[usize::from(player)].unwrap())
+            );
+            assert_eq!(
+                single_player_flow_command(KeyCode::Enter, player, &flow)
+                    .unwrap()
+                    .action,
+                FlowAction::Confirm(flow.hovered[usize::from(player)].unwrap())
+            );
+            let hover = single_player_flow_command(KeyCode::KeyD, player, &flow).unwrap();
+            assert_eq!(
+                hover.action,
+                FlowAction::Hover(flow.offers[usize::from(player)][1])
+            );
+        }
+    }
+
+    #[test]
+    fn network_voting_accepts_both_keyboard_sets_for_either_peer() {
+        let mut state = flow();
+        state.phase = FlowPhase::MatchEnd;
+        for player in 0..2 {
+            for key in [KeyCode::KeyY, KeyCode::KeyK] {
+                assert_eq!(
+                    single_player_flow_command(key, player, &state)
+                        .unwrap()
+                        .action,
+                    FlowAction::VoteYes
+                );
+            }
+            for key in [KeyCode::KeyN, KeyCode::KeyL] {
+                assert_eq!(
+                    single_player_flow_command(key, player, &state)
+                        .unwrap()
+                        .action,
+                    FlowAction::VoteNo
+                );
+            }
+        }
     }
 
     fn flow() -> FlowSnapshot {

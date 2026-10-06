@@ -30,6 +30,7 @@ fn game(arena: ArenaDefinition, fighters: usize) -> AuthoritativeMatch {
             ..Default::default()
         },
         MatchContent {
+            tuning: CombatTuning::default(),
             cards: load_card_directory(
                 &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/cards"),
             )
@@ -114,11 +115,11 @@ fn original_arenas_have_safe_two_and_four_fighter_spawns_and_survive_twenty_seco
                     player.y_milli as f32 / 1000.0,
                 );
                 assert_eq!(position.to_array(), arena.spawns[index]);
-                assert!(position.x - PLAYER_RADIUS >= arena.frame[0]);
-                assert!(position.x + PLAYER_RADIUS <= arena.frame[2]);
-                assert!(position.y - PLAYER_RADIUS >= arena.frame[1]);
-                assert!(position.y + PLAYER_RADIUS <= arena.frame[3]);
-                let spawn = ColliderBuilder::ball(PLAYER_RADIUS)
+                assert!(position.x - CombatTuning::default().player_radius >= arena.frame[0]);
+                assert!(position.x + CombatTuning::default().player_radius <= arena.frame[2]);
+                assert!(position.y - CombatTuning::default().player_radius >= arena.frame[1]);
+                assert!(position.y + CombatTuning::default().player_radius <= arena.frame[3]);
+                let spawn = ColliderBuilder::ball(CombatTuning::default().player_radius)
                     .translation(position)
                     .build();
                 for object in &arena.objects {
@@ -149,7 +150,7 @@ fn original_arenas_have_safe_two_and_four_fighter_spawns_and_survive_twenty_seco
                         position.distance(Vector::new(
                             other.x_milli as f32 / 1000.0,
                             other.y_milli as f32 / 1000.0
-                        )) > PLAYER_RADIUS * 2.0
+                        )) > CombatTuning::default().player_radius * 2.0
                     );
                 }
             }
@@ -249,7 +250,7 @@ fn original_arenas_cover_every_object_kind() {
 
 #[test]
 fn shots_topple_both_original_physics_stacks() {
-    for (slug, target) in [("kiln", [-130.0, -145.0]), ("trestle", [-180.0, -245.0])] {
+    for (slug, target) in [("kiln", [-130.0, -145.0]), ("trestle", [-180.0, -215.0])] {
         let arena = original(slug);
         let mut idle = game(arena.clone(), 2);
         let mut shot = game(arena.clone(), 2);
@@ -257,7 +258,7 @@ fn shots_topple_both_original_physics_stacks() {
         enter_combat(&mut shot);
         let mut toppled = false;
         for tick in 0..20 * TICKS_PER_SECOND {
-            let input = if tick < 120 && tick % 30 == 0 {
+            let input = if [0, 30, 60, 150].contains(&tick) {
                 aim_at(&shot.snapshot(), target)
             } else {
                 PlayerInput::default()
@@ -300,7 +301,7 @@ fn shooting_gatefall_support_swings_the_ball_into_the_middle_without_breaking_it
     let mut released = false;
     let mut crossed_middle = false;
     for tick in 0..20 * TICKS_PER_SECOND {
-        let input = if tick < 120 && tick % 30 == 0 {
+        let input = if [0, 30, 60, 150].contains(&tick) {
             aim_at(&shot.snapshot(), [-315.0, 18.0])
         } else {
             PlayerInput::default()

@@ -35,7 +35,7 @@ It is the baseline QUARREL starts from; `docs/game-design.md` says where QUARREL
 - Crossing any of the four screen edges deals heavy damage and pushes the fighter back in; it does not kill outright.
 - Blocking just before touching an edge cancels the damage and launches the fighter off it.
   At the bottom edge this gains a lot of height; at the sides, a lot of distance.
-- `research/notes/core-rules.md` and the current code treat leaving the arena as instant death; that is wrong for ROUNDS.
+- Earlier QUARREL footage-replay code treated leaving the arena as instant death; the base fight now follows the damage-and-push rule above.
 
 ## Matches
 
