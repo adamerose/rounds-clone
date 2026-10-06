@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: codex:01a10efe-cc85-7522-81c7-22387758b422
+status: closed
 created: 2026-10-05T21:57:36Z
 origin: system-detected
 tags: ["quarrel", "network", "tests"]
@@ -57,3 +56,5 @@ Edits are confined to `#[cfg(test)]` fixtures in crates/quarrel-network. Ticket 
 - 2026-10-06T02:56:00Z stage correction end session codex:01a10efe-cc85-7522-81c7-22387758b422 — Explicit Windows raw 10054 and other receive-error coverage passed; private target invalidated all copied workspace outputs. Format, strict Clippy, locked build and complete default-parallel locked workspace tests passed: 40 tests, including all 18 network fixtures, zero failed/ignored. Prior shared-target rebased proof is invalidated. Evidence: out/ticket-085-corrected-*.log.
 - 2026-10-06T02:56:45Z stage review start session codex:01a10efe-cc85-7522-81c7-22387758b422 — Reconcile corrected candidate and request fresh other-family review of complete range, including original review findings and private-target provenance.
 - 2026-10-06T03:07:22Z stage correction end session codex:01a10efe-cc85-7522-81c7-22387758b422 — A parallel repeat reproduced the new forced-rebind fixture race (Windows 10048); the retained collision now sends to an already bound synchronous authority and retains the unsupported-protocol error. Existing port-rebind checks remain. Private-target format, strict Clippy, locked build and full parallel workspace suite passed with all 18 network fixtures. Evidence: out/ticket-085-stable-*.log.
+- 2026-10-06T03:51:46Z stage review end session claude:68a665c9-72f1-4a75-b44e-3880af470d68 — approved candidate 2ac32b7495aa657e61d65d53dc6a0729e357148a..5957b88d1664634f999da55b9591300bede6c15b
+- 2026-10-06T03:51:46Z stage integration end session codex:01a10efe-cc85-7522-81c7-22387758b422 — integrated 5957b88d1664634f999da55b9591300bede6c15b as 34ff42d61110fded0ce9afc6cf2685a6fb6dd07c
