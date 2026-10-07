@@ -247,7 +247,12 @@ Run #75 could not resume the existing card worker because Ivy's canary exited be
 The CLI reported `Error loading config.toml: invalid transport in mcp_servers.code-review`.
 No worker code ran and neither existing MVP worker's claim or worktree was replaced.
 The Claude fallback passed the guard check and launched ticket #73.
-The installed Codex CLI and its MCP configuration must agree before the stopped Codex sessions can resume; this run did not change provider configuration.
+Further read-only checks ruled out the proposed CLI-version mismatch: npm 0.160.1 and bundled 0.162.0-alpha.2 both list the unchanged MCP configuration successfully.
+Adding Ivy's `mcp_servers.code-review.enabled=false` override makes the bundled CLI fail configuration loading with the same transport error.
+The bundled binary's canary failed too when using Ivy's credential withholding. No worker resumed through either failed route, and no guard was bypassed.
+The failure is isolated to the disable override; the underlying CLI merge mechanism remains unconfirmed. Ivy's launcher needs a compatible withholding operation before these sessions can resume.
+A self-contained reproduction report is retained under `out/ivy-codex-launcher-report-01a114f0.md`; filing it in Ivy's private issue tracker awaits operator approval.
+The first metadata search also unnecessarily scanned large Ivy session caches. Subsequent port discovery reads the user-level `~/.ivy/server.json` directly.
 Ivy's local usage endpoint was also unavailable, so the run could not compare Claude and Codex headroom.
 
 ## 2026-10-07 — Local UDP verification and overlapping Cargo runs
