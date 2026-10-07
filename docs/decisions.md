@@ -973,3 +973,13 @@ Buffering remote shots was the candidate's choice; #88 selected buffering for re
 #83 found that buffering remote fighters and pieces (the interpolation half of #88's recommendation) lets authoritative damage land before the buffered bullet arrives and makes result revisions jump the world.
 The orchestrator chose one current predicted scene on each client for fighters, shots and pieces, corrected from host snapshots, with the host still authoritative.
 Rejected: keeping the buffered world and time-warping shots to catch up, because it visibly changes bullet speed, which is part of how combat reads.
+
+## 2026-10-07 — Ticket [#73](http://ivy.localhost/tickets/73?repo=rounds-clone) keyboard combat beside an idle controller for run [#75](http://ivy.localhost/tickets/75?repo=rounds-clone)
+
+Admission: a fresh independent context (codex:01a0fd6c-3361-7153-8d15-c905a8e1e923) admitted #73 unchanged on 2026-10-02 at risk 2 after #65, with no operator decision open.
+It found that the local and online device-selection branches let any attached controller replace keyboard combat input, even when the controller was idle.
+
+A controller now counts as active only when its existing semantic mapping asks for something: movement past the 0.2 stick dead zone, aim past the 0.2 radius, down-crouch, or a mapped combat button.
+An active controller still wins outright; the keyboard and controller are not merged. Assignment, draft and vote commands, `PlayerInput` and the wire protocol are unchanged.
+Locally, fighter two's arrow layout works whenever its controller is idle. With two controllers, fighter one's idle-controller fallback is the same keyboard/mouse it has with one or none.
+Rejected: merging keyboard and controller fields per frame, because a held key plus a drifting stick would mix two devices in one fighter's input; and a device-ownership menu, which the contract rules out.

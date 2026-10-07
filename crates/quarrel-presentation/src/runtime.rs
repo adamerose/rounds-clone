@@ -158,29 +158,16 @@ pub(super) fn advance_interactive_scene(
             authority.pending_flow[player] = command;
         }
     }
-    let mut live = if controllers.is_empty() {
-        (0..fighters)
-            .map(|player| keyboard_combat_input(&keys, player as u8))
-            .collect()
-    } else {
-        vec![PlayerInput::default(); fighters]
-    };
-    if let Some(player) = keyboard_player
-        && let Some(input) = live.get_mut(player)
-    {
-        *input = keyboard_mouse_combat_input(
-            &keys,
-            &mouse_buttons,
-            mouse_aim(&scene.0, player as u8, &windows, &cameras),
-        );
-    }
-    for (offset, (_, gamepad)) in controllers.iter().enumerate() {
-        let player = controller_start + offset;
-        if player >= fighters {
-            break;
-        }
-        live[player] = gamepad_combat_input(gamepad);
-    }
+    let live = crate::input::local_combat_inputs(
+        &keys,
+        &mouse_buttons,
+        &controllers
+            .iter()
+            .map(|(_, gamepad)| *gamepad)
+            .collect::<Vec<_>>(),
+        fighters,
+        mouse_aim(&scene.0, 0, &windows, &cameras),
+    );
     let steps = if authority.automated {
         10
     } else {
@@ -573,17 +560,13 @@ pub(super) fn submit_live_input(
     let mut controllers = gamepads.iter().collect::<Vec<_>>();
     controllers.sort_by_key(|(entity, _)| entity.to_bits());
     let gamepad = controllers.first().map(|(_, gamepad)| *gamepad);
-    let input = gamepad.map_or_else(
-        || {
-            crate::input::mouse_combat_input(
-                crate::input::single_player_keyboard_input(&keys),
-                &mouse_buttons,
-                live.displayed_snapshot
-                    .as_ref()
-                    .and_then(|snapshot| mouse_aim(snapshot, live.player, &windows, &cameras)),
-            )
-        },
-        gamepad_combat_input,
+    let input = crate::input::online_combat_input(
+        &keys,
+        &mouse_buttons,
+        gamepad,
+        live.displayed_snapshot
+            .as_ref()
+            .and_then(|snapshot| mouse_aim(snapshot, live.player, &windows, &cameras)),
     );
     live.handle.set_held(input);
     let Some(flow) = live

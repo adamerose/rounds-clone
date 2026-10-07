@@ -32,9 +32,10 @@ The client opens a menu when launched without arguments. Select Local match, Hos
 Click a choice, or use arrows/D-pad and Enter/south button. The menu returns when the match window closes.
 Connect controllers before starting; reconnecting or changing their count can change fighter assignment.
 For local play, one controller controls fighter two and keyboard/mouse controls fighter one; two controllers control both fighters.
+While a fighter's controller is idle, that fighter's keyboard controls still work in combat; any mapped stick or combat button input beyond the dead zones gives the controller precedence.
 Keyboard/mouse uses A/D, Space/W jump, S crouch, Shift or right mouse block, F or left mouse fire, and mouse aim. Existing keyboard aim and two-keyboard controls remain available.
 Interactive Host/Join waits until cancelled and has no timed match cutoff. Escape or close the waiting/game window to leave.
-Online players each use their own primary keyboard/mouse layout or controller. Card choices and match-end votes use the same device as combat.
+Online players each use their own primary keyboard/mouse layout or controller, and the keyboard keeps working in combat while the controller is idle. Card choices and match-end votes use the same device as combat.
 Headless UI evidence: `quarrel-client menu-capture --output out/menu.png`; `menu-start --choice 1|2 --headless --ticks 90` exercises the same host/join menu selections.
 
 ```powershell
