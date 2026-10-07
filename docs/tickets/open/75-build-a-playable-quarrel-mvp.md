@@ -35,7 +35,7 @@ Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor d
 
 - Destination: `main`. Workers use that ref; no pull request.
 - Budget resumed 2026-10-07: Codex weekly window reports 0 % used and resets 2026-10-14T03:46:11Z; stop new launches at that reset or 90 %. Ivy usage endpoint is unavailable, so Claude headroom is unknown.
-- Controls: up to five parallel workers, but tickets touching the same modules or files (after #76s split) run one after another; workers launch on Sol (`gpt-6.1-sol`) at medium effort, as Adam asked.
+- Controls: at most two parallel workers, honoring Adam's later reduction recorded below. Native Rust delivery workers launch one at a time to serialize Cargo builds. Prefer Sol (`gpt-6.1-sol`) at medium effort; Claude Opus medium is the current fallback while the Codex unattended launch is refused.
 - Adam approved closing #59, 016–037, 49, 52, 66, 69 and 70 as superseded by the 2026-10-04 direction; 62, 73 and 74 stay.
 - The M1 work is tickets #76 to #84, created 2026-10-05; online play (#83, #84) moved into the MVP at Adam's request; #76 (module split and rename) goes first so later tickets can run in parallel.
 - The 2026-10-04 winner-sharpens draft was reversed the same day: only the loser of each fight picks, and every fight is a point (docs/decisions.md).
@@ -77,3 +77,5 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-07T06:14:14Z Prepared journal-only guard judgment and launch-failure record at 3aab1b2eddd869e02c7c493e45dce347555bb62e in .ivy/worktrees/075-run-guard-journal; fresh Claude Opus high documentation review running. Scan of every destination ticket found one guard occurrence: ticket 59 ownership refusal, followed by recorded release/takeover about one minute later; no recorded lost work.
 - 2026-10-07T06:17:19Z Journal-only delivery 80073cc3992b2baac8bc35b738e74a2701faba70 published to origin/main after fresh Claude review c0ea803e-c58f-402c-8e99-8a472604a7ac; rebased range-diff unchanged and whitespace check passed. Added one launch-failure postmortem and one routine guard judgment for the sole ticket 59 occurrence. No game code delivered by this record.
 - 2026-10-07T06:20:48Z Ticket 73 closed: idle-controller keyboard fallback delivered as 159e630a7f4e2ed11407ad92b89d9e4de920de3a; ticket record reports format, strict Clippy, locked build/workspace tests and fresh Codex exact-range approval. Worker process exited. Proceeding to unowned 74 with serialized native builds.
+
+- 2026-10-07T06:22:23Z Launched Claude Opus medium worker for ticket 74 after ticket 73 exited closed; same destination main and sole native build slot. Ticket 83 remains a preserved stopped owner and will reconcile the independent 74 delivery when it can resume.
