@@ -1,7 +1,6 @@
 ---
 format: 3
 status: blocked
-owner: claude:b7dbdddc-0b4a-4606-a5de-5229ea29df0b
 created: 2026-10-05T01:09:00Z
 origin: human-request
 tags: ["quarrel", "autonomy", "autonomy-goal", "mvp"]
