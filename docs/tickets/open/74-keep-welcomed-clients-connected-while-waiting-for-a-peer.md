@@ -1,6 +1,7 @@
 ---
 format: 3
 status: ready
+owner: claude:b7fc79ea-8bb3-4f55-9da8-6ce563ee13be
 created: 2026-10-02T16:19:26Z
 origin: agent-proposed
 tags: ["rounds", "completion", "implementation"]
@@ -8,6 +9,7 @@ value: 8
 risk: 3
 sessions:
   - codex:01a0fd03-d222-7cf2-a225-29c243f2337e
+  - claude:b7fc79ea-8bb3-4f55-9da8-6ce563ee13be
 execution: unattended
 parent: 59
 depends-on: [65]
