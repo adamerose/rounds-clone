@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 owner: codex:01a114f0-227b-7711-828e-c62f2606df5c
 created: 2026-10-05T01:09:00Z
 origin: human-request
@@ -22,12 +22,6 @@ split-from: []
 
 Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor described in `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md` milestone M1. This run turns the footage-replay codebase into an ordinary match two people can start and finish, adds the card system and the loser-picks draft, and delegates implementation to Sol workers.
 
-## Blocked
-
-Codex stopped serving every model on this machine's ChatGPT sign-in at about 07:32Z on 2026-10-06: a 401 on the responses websocket, then 'The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account' for gpt-6.1-sol, gpt-6.1-astra, gpt-6.1 and gpt-6. #80's worker died mid-review and could not be resumed; #83's worker will fail at its next model call.
-
-1. How should the run continue? (a) Adam fixes the Codex sign-in or plan (for example `codex login`), and the run resumes #80 and #83 on Sol. (b) Continue on Claude Opus workers until Codex works again, which spends Claude usage instead.
-
 ## Outcome
 
 - Two players can start a QUARREL match from a menu on one machine, over LAN, or online from two homes through a Steam friend invite, pick an opening card, fight on a new random arena every fight to five points with no tied fights, with each fight's loser picking a card, and run it back to 10 and then 15 or start a new match, with no footage replay profile involved.
@@ -40,7 +34,7 @@ Codex stopped serving every model on this machine's ChatGPT sign-in at about 07:
 ## Decisions
 
 - Destination: `main`. Workers use that ref; no pull request.
-- Budget: Codex weekly window (about 1 % used at start), resets 2026-10-09T21:59Z; the run ends there or at 90 %. Claude windows are nearly unused and serve as fallback.
+- Budget resumed 2026-10-07: Codex weekly window reports 0 % used and resets 2026-10-14T03:46:11Z; stop new launches at that reset or 90 %. Ivy usage endpoint is unavailable, so Claude headroom is unknown.
 - Controls: up to five parallel workers, but tickets touching the same modules or files (after #76s split) run one after another; workers launch on Sol (`gpt-6.1-sol`) at medium effort, as Adam asked.
 - Adam approved closing #59, 016–037, 49, 52, 66, 69 and 70 as superseded by the 2026-10-04 direction; 62, 73 and 74 stay.
 - The M1 work is tickets #76 to #84, created 2026-10-05; online play (#83, #84) moved into the MVP at Adam's request; #76 (module split and rename) goes first so later tickets can run in parallel.
@@ -77,3 +71,5 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-05T14:56:33Z Online play (#83 responsive netcode, #84 Steam invites) added to the MVP; no tied fights; run-backs go to 10 and 15.
 - 2026-10-06T02:10:52Z Orchestrator resumed in claude:b7dbdddc-0b4a-4606-a5de-5229ea29df0b after the previous process exited and missed #78's completion (reported as adamerose/ivy#3); #76-#78 closed.
 - 2026-10-06T04:12:56Z Control change: at most 2 parallel workers from the next launch, because concurrent Bevy debug links (about 4 GB each in link.exe) exhausted the machine's 32 GB RAM; Adam reported lag.
+
+- 2026-10-07T05:59:04Z Run taken over from the previous Claude orchestrator on Adam's /autonomy instruction. Preserve the later two-worker cap; serialize native Cargo builds by launching Rust delivery workers one at a time. Resume existing owners for 80 and 83 rather than replace them. No stewardship routines are configured.
