@@ -983,3 +983,10 @@ A controller now counts as active only when its existing semantic mapping asks f
 An active controller still wins outright; the keyboard and controller are not merged. Assignment, draft and vote commands, `PlayerInput` and the wire protocol are unchanged.
 Locally, fighter two's arrow layout works whenever its controller is idle. With two controllers, fighter one's idle-controller fallback is the same keyboard/mouse it has with one or none.
 Rejected: merging keyboard and controller fields per frame, because a held key plus a drifting stick would mix two devices in one fighter's input; and a device-ownership menu, which the contract rules out.
+
+## 2026-10-07 — Regression coverage admission for run [#75](http://ivy.localhost/tickets/75?repo=72104b08f3e558c1)
+
+[Ticket #86](http://ivy.localhost/tickets/86?repo=72104b08f3e558c1) admission round 1 required implementation-time reconciliation, UDP endpoint ownership and retention of the inactive-arena authoring lead.
+[The second reviewer](http://ivy.localhost/sessions/claude/dda50277-846a-494f-bf2e-b2cde9ee2ec5) admitted the corrected contract at risk 3 with no open operator decision.
+Implementation reconciles each expectation with public behavior on main after tickets 78, 79 and 80, retains ticket 85 endpoint ownership and checks both default-parallel and serial suites.
+No retired tuning or footage profile is restored. Implementation waits for the unfinished card delivery in ticket 80.
