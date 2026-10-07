@@ -250,6 +250,24 @@ The Claude fallback passed the guard check and launched ticket #73.
 The installed Codex CLI and its MCP configuration must agree before the stopped Codex sessions can resume; this run did not change provider configuration.
 Ivy's local usage endpoint was also unavailable, so the run could not compare Claude and Codex headroom.
 
+## 2026-10-07 — Local UDP verification and overlapping Cargo runs
+
+Windows Firewall prompted for the network test executable during unattended verification.
+Both live and replay clients bound all interfaces even when their authority was on loopback.
+Both paths now share a socket binding rule: loopback authorities use loopback; remote authorities use the matching address family's wildcard.
+Regressions inspect real socket addresses without sending traffic to the remote test addresses.
+
+The first review caught the replay client path missing from the initial live-client fix; it was corrected before publication.
+After all 26 network tests passed, rustdoc failed because a shared simulation rlib was missing.
+An autonomy worker was compiling into the same prepared Cargo target when inspected; the rlib had reappeared by then.
+The next runs executed the other checkout's test binary: its three new tests appeared, while this fix's two regressions were absent.
+Cargo also reused that binary on a no-run build. Waiting for Cargo alone did not establish artifact attribution.
+Verification now refreshes this crate's source timestamps before rebuilding, freezes the executable outside the shared target,
+and checks that both regressions are present before running it. The prepared target and two-job cap are retained.
+All 26 tests then passed from the frozen executable; format, strict network Clippy and documentation tests passed.
+The frozen automation smoke completed 2,400 ticks through opening draft, loser draft and match end with agreeing clients.
+The firewall dialog itself was not captured after the change; the automated evidence verifies the socket bindings and local UDP sessions.
+
 ## Guard judgments
 
 The ownership refusal below was a routine handoff check, with no recorded loss of work.

@@ -11,6 +11,17 @@ pub const NETWORK_PROTOCOL: u16 = 12;
 pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM: usize = 65_507;
 
+fn bind_client_socket(authority: SocketAddr) -> io::Result<UdpSocket> {
+    // Local play and tests must not listen on LAN interfaces.
+    let bind = match (authority.is_ipv4(), authority.ip().is_loopback()) {
+        (true, true) => "127.0.0.1:0",
+        (true, false) => "0.0.0.0:0",
+        (false, true) => "[::1]:0",
+        (false, false) => "[::]:0",
+    };
+    UdpSocket::bind(bind)
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 enum ClientPacket {
@@ -207,7 +218,7 @@ pub fn send_inputs(
         .map_err(|e| format!("resolve authority: {e}"))?
         .next()
         .ok_or("authority address did not resolve")?;
-    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| format!("bind client socket: {e}"))?;
+    let socket = bind_client_socket(server).map_err(|e| format!("bind client socket: {e}"))?;
     socket
         .set_read_timeout(Some(Duration::from_secs(10)))
         .map_err(|e| e.to_string())?;
@@ -367,3 +378,22 @@ pub use live::*;
 
 mod conditions;
 pub use conditions::{NetworkConditions, NetworkTraffic};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn client_socket_matches_authority_family_and_limits_local_connections_to_loopback() {
+        for (authority, expected) in [
+            ("127.0.0.1:9", "127.0.0.1"),
+            ("127.0.0.2:9", "127.0.0.1"),
+            ("192.0.2.1:9", "0.0.0.0"),
+            ("[::1]:9", "::1"),
+            ("[2001:db8::1]:9", "::"),
+        ] {
+            let socket = bind_client_socket(authority.parse().unwrap()).unwrap();
+            assert_eq!(socket.local_addr().unwrap().ip().to_string(), expected);
+        }
+    }
+}

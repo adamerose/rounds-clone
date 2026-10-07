@@ -676,8 +676,8 @@ impl LiveClient {
             .map_err(|error| format!("resolve live authority: {error}"))?
             .find(SocketAddr::is_ipv4)
             .ok_or("live authority requires an IPv4 endpoint")?;
-        let socket =
-            UdpSocket::bind("0.0.0.0:0").map_err(|error| format!("bind live peer: {error}"))?;
+        let socket = crate::bind_client_socket(authority)
+            .map_err(|error| format!("bind live peer: {error}"))?;
         socket
             .set_read_timeout(Some(READ_INTERVAL))
             .map_err(|error| error.to_string())?;
@@ -1826,6 +1826,23 @@ mod regression_tests {
 mod interactive_tests {
     use super::*;
     use std::thread;
+
+    #[test]
+    fn local_clients_bind_loopback_and_remote_clients_keep_wildcard_binding() {
+        for (authority, expected) in [
+            ("127.0.0.1:9", "127.0.0.1"),
+            ("127.0.0.2:9", "127.0.0.1"),
+            ("192.0.2.1:9", "0.0.0.0"),
+        ] {
+            let client =
+                LiveClient::connect_interactive(authority, 0, MatchConfig::default()).unwrap();
+            assert_eq!(
+                client.socket.socket.local_addr().unwrap().ip().to_string(),
+                expected,
+                "client connecting to {authority}"
+            );
+        }
+    }
 
     #[test]
     fn invalid_bounded_ticks_report_failure_without_waiting_to_connect() {
