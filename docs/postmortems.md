@@ -240,3 +240,19 @@ Repeated full checks and serial reviews added cost. One full test output was los
 Display scanout, actual two-home routing and predictor performance on shipped outlined arenas remain unmeasured. After the decision, verify timeline boundaries and those arenas rather than treating the 32-box CPU measurement as a full frame-budget result.
 
 All four frame PNGs and the smoke terminal JSON are now retained. The three failure stdout files accompany the reproduction patch; Cargo's expected test-failure exit code is 101, not the initial wrapper's mistaken 1.
+
+## 2026-10-07 — Unattended Codex launch could not load its configuration
+
+Run #75 could not resume the existing card worker because Ivy's canary exited before reaching the guard command.
+The CLI reported `Error loading config.toml: invalid transport in mcp_servers.code-review`.
+No worker code ran and neither existing MVP worker's claim or worktree was replaced.
+The Claude fallback passed the guard check and launched ticket #73.
+The installed Codex CLI and its MCP configuration must agree before the stopped Codex sessions can resume; this run did not change provider configuration.
+Ivy's local usage endpoint was also unavailable, so the run could not compare Claude and Codex headroom.
+
+## Guard judgments
+
+The ownership refusal below was a routine handoff check, with no recorded loss of work.
+Ticket #59 records the old owner being released and the new coordinator taking ownership about one minute later, following Adam's renewed instruction.
+
+- **Guard evidence:** Ticket #59; occurrence 1; `- 2026-10-02T14:30:40Z guard session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — own refused: #59 is owned by codex:01a0fb88-1e6f-7a80-88cc-62fc856e1443; Ivy has no live observation that the session ended; release the ticket to hand it over`; judged by codex:01a114f0-227b-7711-828e-c62f2606df5c.
