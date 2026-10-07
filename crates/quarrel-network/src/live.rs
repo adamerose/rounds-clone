@@ -17,7 +17,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub const MAX_LIVE_TICKS: u32 = 36_060;
 // The sessioned datagrams are deliberately distinct from the synchronous UDP schema.
-const LIVE_PROTOCOL: u16 = 13;
+const LIVE_PROTOCOL: u16 = 14;
 const MAX_DATAGRAM: usize = 65_507;
 const JOIN_WINDOW: Duration = Duration::from_secs(5);
 const PEER_WINDOW: Duration = Duration::from_secs(3);
@@ -90,6 +90,10 @@ enum ServerPacket {
         ack: [u64; 2],
         state: Box<MatchSnapshot>,
     },
+    /// Keeps welcomed peers connected while the authority waits for the other peer.
+    Waiting { session: u64 },
+    /// The authority's join window closed before the other peer arrived.
+    JoinTimeout { session: u64 },
 }
 
 fn encode<T: Serialize>(packet: &T) -> Result<Vec<u8>, String> {
@@ -289,10 +293,21 @@ impl LiveServer {
         let mut max_received = 0;
         let mut max_sent = 0;
         let mut invalid_datagrams = 0;
+        let mut next_waiting = Instant::now();
         while peers.iter().any(Option::is_none) && (ticks.is_none() || Instant::now() < join_until)
         {
             if self.closed.load(Ordering::Relaxed) {
                 return Err("local_close".into());
+            }
+            if Instant::now() >= next_waiting {
+                for (peer, _) in peers.iter().flatten() {
+                    max_sent = max_sent.max(send(
+                        &self.socket,
+                        *peer,
+                        &ServerPacket::Waiting { session },
+                    )?);
+                }
+                next_waiting = Instant::now() + TERMINAL_INTERVAL;
             }
             if let Some((packet, sender, size)) =
                 recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
@@ -356,6 +371,15 @@ impl LiveServer {
             }
         }
         let Some([Some(peer0), Some(peer1)]) = Some(peers) else {
+            // Repeated like terminal acknowledgements; a lost notice still ends as authority silence.
+            for _ in 0..4 {
+                for (peer, _) in peers.iter().flatten() {
+                    send(&self.socket, *peer, &ServerPacket::JoinTimeout { session })?;
+                }
+            }
+            self.socket
+                .drain()
+                .map_err(|error| format!("drain live authority: {error}"))?;
             return Err("join_timeout: two live peers did not join within 5 seconds".to_owned());
         };
         let peers = [peer0.0, peer1.0];
@@ -806,7 +830,8 @@ impl LiveClient {
                     .map_err(|error| format!("drain live peer: {error}"))?;
                 return Ok(self.report("local_close", last_tick, last_hash, received));
             }
-            if (ticks.is_some() || last_tick > 0) && last_authority.elapsed() > PEER_WINDOW {
+            // Waiting packets keep the authority audible before the first snapshot.
+            if last_authority.elapsed() > PEER_WINDOW {
                 return Ok(self.report("authority_silent", last_tick, last_hash, received));
             }
             if Instant::now() >= next_send {
@@ -837,6 +862,15 @@ impl LiveClient {
                 self.max_received = self.max_received.max(size);
                 let terminal = matches!(&packet, ServerPacket::Terminal { .. });
                 match packet {
+                    ServerPacket::Waiting { session } if session == self.session => {
+                        last_authority = Instant::now();
+                    }
+                    ServerPacket::JoinTimeout { session } if session == self.session => {
+                        return Err(
+                            "join_timeout: the other live peer did not join within 5 seconds"
+                                .into(),
+                        );
+                    }
                     ServerPacket::Snapshot {
                         session,
                         tick,
@@ -1808,6 +1842,104 @@ mod regression_tests {
         assert!(error.starts_with("join_timeout:"));
         assert!(start.elapsed() >= JOIN_WINDOW);
         assert_eq!(blackhole.local_addr().unwrap(), absent);
+    }
+
+    #[test]
+    fn welcomed_peer_waits_for_a_second_peer_arriving_after_the_silence_interval() {
+        let config = config();
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let server_config = config.clone();
+        let authority = thread::spawn(move || server.run(server_config, 30, None));
+        let first_config = config.clone();
+        let first = thread::spawn(move || {
+            LiveClient::connect(address, 0, first_config)
+                .unwrap()
+                .run(30)
+                .unwrap()
+        });
+        // The second peer is still inside the five-second join window.
+        thread::sleep(PEER_WINDOW + Duration::from_millis(500));
+        assert!(
+            !first.is_finished(),
+            "welcomed peer left before the join window closed"
+        );
+        let second = LiveClient::connect(address, 1, config)
+            .unwrap()
+            .run(30)
+            .unwrap();
+        let first = first.join().unwrap();
+        let server = authority.join().unwrap().unwrap();
+        assert_eq!(server.result, "completed");
+        for client in [&first, &second] {
+            assert_eq!(client.result, "completed");
+            assert_eq!(client.last_tick, 30);
+            assert_eq!(client.state_hash.as_ref(), Some(&server.state_hash));
+        }
+        assert_eq!(first.received, second.received);
+        assert!(LiveServer::bind(address).is_ok());
+    }
+
+    #[test]
+    fn absent_second_peer_ends_the_welcomed_peer_with_a_join_timeout() {
+        let server = LiveServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let start = Instant::now();
+        let authority = thread::spawn(move || server.run(config(), 30, None));
+        let client = LiveClient::connect(address, 0, config()).unwrap();
+        let handle = client.handle();
+        let error = client.run(30).unwrap_err();
+        let elapsed = start.elapsed();
+        assert!(
+            error.starts_with("join_timeout: the other live peer"),
+            "{error}"
+        );
+        assert!(handle.result().unwrap().contains("join_timeout"));
+        // The authority's notice ends the wait, not the running-session silence bound.
+        assert!(
+            elapsed >= JOIN_WINDOW && elapsed < JOIN_WINDOW + PEER_WINDOW,
+            "{elapsed:?}"
+        );
+        assert!(
+            authority
+                .join()
+                .unwrap()
+                .unwrap_err()
+                .starts_with("join_timeout:")
+        );
+        assert!(LiveServer::bind(address).is_ok());
+    }
+
+    #[test]
+    fn authority_loss_while_waiting_for_a_peer_is_bounded_silence() {
+        for interactive in [false, true] {
+            let server = LiveServer::bind("127.0.0.1:0").unwrap();
+            let address = server.local_addr().unwrap();
+            let close = server.handle();
+            let authority = thread::spawn(move || server.run_interactive(config()));
+            let client = if interactive {
+                LiveClient::connect_interactive(address, 0, config()).unwrap()
+            } else {
+                LiveClient::connect(address, 0, config()).unwrap()
+            };
+            let run = thread::spawn(move || {
+                if interactive {
+                    client.run_interactive()
+                } else {
+                    client.run(30)
+                }
+            });
+            thread::sleep(PEER_WINDOW + Duration::from_millis(500));
+            assert!(!run.is_finished(), "waiting peer left a live authority");
+            close.close();
+            let closed = Instant::now();
+            assert_eq!(authority.join().unwrap().unwrap_err(), "local_close");
+            let report = run.join().unwrap().unwrap();
+            assert_eq!(report.result, "authority_silent");
+            assert_eq!(report.last_tick, 0);
+            assert!(closed.elapsed() < PEER_WINDOW + Duration::from_secs(1));
+            assert!(LiveServer::bind(address).is_ok());
+        }
     }
 
     fn wait_for(handle: &LiveClientHandle, predicate: impl Fn(&MatchSnapshot) -> bool) {

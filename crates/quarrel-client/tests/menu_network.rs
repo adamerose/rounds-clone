@@ -169,3 +169,56 @@ fn headless_menu_join_waits_for_a_host_started_after_old_deadline() {
         );
     }
 }
+
+#[test]
+fn bounded_host_client_waits_for_a_peer_joining_after_the_silence_interval() {
+    let mut host = Command::new(test_client())
+        .args(["host", "--headless", "--port", "0", "--ticks", "90"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut output = BufReader::new(host.stdout.take().unwrap());
+    let mut listening = String::new();
+    output.read_line(&mut listening).unwrap();
+    let event: serde_json::Value = serde_json::from_str(&listening).expect("host listening event");
+    let address = event["address"].as_str().unwrap().to_owned();
+    // After the three-second running silence bound, inside the five-second join window.
+    std::thread::sleep(std::time::Duration::from_millis(3_500));
+    let join = Command::new(test_client())
+        .args([
+            "join",
+            "--address",
+            &address,
+            "--client",
+            "1",
+            "--headless",
+            "--ticks",
+            "90",
+        ])
+        .output()
+        .unwrap();
+    let lines = output.lines().collect::<Result<Vec<_>, _>>().unwrap();
+    let host = host.wait_with_output().unwrap();
+    for output in [&host, &join] {
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let joined = String::from_utf8_lossy(&join.stdout).into_owned();
+    // The host prints its client and authority reports; the joining peer prints its own.
+    let reports = lines
+        .iter()
+        .map(String::as_str)
+        .chain(joined.lines())
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter_map(|report| report["stateHash"].as_str().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert_eq!(reports.len(), 3, "{reports:?}");
+    assert!(
+        reports.windows(2).all(|pair| pair[0] == pair[1]),
+        "{reports:?}"
+    );
+}
