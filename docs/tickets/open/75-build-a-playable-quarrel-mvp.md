@@ -1,6 +1,7 @@
 ---
 format: 3
 status: blocked
+owner: codex:01a114f0-227b-7711-828e-c62f2606df5c
 created: 2026-10-05T01:09:00Z
 origin: human-request
 tags: ["quarrel", "autonomy", "autonomy-goal", "mvp"]
@@ -10,6 +11,7 @@ sessions:
   - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
   - claude:b6830e28-b9c7-41d5-9510-1a09f7d6de88
   - claude:b7dbdddc-0b4a-4606-a5de-5229ea29df0b
+  - codex:01a114f0-227b-7711-828e-c62f2606df5c
 execution: unattended
 depends-on: []
 supersedes: [59]
