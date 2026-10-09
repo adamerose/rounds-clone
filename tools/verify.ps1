@@ -16,13 +16,12 @@ copies every executable as Cargo reports it and runs the test copies, so a raw C
 another checkout cannot replace them mid-run. Dependency artifacts, profiles and flags are
 unchanged.
 
-The script keeps the computer usable while it runs. It compiles at BelowNormal priority, so
-compiling and linking yield the processor to the applications someone is using: Windows gives
-each new process the BelowNormal class of the process that creates it, so Cargo, the compiler
-and the linker all inherit it. The script takes back its caller's priority before running the
-tests, so the test executables and the client they launch keep normal scheduling. Their
-wall-clock network checks failed under a busy foreground at BelowNormal, and each uses at most
-about one core.
+The script limits how much it competes with the applications someone is using. It compiles at
+BelowNormal priority, so compiling and linking yield the processor to them: Windows gives each
+new process the BelowNormal class of the process that creates it, so Cargo, the compiler and the
+linker all inherit it. The script takes back its caller's priority before running the tests, so
+the test executables and the client they launch keep normal scheduling. Their wall-clock network
+checks failed under a busy foreground at BelowNormal, and each uses at most about one core.
 
 Linking one Bevy executable takes 5 to 7.5 GB of memory, and two at once exhausted a 32 GB
 machine's free memory and paged its applications out to disk, so the build and test builds,
