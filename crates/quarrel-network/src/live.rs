@@ -1960,12 +1960,9 @@ mod interactive_tests {
     use std::thread;
 
     #[test]
-    fn local_clients_bind_loopback_and_remote_clients_keep_wildcard_binding() {
-        for (authority, expected) in [
-            ("127.0.0.1:9", "127.0.0.1"),
-            ("127.0.0.2:9", "127.0.0.1"),
-            ("192.0.2.1:9", "0.0.0.0"),
-        ] {
+    fn local_interactive_clients_bind_loopback() {
+        // Remote authorities use the wildcard address that client_bind_address selects.
+        for (authority, expected) in [("127.0.0.1:9", "127.0.0.1"), ("127.0.0.2:9", "127.0.0.1")] {
             let client =
                 LiveClient::connect_interactive(authority, 0, MatchConfig::default()).unwrap();
             assert_eq!(

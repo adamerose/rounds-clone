@@ -4,7 +4,7 @@ use quarrel_sim::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io;
-use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
 pub const NETWORK_PROTOCOL: u16 = 15;
@@ -12,14 +12,18 @@ pub const MAX_NETWORK_TICKS: u32 = 6_000;
 const MAX_DATAGRAM: usize = 65_507;
 
 fn bind_client_socket(authority: SocketAddr) -> io::Result<UdpSocket> {
-    // Local play and tests must not listen on LAN interfaces.
-    let bind = match (authority.is_ipv4(), authority.ip().is_loopback()) {
-        (true, true) => "127.0.0.1:0",
-        (true, false) => "0.0.0.0:0",
-        (false, true) => "[::1]:0",
-        (false, false) => "[::]:0",
+    UdpSocket::bind(client_bind_address(authority))
+}
+
+/// Local play and tests must not listen on LAN interfaces; remote play needs every interface.
+fn client_bind_address(authority: SocketAddr) -> SocketAddr {
+    let ip: IpAddr = match (authority.is_ipv4(), authority.ip().is_loopback()) {
+        (true, true) => Ipv4Addr::LOCALHOST.into(),
+        (true, false) => Ipv4Addr::UNSPECIFIED.into(),
+        (false, true) => Ipv6Addr::LOCALHOST.into(),
+        (false, false) => Ipv6Addr::UNSPECIFIED.into(),
     };
-    UdpSocket::bind(bind)
+    SocketAddr::new(ip, 0)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -384,14 +388,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn client_socket_matches_authority_family_and_limits_local_connections_to_loopback() {
+    fn client_address_matches_authority_family_and_limits_local_connections_to_loopback() {
         for (authority, expected) in [
-            ("127.0.0.1:9", "127.0.0.1"),
-            ("127.0.0.2:9", "127.0.0.1"),
-            ("192.0.2.1:9", "0.0.0.0"),
-            ("[::1]:9", "::1"),
-            ("[2001:db8::1]:9", "::"),
+            ("127.0.0.1:9", "127.0.0.1:0"),
+            ("127.0.0.2:9", "127.0.0.1:0"),
+            ("192.0.2.1:9", "0.0.0.0:0"),
+            ("[::1]:9", "[::1]:0"),
+            ("[2001:db8::1]:9", "[::]:0"),
         ] {
+            let address = client_bind_address(authority.parse().unwrap());
+            assert_eq!(address.to_string(), expected, "authority {authority}");
+        }
+    }
+
+    #[test]
+    fn local_client_sockets_bind_loopback() {
+        // Binding a wildcard address here would open a firewall prompt for the test executable.
+        for (authority, expected) in [("127.0.0.2:9", "127.0.0.1"), ("[::1]:9", "::1")] {
             let socket = bind_client_socket(authority.parse().unwrap()).unwrap();
             assert_eq!(socket.local_addr().unwrap().ip().to_string(), expected);
         }

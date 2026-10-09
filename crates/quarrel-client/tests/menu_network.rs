@@ -11,6 +11,10 @@ fn headless_host_and_join_menu_choices_reach_first_fight() {
             "menu-start",
             "--choice",
             "1",
+            // Command-line options precede the menu's own Host options and win over them.
+            // Menu Host binds every interface for LAN play; tests stay on loopback.
+            "--bind",
+            "127.0.0.1",
             "--headless",
             "--port",
             "0",
@@ -25,13 +29,8 @@ fn headless_host_and_join_menu_choices_reach_first_fight() {
     let mut listening = String::new();
     output.read_line(&mut listening).unwrap();
     let event: serde_json::Value = serde_json::from_str(&listening).expect("host listening event");
-    let port = event["address"]
-        .as_str()
-        .unwrap()
-        .rsplit(':')
-        .next()
-        .unwrap();
-    let peer = format!("127.0.0.1:{port}");
+    let peer = event["address"].as_str().unwrap().to_owned();
+    assert!(peer.starts_with("127.0.0.1:"), "host listening on {peer}");
     // A person has time to type an address after Host; this exceeded the old join window.
     std::thread::sleep(std::time::Duration::from_millis(5_300));
     let join = Command::new(&executable)
@@ -145,6 +144,10 @@ fn headless_menu_join_waits_for_a_host_started_after_old_deadline() {
             "menu-start",
             "--choice",
             "1",
+            // Command-line options precede the menu's own Host options and win over them.
+            // Menu Host binds every interface for LAN play; tests stay on loopback.
+            "--bind",
+            "127.0.0.1",
             "--headless",
             "--port",
             &address.port().to_string(),

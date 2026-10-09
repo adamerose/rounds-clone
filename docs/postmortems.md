@@ -362,3 +362,11 @@ The following review was interrupted when the launched worker and supervisor dis
 Review 10 confirmed the per-part fix prevented compound wall crossings, then found a separate short Blink on unmodified Teal. The starting floor and the next platform share a height, but native resting contact sinks the body by about 0.011 px. A zero-time contact exception did not cover that later platform corner. The existing horizontal sweep only rejected near-zero displacement, so a partial 52 px Blink escaped its predicate.
 
 Add a two-platform gap regression that requires the full 90 px in both stances and a healthy grounded landing after settling. Apply the existing contact allowance to the cast shape along the entire path and remove the initial-contact exception. Preserve the raw rejection, exact public Teal inputs and earlier column/trap controls. The separate-platform test failed before this correction and the six focused Blink regressions passed afterward. Refresh replay states and captures against the new product; ordinary geometry bumps larger than the allowance remain solid.
+
+## 2026-10-09 — Firewall prompts returned from the regression tests
+
+Adam reported recurring approval popups during verification even with UAC set to Never notify. His photo showed Windows Firewall asking about `quarrel_network-3d1ebb929b1d7149.exe`, and the firewall log showed rules being added for the frozen `quarrel-client.exe` copies in several ticket 87 worktrees.
+The 2026-10-07 fix kept loopback play on loopback, but its regressions proved the remote choice by actually binding `0.0.0.0` and `::` for documentation-only addresses (`quarrel-network` `lib.rs` and `live.rs`).
+The menu network tests also started menu Host, which binds `0.0.0.0` for LAN play.
+Ticket 87 then gave every worktree its own frozen test and client copies, so each new path prompted again; allow rules on older paths had hidden the problem.
+Tests now check the remote address choice without binding it, and pass `--bind 127.0.0.1` to menu Host. A real socket in a test must not prove that it can listen on every interface.
