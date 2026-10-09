@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-09T03:41:28Z
 origin: agent-proposed
 tags: ["quarrel", "build", "performance"]
