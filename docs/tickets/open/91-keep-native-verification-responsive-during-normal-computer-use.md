@@ -1,5 +1,5 @@
 ---
-status: blocked
+status: ready
 owner: claude:5d7961b5-7082-42f9-9e88-f4b260740f6f
 created: 2026-10-09T03:15:36Z
 origin: human-request
@@ -18,10 +18,6 @@ split-from: []
 # Keep native verification responsive during normal computer use
 
 Adam reports that this project's builds make his computer lag while he uses it. Measure the heavy build phases, identify the resource competition and make the supported verification route yield to interactive applications while retaining every required check.
-
-## Blocked
-
-Waiting for fresh-context re-admission of a second contract amendment; no operator decision is open unless the re-admitting context finds one. Measurement showed the lag comes from memory: each Bevy debug link peaks at 5 to 7.5 GB. The allowed corrections halved the build's peak (13 to 15 GB with two links, 7.4 to 7.6 GB with one), but a single link still exhausts memory when less than about 8 GB is free. The foreground probes showed no improvement in any run. Shrinking a single link needs linker or debuginfo changes, which this contract and the run forbid; idea ticket 94 carries them. The amendment replaces the unmet acceptance "with measured improvement in foreground responsiveness" with a measured reduction of the build's peak memory, an honest probe report and the named remaining limitation.
 
 ## Outcome
 
