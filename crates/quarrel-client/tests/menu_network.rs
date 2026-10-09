@@ -225,3 +225,34 @@ fn bounded_host_client_waits_for_a_peer_joining_after_the_silence_interval() {
         "{reports:?}"
     );
 }
+
+#[test]
+fn without_steam_the_client_plays_locally_and_online_explains_that_steam_is_needed() {
+    let local = Command::new(test_client())
+        .args(["local", "--ticks", "30"])
+        .env("QUARREL_STEAM", "off")
+        .output()
+        .unwrap();
+    assert!(
+        local.status.success(),
+        "{}",
+        String::from_utf8_lossy(&local.stderr)
+    );
+    for mode in [
+        &["menu-start", "--choice", "4", "--headless"][..],
+        &["steam-host"],
+    ] {
+        let online = Command::new(test_client())
+            .args(mode)
+            .env("QUARREL_STEAM", "off")
+            .output()
+            .unwrap();
+        assert!(!online.status.success());
+        assert!(
+            String::from_utf8_lossy(&online.stderr)
+                .starts_with("Steam is needed for online play: start Steam and sign in"),
+            "{}",
+            String::from_utf8_lossy(&online.stderr)
+        );
+    }
+}

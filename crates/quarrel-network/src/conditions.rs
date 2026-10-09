@@ -39,12 +39,18 @@ impl NetworkConditions {
     }
 }
 
-// Raw UDP implements the same two operations for protocol-level tests.
-pub(crate) trait DatagramSocket {
-    fn send_to(&self, bytes: &[u8], address: SocketAddr) -> io::Result<usize>;
-    fn recv_from(&self, bytes: &mut [u8]) -> io::Result<(usize, SocketAddr)>;
+/// A datagram link the live match runs over. Delivery is unreliable and unordered, as with UDP,
+/// so the match protocol behaves the same over UDP, Steam's relay and in-memory links.
+pub trait Transport: Send {
+    /// Who a datagram goes to or came from: a UDP address, or the identity another network uses.
+    type Peer: Copy + Eq + std::fmt::Debug + Send;
+    fn send_to(&self, bytes: &[u8], peer: Self::Peer) -> io::Result<usize>;
+    /// Waits a few milliseconds at most, returning `TimedOut` or `WouldBlock` when nothing arrived.
+    fn recv_from(&self, bytes: &mut [u8]) -> io::Result<(usize, Self::Peer)>;
 }
-impl DatagramSocket for UdpSocket {
+// Live UDP sockets carry a short read timeout; raw sockets serve protocol-level tests.
+impl Transport for UdpSocket {
+    type Peer = SocketAddr;
     fn send_to(&self, bytes: &[u8], address: SocketAddr) -> io::Result<usize> {
         UdpSocket::send_to(self, bytes, address)
     }
@@ -53,9 +59,9 @@ impl DatagramSocket for UdpSocket {
     }
 }
 
-struct Pending {
+struct Pending<P> {
     due: Instant,
-    address: SocketAddr,
+    address: P,
     bytes: Vec<u8>,
 }
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
@@ -65,18 +71,18 @@ pub struct NetworkTraffic {
     pub dropped_datagrams: u64,
 }
 
-struct Queue {
+struct Queue<P> {
     traffic: NetworkTraffic,
     random: u64,
-    packets: Vec<Pending>,
+    packets: Vec<Pending<P>>,
 }
-pub(crate) struct ConditionedSocket {
-    pub socket: UdpSocket,
+pub(crate) struct ConditionedSocket<T: Transport> {
+    pub socket: T,
     conditions: NetworkConditions,
-    queue: Mutex<Queue>,
+    queue: Mutex<Queue<T::Peer>>,
 }
-impl ConditionedSocket {
-    pub fn new(socket: UdpSocket, conditions: NetworkConditions, stream: u64) -> Self {
+impl<T: Transport> ConditionedSocket<T> {
+    pub fn new(socket: T, conditions: NetworkConditions, stream: u64) -> Self {
         Self {
             socket,
             conditions,
@@ -90,7 +96,7 @@ impl ConditionedSocket {
     pub fn traffic(&self) -> NetworkTraffic {
         self.queue.lock().unwrap().traffic
     }
-    fn flush(&self, queue: &mut Queue) -> io::Result<()> {
+    fn flush(&self, queue: &mut Queue<T::Peer>) -> io::Result<()> {
         // Sort by delivery time, allowing jitter to reorder datagrams.
         queue.packets.sort_by_key(|packet| packet.due);
         while queue
@@ -125,8 +131,9 @@ fn random(state: &mut u64) -> u64 {
     value = (value ^ (value >> 27)).wrapping_mul(0x94d049bb133111eb);
     value ^ (value >> 31)
 }
-impl DatagramSocket for ConditionedSocket {
-    fn send_to(&self, bytes: &[u8], address: SocketAddr) -> io::Result<usize> {
+impl<T: Transport> Transport for ConditionedSocket<T> {
+    type Peer = T::Peer;
+    fn send_to(&self, bytes: &[u8], address: T::Peer) -> io::Result<usize> {
         let mut queue = self.queue.lock().unwrap();
         self.flush(&mut queue)?;
         let conditions = self.conditions;
@@ -155,7 +162,7 @@ impl DatagramSocket for ConditionedSocket {
         });
         Ok(bytes.len())
     }
-    fn recv_from(&self, bytes: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
+    fn recv_from(&self, bytes: &mut [u8]) -> io::Result<(usize, T::Peer)> {
         self.flush(&mut self.queue.lock().unwrap())?;
         let result = self.socket.recv_from(bytes)?;
         self.queue.lock().unwrap().traffic.received_bytes += result.0 as u64;

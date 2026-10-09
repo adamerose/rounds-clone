@@ -53,7 +53,12 @@ The authority selects the upcoming arena during Draft so clients prepare its col
 Pose errors settle over subsequent frames inside the predicted physics scene; collision checks use the drawn poses. Result transitions settle toward the frozen host pose without resetting positions.
 Fractional render frames interpolate adjacent current physics ticks for every entity. Remote entities are never buffered behind local time, and projectile speed is unchanged.
 Prediction cannot apply damage, deaths, points or cards. Physics and tuning come from the host sample; no full-match rollback or local flow authority is created.
-Protocol changes reject mismatched peers. Steam invitations remain MVP work.
+Protocol changes reject mismatched peers.
+The live authority and clients run over any `Transport`: an unreliable, unordered datagram link. UDP is the default; in-memory links serve tests and a Steam host's own fighter.
+`quarrel-steam` adds Steam: a friends-only two-player lobby, Steam's invite overlay, `+connect_lobby` join requests, and Steam networking messages carried by Steam's relays, so nobody forwards ports.
+A Steam host's authority hears its own fighter in memory and the friend over Steam through one joined transport; the match code is the same as UDP's.
+Development uses Valve's public test App ID 480, overridable with `QUARREL_STEAM_APP_ID`; `QUARREL_STEAM=off` makes Steam unavailable for tests.
+Executables that link `quarrel-steam` load `steam_api64.dll` at startup, so it must sit beside them; `tools/verify.ps1` copies it.
 Local keyboard/controller presentation and live sessions currently support the shipped 1v1 controls; the general simulation is also tested with three fighters.
 
 ## Verification

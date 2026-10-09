@@ -45,7 +45,9 @@ configured two. Holding the lock through the tests keeps another checkout's link
 beside them.
 
 Copies stay under out/verify in this checkout: build/ holds the product binaries for smoke and
-capture runs, and test/ holds the test executables and the client they launch.
+capture runs, and test/ holds the test executables and the client they launch. Both, and the
+target's debug directory, also get the dynamic libraries build scripts link, such as Steam's
+steam_api64.dll, which the client cannot start without.
 #>
 [CmdletBinding()]
 param()
@@ -303,6 +305,11 @@ public static class QuarrelVerifyFile {
         $copy
     }
 
+    # Dynamic libraries that build scripts link from the target, such as Steam's steam_api64.dll.
+    # Windows loads them from beside the executable, and Cargo puts them on PATH only for its own
+    # runs, so each directory of executables gets a copy.
+    $libraries = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
     function Invoke-Cargo([string]$Command, [string[]]$Arguments, [scriptblock]$OnArtifact) {
         Write-Host "cargo $Command $Arguments"
         $compiled = 0
@@ -310,6 +317,14 @@ public static class QuarrelVerifyFile {
         & cargo $Command --message-format=json-render-diagnostics @Arguments | ForEach-Object {
             if (-not $_.StartsWith('{')) { Write-Host $_; return }
             $message = $_ | ConvertFrom-Json
+            if ($message.reason -eq 'build-script-executed') {
+                foreach ($path in $message.linked_paths) {
+                    $directory = $path -replace '^[a-z-]+=', ''
+                    if ($directory.StartsWith("$target\", [StringComparison]::OrdinalIgnoreCase)) {
+                        Get-ChildItem -LiteralPath $directory -Filter '*.dll' | ForEach-Object { $null = $libraries.Add($_.FullName) }
+                    }
+                }
+            }
             if ($message.reason -eq 'compiler-artifact' -and (Test-WorkspaceArtifact $message)) {
                 Assert-BuiltHere $message
                 if ($message.fresh) { $reused++ } else { $compiled++ }
@@ -372,6 +387,10 @@ public static class QuarrelVerifyFile {
             }
         }
         Save-Record $settings $content $started
+        # The target's own executables, which the README runs directly, need them too.
+        foreach ($directory in (Join-Path $snapshot 'build'), (Join-Path $snapshot 'test'), (Join-Path $target 'debug')) {
+            foreach ($library in $libraries) { Copy-Item -LiteralPath $library -Destination $directory }
+        }
         Invoke-Cargo test @('--workspace', '--locked', '--doc')
 
         if (-not $client) { throw 'cargo test --no-run did not report the quarrel-client executable.' }

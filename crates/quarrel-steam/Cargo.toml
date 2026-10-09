@@ -1,0 +1,10 @@
+[package]
+name = "quarrel-steam"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+quarrel-network = { path = "../quarrel-network" }
+steamworks = "=0.13.1"

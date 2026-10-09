@@ -3,22 +3,64 @@ use super::{capture::create_monitor_four_window, runtime::verify_monitor_show_an
 use bevy::input::keyboard::{Key, KeyboardInput};
 use std::process::{Child, Command};
 
+const ITEMS: [&str; 5] = [
+    "Local match",
+    "Host on port 7777",
+    "Join",
+    "Address",
+    "Online: invite a Steam friend",
+];
+const ADDRESS: usize = 3;
+const STEAM: usize = 4;
+
+fn item_y(index: usize) -> f32 {
+    170.0 - index as f32 * 62.0
+}
+
+/// Steam services for the menu. The client supplies them, so presentation does not link Steam.
+pub trait OnlineService: Send + Sync + 'static {
+    /// Starts Steam for online play, or says why it is unavailable.
+    fn ready(&mut self) -> Result<(), String>;
+    /// A Steam lobby the player chose to join since the last call.
+    fn join_request(&mut self) -> Option<u64>;
+    /// Hands Steam to the match process the menu starts.
+    fn release(&mut self);
+}
+
 #[derive(Resource)]
 pub(super) struct Menu {
     selected: usize,
     address: String,
     status: String,
     child: Option<Child>,
+    online: Box<dyn OnlineService>,
 }
-impl Default for Menu {
-    fn default() -> Self {
+impl Menu {
+    fn new(online: Box<dyn OnlineService>) -> Self {
         Self {
             selected: 0,
             address: "127.0.0.1:7777".into(),
             status: String::new(),
             child: None,
+            online,
         }
     }
+}
+/// Menu captures show the menu without starting anything.
+impl Default for Menu {
+    fn default() -> Self {
+        Self::new(Box::new(Offline))
+    }
+}
+struct Offline;
+impl OnlineService for Offline {
+    fn ready(&mut self) -> Result<(), String> {
+        Err("Online play is unavailable in a menu capture".into())
+    }
+    fn join_request(&mut self) -> Option<u64> {
+        None
+    }
+    fn release(&mut self) {}
 }
 impl Drop for Menu {
     fn drop(&mut self) {
@@ -29,7 +71,7 @@ impl Drop for Menu {
     }
 }
 
-pub fn run_menu() -> Result<(), String> {
+pub fn run_menu(online: impl OnlineService) -> Result<(), String> {
     let snapshot = AuthoritativeMatch::new(38).snapshot();
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -38,7 +80,7 @@ pub fn run_menu() -> Result<(), String> {
             ..default()
         }))
         .insert_resource(SceneSnapshot(snapshot))
-        .init_resource::<Menu>()
+        .insert_resource(Menu::new(Box::new(online)))
         .init_resource::<VisibleWindowRequested>()
         .init_resource::<MonitorDiscovery>()
         .insert_resource(VisibleLifetime {
@@ -82,11 +124,8 @@ pub(super) fn spawn_menu(commands: &mut Commands, menu: &Menu) {
         Transform::from_xyz(0.0, 0.0, -10.0),
     ));
     text(commands, "QUARREL", 250.0, 52.0);
-    for (index, label) in ["Local match", "Host on port 7777", "Join", "Address"]
-        .iter()
-        .enumerate()
-    {
-        let y = 130.0 - index as f32 * 70.0;
+    for (index, label) in ITEMS.iter().enumerate() {
+        let y = item_y(index);
         commands.spawn((
             SceneVisual,
             Sprite::from_color(
@@ -95,13 +134,13 @@ pub(super) fn spawn_menu(commands: &mut Commands, menu: &Menu) {
                 } else {
                     Color::srgb_u8(22, 35, 49)
                 },
-                Vec2::new(760.0, 58.0),
+                Vec2::new(760.0, 52.0),
             ),
             Transform::from_xyz(0.0, y, 0.0),
         ));
         text(
             commands,
-            &if index == 3 {
+            &if index == ADDRESS {
                 format!("Address: {}", menu.address)
             } else {
                 label.to_string()
@@ -112,8 +151,8 @@ pub(super) fn spawn_menu(commands: &mut Commands, menu: &Menu) {
     }
     text(
         commands,
-        "Click or use arrows / D-pad, Enter / A to start.\nSelect Address; Ctrl+A clears it for the host's IP and port.\nLocal: keyboard + mouse and one controller, or two controllers.\nConnect your controllers before starting the match.",
-        -215.0,
+        "Click or use arrows / D-pad, Enter / A to start.\nSelect Address; Ctrl+A clears it for the host's IP and port.\nOnline: pick a friend in Steam's invite window; they accept the invite in Steam.\nLocal: keyboard + mouse and one controller, or two controllers.\nConnect your controllers before starting the match.",
+        -190.0,
         20.0,
     );
     text(commands, &menu.status, -305.0, 18.0);
@@ -133,7 +172,12 @@ fn text(commands: &mut Commands, value: &str, y: f32, size: f32) {
     ));
 }
 
-pub fn menu_match_args(selected: usize, address: &str) -> Result<Vec<String>, String> {
+/// The client arguments for a menu choice. Online play first checks that Steam is ready.
+pub fn menu_match_args(
+    selected: usize,
+    address: &str,
+    online: &mut dyn OnlineService,
+) -> Result<Vec<String>, String> {
     let args = match selected {
         0 => vec!["visible-flow", "--ticks", "4294967295"],
         1 => vec![
@@ -160,9 +204,18 @@ pub fn menu_match_args(selected: usize, address: &str) -> Result<Vec<String>, St
                 "--interactive",
             ]
         }
-        _ => return Err("Select Local, Host or Join to start".into()),
+        STEAM => {
+            online.ready()?;
+            vec!["steam-host"]
+        }
+        _ => return Err("Select Local, Host, Join or Online to start".into()),
     };
     Ok(args.into_iter().map(str::to_owned).collect())
+}
+
+/// The client arguments that join a friend's Steam lobby.
+pub fn steam_join_args(lobby: u64) -> Vec<String> {
+    vec!["steam-join".into(), "--lobby".into(), lobby.to_string()]
 }
 
 #[expect(
@@ -206,6 +259,10 @@ fn update_menu(
     if keys.just_pressed(KeyCode::Escape) {
         exit.write(AppExit::Success);
     }
+    let mut start = None;
+    if let Some(lobby) = menu.online.join_request() {
+        start = Some(Ok(steam_join_args(lobby)));
+    }
     let up = keys.just_pressed(KeyCode::ArrowUp)
         || gamepads
             .iter()
@@ -215,10 +272,10 @@ fn update_menu(
             .iter()
             .any(|g| g.just_pressed(GamepadButton::DPadDown));
     if up {
-        menu.selected = (menu.selected + 3) % 4;
+        menu.selected = (menu.selected + ITEMS.len() - 1) % ITEMS.len();
     }
     if down {
-        menu.selected = (menu.selected + 1) % 4;
+        menu.selected = (menu.selected + 1) % ITEMS.len();
     }
     let mut confirm = keys.just_pressed(KeyCode::Enter)
         || gamepads
@@ -231,21 +288,21 @@ fn update_menu(
             cursor.x / window.width() * 1280.0 - 640.0,
             360.0 - cursor.y / window.height() * 720.0,
         );
-        for index in 0..4 {
-            if point.x.abs() < 380.0 && (point.y - (130.0 - index as f32 * 70.0)).abs() < 29.0 {
+        for index in 0..ITEMS.len() {
+            if point.x.abs() < 380.0 && (point.y - item_y(index)).abs() < 26.0 {
                 menu.selected = index;
-                confirm = index < 3;
+                confirm = index != ADDRESS;
             }
         }
     }
-    if menu.selected == 3
+    if menu.selected == ADDRESS
         && keys.just_pressed(KeyCode::KeyA)
         && (keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight))
     {
         menu.address.clear();
     }
     for event in keyboard.read() {
-        if menu.selected != 3 || !event.state.is_pressed() {
+        if menu.selected != ADDRESS || !event.state.is_pressed() {
             continue;
         }
         match &event.logical_key {
@@ -267,19 +324,36 @@ fn update_menu(
             _ => {}
         }
     }
-    if confirm && menu.selected < 3 {
-        let result = menu_match_args(menu.selected, &menu.address).and_then(|args| {
+    if start.is_none() && confirm && menu.selected != ADDRESS {
+        let Menu {
+            selected,
+            address,
+            online,
+            ..
+        } = &mut *menu;
+        start = Some(menu_match_args(*selected, address, online.as_mut()));
+    }
+    if let Some(args) = start {
+        let result = args.and_then(|args| {
+            // The match process owns Steam while it runs; the menu takes it back afterwards.
+            menu.online.release();
+            let joining = args[0] == "steam-join";
             let executable = std::env::current_exe().map_err(|e| e.to_string())?;
             Command::new(executable)
                 .args(args)
                 .spawn()
+                .map(|child| (child, joining))
                 .map_err(|e| e.to_string())
         });
         match result {
-            Ok(child) => {
+            Ok((child, joining)) => {
                 menu.child = Some(child);
-                menu.status = if menu.selected == 1 {
+                menu.status = if joining {
+                    "Joining your friend's Steam match...".into()
+                } else if menu.selected == 1 {
                     "Hosting on port 7777. Your partner should select Join now.".into()
+                } else if menu.selected == STEAM {
+                    "Steam's invite window opens in the match. Pick a friend to invite.".into()
                 } else {
                     "Starting match...".into()
                 };
@@ -296,18 +370,41 @@ fn update_menu(
 #[cfg(test)]
 mod tests {
     use super::*;
+    struct Steam(Result<(), String>);
+    impl OnlineService for Steam {
+        fn ready(&mut self) -> Result<(), String> {
+            self.0.clone()
+        }
+        fn join_request(&mut self) -> Option<u64> {
+            None
+        }
+        fn release(&mut self) {}
+    }
+
     #[test]
     fn menu_launches_existing_local_and_network_routes() {
-        assert_eq!(menu_match_args(0, "").unwrap()[0], "visible-flow");
+        let online = &mut Steam(Ok(()));
+        assert_eq!(menu_match_args(0, "", online).unwrap()[0], "visible-flow");
         assert!(
-            menu_match_args(1, "")
+            menu_match_args(1, "", online)
                 .unwrap()
                 .windows(2)
                 .any(|pair| pair == ["--bind", "0.0.0.0"])
         );
-        let join = menu_match_args(2, "127.0.0.1:7777").unwrap();
+        let join = menu_match_args(2, "127.0.0.1:7777", online).unwrap();
         assert!(join.windows(2).any(|pair| pair == ["--client", "1"]));
         assert!(join.iter().any(|arg| arg == "--interactive"));
-        assert!(menu_match_args(2, "bad address").is_err());
+        assert!(menu_match_args(2, "bad address", online).is_err());
+        assert_eq!(menu_match_args(STEAM, "", online).unwrap(), ["steam-host"]);
+        assert_eq!(steam_join_args(7), ["steam-join", "--lobby", "7"]);
+    }
+
+    #[test]
+    fn online_choice_explains_that_steam_is_needed() {
+        let needed = "Steam is needed for online play".to_owned();
+        assert_eq!(
+            menu_match_args(STEAM, "", &mut Steam(Err(needed.clone()))),
+            Err(needed)
+        );
     }
 }

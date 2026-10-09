@@ -1,4 +1,4 @@
-use crate::conditions::{ConditionedSocket, DatagramSocket};
+use crate::conditions::{ConditionedSocket, Transport};
 use crate::{NetworkConditions, NetworkTraffic, PresentationSample};
 use quarrel_sim::{
     AuthoritativeMatch, FlowCommand, MatchConfig, MatchSnapshot, PlayerInput, TICKS_PER_SECOND,
@@ -133,9 +133,9 @@ fn decode<T: for<'a> Deserialize<'a>>(bytes: &[u8]) -> Result<T, String> {
     rmp_serde::from_slice(&raw).map_err(|error| error.to_string())
 }
 
-fn send<T: Serialize>(
-    socket: &impl DatagramSocket,
-    address: SocketAddr,
+fn send<S: Transport, T: Serialize>(
+    socket: &S,
+    address: S::Peer,
     packet: &T,
 ) -> Result<usize, String> {
     let bytes = encode(packet)?;
@@ -145,10 +145,10 @@ fn send<T: Serialize>(
     Ok(bytes.len())
 }
 
-fn recv<T: for<'a> Deserialize<'a>>(
-    socket: &impl DatagramSocket,
+fn recv<T: for<'a> Deserialize<'a>, S: Transport>(
+    socket: &S,
     invalid_datagrams: &mut u32,
-) -> Result<Option<(T, SocketAddr, usize)>, String> {
+) -> Result<Option<(T, S::Peer, usize)>, String> {
     let mut bytes = vec![0; MAX_DATAGRAM];
     match socket.recv_from(&mut bytes) {
         Ok((length, address)) => match decode(&bytes[..length]) {
@@ -223,8 +223,9 @@ pub struct LiveClientReport {
     pub invalid_datagrams: u32,
 }
 
-pub struct LiveServer {
-    socket: ConditionedSocket,
+/// The match authority. It runs the same protocol over any [`Transport`]; UDP is the default.
+pub struct LiveServer<T: Transport = UdpSocket> {
+    socket: ConditionedSocket<T>,
     closed: Arc<AtomicBool>,
 }
 
@@ -252,14 +253,26 @@ impl LiveServer {
         address: impl ToSocketAddrs,
         conditions: NetworkConditions,
     ) -> Result<Self, String> {
-        let conditions = conditions.validate()?;
         let socket =
             UdpSocket::bind(address).map_err(|error| format!("bind live authority: {error}"))?;
         socket
             .set_read_timeout(Some(READ_INTERVAL))
             .map_err(|error| error.to_string())?;
+        Self::over(socket, conditions)
+    }
+
+    pub fn local_addr(&self) -> Result<SocketAddr, String> {
+        self.socket
+            .socket
+            .local_addr()
+            .map_err(|error| error.to_string())
+    }
+}
+
+impl<T: Transport> LiveServer<T> {
+    pub fn over(transport: T, conditions: NetworkConditions) -> Result<Self, String> {
         Ok(Self {
-            socket: ConditionedSocket::new(socket, conditions, 0),
+            socket: ConditionedSocket::new(transport, conditions.validate()?, 0),
             closed: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -271,13 +284,6 @@ impl LiveServer {
     /// Waits for both peers and plays until cancelled or a connected peer leaves.
     pub fn run_interactive(self, config: MatchConfig) -> Result<LiveServerReport, String> {
         self.run_session(config, None, None, RunFaults::default())
-    }
-
-    pub fn local_addr(&self) -> Result<SocketAddr, String> {
-        self.socket
-            .socket
-            .local_addr()
-            .map_err(|error| error.to_string())
     }
 
     pub fn run(
@@ -320,7 +326,7 @@ impl LiveServer {
     ) -> Result<LiveServerReport, String> {
         config.validate()?;
         if config.fighter_count != 2 {
-            return Err("live UDP currently supports exactly two fighters".to_owned());
+            return Err("live play currently supports exactly two fighters".to_owned());
         }
         // Prepare arena collision geometry before welcoming peers and starting
         // the live input/silence clocks.
@@ -329,7 +335,7 @@ impl LiveServer {
             None => AuthoritativeMatch::with_config(config.clone())?,
         };
         let session = new_nonce();
-        let mut peers: [Option<(SocketAddr, u64)>; 2] = [None, None];
+        let mut peers: [Option<(T::Peer, u64)>; 2] = [None, None];
         let join_until = Instant::now() + JOIN_WINDOW;
         let mut joining_seen = [Instant::now(); 2];
         let mut max_received = 0;
@@ -352,7 +358,7 @@ impl LiveServer {
                 next_waiting = Instant::now() + TERMINAL_INTERVAL;
             }
             if let Some((packet, sender, size)) =
-                recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
+                recv::<ClientPacket, _>(&self.socket, &mut invalid_datagrams)?
             {
                 max_received = max_received.max(size);
                 if let ClientPacket::Hello {
@@ -453,7 +459,7 @@ impl LiveServer {
                     return Err("local_close".into());
                 }
                 if let Some((packet, sender, size)) =
-                    recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
+                    recv::<ClientPacket, _>(&self.socket, &mut invalid_datagrams)?
                 {
                     max_received = max_received.max(size);
                     if let Some(id) = peers.iter().position(|peer| *peer == sender) {
@@ -610,7 +616,7 @@ impl LiveServer {
                 },
                 sender,
                 size,
-            )) = recv::<ClientPacket>(&self.socket, &mut invalid_datagrams)?
+            )) = recv::<ClientPacket, _>(&self.socket, &mut invalid_datagrams)?
             {
                 max_received = max_received.max(size);
                 if received == session
@@ -699,9 +705,10 @@ impl LiveClientHandle {
     }
 }
 
-pub struct LiveClient {
-    socket: ConditionedSocket,
-    authority: SocketAddr,
+/// One fighter's link to the authority, over any [`Transport`]; UDP is the default.
+pub struct LiveClient<T: Transport = UdpSocket> {
+    socket: ConditionedSocket<T>,
+    authority: T::Peer,
     client_id: u8,
     session: u64,
     pending_hello: Option<ClientPacket>,
@@ -746,11 +753,6 @@ impl LiveClient {
         config: MatchConfig,
         conditions: NetworkConditions,
     ) -> Result<Self, String> {
-        let conditions = conditions.validate()?;
-        config.validate()?;
-        if config.fighter_count != 2 || client_id > 1 {
-            return Err("live UDP currently supports client ids 0 and 1".to_owned());
-        }
         let authority = address
             .to_socket_addrs()
             .map_err(|error| format!("resolve live authority: {error}"))?
@@ -761,9 +763,26 @@ impl LiveClient {
         socket
             .set_read_timeout(Some(READ_INTERVAL))
             .map_err(|error| error.to_string())?;
-        let socket = ConditionedSocket::new(socket, conditions, u64::from(client_id) + 1);
+        LiveClient::over(socket, authority, client_id, config, conditions)
+    }
+}
+
+impl<T: Transport> LiveClient<T> {
+    /// Prepares a cancellable client of `authority`; its network thread performs the handshake.
+    pub fn over(
+        transport: T,
+        authority: T::Peer,
+        client_id: u8,
+        config: MatchConfig,
+        conditions: NetworkConditions,
+    ) -> Result<Self, String> {
+        let conditions = conditions.validate()?;
+        config.validate()?;
+        if config.fighter_count != 2 || client_id > 1 {
+            return Err("live play currently supports client ids 0 and 1".to_owned());
+        }
         Ok(Self {
-            socket,
+            socket: ConditionedSocket::new(transport, conditions, u64::from(client_id) + 1),
             authority,
             client_id,
             session: 0,
@@ -812,7 +831,7 @@ impl LiveClient {
                 resend = Instant::now() + TERMINAL_INTERVAL;
             }
             if let Some((packet, sender, size)) =
-                recv::<ServerPacket>(&self.socket, &mut self.invalid_datagrams)?
+                recv::<ServerPacket, _>(&self.socket, &mut self.invalid_datagrams)?
             {
                 if sender != self.authority {
                     continue;
@@ -910,7 +929,7 @@ impl LiveClient {
                 next_send = Instant::now() + SEND_INTERVAL;
             }
             if let Some((packet, sender, size)) =
-                recv::<ServerPacket>(&self.socket, &mut self.invalid_datagrams)?
+                recv::<ServerPacket, _>(&self.socket, &mut self.invalid_datagrams)?
             {
                 if sender != self.authority {
                     continue;
@@ -1513,7 +1532,7 @@ mod regression_tests {
                 },
                 sender,
                 _,
-            ) = recv::<ClientPacket>(&fake, &mut 0).unwrap().unwrap()
+            ) = recv::<ClientPacket, _>(&fake, &mut 0).unwrap().unwrap()
             else {
                 panic!("expected hello")
             };
@@ -1858,7 +1877,7 @@ mod regression_tests {
     ) -> Result<ServerPacket, String> {
         let until = Instant::now() + JOIN_WINDOW;
         loop {
-            match recv::<ServerPacket>(socket, &mut 0)? {
+            match recv::<ServerPacket, _>(socket, &mut 0)? {
                 Some((packet, _, _)) if matches(&packet) => return Ok(packet),
                 None if authority.is_finished() => {
                     return Err(format!(
@@ -1888,7 +1907,7 @@ mod regression_tests {
         let error = sender.recv_from(&mut [0; 1]).unwrap_err();
         assert_eq!(error.raw_os_error(), Some(10054));
         sender.send_to(b"probe", address).unwrap();
-        assert!(recv::<ServerPacket>(&sender, &mut 0).unwrap().is_none());
+        assert!(recv::<ServerPacket, _>(&sender, &mut 0).unwrap().is_none());
     }
 
     #[cfg(windows)]
@@ -1911,7 +1930,7 @@ mod regression_tests {
             io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
         ));
         assert_eq!(
-            recv::<ServerPacket>(&socket, &mut 0).unwrap_err(),
+            recv::<ServerPacket, _>(&socket, &mut 0).unwrap_err(),
             format!("receive live packet: {error}")
         );
     }
@@ -2277,7 +2296,7 @@ mod interactive_tests {
         let handle = client.handle();
         let run = thread::spawn(move || client.run_interactive().unwrap());
         let mut invalid = 0;
-        let (hello, peer, _) = recv::<ClientPacket>(&socket, &mut invalid)
+        let (hello, peer, _) = recv::<ClientPacket, _>(&socket, &mut invalid)
             .unwrap()
             .unwrap();
         let ClientPacket::Hello { nonce, .. } = hello else {

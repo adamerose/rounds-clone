@@ -1,12 +1,16 @@
-use quarrel_network::{LiveClient, LiveServer, ServerReport, send_inputs};
+use quarrel_network::{
+    Joined, LiveClient, LiveServer, MemoryNetwork, NetworkConditions, ServerReport, Transport,
+    send_inputs,
+};
 use quarrel_presentation::{
-    render_menu_png, render_png, render_waiting_png, run_interactive_visible, run_live_visible,
-    run_menu, run_visible,
+    OnlineService, render_menu_png, render_png, render_waiting_png, run_interactive_visible,
+    run_live_visible, run_menu, run_visible,
 };
 use quarrel_sim::{
     AuthoritativeMatch, FlowPhase, InputRecording, MatchConfig, MatchContent, PlayerInput,
     automated_input, hash_snapshot, play_recording,
 };
+use quarrel_steam::Steam;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
@@ -26,7 +30,8 @@ fn run() -> Result<(), String> {
     if args.get(1).is_some_and(|mode| mode == "menu-start") {
         let selected = argument(&args, "--choice", 0_usize)?;
         let address = optional(&args, "--address").unwrap_or_else(|| "127.0.0.1:7777".into());
-        let menu_args = quarrel_presentation::menu_match_args(selected, &address)?;
+        let menu_args =
+            quarrel_presentation::menu_match_args(selected, &address, &mut SteamMenu::new(None))?;
         let mut translated = vec![args[0].clone(), menu_args[0].clone()];
         translated.extend(args.into_iter().skip(2));
         translated.extend(menu_args.into_iter().skip(1));
@@ -36,7 +41,14 @@ fn run() -> Result<(), String> {
     let config = config(&args)?;
     let ticks = argument(&args, "--ticks", 2_400_u32)?;
     match mode {
-        "menu" => run_menu(),
+        "menu" => run_menu(SteamMenu::new(None)),
+        // Steam starts the game this way when a player joins a friend from outside it.
+        quarrel_steam::CONNECT_LOBBY => run_menu(SteamMenu::new(Some(
+            quarrel_steam::connect_lobby(args.iter().map(String::as_str))
+                .ok_or("+connect_lobby needs a lobby id")?,
+        ))),
+        "steam-host" => steam_host(&args, config, ticks),
+        "steam-join" => steam_join(&args, config, ticks),
         "waiting-capture" => render_waiting_png(Path::new(&required(&args, "--output")?)).map(|_| ()),
         "menu-capture" => render_menu_png(Path::new(&required(&args, "--output")?)).map(|_| ()),
         "local" => print(run_local(config, ticks)?),
@@ -49,7 +61,7 @@ fn run() -> Result<(), String> {
         "arena-preview" => { let arena = PathBuf::from(required(&args, "--arena")?); let output = PathBuf::from(required(&args, "--output")?); let mut state = AuthoritativeMatch::from_arena_file(config.seed, &arena)?.snapshot(); state.flow = None; render_png(&state, &output)?; print(serde_json::json!({"arena": arena, "output": output, "stateSha256": hash_snapshot(&state)})) },
         "join" => join(&args, config, ticks),
         "host" => host(&args, config, ticks),
-        _ => Err("usage: quarrel-client [local|replay|remote|join|host|capture|record|visible|visible-flow|arena-preview] [options]".into()),
+        _ => Err("usage: quarrel-client [local|replay|remote|join|host|steam-host|steam-join|capture|record|visible|visible-flow|arena-preview] [options]".into()),
     }
 }
 fn capture_destinations(
@@ -250,8 +262,8 @@ fn run_live_client(
     present_live_client(client, id, ticks, headless, interactive)
 }
 
-fn present_live_client(
-    client: LiveClient,
+fn present_live_client<T: Transport + 'static>(
+    client: LiveClient<T>,
     id: u8,
     ticks: u32,
     headless: bool,
@@ -334,60 +346,18 @@ fn host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
     } else {
         address
     };
-    let interactive = args.iter().any(|arg| arg == "--interactive");
     let headless = args.iter().any(|arg| arg == "--headless");
-    let prepared = if interactive {
-        Some(LiveClient::connect_interactive(peer, id, config.clone())?)
-    } else {
-        None
-    };
-    let client_close = prepared.as_ref().map(LiveClient::handle);
+    if args.iter().any(|arg| arg == "--interactive") {
+        let client = LiveClient::connect_interactive(peer, id, config.clone())?;
+        return host_interactive(server, client, id, config, ticks, headless);
+    }
     let server_config = config.clone();
     let trace = optional(args, "--trace").map(PathBuf::from);
-    let server_close = server.handle();
-    let authority = std::thread::spawn(move || {
-        let result = if interactive {
-            server.run_interactive(server_config)
-        } else {
-            server.run(server_config, ticks, trace.as_deref())
-        };
-        let interrupted = result.is_err()
-            && client_close
-                .as_ref()
-                .is_some_and(|handle| !handle.is_closed());
-        if interrupted {
-            client_close.unwrap().close();
-        }
-        (result, interrupted)
-    });
-    let client = match prepared {
-        Some(client) => present_live_client(client, id, ticks, headless, interactive),
-        None => run_live_client(peer, id, config, ticks, headless, false),
-    };
-    if interactive {
-        server_close.close();
-    }
-    let (report, interrupted) = authority
+    let authority = std::thread::spawn(move || server.run(server_config, ticks, trace.as_deref()));
+    let client = run_live_client(peer, id, config, ticks, headless, false);
+    let report = authority
         .join()
-        .map_err(|_| "live authority thread panicked".to_owned())?;
-    if interactive {
-        match &report {
-            Ok(report) => print(report)?,
-            Err(error) => print(serde_json::json!({"event":"authorityEnded", "result":error}))?,
-        }
-        if interrupted {
-            return Err(report.unwrap_err());
-        }
-        client?;
-        return match report {
-            Ok(_) => Ok(()),
-            Err(error) if error == "local_close" || error.starts_with("peer_left: client ") => {
-                Ok(())
-            }
-            Err(error) => Err(error),
-        };
-    }
-    let report = report?;
+        .map_err(|_| "live authority thread panicked".to_owned())??;
     print(&report)?;
     client?;
     if report.result == "completed" {
@@ -396,6 +366,143 @@ fn host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
         Err(format!("live authority {}", report.result))
     }
 }
+/// Plays the host's own fighter beside its authority until either side ends the session.
+fn host_interactive<A: Transport + 'static, C: Transport + 'static>(
+    server: LiveServer<A>,
+    client: LiveClient<C>,
+    id: u8,
+    config: MatchConfig,
+    ticks: u32,
+    headless: bool,
+) -> Result<(), String> {
+    let client_close = client.handle();
+    let server_close = server.handle();
+    let authority = std::thread::spawn(move || {
+        let result = server.run_interactive(config);
+        let interrupted = result.is_err() && !client_close.is_closed();
+        if interrupted {
+            client_close.close();
+        }
+        (result, interrupted)
+    });
+    let client = present_live_client(client, id, ticks, headless, true);
+    server_close.close();
+    let (report, interrupted) = authority
+        .join()
+        .map_err(|_| "live authority thread panicked".to_owned())?;
+    match &report {
+        Ok(report) => print(report)?,
+        Err(error) => print(serde_json::json!({"event":"authorityEnded", "result":error}))?,
+    }
+    if interrupted {
+        return Err(report.unwrap_err());
+    }
+    client?;
+    match report {
+        Ok(_) => Ok(()),
+        Err(error) if error == "local_close" || error.starts_with("peer_left: client ") => Ok(()),
+        Err(error) => Err(error),
+    }
+}
+
+/// Hosts an online match in a friends-only Steam lobby and opens Steam's invite overlay. The
+/// host's own fighter reaches its authority in memory; the friend arrives over Steam's relay.
+fn steam_host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> {
+    let steam = std::sync::Arc::new(Steam::start()?);
+    let lobby = steam.host_lobby()?;
+    print(serde_json::json!({"event":"steamLobby", "lobby":lobby.to_string()}))?;
+    let overlay = steam.clone();
+    std::thread::spawn(move || {
+        let opened = overlay.open_invite_overlay(lobby);
+        let _ = print(serde_json::json!({"event":"steamInviteOverlay", "opened":opened}));
+    });
+    let conditions = NetworkConditions::from_env()?;
+    let network = MemoryNetwork::default();
+    let own = network.endpoint();
+    let authority = Joined::new(
+        network.endpoint(),
+        steam.transport(steam.friend_or_member()),
+    );
+    let client = LiveClient::over(own, authority.first.peer(), 0, config.clone(), conditions)?;
+    let server = LiveServer::over(authority, conditions)?;
+    let headless = args.iter().any(|arg| arg == "--headless");
+    host_interactive(server, client, 0, config, ticks, headless)
+}
+
+/// Joins a friend's Steam lobby and plays its match over Steam's relay.
+fn steam_join(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> {
+    let lobby = required(args, "--lobby")?
+        .parse()
+        .map_err(|error| format!("invalid --lobby: {error}"))?;
+    let steam = Steam::start()?;
+    let host = steam.join_lobby(lobby)?;
+    print(serde_json::json!({"event":"steamJoined", "lobby":lobby.to_string()}))?;
+    let client = LiveClient::over(
+        steam.transport(move |user| user == host),
+        host,
+        1,
+        config,
+        NetworkConditions::from_env()?,
+    )?;
+    present_live_client(
+        client,
+        1,
+        ticks,
+        args.iter().any(|arg| arg == "--headless"),
+        true,
+    )
+}
+
+/// The menu's Steam session. It hears join requests while the menu shows, and hands Steam to the
+/// match process the menu starts.
+struct SteamMenu {
+    steam: Option<(Steam, std::sync::Mutex<std::sync::mpsc::Receiver<u64>>)>,
+    pending: Option<u64>,
+    last_attempt: Option<std::time::Instant>,
+}
+
+impl SteamMenu {
+    fn new(pending: Option<u64>) -> Self {
+        Self {
+            steam: None,
+            pending,
+            last_attempt: None,
+        }
+    }
+}
+
+impl OnlineService for SteamMenu {
+    fn ready(&mut self) -> Result<(), String> {
+        if self.steam.is_none() {
+            self.last_attempt = Some(std::time::Instant::now());
+            let steam = Steam::start()?;
+            let requests = steam.join_requests();
+            self.steam = Some((steam, requests.into()));
+        }
+        Ok(())
+    }
+    fn join_request(&mut self) -> Option<u64> {
+        if let Some(lobby) = self.pending.take() {
+            return Some(lobby);
+        }
+        // Without Steam the menu retries quietly, so starting Steam later still delivers invites.
+        if self.steam.is_none()
+            && self
+                .last_attempt
+                .is_none_or(|attempt| attempt.elapsed() > std::time::Duration::from_secs(5))
+        {
+            let _ = self.ready();
+        }
+        self.steam
+            .as_ref()
+            .and_then(|(_, requests)| requests.lock().unwrap().try_recv().ok())
+    }
+    fn release(&mut self) {
+        self.steam = None;
+        self.last_attempt = None;
+    }
+}
+
 fn config(args: &[String]) -> Result<MatchConfig, String> {
     Ok(MatchConfig {
         seed: argument(args, "--seed", 38)?,

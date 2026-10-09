@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 quarrel-network = { path = "../quarrel-network" }
 quarrel-presentation = { path = "../quarrel-presentation" }
+quarrel-steam = { path = "../quarrel-steam" }
 quarrel-sim = { path = "../quarrel-sim" }
 serde.workspace = true
 serde_json.workspace = true

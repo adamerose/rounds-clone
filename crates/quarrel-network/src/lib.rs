@@ -383,7 +383,11 @@ pub mod live;
 pub use live::*;
 
 mod conditions;
-pub use conditions::{NetworkConditions, NetworkTraffic};
+pub use conditions::{NetworkConditions, NetworkTraffic, Transport};
+mod joined;
+pub use joined::{Joined, JoinedPeer};
+mod memory;
+pub use memory::{MemoryEndpoint, MemoryNetwork};
 
 #[cfg(test)]
 mod tests {

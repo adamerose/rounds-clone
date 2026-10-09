@@ -3,6 +3,7 @@ members = [
     "crates/quarrel-sim",
     "crates/quarrel-presentation",
     "crates/quarrel-network",
+    "crates/quarrel-steam",
     "crates/quarrel-server",
     "crates/quarrel-client",
     "crates/quarrel-automation",

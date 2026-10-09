@@ -22,6 +22,7 @@ out/cargo-target/debug/quarrel-client capture --seed 38 --ticks 30 --output out/
 
 Cargo uses two jobs and the reusable `out/cargo-target` directory from `.cargo/config.toml`.
 Worktrees share the main checkout's target; there, run `pwsh -File tools/verify.ps1` instead of the first four commands, and use the binaries in `out/verify/build` for the smoke and capture.
+The client loads Steam's `steam_api64.dll` at startup. `cargo run` and `cargo test` find it in its build directory; `tools/verify.ps1` copies it beside `out/verify` binaries and into `out/cargo-target/debug`, so run it once before launching the client directly.
 It reuses workspace artifacts only when its record shows that checkout built them from its current content, otherwise rebuilds the workspace crates from that checkout's source, and runs copies of the test executables, so another worktree's build cannot replace what it tests.
 The smoke runs an authority and two UDP clients through ordinary drafts, checking progressive snapshots and final state agreement.
 `assets/replays/ordinary-match.json` contains starting cards and arenas plus player inputs for a short ordinary match; the simulation tests replay it twice and compare every snapshot.
@@ -31,6 +32,8 @@ Use `quarrel-client replay --input assets/replays/ordinary-match.json` to print 
 ## Play locally
 
 The client opens a menu when launched without arguments. Select Local match, Host on port 7777, or Join; type the host's IPv4 address and port in Address.
+For play between homes, both players run Steam and QUARREL. One selects Online: invite a Steam friend; Steam's invite window opens over the waiting screen. The friend, at the QUARREL menu, accepts the invite in Steam or chooses Join Game on the host in their friends list. Traffic goes through Steam's relays, so nobody forwards ports.
+Development runs as Valve's test app Spacewar (App ID 480), so Steam shows both players in Spacewar and launching Join Game from outside QUARREL opens Spacewar instead; start QUARREL first. Without Steam, Online explains that Steam is needed and local and direct-IP play still work.
 Click a choice, or use arrows/D-pad and Enter/south button. The menu returns when the match window closes.
 Connect controllers before starting; reconnecting or changing their count can change fighter assignment.
 For local play, one controller controls fighter two and keyboard/mouse controls fighter one; two controllers control both fighters.
@@ -38,7 +41,7 @@ While a fighter's controller is idle, that fighter's keyboard controls still wor
 Keyboard/mouse uses A/D, Space/W jump, S crouch, Shift or right mouse block, F or left mouse fire, and mouse aim. Existing keyboard aim and two-keyboard controls remain available.
 Interactive Host/Join waits until cancelled and has no timed match cutoff. Escape or close the waiting/game window to leave.
 Online players each use their own primary keyboard/mouse layout or controller, and the keyboard keeps working in combat while the controller is idle. Card choices and match-end votes use the same device as combat.
-Headless UI evidence: `quarrel-client menu-capture --output out/menu.png`; `menu-start --choice 1|2 --headless --ticks 90` exercises the same host/join menu selections.
+Headless UI evidence: `quarrel-client menu-capture --output out/menu.png`; `menu-start --choice 1|2 --headless --ticks 90` exercises the same host/join menu selections, and `--choice 4` the Steam host.
 
 ```powershell
 out/cargo-target/debug/quarrel-client visible-flow --seed 38 --ticks 18000
@@ -75,7 +78,7 @@ out/cargo-target/debug/quarrel-client join --address 127.0.0.1:41000 --client 1 
 Local keyboard/controller presentation and paced live sessions support the shipped two fighters. The general simulation and scripted transport also accept other fighter counts.
 Direct-IP UDP sessions use one authority. Live clients predict fighters, shots and arena pieces together each rendered frame, corrected from host snapshots.
 Hits, deaths, points and card picks remain authoritative. Full compressed MessagePack snapshots arrive at 7.5 Hz (every eight host ticks); the simulation runs at 60 Hz.
-Steam invitations remain a later MVP ticket.
+Steam sessions (`steam-host`, `steam-join --lobby <id>`) run the same live protocol over Steam's relays.
 
 ## Card data and match configuration
 

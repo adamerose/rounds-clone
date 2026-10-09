@@ -58,7 +58,7 @@ pub use input::{
     gamepad_combat_input, gamepad_flow_command, keyboard_combat_input, keyboard_flow_command,
     keyboard_mouse_combat_input, primary_keyboard_flow_command,
 };
-pub use menu::{menu_match_args, render_menu_png, run_menu};
+pub use menu::{OnlineService, menu_match_args, render_menu_png, run_menu, steam_join_args};
 
 #[derive(Resource)]
 struct SceneSnapshot(MatchSnapshot);
