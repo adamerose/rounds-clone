@@ -18,14 +18,15 @@ unchanged.
 After compiling, it records in out/verify-record.json the size and write time of every workspace
 artifact it built, and the content of everything they were built from: each file the compiler's
 dependency info lists, including embedded assets, read before compiling; the manifests, lock file
-and Cargo configuration; and the toolchain's version. The next run reuses those artifacts only
-when the record is this checkout's, every artifact is still in the shared target as recorded and
-no manifest, configuration or toolchain changed. It then sets only the listed files whose content
-changed to the current time, so Cargo rebuilds just what depends on them, and an unchanged
-checkout compiles and links no workspace crate. Otherwise, including when the record is missing
-or unreadable, it sets every crate source to the current time so Cargo rebuilds every workspace
-crate. Doctests are compiled on every run. The record is deleted before compiling and written
-only after every build succeeds.
+and Cargo configuration; and the toolchain's version. It writes no record if any of them changed
+while it compiled. The next run reuses those artifacts only when the record is this checkout's,
+every artifact is still in the shared target as recorded, the record holds the content of every
+file their dependency info lists, and no manifest, configuration or toolchain changed. It then
+sets only the listed files whose content changed to the current time, so Cargo rebuilds just what
+depends on them, and an unchanged checkout compiles and links no workspace crate. Otherwise,
+including when the record is missing or unreadable, it sets every crate source to the current
+time so Cargo rebuilds every workspace crate. Doctests are compiled on every run. The record is
+deleted before compiling and written only after every build succeeds.
 
 The script limits how much it competes with the applications someone is using. It compiles at
 BelowNormal priority, so compiling and linking yield the processor to them: Windows gives each
@@ -99,8 +100,9 @@ try {
         if (Test-Path -LiteralPath $File -PathType Leaf) { (Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash } else { '' }
     }
 
-    # Content of every file Git sees in this checkout, read before compiling, so that a file
-    # edited during the run is never recorded as the content its artifacts were built from.
+    # Content of every file Git sees in this checkout, read before compiling. A file edited later
+    # in the run fails Save-Record's check, so it is never recorded as the content its artifacts
+    # were built from.
     function Get-CheckoutContent {
         $content = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
         $files = (git -C $checkout ls-files -z --cached --others --exclude-standard) -join "`n" -split "`0"
@@ -122,7 +124,7 @@ try {
         $settings['cargo'] = cargo -V
         foreach ($file in $Content.Keys) {
             if ((Split-Path $file -Leaf) -in 'Cargo.toml', 'Cargo.lock', 'rust-toolchain', 'rust-toolchain.toml') {
-                $settings[$file] = $Content[$file]
+                $settings[$file] = Get-Hash $file
             }
         }
         $directory = $checkout
@@ -140,30 +142,32 @@ try {
         ($settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "`n"
     }
 
-    # Every checkout file the compiler's dependency info lists for an artifact. Cargo runs the
-    # compiler from the workspace root, so relative paths are relative to this checkout.
-    function Add-Sources($Message) {
-        $depInfo = foreach ($file in $Message.filenames) {
+    # Every checkout file the compiler's dependency info lists for these artifacts, or nothing
+    # when they have no dependency info. Cargo runs the compiler from the workspace root, so
+    # relative paths are relative to this checkout.
+    function Get-Sources([string[]]$Files) {
+        $depInfo = foreach ($file in $Files) {
             $directory = Split-Path $file -Parent
             $stem = [IO.Path]::GetFileNameWithoutExtension($file)
             Join-Path $directory "$stem.d"
             if ($stem.StartsWith('lib')) { Join-Path $directory "$($stem.Substring(3)).d" }
         }
         $depInfo = @($depInfo | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -Unique)
-        if (-not $depInfo) { $script:attributed = $false }
+        $found = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($line in $depInfo | ForEach-Object { Get-Content -LiteralPath $_ }) {
             $separator = $line.IndexOf(': ')
             if ($line.StartsWith('#') -or $separator -lt 0) { continue }
             foreach ($dependency in $line.Substring($separator + 2) -split '(?<!\\) ') {
                 if (-not $dependency) { continue }
                 $path = [IO.Path]::GetFullPath(($dependency -replace '\\ ', ' '), $checkout)
-                if ($path.StartsWith("$checkout\", [StringComparison]::OrdinalIgnoreCase)) { $null = $sources.Add($path) }
+                if ($path.StartsWith("$checkout\", [StringComparison]::OrdinalIgnoreCase)) { $null = $found.Add($path) }
             }
         }
+        $found
     }
 
     # Whether the previous run's record still accounts for this checkout's artifacts. Adds the
-    # recorded source files whose content changed to $Changed, and lets this run reuse every
+    # listed source files whose content changed to $Changed, and lets this run reuse every
     # recorded artifact.
     function Test-Record([string]$Settings, [Collections.Generic.List[string]]$Changed) {
         if (-not (Test-Path -LiteralPath $recordPath)) { Write-Host 'No verification record for this checkout.'; return $false }
@@ -181,18 +185,22 @@ try {
             if ($record.settings -ne $Settings) {
                 Write-Host 'The toolchain, a manifest, the lock file or the Cargo configuration changed.'; return $false
             }
-            if (-not $record.artifacts.Count -or -not $record.sources.Count) {
-                Write-Host 'The verification record is incomplete.'; return $false
-            }
             foreach ($artifact in $record.artifacts.GetEnumerator()) {
                 if (-not (Test-Path -LiteralPath $artifact.Key -PathType Leaf) -or (Get-Signature $artifact.Key) -ne $artifact.Value) {
                     Write-Host "$($artifact.Key) is no longer the artifact this checkout built."; return $false
                 }
             }
-            foreach ($source in $record.sources.GetEnumerator()) {
-                $hash = Get-Hash $source.Key
-                if (-not $hash) { Write-Host "$($source.Key) no longer exists."; return $false }
-                if ($hash -ne $source.Value) { $Changed.Add($source.Key) }
+            # The recorded artifacts' own dependency info names the inputs to check, so a record
+            # that lost an entry cannot hide a changed input.
+            $hashes = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
+            foreach ($source in $record.sources.GetEnumerator()) { $hashes[$source.Key] = [string]$source.Value }
+            $listed = @(Get-Sources @($record.artifacts.Keys))
+            if (-not $listed) { Write-Host 'The recorded artifacts have no dependency info.'; return $false }
+            foreach ($source in $listed) {
+                if (-not $hashes.ContainsKey($source)) { Write-Host "The verification record lacks $source."; return $false }
+                $hash = Get-Hash $source
+                if (-not $hash) { Write-Host "$source no longer exists."; return $false }
+                if ($hash -ne $hashes[$source]) { $Changed.Add($source) }
             }
         } catch {
             Write-Host "The verification record is invalid: $_"; return $false
@@ -201,7 +209,9 @@ try {
         $true
     }
 
-    function Save-Record([string]$Settings, $Content) {
+    # Writes the record unless an artifact is not this run's, an input has no content read before
+    # compiling, or an input or setting changed after $Started, when compiling began.
+    function Save-Record([string]$Settings, $Content, [DateTime]$Started) {
         $record = [ordered]@{ checkout = $checkout; target = $target; settings = $Settings; artifacts = @{}; sources = @{} }
         foreach ($file in $artifacts) {
             $signature = Get-Signature $file
@@ -209,13 +219,18 @@ try {
             $record.artifacts[$file] = $signature
         }
         foreach ($file in $sources) {
-            if (-not $Content.ContainsKey($file)) { $script:attributed = $false; continue }
+            if (-not $Content.ContainsKey($file) -or (Get-Hash $file) -ne $Content[$file] -or
+                (Get-Item -LiteralPath $file).LastWriteTimeUtc -ge $Started) {
+                $script:attributed = $false
+                continue
+            }
             $record.sources[$file] = $Content[$file]
         }
+        if ((Get-Settings $Content) -ne $Settings) { $script:attributed = $false }
         if ($attributed) {
             $record | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $recordPath
         } else {
-            Write-Host 'This run cannot attribute every workspace artifact to its inputs; the next run rebuilds every workspace crate.'
+            Write-Host 'This run cannot attribute every workspace artifact to unchanged inputs; the next run rebuilds every workspace crate.'
         }
     }
 
@@ -240,7 +255,9 @@ try {
                 Assert-BuiltHere $message
                 if ($message.fresh) { $reused++ } else { $compiled++ }
                 foreach ($file in $message.filenames) { $null = $artifacts.Add($file) }
-                Add-Sources $message
+                $found = @(Get-Sources $message.filenames)
+                if (-not $found) { $script:attributed = $false }
+                foreach ($file in $found) { $null = $sources.Add($file) }
                 if ($OnArtifact) { & $OnArtifact $message }
             }
         }
@@ -278,6 +295,7 @@ try {
         $artifacts = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         $sources = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         $attributed = $true
+        $started = [DateTime]::UtcNow
 
         Invoke-Cargo clippy @('--workspace', '--all-targets', '--locked', '--', '-D', 'warnings')
         Invoke-Cargo build @('--workspace', '--locked', '--jobs', '1') {
@@ -297,7 +315,7 @@ try {
                 $script:client = Save-Executable $message (Join-Path $snapshot 'test')
             }
         }
-        Save-Record $settings $content
+        Save-Record $settings $content $started
         Invoke-Cargo test @('--workspace', '--locked', '--doc')
 
         if (-not $client) { throw 'cargo test --no-run did not report the quarrel-client executable.' }
