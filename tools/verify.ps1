@@ -26,7 +26,9 @@ sets only the listed files whose content changed to the current time, so Cargo r
 depends on them, and an unchanged checkout compiles and links no workspace crate. Otherwise,
 including when the record is missing or unreadable, it sets every crate source to the current
 time so Cargo rebuilds every workspace crate. Doctests are compiled on every run. The record is
-deleted before compiling and written only after every build succeeds.
+deleted before compiling and written only after every build succeeds. A workspace build script
+would have inputs the compiler's dependency info does not list, so a workspace with one gets no
+record and rebuilds every crate on every run; this workspace has none.
 
 The script limits how much it competes with the applications someone is using. It compiles at
 BelowNormal priority, so compiling and linking yield the processor to them: Windows gives each
