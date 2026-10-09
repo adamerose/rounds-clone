@@ -38,3 +38,16 @@ The supported verification route currently touches every crate source and rebuil
 ## Work log
 
 - 2026-10-09T03:41:28Z On origin/main after 87, tools/verify.ps1 lines110-111 assign current timestamps to every crate file. Its synopsis states every workspace crate rebuilds; independent admission context reported roughly minute-long warm compile phases. This is observed repeat cost, not proof of the complete user lag cause. No implementation or admission attempted here.
+## Scratch
+
+Fresh admission context found no duplicate, no operator decision and no needed change to another ticket record, but did not admit this contract. Before admission:
+
+- Make unchanged repeat success exact: no workspace crate compilation or linking in Clippy/build/test --no-run; doctest compilation is an explicit exception. Full frozen current-source tests still execute. If no trustworthy design exists, block rather than close.
+- Cover content and checkout identity for all compile inputs, including dependency-info-listed files, manifests/lock/config/toolchain, assets/replays/ordinary-match.json and assets/tuning.ron. Verify artifact size/write-time still match attribution.
+- Add foreign plain Cargo and supported-route builds between two worktree verifications, older-timestamp source and embedded-asset edits, and missing/corrupt attribution-record evidence.
+- Prove dependency artifacts remain fresh. No RUSTFLAGS, CARGO_INCREMENTAL, profile, feature or unstable -Z changes; stable toolchain stays supported.
+- Compare against the post-91 route with identical source, warm target and an exclusive project build window; update synopsis and AGENTS.md when blanket rebuild wording becomes false.
+- Keep proof bounded and avoid multiplying full Bevy links merely for fixture evidence. Admission must judge that the chosen public-interface regression cases fit the minutes-scale evidence rule.
+
+A per-artifact attribution record under the existing lock may serve this without a second build framework; this is a suggestion, not an approved implementation. The immediate build interruption fixes 92 and 91 stay ahead of this shaping work.
+- 2026-10-09T03:52:15Z Fresh [admission context](http://ivy.localhost/sessions/claude/5e954959-5fd5-46e1-bbff-f03005da8bb4) returned not-admit with six contract findings; retained in Scratch for bounded follow-up. No implementation attempted.
