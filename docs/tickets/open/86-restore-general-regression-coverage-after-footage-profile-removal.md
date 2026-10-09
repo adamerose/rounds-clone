@@ -1,6 +1,7 @@
 ---
 format: 3
 status: ready
+owner: claude:2b4eef28-ee49-4679-8486-d53e0b980b9f
 created: 2026-10-06T00:49:51Z
 origin: system-detected
 tags: ["quarrel", "tests", "regressions"]
@@ -8,6 +9,7 @@ value: 6
 risk: 3
 sessions:
   - codex:01a10e3b-a842-7822-a150-68dd15a3b423
+  - claude:2b4eef28-ee49-4679-8486-d53e0b980b9f
 execution: unattended
 parent: 75
 depends-on: [78, 79, 80]
