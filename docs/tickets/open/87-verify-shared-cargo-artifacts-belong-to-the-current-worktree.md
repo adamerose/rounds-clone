@@ -1,12 +1,14 @@
 ---
 format: 3
 status: ready
+owner: claude:b0f59277-7bcc-466e-b964-e98c4ce81c6c
 created: 2026-10-06T02:28:31Z
 origin: system-detected
 tags: ["quarrel", "build", "verification"]
 value: 8
 sessions:
   - codex:01a10efb-9238-7e12-aecc-c488e6f1fa44
+  - claude:b0f59277-7bcc-466e-b964-e98c4ce81c6c
 execution: unattended
 parent: 75
 depends-on: [79, 80, 81, 85, 88]
