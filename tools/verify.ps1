@@ -212,13 +212,20 @@ try {
     }
 
     # Writes the record unless an artifact is not this run's, an input has no content read before
-    # compiling, or an input or setting changed after $Started, when compiling began.
+    # compiling, or an input or setting changed after $Started, when compiling began. Cargo writes
+    # a binary's dependency info after reporting the binary, so this reads it after Cargo exits.
     function Save-Record([string]$Settings, $Content, [DateTime]$Started) {
         $record = [ordered]@{ checkout = $checkout; target = $target; settings = $Settings; artifacts = @{}; sources = @{} }
-        foreach ($file in $artifacts) {
-            $signature = Get-Signature $file
-            if (-not $built.Contains($signature)) { $script:unattributed = "$file is not this run's artifact" }
-            $record.artifacts[$file] = $signature
+        $sources = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($unit in $units) {
+            $found = @(Get-Sources $unit)
+            if (-not $found) { $script:unattributed = "$($unit[0]) has no dependency info" }
+            foreach ($file in $found) { $null = $sources.Add($file) }
+            foreach ($file in $unit) {
+                $signature = Get-Signature $file
+                if (-not $built.Contains($signature)) { $script:unattributed = "$file is not this run's artifact" }
+                $record.artifacts[$file] = $signature
+            }
         }
         foreach ($file in $sources) {
             if (-not $Content.ContainsKey($file)) {
@@ -259,10 +266,7 @@ try {
             if ($message.reason -eq 'compiler-artifact' -and (Test-WorkspaceArtifact $message)) {
                 Assert-BuiltHere $message
                 if ($message.fresh) { $reused++ } else { $compiled++ }
-                foreach ($file in $message.filenames) { $null = $artifacts.Add($file) }
-                $found = @(Get-Sources $message.filenames)
-                if (-not $found) { $script:unattributed = "$($message.filenames[0]) has no dependency info" }
-                foreach ($file in $found) { $null = $sources.Add($file) }
+                $units.Add([string[]]$message.filenames)
                 if ($OnArtifact) { & $OnArtifact $message }
             }
         }
@@ -297,8 +301,8 @@ try {
             Write-Host 'Rebuilding every workspace crate.'
             Get-ChildItem -LiteralPath $crates -Recurse -File | ForEach-Object { $_.LastWriteTimeUtc = $now }
         }
-        $artifacts = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-        $sources = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        # The files Cargo reported for each workspace unit.
+        $units = [Collections.Generic.List[string[]]]::new()
         $unattributed = $null
         $started = [DateTime]::UtcNow
 
