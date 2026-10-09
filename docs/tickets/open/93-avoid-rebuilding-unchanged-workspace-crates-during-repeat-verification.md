@@ -1,11 +1,13 @@
 ---
 status: ready
+owner: claude:dadaf59d-be68-4ec3-8324-29525f9fa839
 created: 2026-10-09T03:41:28Z
 origin: agent-proposed
 tags: ["quarrel", "build", "performance"]
 value: 7
 sessions:
   - codex:01a11df8-2117-7ad1-93c1-4a57a586fedb
+  - claude:dadaf59d-be68-4ec3-8324-29525f9fa839
 execution: unattended
 parent: 75
 depends-on: [87, 91]
