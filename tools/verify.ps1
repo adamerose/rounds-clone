@@ -201,19 +201,18 @@ try {
                     Write-Host "$($artifact.Key) is no longer the artifact this checkout built."; return $false
                 }
             }
-            # The recorded artifacts' own dependency info, unchanged since it was recorded, names
-            # the inputs to check, so neither a lost record entry nor edited dependency info can
-            # hide a changed input.
-            $depInfo = @(Get-DepInfo @($record.artifacts.Keys))
-            if (-not $depInfo) { Write-Host 'The recorded artifacts have no dependency info.'; return $false }
+            # The recorded dependency info, every file still present and unchanged and including
+            # every file the recorded artifacts have, names the inputs to check. A lost record
+            # entry, or dependency info edited or deleted since, cannot hide a changed input.
             $recorded = ConvertTo-Map $record.depInfo
-            foreach ($file in $depInfo) {
+            if (-not $recorded.Count) { Write-Host 'The recorded artifacts have no dependency info.'; return $false }
+            foreach ($file in @($recorded.Keys) + @(Get-DepInfo @($record.artifacts.Keys))) {
                 if (-not $recorded.ContainsKey($file) -or (Get-Hash $file) -ne $recorded[$file]) {
                     Write-Host "$file is not the dependency info this checkout recorded."; return $false
                 }
             }
             $hashes = ConvertTo-Map $record.sources
-            foreach ($source in Get-Sources $depInfo) {
+            foreach ($source in Get-Sources @($recorded.Keys)) {
                 if (-not $hashes.ContainsKey($source)) { Write-Host "The verification record lacks $source."; return $false }
                 $hash = Get-Hash $source
                 if (-not $hash) { Write-Host "$source no longer exists."; return $false }
