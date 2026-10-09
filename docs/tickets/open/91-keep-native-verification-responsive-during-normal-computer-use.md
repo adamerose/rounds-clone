@@ -1,5 +1,5 @@
 ---
-status: ready
+status: blocked
 owner: claude:5d7961b5-7082-42f9-9e88-f4b260740f6f
 created: 2026-10-09T03:15:36Z
 origin: human-request
@@ -19,9 +19,13 @@ split-from: []
 
 Adam reports that this project's builds make his computer lag while he uses it. Measure the heavy build phases, identify the resource competition and make the supported verification route yield to interactive applications while retaining every required check.
 
+## Blocked
+
+Waiting for fresh-context re-admission of a second contract amendment; no operator decision is open unless the re-admitting context finds one. Measurement showed the lag comes from memory: each Bevy debug link peaks at 5 to 7.5 GB. The allowed corrections halved the build's peak (13 to 15 GB with two links, 7.4 to 7.6 GB with one), but a single link still exhausts memory when less than about 8 GB is free. The foreground probes showed no improvement in any run. Shrinking a single link needs linker or debuginfo changes, which this contract and the run forbid; idea ticket 94 carries them. The amendment replaces the unmet acceptance "with measured improvement in foreground responsiveness" with a measured reduction of the build's peak memory, an honest probe report and the named remaining limitation.
+
 ## Outcome
 
-- The normal verification command makes Cargo, compiler and linker processes yield to normal-priority interactive applications through inherited BelowNormal or Idle process priority, with measured improvement in foreground responsiveness. Test executables and the client they launch run at the caller's priority, so wall-clock checks keep their scheduling (amended: see the work log entry of 2026-10-09 about the UDP conditions test).
+- The normal verification command makes Cargo, compiler and linker processes yield to normal-priority interactive applications through inherited BelowNormal or Idle process priority, and measurably reduces the build's peak memory demand that the trace identifies as the cause of the lag. Foreground probe results are reported as measured; any lag the allowed corrections cannot remove is named and tracked in a follow-up ticket, not claimed fixed (amended a second time: see the work log entry of 2026-10-09 about the unmet responsiveness acceptance). Test executables and the client they launch run at the caller's priority, so wall-clock checks keep their scheduling (amended: see the work log entry of 2026-10-09 about the UDP conditions test).
 - Retain compilation serialization delivered by 87 and bound test execution so overlapping project verification cannot recreate the measured interference.
 - A bounded trace identifies CPU, memory and disk peaks through compilation, linking and tests; the resulting correction addresses the measured bottleneck.
 - Full verification, shared dependency reuse and candidate-attributed executables still work.
@@ -38,7 +42,7 @@ Adam reports that this project's builds make his computer lag while he uses it. 
 ## Evidence required
 
 - Record bounded before/after traces across the complete route phases using the same prepared target and source. Fixed-interval samples include CPU, process peak working set, lowest available memory, hard page faults and disk active time or queue length; report unavailable counters explicitly.
-- Run a small Normal-priority foreground timer probe during both runs; report p99 and maximum wake-up delay alongside resource pressure. Use those observations to show improvement in the reported lag and identify remaining limitations without claiming an unmeasured cold-build benefit. Explain anomalously long test phases if they recur.
+- Run a small Normal-priority foreground timer probe during both runs; report p99 and maximum wake-up delay alongside resource pressure. Use those observations to show what changed in the reported lag and identify remaining limitations without claiming an unmeasured cold-build benefit. Explain anomalously long test phases if they recur.
 - Confirm the native compiler/linker processes spawned through the supported route run at the lowered priority, test executables and the client at the caller's priority, and no concurrent Cargo builds exceed the cap.
 - Run the complete verification route successfully at the chosen priority while ordinary foreground use and the Normal-priority probe continue. Wall-clock-sensitive network/menu checks must pass unchanged, with source/artifact evidence retained and no skipped checks.
 
