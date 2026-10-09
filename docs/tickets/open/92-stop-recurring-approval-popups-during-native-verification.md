@@ -1,11 +1,13 @@
 ---
 status: ready
+owner: claude:7ba1dd34-54ce-49bb-8e17-9b3f340adf3e
 created: 2026-10-09T03:16:30Z
 origin: human-request
 tags: ["quarrel", "build", "windows"]
 value: 8
 sessions:
   - codex:01a11df8-2117-7ad1-93c1-4a57a586fedb
+  - claude:7ba1dd34-54ce-49bb-8e17-9b3f340adf3e
 execution: unattended
 parent: 75
 depends-on: [87]
