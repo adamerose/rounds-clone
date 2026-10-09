@@ -28,7 +28,8 @@ including when the record is missing or unreadable, it sets every crate source t
 time so Cargo rebuilds every workspace crate. Doctests are compiled on every run. The record is
 deleted before compiling and written only after every build succeeds. A workspace build script
 would have inputs the compiler's dependency info does not list, so a workspace with one gets no
-record and rebuilds every crate on every run; this workspace has none.
+record and rebuilds every crate on every run; this workspace has none. So does an input outside
+the checkout or one Git ignores, because the script read no content for it before compiling.
 
 The script limits how much it competes with the applications someone is using. It compiles at
 BelowNormal priority, so compiling and linking yield the processor to them: Windows gives each
@@ -155,8 +156,8 @@ try {
         $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -Unique
     }
 
-    # Every checkout file these dependency info files list. Cargo runs the compiler from the
-    # workspace root, so relative paths are relative to this checkout.
+    # Every file these dependency info files list. Cargo runs the compiler from the workspace
+    # root, so relative paths are relative to this checkout.
     function Get-Sources([string[]]$DepInfo) {
         $found = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($line in $DepInfo | ForEach-Object { Get-Content -LiteralPath $_ }) {
@@ -165,7 +166,7 @@ try {
             foreach ($dependency in $line.Substring($separator + 2) -split '(?<!\\) ') {
                 if (-not $dependency) { continue }
                 $path = [IO.Path]::GetFullPath(($dependency -replace '\\ ', ' '), $checkout)
-                if ($path.StartsWith("$checkout\", [StringComparison]::OrdinalIgnoreCase)) { $null = $found.Add($path) }
+                $null = $found.Add($path)
             }
         }
         $found
@@ -244,7 +245,7 @@ try {
         }
         foreach ($file in Get-Sources @($record.depInfo.Keys)) {
             if (-not $Content.ContainsKey($file)) {
-                $script:unattributed = "$file was not in this checkout before compiling"
+                $script:unattributed = "$file is not a file of this checkout that Git listed before compiling"
             } elseif ((Get-Hash $file) -ne $Content[$file] -or [QuarrelVerifyFile]::ChangeTimeUtc($file) -ge $Started) {
                 $script:unattributed = "$file changed while compiling"
             } else {
