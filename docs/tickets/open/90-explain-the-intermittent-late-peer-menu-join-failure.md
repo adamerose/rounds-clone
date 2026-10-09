@@ -8,7 +8,7 @@ sessions:
   - codex:01a11df8-2117-7ad1-93c1-4a57a586fedb
 execution: unattended
 parent: 75
-depends-on: [87]
+depends-on: [87, 91]
 supersedes: []
 split-from: []
 ---
@@ -20,7 +20,7 @@ The final card verification once failed the late-peer menu fixture at its five-s
 ## Outcome
 
 - The retained failure is explained by a specific code or fixture boundary, with a regression or exact bounded reproduction that distinguishes the cause from unrelated startup variation.
-- The late-peer menu test reliably checks the intended peer-wait behavior using the current checkout's frozen executables.
+- A deterministic boundary regression or bounded manual reproduction identifies the event that starts the host/peer deadline and distinguishes an incorrect fixture deadline from supported menu behavior. It fails on the retained base and passes after correction, using candidate-attributed executables.
 
 ## Decisions
 
@@ -33,8 +33,10 @@ The final card verification once failed the late-peer menu fixture at its five-s
 
 - Inspect the rejected late-peer output and retained timed reproductions in out/ticket080proof; identify the owning test and exact observed failure.
 - Establish a bounded reproduction or deterministic boundary regression before correction; record why a larger stress run is unnecessary or file it separately.
-- The corrected targeted test and repository verification route pass with candidate-attributed executables and no skipped tests.
+- Record failure-before/pass-after evidence for the exact boundary regression or manual reproduction, including its finite deadline. Keep the existing menu fixture targeted run: set QUARREL_TEST_CLIENT to out/verify/test/quarrel-client.exe and run the frozen out/verify/test/menu_network-*.exe with --exact bounded_host_client_waits_for_a_peer_joining_after_the_silence_interval --nocapture. Its host waits five seconds for the initial peer, and the fixture launches that peer 3500 ms after the listening event.
+- Run powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify.ps1 after dependency 91 lands. Format, strict all-target Clippy, locked build, doctests and every frozen test must pass with no skipped tests, prepared-target reuse and candidate attribution. This full delivery check may take several minutes; the small boundary reproduction is the checkable contract evidence. File any additional stress or soak benchmark separately.
 
 ## Work log
 
 - 2026-10-09T02:27:28Z Reported from ticket 80's final publication record. Its unchanged focused test, three timed public reproductions and full matrix passed after one failure; the cause remains unproven. Closed tickets 74, 81, 85 and 89 cover earlier lifecycle/port issues, not this intermittent final fixture failure.
+- 2026-10-09T04:58:54Z Admission round1 by fresh Codex context /admit_late_peer requested exact targeted commands, finite deadlines and measurable failure-before/pass-after evidence; retained rejected and timed logs available. Contract amended, ordering after91 explicit; no operator decision open.
