@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-09T03:16:30Z
 origin: human-request
 tags: ["quarrel", "build", "windows"]
@@ -47,3 +47,5 @@ Adam — [build report](http://ivy.localhost/sessions/codex/01a11df8-2117-7ad1-9
 
 - 2026-10-09T03:16:30Z No approval title appeared in the current main-window inventory. Computer Use initialization failed before any UI input with 'failed to write kernel assets: The system cannot find the path specified.' The exact popup is still unknown; obtain title/text or a screenshot before assuming a cause. Existing journals already document a prior network-test Windows Firewall prompt and a loopback binding correction, but do not establish this report's identity.
 - 2026-10-09T03:27:04Z Adam supplied a photo identifying Windows Firewall and the hashed network test executable. Removed the answered identity question; contract shaped around local fixture sockets with production remote/LAN behavior retained. Admission pending independent judgment.
+
+- 2026-10-09T03:37:35Z Admitted after two independent contract rounds by [Claude admission context](http://ivy.localhost/sessions/claude/f53414f4-74d2-4f1a-b26f-bf6a8a50f48d), separate from the creator. Every finding resolved; evidence checkable in minutes, dependencies explicit, no operator decision open. Worker must carry one line per admission round into docs/decisions.md before code review.
