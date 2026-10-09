@@ -15,40 +15,34 @@ split-from: []
 
 # Avoid rebuilding unchanged workspace crates during repeat verification
 
-The supported verification route currently touches every crate source and rebuilds all six workspace crates on every run to prevent stale artifacts from another checkout. Investigate a smaller invalidation boundary that retains trustworthy source attribution while avoiding needless compilation and Bevy links on an unchanged repeat run.
+The supported verification command rebuilds every workspace crate on every run to prevent stale artifacts from another checkout. Reuse unchanged compatible artifacts while preserving reliable source attribution and the complete verification route.
 
 ## Outcome
 
-- An unchanged repeat verification reuses compatible workspace artifacts without accepting another checkout's source as its own.
-- Switching between different worktrees, including older source timestamps, still executes the correct tests and freezes each run's executables before another build can overwrite them.
-- The complete format, strict Clippy, locked build, doctest and test route remains the supported public command.
+- Repeating verification in the same unchanged checkout performs no workspace-crate compilation or linking in Clippy, build or test --no-run. Doctest compilation is reported separately; all frozen current-source tests still execute.
+- A run never accepts artifacts built from another checkout or outdated inputs as its own. Switching worktrees, older file timestamps and foreign builds still execute the intended source and asset content.
+- Each run freezes its executables before a later build can overwrite the shared target. The complete format, strict Clippy, locked build, doctest and test route remains the supported public command.
 
 ## Decisions
 
-- Preserve 87's demonstrated source-attribution and concurrent-build safety invariants; investigate before selecting an invalidation design.
-- Retain the prepared target and dependency cache, two-job maximum, scheduling from 91 and complete checks. No new target, compiler profile, feature or flag changes.
-- This is an idea, separate from 91's frozen scheduling contract. 91 may finish its measured responsiveness correction before this optimization is admitted.
+- Preserve 87's source-attribution and frozen-executable invariants. Reuse must be backed by current compilation inputs, checkout identity and the actual artifact identity, rather than file timestamps alone.
+- Inputs include dependency-info-listed files, workspace/package manifests, lock file, Cargo configuration, toolchain identity and embedded assets. In the real workspace that includes assets/replays/ordinary-match.json and assets/tuning.ron. Missing, corrupt or incompatible attribution forces trustworthy rebuilding.
+- Retain the prepared shared target, dependency cache, two-job maximum and scheduling delivered by 91. Do not change targets, profiles, features, compiler flags, RUSTFLAGS, CARGO_INCREMENTAL or the stable toolchain.
+- Use small detached fixture worktrees of this repository for the adversarial sequence. They retain the real Git common directory, existing .cargo/config.toml and exact supported verification script; do not add a generic build framework or a fixture-specific verification mode.
+- Update the verification synopsis and agent guidance where they promise blanket workspace rebuilding. Do not claim improved foreground responsiveness or game build timing from fixture measurements.
+- If reliable reuse cannot meet this contract, block with the demonstrated gap; an unverifiable cache shortcut is not a delivery.
 
 ## Evidence required
 
-- Compare bounded repeated warm-route timing and Cargo fresh/rebuilt messages on unchanged source before and after, identifying compilation/link work avoided.
-- Re-run 87's two-source older-timestamp and build-during-frozen-tests evidence, plus the full supported route; maintain its exact current-source test names.
-- Explain every source/input change that invalidates reuse and any remaining attribution limitations. An unverifiable cache shortcut does not meet the outcome.
+- Two detached fixture worktrees retain the real common directory, prepared target and unchanged supported verification invocation. Their small locked workspace includes a binary named quarrel-client, an executable test identifying its source marker, and a root include_bytes! asset identifying its content. The two fixtures use the same package graph and relative paths.
+- Establish fixture A, then repeat it unchanged. Cargo reports no workspace compilation or linking in Clippy, build and test --no-run; frozen tests execute A's current source-and-asset marker. Report doctest behavior and avoided compilation work separately.
+- At a deterministic gate after A has frozen its test executable, finish a plain Cargo build in B before releasing A's test. A still executes its own marker. A's next verification rejects the foreign artifact and rebuilds its current content. Cargo compilation phases remain serialized.
+- Verify B through the supported command, then A; A rejects the intervening artifact. Also prove rebuilding after an older-timestamp source edit, an older-timestamp embedded-asset edit, a missing attribution record and a corrupt record. Each rebuilt test executes its current source-and-asset marker.
+- Check the implementation's invalidation boundary against every input and identity listed in Decisions. Record what the fixture proves and its limitation: it reproduces the shared-target freshness and freezing boundary, but does not collide with the full Bevy graph's artifact filenames.
+- Run one complete actual-workspace tools/verify.ps1 verification after the matrix, using the prepared target. All checks pass with current-source frozen executables, doctests and fresh compatible dependency artifacts. Do not multiply full Bevy links to repeat the fixture matrix.
 
 ## Work log
 
 - 2026-10-09T03:41:28Z On origin/main after 87, tools/verify.ps1 lines110-111 assign current timestamps to every crate file. Its synopsis states every workspace crate rebuilds; independent admission context reported roughly minute-long warm compile phases. This is observed repeat cost, not proof of the complete user lag cause. No implementation or admission attempted here.
 - 2026-10-09T05:05:21Z Bounded fresh-context shaping by Codex /shape_cache_contract found no operator decision, but origin/main tools/verify.ps1 has no small public fixture entry point. The required foreign-writer/older-timestamp/embedded-input/corrupt-record sequence uses the whole workspace and may repeat Bevy links. Remains idea pending a meaningful minutes-scale attribution proof design; a performance benchmark cannot replace cache-safety evidence. No code, builds or cache changes performed.
-## Scratch
-
-Fresh admission context found no duplicate, no operator decision and no needed change to another ticket record, but did not admit this contract. Before admission:
-
-- Make unchanged repeat success exact: no workspace crate compilation or linking in Clippy/build/test --no-run; doctest compilation is an explicit exception. Full frozen current-source tests still execute. If no trustworthy design exists, block rather than close.
-- Cover content and checkout identity for all compile inputs, including dependency-info-listed files, manifests/lock/config/toolchain, assets/replays/ordinary-match.json and assets/tuning.ron. Verify artifact size/write-time still match attribution.
-- Add foreign plain Cargo and supported-route builds between two worktree verifications, older-timestamp source and embedded-asset edits, and missing/corrupt attribution-record evidence.
-- Prove dependency artifacts remain fresh. No RUSTFLAGS, CARGO_INCREMENTAL, profile, feature or unstable -Z changes; stable toolchain stays supported.
-- Compare against the post-91 route with identical source, warm target and an exclusive project build window; update synopsis and AGENTS.md when blanket rebuild wording becomes false.
-- Keep proof bounded and avoid multiplying full Bevy links merely for fixture evidence. Admission must judge that the chosen public-interface regression cases fit the minutes-scale evidence rule.
-
-A per-artifact attribution record under the existing lock may serve this without a second build framework; this is a suggestion, not an approved implementation. The immediate build interruption fixes 92 and 91 stay ahead of this shaping work.
 - 2026-10-09T03:52:15Z Fresh [admission context](http://ivy.localhost/sessions/claude/5e954959-5fd5-46e1-bbff-f03005da8bb4) returned not-admit with six contract findings; retained in Scratch for bounded follow-up. No implementation attempted.
