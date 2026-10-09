@@ -1,12 +1,14 @@
 ---
 format: 3
 status: ready
+owner: claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d
 created: 2026-10-05T14:55:57Z
 origin: human-request
 tags: ["quarrel", "mvp", "network", "steam"]
 value: 9
 sessions:
   - claude:bcbe88ae-0a32-432f-8fd1-3a061e17847f
+  - claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d
 execution: unattended
 parent: 75
 depends-on: [81, 83]
