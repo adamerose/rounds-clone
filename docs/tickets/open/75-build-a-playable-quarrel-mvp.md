@@ -1,6 +1,7 @@
 ---
 format: 3
 status: ready
+owner: codex:01a11f02-1a85-7e42-b5c7-6b3d99c6940c
 created: 2026-10-05T01:09:00Z
 origin: human-request
 tags: ["quarrel", "autonomy", "autonomy-goal", "mvp"]
@@ -13,6 +14,7 @@ sessions:
   - codex:01a114f0-227b-7711-828e-c62f2606df5c
   - codex:01a11df8-2117-7ad1-93c1-4a57a586fedb
   - claude:a0d86392-754e-470a-b30a-fec894c3f7c6
+  - codex:01a11f02-1a85-7e42-b5c7-6b3d99c6940c
 execution: unattended
 depends-on: []
 supersedes: [59]
