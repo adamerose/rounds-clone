@@ -56,3 +56,4 @@ Adam — [build report](http://ivy.localhost/sessions/codex/01a11df8-2117-7ad1-9
 - 2026-10-09T03:33:40Z Fresh admission round requested measured foreground wake-up delay, resource counters, precise scheduling scope, exclusive warm-target comparison, retained timing-sensitive checks and ordering after 92; contract amended accordingly.
 
 - 2026-10-09T03:37:35Z Admitted after two independent contract rounds by [Claude admission context](http://ivy.localhost/sessions/claude/f53414f4-74d2-4f1a-b26f-bf6a8a50f48d), separate from the creator. Every finding resolved; evidence checkable in minutes, dependencies explicit, no operator decision open. Worker must carry one line per admission round into docs/decisions.md before code review.
+- 2026-10-09T04:09:03Z stage implement start session claude:5d7961b5-7082-42f9-9e88-f4b260740f6f — worktree .ivy/worktrees/091-keep-native-verification-responsive at 34d2aae; Normal-priority baseline measurement first
