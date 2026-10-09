@@ -55,3 +55,4 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-09T10:49:08Z stage verify start session claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d — tools/verify.ps1 on worktree .ivy/worktrees/084-invite-a-steam-friend-to-a-match-with-no-port-forwarding
 - 2026-10-09T10:59:34Z stage verify end session claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d — tools/verify.ps1 passed fmt, strict Clippy, locked build, doctests and 157 tests on candidate 1b5458c6c8a69848076e437f2ce44d0487193e0f
 - 2026-10-09T10:59:50Z stage review start session claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d — fresh Codex gpt-6.1-sol high review of a971ef49742c9ac0744d764156bfaa4b90a7d85b..1b5458c6c8a69848076e437f2ce44d0487193e0f
+- 2026-10-09T11:01:02Z review fallback: codex exec -s read-only failed sandbox setup (helper_unknown_error: setup refresh had errors) and reviewed nothing; rerun with -s danger-full-access and read-only instructions, as tickets 87 and 93 did
