@@ -1,11 +1,13 @@
 ---
 status: ready
+owner: claude:5d7961b5-7082-42f9-9e88-f4b260740f6f
 created: 2026-10-09T03:15:36Z
 origin: human-request
 tags: ["quarrel", "build", "performance"]
 value: 9
 sessions:
   - codex:01a11df8-2117-7ad1-93c1-4a57a586fedb
+  - claude:5d7961b5-7082-42f9-9e88-f4b260740f6f
 execution: unattended
 parent: 75
 depends-on: [87, 92]
