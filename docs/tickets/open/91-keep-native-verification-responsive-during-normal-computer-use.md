@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-09T03:15:36Z
 origin: human-request
 tags: ["quarrel", "build", "performance"]
@@ -52,3 +52,5 @@ Adam — [build report](http://ivy.localhost/sessions/codex/01a11df8-2117-7ad1-9
 
 - 2026-10-09T03:15:36Z Initial snapshot found about 4 GiB free physical RAM while the active worker was idle between tests; this does not establish the heavy-phase bottleneck. Exact registered worker and descendants were lowered to BelowNormal without changing compilation inputs or cache.
 - 2026-10-09T03:33:40Z Fresh admission round requested measured foreground wake-up delay, resource counters, precise scheduling scope, exclusive warm-target comparison, retained timing-sensitive checks and ordering after 92; contract amended accordingly.
+
+- 2026-10-09T03:37:35Z Admitted after two independent contract rounds by [Claude admission context](http://ivy.localhost/sessions/claude/f53414f4-74d2-4f1a-b26f-bf6a8a50f48d), separate from the creator. Every finding resolved; evidence checkable in minutes, dependencies explicit, no operator decision open. Worker must carry one line per admission round into docs/decisions.md before code review.
