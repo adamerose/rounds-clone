@@ -52,3 +52,4 @@ The independent [ticket 78 reviewer](http://ivy.localhost/sessions/claude/171c00
 
 - 2026-10-07T06:32:44Z Admission round 2 by claude:dda50277-846a-494f-bf2e-b2cde9ee2ec5 ADMIT the complete corrected contract at risk 3, with explicit dependencies 78, 79 and 80 and no open operator decision. Every round-1 finding resolved; proposed admission decision record approved. Implementation waits for 80.
 - 2026-10-09T11:42:50Z stage implement start session claude:2b4eef28-ee49-4679-8486-d53e0b980b9f — worktree .ivy/worktrees/086-restore-general-regression-coverage-after-footage-profile-removal from origin/main ea5c506
+- 2026-10-09T11:43:04Z stage implement end session claude:2b4eef28-ee49-4679-8486-d53e0b980b9f — arena validation, object contact/push/background/CCD, jump-release (stun, elimination, fight reset) and scripted UDP error tests added; each mechanic test fails under a targeted mutation
