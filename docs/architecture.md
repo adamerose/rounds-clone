@@ -46,9 +46,10 @@ Visible windows start hidden, require the designated 1920 by 1080 display at phy
 `quarrel-network` owns direct-IP UDP sessions. The scripted path retains JSON, configurable fighter counts, progressive snapshots and final state agreement.
 The paced live path ships two peers: an authority runs at 60 Hz, applies newest held controls, consumes bounded FIFO flow edges, and publishes received state for rendering.
 Session identities reject stale packets; consumed acknowledgements prevent repeated edge application; terminal snapshots are retransmitted until acknowledged or the bounded delivery window ends.
-Host and dedicated modes use the same authority loop. Live protocol 14 uses compressed MessagePack and full independent snapshots at 10 Hz.
+Host and dedicated modes use the same authority loop. Live protocol 17 uses compressed MessagePack and full independent snapshots at 7.5 Hz (every eight host ticks).
 Clients replay unacknowledged local controls in one current physics scene containing every fighter, projectile and arena piece.
-Remote bodies continue with observed velocities; moving paths use the host's motion formula. Snapshots include piece velocities and host outcomes always replace predicted observations.
+Remote fighters retain their observed speed on unobstructed ground; moving paths use the host's motion formula. Snapshots include piece velocities and host outcomes always replace predicted observations.
+The authority selects the upcoming arena during Draft so clients prepare its collision shapes before Combat. Round state still resets at Combat entry.
 Pose errors settle over subsequent frames inside the predicted physics scene; collision checks use the drawn poses. Result transitions settle toward the frozen host pose without resetting positions.
 Fractional render frames interpolate adjacent current physics ticks for every entity. Remote entities are never buffered behind local time, and projectile speed is unchanged.
 Prediction cannot apply damage, deaths, points or cards. Physics and tuning come from the host sample; no full-match rollback or local flow authority is created.

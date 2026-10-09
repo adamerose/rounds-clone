@@ -353,6 +353,8 @@ mod tests {
                 lifetime_ticks: 60,
                 dazzle_pulses: 0,
                 explosive_radius_milli: 0,
+                radius_milli: 5000,
+                damage: 0,
             }];
             let shown = ClientPresentation::new(0)
                 .frame(
@@ -416,9 +418,8 @@ mod tests {
                     .count()
             })
             .unwrap();
-        let mut state = AuthoritativeMatch::from_arena(38, arena)
-            .unwrap()
-            .snapshot();
+        let mut game = AuthoritativeMatch::from_arena(38, arena).unwrap();
+        let mut state = game.snapshot();
         assert!(
             state
                 .arena
@@ -428,8 +429,8 @@ mod tests {
                 >= 18
         );
         let mut view = ClientPresentation::new(0);
-        // The normal client prepares geometry while the host presents Draft
-        // or Countdown, before a fighter can move or fire.
+        // Exercise the real Draft -> Combat route, including first-frame cost.
+        let preparation = std::time::Instant::now();
         view.frame(
             &[sample(state.clone())],
             0,
@@ -437,8 +438,23 @@ mod tests {
             1. / 60.,
         )
         .unwrap();
-        state.flow.as_mut().unwrap().phase = FlowPhase::Combat;
-        state.flow.as_mut().unwrap().phase_revision += 1;
+        let preparation_ms = preparation.elapsed().as_secs_f64() * 1000.;
+        let flow = state.flow.as_ref().unwrap();
+        game.step(
+            &(0..2)
+                .map(|id| PlayerInput {
+                    flow: Some(FlowCommand {
+                        phase_revision: flow.phase_revision,
+                        action: FlowAction::Confirm(flow.offers[id][0]),
+                    }),
+                    ..Default::default()
+                })
+                .collect::<Vec<_>>(),
+        );
+        let old = state.arena.clone();
+        state = game.snapshot();
+        assert_eq!(state.flow.as_ref().unwrap().phase, FlowPhase::Combat);
+        assert_eq!(old, state.arena);
         let mut timings = Vec::new();
         for sequence in 1..=120_u64 {
             if sequence % 6 == 0 {
@@ -451,7 +467,11 @@ mod tests {
                 .unwrap();
             timings.push(start.elapsed().as_secs_f64() * 1000.);
         }
+        let first_ms = timings[0];
         timings.sort_by(f64::total_cmp);
+        println!(
+            "real Draft preparation CPU={preparation_ms:.3}ms; first Combat frame CPU={first_ms:.3}ms"
+        );
         println!(
             "shipped world: {} outlined surfaces; predictor CPU p50={:.3}ms p95={:.3}ms max={:.3}ms",
             state
@@ -537,6 +557,8 @@ mod tests {
             lifetime_ticks: 60,
             dazzle_pulses: 0,
             explosive_radius_milli: 0,
+            radius_milli: 5000,
+            damage: 0,
         }];
         let mut latest = older.clone();
         latest.tick += 12;

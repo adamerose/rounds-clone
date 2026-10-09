@@ -74,6 +74,14 @@ impl ScenePrediction {
         // Snapshots carry current poses. Motion paths use their authored base,
         // recovered with the same formula used by the host.
         for object in &mut arena.objects {
+            if let ArenaKind::Saw {
+                loose: false,
+                angular_velocity,
+                ..
+            } = object.kind
+            {
+                object.rotation -= angular_velocity * state.tick as f32 / TICKS_PER_SECOND as f32;
+            }
             if let Some(motion) = &object.motion {
                 let (offset, rotation) = motion.offset(state.tick);
                 for (position, offset) in object.position.iter_mut().zip(offset) {
@@ -124,10 +132,14 @@ impl ScenePrediction {
         p.block_ticks = p.block_ticks.saturating_sub(1);
         p.block_cooldown_ticks = p.block_cooldown_ticks.saturating_sub(1);
         p.stun_ticks = p.stun_ticks.saturating_sub(1);
+        p.hit_flash_ticks = p.hit_flash_ticks.saturating_sub(1);
         if p.reload_ticks > 0 {
             p.reload_ticks -= 1;
             if p.reload_ticks == 0 {
-                p.ammunition = self.tuning.magazine_size;
+                p.ammunition = self
+                    .tuning
+                    .magazine_size
+                    .saturating_add(self.capabilities.magazine_bonus);
             }
         }
         if p.alive {
@@ -161,10 +173,13 @@ impl ScenePrediction {
                 && p.reload_ticks == 0
                 && p.ammunition > 0
             {
-                p.fire_cooldown_ticks = self
-                    .tuning
-                    .fire_cooldown_ticks
-                    .saturating_add(self.capabilities.fire_cooldown_extra_ticks);
+                p.fire_cooldown_ticks = (u32::from(
+                    self.tuning
+                        .fire_cooldown_ticks
+                        .saturating_add(self.capabilities.fire_cooldown_extra_ticks),
+                ) * factor(self.capabilities.fire_interval_factor_milli)
+                    / 1000)
+                    .clamp(1, u32::from(u16::MAX)) as u16;
                 p.ammunition -= 1;
                 if p.ammunition == 0 {
                     p.reload_ticks = self.tuning.reload_ticks;
@@ -192,6 +207,23 @@ impl ScenePrediction {
                     lifetime_ticks: self.tuning.bullet_lifetime_ticks,
                     dazzle_pulses: self.capabilities.dazzle_stun_pulses,
                     explosive_radius_milli: self.capabilities.explosion_radius_milli,
+                    radius_milli: quantize(self.tuning.bullet_radius),
+                    damage: if self
+                        .tuning
+                        .damage_per_hit
+                        .saturating_add(self.capabilities.damage_bonus)
+                        == 0
+                    {
+                        0
+                    } else {
+                        (u32::from(
+                            self.tuning
+                                .damage_per_hit
+                                .saturating_add(self.capabilities.damage_bonus),
+                        ) * factor(self.capabilities.damage_factor_milli)
+                            / 1000)
+                            .clamp(1, u32::from(u16::MAX)) as u16
+                    },
                 });
             }
         }
@@ -215,11 +247,22 @@ impl ScenePrediction {
             self.physics
                 .return_from_edge(player.id, self.frame, player.block_ticks > 0);
             let (position, velocity) = self.physics.player_pose(player.id);
+            let (grounded, wall) = self.physics.player_support(player.id);
+            // The host's control keeps a grounded runner moving against floor
+            // friction. Preserve that observed speed until a new sample, while
+            // allowing walls, airborne motion and contacts to stop the body.
+            let x = if player.grounded && grounded && wall == 0. {
+                self.physics
+                    .prediction_ground_velocity(player.id, player.velocity_x_milli_per_second);
+                player.velocity_x_milli_per_second
+            } else {
+                quantize(velocity.x)
+            };
             player.x_milli = quantize(position.x);
             player.y_milli = quantize(position.y);
-            player.velocity_x_milli_per_second = quantize(velocity.x);
+            player.velocity_x_milli_per_second = x;
             player.velocity_y_milli_per_second = quantize(velocity.y);
-            player.grounded = self.physics.player_support(player.id).0;
+            player.grounded = grounded;
             player.block_ticks = player.block_ticks.saturating_sub(1);
             player.stun_ticks = player.stun_ticks.saturating_sub(1);
             player.hit_flash_ticks = player.hit_flash_ticks.saturating_sub(1);
@@ -280,6 +323,116 @@ impl ScenePrediction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn draft_prepares_the_arena_that_combat_will_use() {
+        let mut game = AuthoritativeMatch::new(38);
+        let draft = game.snapshot();
+        let flow = draft.flow.as_ref().unwrap();
+        let picks = (0..2)
+            .map(|id| PlayerInput {
+                flow: Some(FlowCommand {
+                    phase_revision: flow.phase_revision,
+                    action: FlowAction::Confirm(flow.offers[id][0]),
+                }),
+                ..Default::default()
+            })
+            .collect::<Vec<_>>();
+        game.step(&picks);
+        let combat = game.snapshot();
+        assert_eq!(combat.flow.as_ref().unwrap().phase, FlowPhase::Combat);
+        assert_eq!(
+            draft.arena, combat.arena,
+            "Combat cannot introduce unprepared polygon shapes"
+        );
+    }
+
+    #[test]
+    fn a_grounded_remote_runner_keeps_observed_motion_between_samples() {
+        let mut game = AuthoritativeMatch::new(38);
+        let flow = game.snapshot().flow.unwrap();
+        game.step(
+            &(0..2)
+                .map(|id| PlayerInput {
+                    flow: Some(FlowCommand {
+                        phase_revision: flow.phase_revision,
+                        action: FlowAction::Confirm(flow.offers[id][0]),
+                    }),
+                    ..Default::default()
+                })
+                .collect::<Vec<_>>(),
+        );
+        for _ in 0..180 {
+            game.step(&[PlayerInput::default(); 2]);
+        }
+        let mut state = game.snapshot();
+        assert!(state.players[1].grounded);
+        state.players[1].velocity_x_milli_per_second = -220000;
+        let mut prediction =
+            ScenePrediction::new(&state, 0, game.tuning().clone(), PlayerInput::default());
+        let mut previous = state.players[1].x_milli;
+        for _ in 0..12 {
+            prediction.step(PlayerInput::default());
+            prediction.apply(&mut state);
+            assert!(
+                previous - state.players[1].x_milli > 3000,
+                "ground friction must not stop an observed runner"
+            );
+            previous = state.players[1].x_milli;
+        }
+    }
+
+    #[test]
+    fn fixed_saw_rotation_restores_the_authored_base() {
+        let mut game =
+            AuthoritativeMatch::from_arena_file(38, &default_arena_directory().join("pinch.ron"))
+                .unwrap();
+        let flow = game.snapshot().flow.unwrap();
+        game.step(
+            &(0..2)
+                .map(|id| PlayerInput {
+                    flow: Some(FlowCommand {
+                        phase_revision: flow.phase_revision,
+                        action: FlowAction::Confirm(flow.offers[id][0]),
+                    }),
+                    ..Default::default()
+                })
+                .collect::<Vec<_>>(),
+        );
+        for _ in 0..60 {
+            game.step(&[PlayerInput::default(); 2]);
+        }
+        let mut shown = game.snapshot();
+        let mut prediction =
+            ScenePrediction::new(&shown, 0, game.tuning().clone(), PlayerInput::default());
+        for _ in 0..6 {
+            prediction.step(PlayerInput::default());
+            game.step(&[PlayerInput::default(); 2]);
+        }
+        prediction.apply(&mut shown);
+        let actual = game.snapshot();
+        let mut compared = 0;
+        for saw in &actual.arena_objects.as_ref().unwrap().objects {
+            if matches!(saw.kind, ArenaKind::Saw { loose: false, .. }) {
+                let p = shown
+                    .arena_objects
+                    .as_ref()
+                    .unwrap()
+                    .objects
+                    .iter()
+                    .find(|p| p.id == saw.id)
+                    .unwrap();
+                let angle = (p.rotation - saw.rotation + std::f32::consts::PI)
+                    .rem_euclid(std::f32::consts::TAU)
+                    - std::f32::consts::PI;
+                assert!(
+                    angle.abs() < 0.01,
+                    "a current saw must not add host elapsed rotation twice"
+                );
+                compared += 1;
+            }
+        }
+        assert!(compared > 0);
+    }
     #[test]
     fn moving_support_uses_the_same_timeline_as_the_owned_fighter() {
         let arena = ArenaDefinition {
@@ -370,6 +523,8 @@ mod tests {
             lifetime_ticks: 90,
             dazzle_pulses: 0,
             explosive_radius_milli: 0,
+            radius_milli: 5000,
+            damage: 0,
         }];
         let mut prediction =
             ScenePrediction::new(&state, 0, CombatTuning::default(), PlayerInput::default());

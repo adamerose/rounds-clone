@@ -145,7 +145,7 @@ impl AuthoritativeMatch {
         let flow = FlowAuthority::with_config(config.clone(), catalog)?;
         let mut physics = PhysicsBoundary::new(config.fighter_count, &arena, tuning.clone());
         physics.replace_arena(&arena);
-        Ok(Self {
+        let mut game = Self {
             physics,
             tuning,
             tuning_path: None,
@@ -153,7 +153,7 @@ impl AuthoritativeMatch {
             tuning_reload_error: None,
             arena,
             arena_bag: arenas,
-            // The first combat advances this cursor to the first shuffled arena.
+            // Initial Draft preparation advances to the first shuffled arena.
             arena_index: arena_count - 1,
             arena_path,
             arena_files,
@@ -178,7 +178,9 @@ impl AuthoritativeMatch {
             reaction_budget_tick: 0,
             reaction_budget: 0,
             flow,
-        })
+        };
+        game.select_next_arena(0);
+        Ok(game)
     }
     pub fn step(&mut self, inputs: &[PlayerInput]) {
         self.tick = self.tick.saturating_add(1);
@@ -202,7 +204,11 @@ impl AuthoritativeMatch {
         let snapshot = self.flow.snapshot();
         let entering_combat =
             snapshot.phase == FlowPhase::Combat && self.phase != FlowPhase::Combat;
+        let entering_draft = snapshot.phase == FlowPhase::Draft && self.phase != FlowPhase::Draft;
         self.phase = snapshot.phase;
+        if entering_draft {
+            self.select_next_arena(snapshot.fight_number);
+        }
         if entering_combat {
             self.observed_fight = snapshot.fight_number;
             self.observed_match = snapshot.match_number;
@@ -631,9 +637,16 @@ impl AuthoritativeMatch {
         }
     }
     fn reset_fight(&mut self) {
+        self.physics.reset();
+        self.clear_projectiles();
+        self.reactions.clear();
+        self.impacts.clear();
+        self.reset_players();
+    }
+    fn select_next_arena(&mut self, fight_number: u32) {
         if self.arena_index + 1 == self.arena_bag.len() {
             let previous = self.arena.name.clone();
-            SeededRandom(self.seed ^ u64::from(self.observed_fight)).shuffle(&mut self.arena_bag);
+            SeededRandom(self.seed ^ u64::from(fight_number)).shuffle(&mut self.arena_bag);
             if self.arena_bag.len() > 1 && self.arena_bag[0].name == previous {
                 self.arena_bag.rotate_left(1);
             }
@@ -648,11 +661,8 @@ impl AuthoritativeMatch {
             .get(&self.arena.name)
             .cloned()
             .unwrap_or_default();
-        self.physics.replace_arena(&self.arena);
         self.clear_projectiles();
-        self.reactions.clear();
-        self.impacts.clear();
-        self.reset_players();
+        self.physics.replace_arena(&self.arena);
     }
     fn reset_players(&mut self) {
         for entity in &self.player_entities {
@@ -1119,8 +1129,8 @@ mod arena_runtime_tests {
         let count = game.arena_bag.len();
         let mut seen = BTreeSet::new();
         for _ in 0..count {
-            game.reset_fight();
             assert!(seen.insert(game.arena.name.clone()));
+            game.select_next_arena(0);
         }
     }
 

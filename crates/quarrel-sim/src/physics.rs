@@ -100,6 +100,13 @@ impl PhysicsBoundary {
             ),
             true,
         );
+        self.configure_bullet(shot.id, shot.radius_milli as f32 / 1000., false);
+    }
+    pub(crate) fn prediction_ground_velocity(&mut self, id: u8, x: i32) {
+        let body = &mut self.rapier.bodies[self.players[id as usize].body];
+        let mut velocity = body.linvel();
+        velocity.x = x as f32 / 1000.;
+        body.set_linvel(velocity, true);
     }
     pub(crate) fn prediction_poses(&mut self, players: &[PlayerSnapshot]) {
         for player in players {

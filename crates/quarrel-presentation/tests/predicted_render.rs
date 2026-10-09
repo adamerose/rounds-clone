@@ -108,6 +108,8 @@ fn remote_shot_stops_at_the_wall_in_rendered_frames() {
         lifetime_ticks: 60,
         dazzle_pulses: 0,
         explosive_radius_milli: 0,
+        radius_milli: 5000,
+        damage: 0,
     }];
     let samples = [PresentationSample {
         state: before.clone(),

@@ -405,3 +405,19 @@ The remote wall-contact render fixture adds pixel evidence; no additional damage
 The final full test output was lost at a context boundary, requiring one cached serial repeat to preserve checkable results.
 The installed Ivy check-all script expects a Playbook repository and cannot run here because playbook/skills is absent; the project's CI gates were run instead.
 
+
+## 2026-10-09 — Ticket #83 resumed after an incomplete worker exit
+
+The October 6 worker stopped with an unpublished four-commit candidate and three supported review findings. No game delivery was claimed. The resumed owning session kept its claim and candidate, reconciled delivered dependencies, and reproduced all three findings through tools/verify.ps1: an unprepared arena at Combat entry, friction stopping a grounded remote runner, and double-counted fixed-saw rotation. The complete run passed the other tests and reported exactly those three failures; no required check was skipped.
+
+The earlier candidate record incorrectly claimed preparation during Draft or Countdown. No Countdown phase exists, and Draft previously contained the preceding arena. The old timing was steady-state only. The correction prepares the same seeded upcoming arena when Draft begins and tests the real transition. The earlier incorrect claim in docs/design-docs/postmortems.md (the common-scene geometry entry) and docs/decisions.md remains historical and is superseded by this entry and the corresponding decision.
+
+The installed skill directory is a junction to the active Playbook's skills. Invoking ticket-tools.ps1 through the junction made PowerShell resolve its parent against .codex/skills and report the helper missing. Invoking the same file through its verified physical Playbook path restored the release-matched helper; neither a different helper version nor the root checkout was substituted. Current main's supported verifier remains unchanged.
+
+## 2026-10-09 — Ticket #83 verification linker failure with low disk space
+
+The first corrected verification stopped at quarrel-server link with LNK1318 LIMIT (12); its tests did not run. C: had 219,602,944 bytes free and the named PDB was 417,521,586 bytes. The source gates had passed. Reversible NTFS compression of the existing prepared target at BelowNormal priority retains its artifacts and restores linking headroom. The error and compression report remain under out/netcode-evidence; the PDB error's cause is not claimed proven solely by low free space. Complete verification must run again before delivery.
+
+The complete rerun after compression linked successfully and passed 152 tests, including all three review regressions; the one remaining failure was the 32-piece bandwidth check at 33,642.6 B/s per peer. The larger reconciled card payload exceeded the old 10 Hz budget. The same consultant recommended 7.5 Hz independent samples, with its longer correction interval recorded. The limit and all required checks remain unchanged; another complete supported run will verify the correction. Both frozen seeded ordinary matches retained their exact before-correction Combat hashes. The real first-Combat fixture measured 335.010 ms of Draft preparation and 0.700 ms on Combat entry, superseding the earlier artificial timing claim.
+
+The cadence correction passed the complete supported route: all 153 tests, format, strict Clippy, locked build and doctests. Its attributed frozen impaired fixture measured 24,190.8 B/s per peer, one scene frame of local response and agreeing host/client outcomes; the real first Combat frame took 0.818 ms. The retained failing runs are superseded by this evidence, not erased.
