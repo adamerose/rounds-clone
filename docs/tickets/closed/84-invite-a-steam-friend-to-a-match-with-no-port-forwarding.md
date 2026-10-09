@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d
+status: closed
 created: 2026-10-05T14:55:57Z
 origin: human-request
 tags: ["quarrel", "mvp", "network", "steam"]
@@ -58,3 +57,5 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-09T11:01:02Z review fallback: codex exec -s read-only failed sandbox setup (helper_unknown_error: setup refresh had errors) and reviewed nothing; rerun with -s danger-full-access and read-only instructions, as tickets 87 and 93 did
 - 2026-10-09T11:14:36Z stage review end session codex:01a12052-f3dd-7d61-99e4-b163146f01f8 — APPROVED a971ef49742c9ac0744d764156bfaa4b90a7d85b..1b5458c6c8a69848076e437f2ce44d0487193e0f; one non-blocking note: the Steam host's session-request callback holds its client, so Steam shuts down at process exit rather than on drop (each match is its own process)
 - 2026-10-09T11:14:48Z stage integration start session claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d — reviewed a971ef49742c9ac0744d764156bfaa4b90a7d85b..cd2e07d33a6c594a8649ccb2957b15757adddcec (1b5458c plus trailers) as d731db29d0b138e7e3dbc5847ac0c465eaf09df5..b47fb127c085d049d139dcb4f96824fe7fe26e01; rebased verify passed
+- 2026-10-09T11:23:18Z stage review end session codex:01a12052-f3dd-7d61-99e4-b163146f01f8 — approved candidate a971ef49742c9ac0744d764156bfaa4b90a7d85b..cd2e07d33a6c594a8649ccb2957b15757adddcec
+- 2026-10-09T11:23:18Z stage integration end session claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d — integrated cd2e07d33a6c594a8649ccb2957b15757adddcec as dd05ad82cd23274ea87249f5313ef9af78eea14a
