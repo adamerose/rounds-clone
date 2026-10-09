@@ -34,7 +34,7 @@ Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor d
 
 ## Decisions
 
-- Run resumed 2026-10-09T00:10Z. Destination main; direct delivery. Regular preset uses subscription billing for Claude and Codex, Sol 6.1 medium workers, Opus 5.5 high fresh reviews, and three workers before the binding run override of two. Native Rust workers remain serialized; reuse the configured target with two Cargo jobs.
+- Run resumed 2026-10-09T00:06Z. Destination main; direct delivery. Regular preset uses subscription billing for Claude and Codex, Sol 6.1 medium workers, Opus 5.5 high fresh reviews, and three workers before the binding run override of two. Native Rust workers remain serialized; reuse the configured target with two Cargo jobs.
 - Budget: Claude weekly utilization 74 percent, resetting 2026-10-10T17:59:59Z (Toronto October 10 at 14:00); stop new launches at that reset or 90 percent. Its short window is 62 percent and resets 2026-10-09T00:19:59Z. Codex weekly utilization is 4 percent, resetting 2026-10-15T18:45:53Z. Preserve the existing Sol worker sessions for 80 and 83; prioritize Claude subscription for new eligible workers while its headroom expires first. No API billing authorized.
 
 - Destination: `main`. Workers use that ref; no pull request.
