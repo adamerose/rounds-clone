@@ -22,7 +22,7 @@ out/cargo-target/debug/quarrel-client capture --seed 38 --ticks 30 --output out/
 
 Cargo uses two jobs and the reusable `out/cargo-target` directory from `.cargo/config.toml`.
 Worktrees share the main checkout's target; there, run `pwsh -File tools/verify.ps1` instead of the first four commands, and use the binaries in `out/verify/build` for the smoke and capture.
-It rebuilds the workspace crates from that checkout's source and runs copies of the test executables, so another worktree's build cannot replace what it tests.
+It reuses workspace artifacts only when its record shows that checkout built them from its current content, otherwise rebuilds the workspace crates from that checkout's source, and runs copies of the test executables, so another worktree's build cannot replace what it tests.
 The smoke runs an authority and two UDP clients through ordinary drafts, checking progressive snapshots and final state agreement.
 `assets/replays/ordinary-match.json` contains starting cards and arenas plus player inputs for a short ordinary match; the simulation tests replay it twice and compare every snapshot.
 Adding or editing live assets does not change that recording.
