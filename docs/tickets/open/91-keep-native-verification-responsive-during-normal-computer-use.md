@@ -1,5 +1,5 @@
 ---
-status: ready
+status: blocked
 owner: claude:5d7961b5-7082-42f9-9e88-f4b260740f6f
 created: 2026-10-09T03:15:36Z
 origin: human-request
@@ -19,9 +19,13 @@ split-from: []
 
 Adam reports that this project's builds make his computer lag while he uses it. Measure the heavy build phases, identify the resource competition and make the supported verification route yield to interactive applications while retaining every required check.
 
+## Blocked
+
+Waiting for fresh-context re-admission of a contract amendment; no operator decision is open. The implementation showed that the frozen Outcome conflicts with itself. At BelowNormal priority, the wall-clock UDP conditions test `udp_delivery_observes_delay_jitter_and_loss` failed 9 of 12 isolated runs under an 18-thread Normal-priority foreground CPU load, compared with 2 of 12 at Normal. Without load it passed 50 of 50 at each priority. Each test process uses at most about one core of the 20, so lowering test priority does little for responsiveness but endangers the required timing checks. The amendment keeps BelowNormal for Cargo, the compiler and the linker, and runs test executables and the client they launch at the caller's priority.
+
 ## Outcome
 
-- The normal verification command makes compiler, linker and test processes yield to normal-priority interactive applications through inherited BelowNormal or Idle process priority, with measured improvement in foreground responsiveness.
+- The normal verification command makes Cargo, compiler and linker processes yield to normal-priority interactive applications through inherited BelowNormal or Idle process priority, with measured improvement in foreground responsiveness. Test executables and the client they launch run at the caller's priority, so wall-clock checks keep their scheduling (amended: see the work log entry of 2026-10-09 about the UDP conditions test).
 - Retain compilation serialization delivered by 87 and bound test execution so overlapping project verification cannot recreate the measured interference.
 - A bounded trace identifies CPU, memory and disk peaks through compilation, linking and tests; the resulting correction addresses the measured bottleneck.
 - Full verification, shared dependency reuse and candidate-attributed executables still work.
@@ -30,7 +34,7 @@ Adam reports that this project's builds make his computer lag while he uses it. 
 
 - Keep the prepared out/cargo-target and at most two Cargo jobs. Do not invalidate dependency artifacts, start a clean target or change RUSTFLAGS/profiles/features for this work.
 - Prefer native process scheduling and the verification route delivered by 87 over a separate build framework.
-- Allowed corrections are native CPU process priority inherited by the complete compiler/linker/test/client tree, sequencing compilation and tests, test parallelism, and a Cargo job cap of one or two. System-wide I/O or memory policy changes are outside this ticket. If a fix needs changed compiler profiles, debuginfo, RUSTFLAGS, dependencies, features or dropped checks, return to blocked for re-admission.
+- Allowed corrections are native CPU process priority inherited by the complete Cargo/compiler/linker tree (tests and the client stay at the caller's priority), sequencing compilation and tests, test parallelism, and a Cargo job cap of one or two. System-wide I/O or memory policy changes are outside this ticket. If a fix needs changed compiler profiles, debuginfo, RUSTFLAGS, dependencies, features or dropped checks, return to blocked for re-admission.
 - No unrelated processes are stopped, reprioritized or constrained. Test and build coverage stays complete.
 - Measure in an exclusive project verification window after 92: record process inventory before and after and ensure no other project Cargo/tests run. Compare the same source and warm target; the baseline is 87 delivered route at Normal priority, not the temporary manual BelowNormal worker lowering. Cold dependency builds remain unmeasured.
 - The orchestrator already lowered the exact active 87 worker tree to BelowNormal as a reversible immediate measure. This is not evidence that the lag is fixed.
@@ -39,7 +43,7 @@ Adam reports that this project's builds make his computer lag while he uses it. 
 
 - Record bounded before/after traces across the complete route phases using the same prepared target and source. Fixed-interval samples include CPU, process peak working set, lowest available memory, hard page faults and disk active time or queue length; report unavailable counters explicitly.
 - Run a small Normal-priority foreground timer probe during both runs; report p99 and maximum wake-up delay alongside resource pressure. Use those observations to show improvement in the reported lag and identify remaining limitations without claiming an unmeasured cold-build benefit. Explain anomalously long test phases if they recur.
-- Confirm the native compiler/linker/test processes spawned through the supported route have the intended priority and no concurrent Cargo builds exceed the cap.
+- Confirm the native compiler/linker processes spawned through the supported route run at the lowered priority, test executables and the client at the caller's priority, and no concurrent Cargo builds exceed the cap.
 - Run the complete verification route successfully at the chosen priority while ordinary foreground use and the Normal-priority probe continue. Wall-clock-sensitive network/menu checks must pass unchanged, with source/artifact evidence retained and no skipped checks.
 
 ## Chat excerpts
