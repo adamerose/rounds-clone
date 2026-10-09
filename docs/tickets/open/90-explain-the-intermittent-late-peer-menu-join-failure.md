@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-09T02:27:28Z
 origin: system-detected
 tags: ["quarrel", "network", "tests"]
@@ -40,3 +40,5 @@ The final card verification once failed the late-peer menu fixture at its five-s
 
 - 2026-10-09T02:27:28Z Reported from ticket 80's final publication record. Its unchanged focused test, three timed public reproductions and full matrix passed after one failure; the cause remains unproven. Closed tickets 74, 81, 85 and 89 cover earlier lifecycle/port issues, not this intermittent final fixture failure.
 - 2026-10-09T04:58:54Z Admission round1 by fresh Codex context /admit_late_peer requested exact targeted commands, finite deadlines and measurable failure-before/pass-after evidence; retained rejected and timed logs available. Contract amended, ordering after91 explicit; no operator decision open.
+
+- 2026-10-09T05:01:11Z Admission round2 by fresh Codex context /admit_late_peer approves amended contract at risk3: exact frozen target/deadline, failure-before/pass-after proof, full verification route and explicit87/91 dependencies resolved all findings. No operator decision open. Worker must record both rounds in docs/decisions.md before code review.
