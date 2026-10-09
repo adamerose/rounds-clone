@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 owner: codex:01a11df8-2117-7ad1-93c1-4a57a586fedb
 created: 2026-10-05T01:09:00Z
 origin: human-request
@@ -23,14 +23,6 @@ split-from: []
 
 Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor described in `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md` milestone M1. This run turns the footage-replay codebase into an ordinary match two people can start and finish, adds the card system and the loser-picks draft, and delegates implementation to Sol workers.
 
-## Blocked
-
-Ivy's Codex launcher adds `mcp_servers.code-review.enabled=false`, which makes configuration loading fail before the catastrophe-guard command. Both installed CLIs list the unchanged configuration successfully. The bundled binary fails with the same override, so switching versions does not restore launch. No guard was bypassed.
-
-The existing card worker (80) and responsive-online worker (83) remain stopped with their claims and unfinished work preserved. Steam integration (84), regression coverage (86) and shared-artifact verification (87) wait on them. A full pass found no unowned ready ticket with closed dependencies; documentation ticket 62 remains deferred by its binding decision. Both workers launched in this run, 73 and 74, are closed and no delivery worker is running. Overall MVP evidence is not complete.
-
-Adam approved filing the prepared report. It is published as [Unattended Codex launcher rejects configuration while disabling code-review](https://github.com/adamerose/ivy/issues/4). No approval question remains; the technical launcher failure still prevents resuming the existing workers.
-
 ## Outcome
 
 - Two players can start a QUARREL match from a menu on one machine, over LAN, or online from two homes through a Steam friend invite, pick an opening card, fight on a new random arena every fight to five points with no tied fights, with each fight's loser picking a card, and run it back to 10 and then 15 or start a new match, with no footage replay profile involved.
@@ -41,6 +33,9 @@ Adam approved filing the prepared report. It is published as [Unattended Codex l
 - The superseded footage-fidelity queue is closed, and every ticket this run launches is closed or blocked.
 
 ## Decisions
+
+- Run resumed 2026-10-09T00:10Z. Destination main; direct delivery. Regular preset uses subscription billing for Claude and Codex, Sol 6.1 medium workers, Opus 5.5 high fresh reviews, and three workers before the binding run override of two. Native Rust workers remain serialized; reuse the configured target with two Cargo jobs.
+- Budget: Claude weekly utilization 74 percent, resetting 2026-10-10T17:59:59Z (Toronto October 10 at 14:00); stop new launches at that reset or 90 percent. Its short window is 62 percent and resets 2026-10-09T00:19:59Z. Codex weekly utilization is 4 percent, resetting 2026-10-15T18:45:53Z. Preserve the existing Sol worker sessions for 80 and 83; prioritize Claude subscription for new eligible workers while its headroom expires first. No API billing authorized.
 
 - Destination: `main`. Workers use that ref; no pull request.
 - Budget resumed 2026-10-07: Codex weekly window reports 0 % used and resets 2026-10-14T03:46:11Z; stop new launches at that reset or 90 %. Ivy usage endpoint is unavailable, so Claude headroom is unknown.
@@ -94,3 +89,5 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-07T07:27:22Z Run finished blocked on the launcher withholding override and undelivered MVP dependencies. Delivered 73 as 159e630a7f4e2ed11407ad92b89d9e4de920de3a and 74 as 77c80f3b3cbc61f5295e95c402ad3aac8382dc18; both worker processes exited and their ticket records report full required software checks and fresh review. Admitted 86 after two contract rounds; its decision record is on main at 039b24cfb50c4458a2391c08ba762884450bb17e. No stewardship routines are configured. Guard audit recorded one routine ticket 59 ownership judgment; corrected launch-failure and metadata-search postmortem published at 300ca825e9e35b48d8d5a7439a712496dd9666e3. All three top-level documentation worktrees were removed after publication. Codex account-wide weekly utilization rose from 0 to 1 percent against the 90-percent cap; Claude usage is unavailable, so run-specific spend cannot be measured. The separately delivered firewall-loopback worktree remains after its owner reported automatic approval rejection of build-target junction cleanup; the prepared target is preserved. Local report has not been filed; approval is the sole current question.
 
 - 2026-10-07T08:06:24Z Adam authorized filing the prepared Ivy report with 'ok go'; published https://github.com/adamerose/ivy/issues/4 and removed the answered approval question. Launcher repair and MVP delivery remain outstanding; no worker restarted.
+
+- 2026-10-09T00:06:20Z Run taken over from codex:01a114f0-227b-7711-828e-c62f2606df5c on Adam's autonomy instruction. Resume existing workers 80 then 83, preserving claims and serialized Cargo. Installed launcher now supplies a placeholder transport before disabling plugin MCP servers; its catastrophe canary must pass before work. No configured routines; MVP goal and deferred documentation 62 unchanged.
