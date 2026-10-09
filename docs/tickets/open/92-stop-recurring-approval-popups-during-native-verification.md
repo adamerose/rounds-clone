@@ -26,7 +26,7 @@ Adam reports repeated approval popups during this project's build process even t
 ## Decisions
 
 - Adam's photo identifies Windows Security asking to allow public/private networks for out/cargo-target/debug/deps/quarrel_network-3d1ebb929b1d7149.exe. This is Windows Firewall, separate from UAC. The photo is retained at out/ticket092-proof/firewall-photo.png in the root checkout.
-- Current lib.rs client socket address test and live.rs interactive binding test actually bind wildcard sockets for documentation-only remote addresses. Diagnose all fixtures in the supported route, including client/menu checks; fix test boundary effects while preserving production remote/LAN capabilities.
+- Current lib.rs client socket address test and live.rs interactive binding test actually bind wildcard sockets for documentation-only remote addresses. The menu_network.rs tests also launch menu-start --choice 1, reaching menu Host --bind 0.0.0.0 at menu.rs:142. The retained firewall events include the worktree-specific frozen quarrel-client.exe paths copied by 87. Diagnose all fixtures in the supported route; fix test boundary effects while preserving production remote/LAN capabilities.
 - Preserve the prepared Cargo target, two-job cap and candidate-attributed verification delivered by 87. Native Cargo builds remain serialized.
 - Change project test/code boundaries, not Windows firewall policy, notifications, application allow rules or UAC settings.
 
@@ -34,7 +34,8 @@ Adam reports repeated approval popups during this project's build process even t
 
 - Record the exact triggering source lines and a bounded before/after observation of the fixture socket bindings. Adam's photo and existing firewall events establish the reported notification; do not deliberately create repeated dialogs solely for reproduction.
 - Keep regression coverage of IPv4/IPv6 loopback and remote address selection without opening external interfaces merely to assert an address. Exercise actual local network behavior through loopback sockets.
-- Run the complete supported verification route. Record socket/Firewall event evidence for that run showing no new application-access query from its generated test executables; distinguish an existing dismissed dialog from a new event. State any unavailable UI evidence explicitly.
+- Inventory every non-loopback bind reachable from Rust tests and spawned client checks. Cover production wildcard address and menu Host arguments through pure assertions while exercising local communication through real loopback sockets.
+- Before the corrected full route runs, verify its frozen test/client executable paths have no application rules with Get-NetFirewallApplicationFilter. Use the new fix worktree paths before ever running unfixed verification there. After the complete route, require no new Firewall operational log 2097 or 2099 events naming those paths; preserve event timestamps and application paths. Existing allowed paths cannot establish absence of a prompt. State unavailable UI evidence explicitly.
 - Verify production wildcard/remote binding choices remain available, and record every check performed.
 ## Chat excerpts
 
