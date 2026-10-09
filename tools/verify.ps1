@@ -117,46 +117,49 @@ try {
         $content
     }
 
-    # Everything besides source content that decides what Cargo builds: the toolchain, every
-    # manifest and the lock file, and each Cargo configuration file that applies here, including
-    # the absence of the ones that do not exist.
-    function Get-Settings($Content) {
-        $settings = [Collections.Generic.SortedDictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
-        $settings['rustc'] = (rustc -vV) -join ' '
-        $settings['cargo'] = cargo -V
+    # The files besides sources that decide what Cargo builds: every manifest, the lock file and
+    # toolchain file, and each Cargo configuration file that applies here, whether or not it
+    # exists.
+    function Get-SettingsFiles($Content) {
         foreach ($file in $Content.Keys) {
-            if ((Split-Path $file -Leaf) -in 'Cargo.toml', 'Cargo.lock', 'rust-toolchain', 'rust-toolchain.toml') {
-                $settings[$file] = Get-Hash $file
-            }
+            if ((Split-Path $file -Leaf) -in 'Cargo.toml', 'Cargo.lock', 'rust-toolchain', 'rust-toolchain.toml') { $file }
         }
         $directory = $checkout
         $configs = while ($directory) {
             Join-Path $directory '.cargo'
             $directory = Split-Path $directory -Parent
         }
-        $configs = @($configs) + $(if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $HOME '.cargo' })
-        foreach ($config in $configs) {
-            foreach ($name in 'config.toml', 'config') {
-                $file = Join-Path $config $name
-                $settings[$file] = Get-Hash $file
-            }
+        foreach ($config in @($configs) + $(if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $HOME '.cargo' })) {
+            Join-Path $config 'config.toml'
+            Join-Path $config 'config'
         }
+    }
+
+    # The toolchain's version and the content of every settings file, absent ones included.
+    function Get-Settings($Content) {
+        $settings = [Collections.Generic.SortedDictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $settings['rustc'] = (rustc -vV) -join ' '
+        $settings['cargo'] = cargo -V
+        foreach ($file in Get-SettingsFiles $Content) { $settings[$file] = Get-Hash $file }
         ($settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "`n"
     }
 
-    # Every checkout file the compiler's dependency info lists for these artifacts, or nothing
-    # when they have no dependency info. Cargo runs the compiler from the workspace root, so
-    # relative paths are relative to this checkout.
-    function Get-Sources([string[]]$Files) {
-        $depInfo = foreach ($file in $Files) {
+    # The compiler's dependency info files for these artifacts.
+    function Get-DepInfo([string[]]$Files) {
+        $candidates = foreach ($file in $Files) {
             $directory = Split-Path $file -Parent
             $stem = [IO.Path]::GetFileNameWithoutExtension($file)
             Join-Path $directory "$stem.d"
             if ($stem.StartsWith('lib')) { Join-Path $directory "$($stem.Substring(3)).d" }
         }
-        $depInfo = @($depInfo | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -Unique)
+        $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -Unique
+    }
+
+    # Every checkout file these dependency info files list. Cargo runs the compiler from the
+    # workspace root, so relative paths are relative to this checkout.
+    function Get-Sources([string[]]$DepInfo) {
         $found = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-        foreach ($line in $depInfo | ForEach-Object { Get-Content -LiteralPath $_ }) {
+        foreach ($line in $DepInfo | ForEach-Object { Get-Content -LiteralPath $_ }) {
             $separator = $line.IndexOf(': ')
             if ($line.StartsWith('#') -or $separator -lt 0) { continue }
             foreach ($dependency in $line.Substring($separator + 2) -split '(?<!\\) ') {
@@ -166,6 +169,12 @@ try {
             }
         }
         $found
+    }
+
+    function ConvertTo-Map($Table) {
+        $map = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($entry in $Table.GetEnumerator()) { $map[$entry.Key] = [string]$entry.Value }
+        $map
     }
 
     # Whether the previous run's record still accounts for this checkout's artifacts. Adds the
@@ -192,13 +201,19 @@ try {
                     Write-Host "$($artifact.Key) is no longer the artifact this checkout built."; return $false
                 }
             }
-            # The recorded artifacts' own dependency info names the inputs to check, so a record
-            # that lost an entry cannot hide a changed input.
-            $hashes = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
-            foreach ($source in $record.sources.GetEnumerator()) { $hashes[$source.Key] = [string]$source.Value }
-            $listed = @(Get-Sources @($record.artifacts.Keys))
-            if (-not $listed) { Write-Host 'The recorded artifacts have no dependency info.'; return $false }
-            foreach ($source in $listed) {
+            # The recorded artifacts' own dependency info, unchanged since it was recorded, names
+            # the inputs to check, so neither a lost record entry nor edited dependency info can
+            # hide a changed input.
+            $depInfo = @(Get-DepInfo @($record.artifacts.Keys))
+            if (-not $depInfo) { Write-Host 'The recorded artifacts have no dependency info.'; return $false }
+            $recorded = ConvertTo-Map $record.depInfo
+            foreach ($file in $depInfo) {
+                if (-not $recorded.ContainsKey($file) -or (Get-Hash $file) -ne $recorded[$file]) {
+                    Write-Host "$file is not the dependency info this checkout recorded."; return $false
+                }
+            }
+            $hashes = ConvertTo-Map $record.sources
+            foreach ($source in Get-Sources $depInfo) {
                 if (-not $hashes.ContainsKey($source)) { Write-Host "The verification record lacks $source."; return $false }
                 $hash = Get-Hash $source
                 if (-not $hash) { Write-Host "$source no longer exists."; return $false }
@@ -212,28 +227,34 @@ try {
     }
 
     # Writes the record unless an artifact is not this run's, an input has no content read before
-    # compiling, or an input or setting changed after $Started, when compiling began. Cargo writes
-    # a binary's dependency info after reporting the binary, so this reads it after Cargo exits.
+    # compiling, or an input or setting changed after $Started, when compiling began. A file's
+    # NTFS change time moves on every write and on every change to its write time, so a file
+    # edited and then restored with its old write time still counts as changed. Cargo writes a
+    # binary's dependency info after reporting the binary, so this reads it after Cargo exits.
     function Save-Record([string]$Settings, $Content, [DateTime]$Started) {
-        $record = [ordered]@{ checkout = $checkout; target = $target; settings = $Settings; artifacts = @{}; sources = @{} }
-        $sources = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $record = [ordered]@{ checkout = $checkout; target = $target; settings = $Settings; artifacts = @{}; depInfo = @{}; sources = @{} }
         foreach ($unit in $units) {
-            $found = @(Get-Sources $unit)
-            if (-not $found) { $script:unattributed = "$($unit[0]) has no dependency info" }
-            foreach ($file in $found) { $null = $sources.Add($file) }
+            $depInfo = @(Get-DepInfo $unit)
+            if (-not $depInfo) { $script:unattributed = "$($unit[0]) has no dependency info" }
+            foreach ($file in $depInfo) { $record.depInfo[$file] = Get-Hash $file }
             foreach ($file in $unit) {
                 $signature = Get-Signature $file
                 if (-not $built.Contains($signature)) { $script:unattributed = "$file is not this run's artifact" }
                 $record.artifacts[$file] = $signature
             }
         }
-        foreach ($file in $sources) {
+        foreach ($file in Get-Sources @($record.depInfo.Keys)) {
             if (-not $Content.ContainsKey($file)) {
                 $script:unattributed = "$file was not in this checkout before compiling"
-            } elseif ((Get-Hash $file) -ne $Content[$file] -or (Get-Item -LiteralPath $file).LastWriteTimeUtc -ge $Started) {
+            } elseif ((Get-Hash $file) -ne $Content[$file] -or [QuarrelVerifyFile]::ChangeTimeUtc($file) -ge $Started) {
                 $script:unattributed = "$file changed while compiling"
             } else {
                 $record.sources[$file] = $Content[$file]
+            }
+        }
+        foreach ($file in Get-SettingsFiles $Content) {
+            if ((Test-Path -LiteralPath $file -PathType Leaf) -and [QuarrelVerifyFile]::ChangeTimeUtc($file) -ge $Started) {
+                $script:unattributed = "$file changed while compiling"
             }
         }
         if ((Get-Settings $Content) -ne $Settings) {
@@ -245,6 +266,32 @@ try {
             $record | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $recordPath
         }
     }
+
+    # Reads a file's NTFS change time, which ordinary tools cannot set back.
+    Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+
+public static class QuarrelVerifyFile {
+    [StructLayout(LayoutKind.Sequential)]
+    struct BasicInfo { public long CreationTime, LastAccessTime, LastWriteTime, ChangeTime; public uint FileAttributes; }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int infoClass, out BasicInfo info, int size);
+
+    public static DateTime ChangeTimeUtc(string path) {
+        using (var file = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete)) {
+            BasicInfo info;
+            if (!GetFileInformationByHandleEx(file.SafeFileHandle, 0, out info, Marshal.SizeOf<BasicInfo>())) {
+                throw new IOException("Cannot read the change time of " + path, Marshal.GetHRForLastWin32Error());
+            }
+            return DateTime.FromFileTimeUtc(info.ChangeTime);
+        }
+    }
+}
+'@
 
     function Save-Executable($Message, [string]$Directory) {
         $source = $Message.executable
