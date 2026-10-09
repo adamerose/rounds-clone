@@ -1,5 +1,5 @@
 ---
-status: idea
+status: blocked
 created: 2026-10-09T03:16:30Z
 origin: human-request
 tags: ["quarrel", "build", "windows"]
@@ -16,6 +16,10 @@ split-from: []
 # Stop recurring approval popups during native verification
 
 Adam reports repeated approval popups during this project's build process even though Windows UAC is set to Never notify. Identify the actual prompt and remove the unnecessary operation that triggers it without changing the project's verification coverage.
+
+## Blocked
+
+1. Identify the approval popup so this ticket can diagnose the actual trigger: (a) paste its exact title and message (recommended; sufficient to distinguish UAC, Firewall and agent approval), or (b) attach a screenshot showing the dialog (useful if its wording is unclear). No security-setting change is requested or authorized by this evidence question.
 
 ## Outcome
 
