@@ -52,3 +52,4 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-05T14:55:57Z Drafted under run #75.
 - 2026-10-05T15:04:43Z Admitted for run #75 after an independent contract check; its fixes were applied first.
 - 2026-10-09T10:48:52Z stage implement end session claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d — Transport-generic live session, quarrel-steam crate, menu Online choice; live Steam lobby and invite overlay shown on monitor 4
+- 2026-10-09T10:49:08Z stage verify start session claude:6c76fdbe-dfe3-46c4-b8c7-77b3aed79a4d — tools/verify.ps1 on worktree .ivy/worktrees/084-invite-a-steam-friend-to-a-match-with-no-port-forwarding
