@@ -1,5 +1,5 @@
 ---
-status: blocked
+status: ready
 owner: claude:5d7961b5-7082-42f9-9e88-f4b260740f6f
 created: 2026-10-09T03:15:36Z
 origin: human-request
@@ -18,10 +18,6 @@ split-from: []
 # Keep native verification responsive during normal computer use
 
 Adam reports that this project's builds make his computer lag while he uses it. Measure the heavy build phases, identify the resource competition and make the supported verification route yield to interactive applications while retaining every required check.
-
-## Blocked
-
-Waiting for fresh-context re-admission of a contract amendment; no operator decision is open. The implementation showed that the frozen Outcome conflicts with itself. At BelowNormal priority, the wall-clock UDP conditions test `udp_delivery_observes_delay_jitter_and_loss` failed 9 of 12 isolated runs under an 18-thread Normal-priority foreground CPU load, compared with 2 of 12 at Normal. Without load it passed 50 of 50 at each priority. Each test process uses at most about one core of the 20, so lowering test priority does little for responsiveness but endangers the required timing checks. The amendment keeps BelowNormal for Cargo, the compiler and the linker, and runs test executables and the client they launch at the caller's priority.
 
 ## Outcome
 
