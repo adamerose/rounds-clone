@@ -217,22 +217,25 @@ try {
         $record = [ordered]@{ checkout = $checkout; target = $target; settings = $Settings; artifacts = @{}; sources = @{} }
         foreach ($file in $artifacts) {
             $signature = Get-Signature $file
-            if (-not $built.Contains($signature)) { $script:attributed = $false }
+            if (-not $built.Contains($signature)) { $script:unattributed = "$file is not this run's artifact" }
             $record.artifacts[$file] = $signature
         }
         foreach ($file in $sources) {
-            if (-not $Content.ContainsKey($file) -or (Get-Hash $file) -ne $Content[$file] -or
-                (Get-Item -LiteralPath $file).LastWriteTimeUtc -ge $Started) {
-                $script:attributed = $false
-                continue
+            if (-not $Content.ContainsKey($file)) {
+                $script:unattributed = "$file was not in this checkout before compiling"
+            } elseif ((Get-Hash $file) -ne $Content[$file] -or (Get-Item -LiteralPath $file).LastWriteTimeUtc -ge $Started) {
+                $script:unattributed = "$file changed while compiling"
+            } else {
+                $record.sources[$file] = $Content[$file]
             }
-            $record.sources[$file] = $Content[$file]
         }
-        if ((Get-Settings $Content) -ne $Settings) { $script:attributed = $false }
-        if ($attributed) {
-            $record | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $recordPath
+        if ((Get-Settings $Content) -ne $Settings) {
+            $script:unattributed = 'the toolchain, a manifest, the lock file or the Cargo configuration changed while compiling'
+        }
+        if ($unattributed) {
+            Write-Host "Not recording this run's artifacts for reuse, because $unattributed; the next run rebuilds every workspace crate."
         } else {
-            Write-Host 'This run cannot attribute every workspace artifact to unchanged inputs; the next run rebuilds every workspace crate.'
+            $record | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $recordPath
         }
     }
 
@@ -258,7 +261,7 @@ try {
                 if ($message.fresh) { $reused++ } else { $compiled++ }
                 foreach ($file in $message.filenames) { $null = $artifacts.Add($file) }
                 $found = @(Get-Sources $message.filenames)
-                if (-not $found) { $script:attributed = $false }
+                if (-not $found) { $script:unattributed = "$($message.filenames[0]) has no dependency info" }
                 foreach ($file in $found) { $null = $sources.Add($file) }
                 if ($OnArtifact) { & $OnArtifact $message }
             }
@@ -296,7 +299,7 @@ try {
         }
         $artifacts = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         $sources = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-        $attributed = $true
+        $unattributed = $null
         $started = [DateTime]::UtcNow
 
         Invoke-Cargo clippy @('--workspace', '--all-targets', '--locked', '--', '-D', 'warnings')
