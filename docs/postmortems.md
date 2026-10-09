@@ -377,3 +377,13 @@ Ticket 91 was admitted with test executables running at BelowNormal priority alo
 The test still fails under heavy Normal-priority load at Normal priority, because its 250 ms wall-clock window has no margin for a stalled sender. That fragility predates ticket 91 and is not addressed here.
 
 The first Codex review also returned no result: `codex exec -s read-only` could not start its elevated Windows sandbox (`helper_unknown_error: setup refresh had errors`), so every tool call failed. The rerun used the operator's configured `danger-full-access` default, with the prompt keeping the reviewer read-only; the worktree stayed clean.
+
+## 2026-10-09 — A superseded orchestrator resumed an active worker
+
+Adam invoked autonomy again while the previous Claude orchestrator was waiting for ticket 91. The new Codex session took ownership of goal 75 and kept that worker running. After 91 closed, the new owner resumed the existing online-play session at 05:34:44Z as `81a98009-abed-4273-a38e-ba9d7165b613`. The old orchestrator also resumed it at 05:35:13Z as `77877e5c-b761-4f86-8e85-34376e83d58f`.
+
+The duplicate launch exited with code 1 at 05:35:15Z. Each JSON launch record names its launching session, and a subsequent goal check still named the Codex owner. The original worker remained active. The stale orchestrator exited on its own before any interruption was issued; no replacement worker was launched. These observations establish overlapping dispatch, not lost work, delivery, or the reason the duplicate CLI failed.
+
+The autonomy skill already requires checking goal ownership before each step and forbids resuming an active worker. The superseded session's reasoning and the duplicate exit's cause were not inspected, so the reason it missed that precondition is unknown. A prepared Ivy report proposes considering an ownership check at the worker launcher, with legitimate reviewer launches and handoffs preserved. No public issue has been filed or new guidance imposed.
+
+Evidence remains in the two unattended JSON records under Ivy's home and [goal 75's work log](http://ivy.localhost/tickets/75?repo=72104b08f3e558c1). The [current orchestrator](http://ivy.localhost/sessions/codex/01a11f02-1a85-7e42-b5c7-6b3d99c6940c) observed the [superseded session](http://ivy.localhost/sessions/claude/a0d86392-754e-470a-b30a-fec894c3f7c6) gone before trying any interruption. The incident investigation and this journal change ran no Cargo build, changed no compiler settings, and retained the prepared target.
