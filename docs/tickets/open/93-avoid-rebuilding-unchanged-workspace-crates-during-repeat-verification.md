@@ -38,6 +38,7 @@ The supported verification route currently touches every crate source and rebuil
 ## Work log
 
 - 2026-10-09T03:41:28Z On origin/main after 87, tools/verify.ps1 lines110-111 assign current timestamps to every crate file. Its synopsis states every workspace crate rebuilds; independent admission context reported roughly minute-long warm compile phases. This is observed repeat cost, not proof of the complete user lag cause. No implementation or admission attempted here.
+- 2026-10-09T05:05:21Z Bounded fresh-context shaping by Codex /shape_cache_contract found no operator decision, but origin/main tools/verify.ps1 has no small public fixture entry point. The required foreign-writer/older-timestamp/embedded-input/corrupt-record sequence uses the whole workspace and may repeat Bevy links. Remains idea pending a meaningful minutes-scale attribution proof design; a performance benchmark cannot replace cache-safety evidence. No code, builds or cache changes performed.
 ## Scratch
 
 Fresh admission context found no duplicate, no operator decision and no needed change to another ticket record, but did not admit this contract. Before admission:
