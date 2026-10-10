@@ -1,11 +1,13 @@
 ---
 status: ready
+owner: codex:01a1240d-a9fb-71c0-a81e-f98c26391001
 created: 2026-10-09T02:27:28Z
 origin: system-detected
 tags: ["quarrel", "network", "tests"]
 value: 5
 sessions:
   - codex:01a11df8-2117-7ad1-93c1-4a57a586fedb
+  - codex:01a1240d-a9fb-71c0-a81e-f98c26391001
 execution: unattended
 parent: 75
 depends-on: [87, 91]
