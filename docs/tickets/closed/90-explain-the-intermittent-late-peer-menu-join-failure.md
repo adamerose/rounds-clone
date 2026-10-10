@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a1240d-a9fb-71c0-a81e-f98c26391001
+status: closed
 created: 2026-10-09T02:27:28Z
 origin: system-detected
 tags: ["quarrel", "network", "tests"]
@@ -53,3 +52,5 @@ The final card verification once failed the late-peer menu fixture at its five-s
 - 2026-10-10T04:50:55Z stage verify end session codex:01a1240d-a9fb-71c0-a81e-f98c26391001 —157tests, format, strict all-target Clippy, locked build and doctests pass via supported pwsh; red16.768sec, controlled green6.101sec and exact targeted5.17sec; proof out/ticket090proof; no skipped tests or clean target; WindowsPS5 exact spelling unavailable before compile
 - 2026-10-10T04:51:22Z stage review start session codex:01a1240d-a9fb-71c0-a81e-f98c26391001 — complete fixture+decision+postmortem candidate; independent fresh Codex Sol6.1 high subscription fallback, Claude weekly100percent until18:00Z and Codex weekly16percent below90percent ceiling; no API/reset credits
 - 2026-10-10T04:55:25Z stage integration start session codex:01a1240d-a9fb-71c0-a81e-f98c26391001 — approved source tip b20dae39ade0f36e17da36de36468347298d7332 bound with reviewer codex:01a12427-4304-7831-8dfc-98430beba7e5 as reviewed f70364d3b470880e6ef47772af5a581c763e57f3..4b5610aef854d3f39b0fdd61ff1e2101d0288e0c; direct push origin main after ticket-only rebase and full verification; root/86 unchanged
+- 2026-10-10T05:02:20Z stage review end session codex:01a12427-4304-7831-8dfc-98430beba7e5 — approved candidate f70364d3b470880e6ef47772af5a581c763e57f3..4b5610aef854d3f39b0fdd61ff1e2101d0288e0c
+- 2026-10-10T05:02:20Z stage integration end session codex:01a1240d-a9fb-71c0-a81e-f98c26391001 — integrated 4b5610aef854d3f39b0fdd61ff1e2101d0288e0c as 8ed29bf21b8e8c41f09efb00d7d15d4e50a7ba18
