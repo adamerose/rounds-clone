@@ -1,7 +1,6 @@
 ---
 format: 3
 status: ready
-owner: codex:01a12409-4c8d-72b1-822e-b28e30e7e6e7
 created: 2026-10-05T01:09:00Z
 origin: human-request
 tags: ["quarrel", "autonomy", "autonomy-goal", "mvp"]
