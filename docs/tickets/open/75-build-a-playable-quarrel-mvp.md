@@ -1,7 +1,6 @@
 ---
 format: 3
 status: ready
-owner: claude:01f7b69d-77bd-46eb-838e-1fcf5dd6664b
 created: 2026-10-05T01:09:00Z
 origin: human-request
 tags: ["quarrel", "autonomy", "autonomy-goal", "mvp"]
