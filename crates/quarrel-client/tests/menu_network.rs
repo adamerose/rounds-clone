@@ -186,32 +186,46 @@ fn bounded_host_client_waits_for_a_peer_joining_after_the_silence_interval() {
     output.read_line(&mut listening).unwrap();
     let event: serde_json::Value = serde_json::from_str(&listening).expect("host listening event");
     let address = event["address"].as_str().unwrap().to_owned();
-    // After the three-second running silence bound, inside the five-second join window.
+    // Begin the public handshake after the running silence bound, inside the join window.
+    // Starting another executable here also spends the remaining 1.5 seconds on loading
+    // it and its DLLs; process creation does not mean a Hello reached the authority.
     std::thread::sleep(std::time::Duration::from_millis(3_500));
-    let join = Command::new(test_client())
-        .args([
-            "join",
-            "--address",
-            &address,
-            "--client",
-            "1",
-            "--headless",
-            "--ticks",
-            "90",
-        ])
-        .output()
-        .unwrap();
+    let client =
+        quarrel_network::LiveClient::connect(&address, 1, quarrel_sim::MatchConfig::default())
+            .unwrap();
+    let handle = client.handle();
+    let network = std::thread::spawn(move || client.run(90));
+    let mut sent = None;
+    let mut first_fight = false;
+    while handle.result().is_none() {
+        if let Some((state, _)) = handle.latest() {
+            first_fight |= state
+                .flow
+                .as_ref()
+                .is_some_and(|flow| flow.phase == quarrel_sim::FlowPhase::Combat);
+            let input = quarrel_sim::automated_input(1, &state);
+            handle.set_held(input);
+            if let Some(command) = input.flow
+                && sent != Some(command)
+            {
+                handle.push_flow(command).unwrap();
+                sent = Some(command);
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    let join = network.join().unwrap().unwrap();
+    assert_eq!(join.result, "completed");
+    assert!(first_fight, "late peer never reached first fight");
     let lines = output.lines().collect::<Result<Vec<_>, _>>().unwrap();
     let host = host.wait_with_output().unwrap();
-    for output in [&host, &join] {
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    let joined = String::from_utf8_lossy(&join.stdout).into_owned();
-    // The host prints its client and authority reports; the joining peer prints its own.
+    assert!(
+        host.status.success(),
+        "{}",
+        String::from_utf8_lossy(&host.stderr)
+    );
+    let joined = serde_json::to_string(&join).unwrap();
+    // Compare the host's client and authority reports with the public late-peer report.
     let reports = lines
         .iter()
         .map(String::as_str)
