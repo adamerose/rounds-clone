@@ -1,6 +1,5 @@
 ---
 status: ready
-owner: claude:fbdac464-eb9e-4af5-9cb8-6896fca1ba9e
 created: 2026-10-09T05:10:37Z
 origin: agent-proposed
 tags: ["quarrel", "build", "performance"]
