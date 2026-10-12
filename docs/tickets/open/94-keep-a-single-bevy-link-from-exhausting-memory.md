@@ -1,11 +1,13 @@
 ---
 status: ready
+owner: claude:fbdac464-eb9e-4af5-9cb8-6896fca1ba9e
 created: 2026-10-09T05:10:37Z
 origin: agent-proposed
 tags: ["quarrel", "build", "performance"]
 value: 7
 sessions:
   - claude:5d7961b5-7082-42f9-9e88-f4b260740f6f
+  - claude:fbdac464-eb9e-4af5-9cb8-6896fca1ba9e
 execution: unattended
 parent: 75
 depends-on: [91, 93]
