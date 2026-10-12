@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 owner: codex:01a12f11-0715-7b71-b569-474dc68c330e
 created: 2026-10-05T01:09:00Z
 origin: human-request
@@ -27,6 +27,29 @@ split-from: []
 # Build a playable QUARREL MVP
 
 Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor described in `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md` milestone M1. This run turns the footage-replay codebase into an ordinary match two people can start and finish, adds the card system and the loser-picks draft, and delegates implementation to Sol workers.
+
+## Blocked
+
+This run has finished scheduling: there is no eligible unowned ready product work and every launched delivery worker is closed or blocked. The ten-worker limit is preserved; native Cargo was serialized. Regression coverage from [#86](http://ivy.localhost/tickets/86?repo=72104b08f3e558c1) is on origin/main at 186edf4d27a056832ac6461bb12b14b164fa5656. The reviewed run journal is also on origin/main at 82981d3800fe59ddeea2807796dccb433843e530; its own worktree was removed. The shared root checkout was not advanced or edited.
+
+Fresh non-author goal evidence has four PASS results: source-matched complete software verification, ordinary headless matches and captures, impaired live matches with identical complete hashes including scores, and closed/blocked launched tickets. The public visible-flow command refused before showing a window because monitor 4 was absent. A separately timestamped current root metadata probe at 2026-10-12T19:31:55Z confirms WinSta0\Default, remote Session1, and only one 1920x1080 screen. The required visible draft, match end and run-back remain unverified, as does the two-home Steam invite reserved for Adam's first play session. No claim of MVP completion is made.
+
+[#94](http://ivy.localhost/tickets/94?repo=72104b08f3e558c1) failed its memory gate: rust-lld client resident memory stayed about 7.2 GB while private commit fell from 4.93 to 2.30 GB; portable symbols passed. No linker setting was delivered. Its docs-only checkpoint b50bed74d1a66cf5800d549384d3fd9e3f7a3ceb and exact .ivy/worktrees/094-keep-a-single-bevy-link-from-exhausting-memory are retained. No clean target or reduced-debugging build is authorized. The supplementary trace/replay mismatch is recorded separately as unadmitted [#95](http://ivy.localhost/tickets/95?repo=72104b08f3e558c1), with conversion completeness and cause still unproved; it is not a demonstrated live-score failure. [#62](http://ivy.localhost/tickets/62?repo=72104b08f3e558c1) remains deferred.
+
+Questions for Adam:
+
+1. How should the visible-match check proceed, given that the current remote session exposes only one screen?
+   a. (Recommended) Keep the monitor-4 rule and defer this check until the four-monitor desktop is available. The visible draft/end/run-back evidence stays pending.
+   b. Explicitly allow this run's check on the current display. A worker must adapt the supported placement and repeat the actual visible flow; current evidence is still insufficient.
+2. What should happen after the failed link-memory experiment?
+   a. (Recommended) Retire the disproved experiment and file a separate idea about reducing dependency debugging information. Any implementation requires a later decision because it loses dependency variable/type inspection and rebuilds roughly 17 GiB; this choice does not authorize that build.
+   b. Amend and re-admit the gate around private commit while proving actual paging benefit. This preserves debug capability, but still needs the remaining executable comparison and complete route; paging benefit is unproved.
+   c. Keep MSVC and accept the observed 7 to 7.7 GB resident memory for one link, ending further experiment work.
+3. May the prepared Ivy launcher report be published?
+   a. (Recommended) File the concrete report about workers inheriting terminating Windows jobs in adamerose/ivy with the ivy-report label.
+   b. Keep the local draft and do not publish it. The draft is out/autonomy75-goal-check-20261012/ivy-launch-report.md. The report-ivy-problem skill requires approval for a problem the scheduler noticed itself.
+
+Evidence, fresh native review binding, current display proof, selected quota readings, and delivery receipt are retained under out/autonomy75-goal-check-20261012. The supported CLI review failed read access; the fresh isolated native Codex child independently approved only the journal range. No product changes were authored by the scheduler.
 
 ## Outcome
 
