@@ -1,5 +1,5 @@
 ---
-status: ready
+status: blocked
 created: 2026-10-09T05:10:37Z
 origin: agent-proposed
 tags: ["quarrel", "build", "performance"]
@@ -18,6 +18,18 @@ risk: 4
 # Keep a single Bevy link from exhausting memory
 
 A single MSVC debug link of this workspace peaks at 5 to 7.5 GB and can page Adam's applications out when only about 4 GB is free. Test the pinned toolchain's bundled rust-lld before selecting it, keeping ordinary portable debug symbols and complete verification.
+
+## Blocked
+
+The memory gate failed, so no linker configuration was delivered and `.cargo/config.toml` is unchanged. Linking `quarrel-client` with the bundled rust-lld halved private commit (2,298,753,024 vs 4,931,825,664 bytes) but not working set (7,155,937,280 vs 7,189,938,176 bytes), against a 3,500,000,000-byte cap and a 0.5x-baseline limit on both. rust-lld keeps portable symbols: 4/4 DbgHelp queries pass on both pairs. Raw evidence is in the main checkout's `out/ticket094proof`. The `docs/decisions.md` entry is on the checkpoint `refs/ivy/candidates/94` (b50bed7) and is not yet on main.
+
+Questions for Adam:
+
+1. What should happen next with link memory?
+   a. (Recommended) Close this ticket as disproved and file a separate idea for reducing dependency debuginfo (for example `debug = "line-tables-only"` for non-workspace packages), which needs your approval because it reduces debugging capability and rebuilds about 17 GiB of dependencies. That is the remaining lever that shrinks what any linker must read.
+   b. Amend the gate to judge private commit instead of working set and re-admit. rust-lld then passes on `quarrel-client` (0.47x), because its working set is mostly reclaimable file-backed input mappings. It still needs the presentation-test comparison and the full verification route. Lower risk to symbols, but whether it actually stops Adam's applications being paged out is unproven.
+   c. Keep link.exe and accept the current 7 to 7.7 GB single link.
+
 
 ## Outcome
 
