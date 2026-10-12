@@ -443,3 +443,10 @@ The contract's `powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify
 The first diagnostic interpretation incorrectly compared the retained peer-process duration with the remaining join window. That duration includes match execution and terminal exchange. The consultant retracted that interpretation before implementation review; the decision record limits the historical inference and uses a controlled two-second executable-startup delay to establish the fixture's actual dependency.
 
 An initial daemon endpoint lookup printed its local authentication record. Subsequent queries read authentication in memory and select only provider usage windows for output. No authentication value was written into this repository; endpoint discovery should read only `server.json`.
+
+## 2026-10-12 — Ticket 86 parallel test loop opened the game window off monitor 4
+
+To run the verified test executables in default-parallel mode, the worker looped over `out/verify/test` with the filter `*-*.exe`.
+That filter also matched `quarrel-client.exe`, the client copy the tests launch, so the loop started the game with no arguments and opened a visible QUARREL window without monitor-4 placement.
+Every test executable had already passed; the loop then waited about ten minutes on the open window until the worker found the process by its executable path and closed it.
+Select test executables by Cargo's hash suffix (`*-<hex>.exe`) or from Cargo's reported test targets, never by a bare hyphen pattern.
