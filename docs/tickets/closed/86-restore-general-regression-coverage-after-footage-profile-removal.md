@@ -1,7 +1,6 @@
 ---
 format: 3
-status: ready
-owner: claude:2b4eef28-ee49-4679-8486-d53e0b980b9f
+status: closed
 created: 2026-10-06T00:49:51Z
 origin: system-detected
 tags: ["quarrel", "tests", "regressions"]
@@ -55,3 +54,5 @@ The independent [ticket 78 reviewer](http://ivy.localhost/sessions/claude/171c00
 - 2026-10-09T11:43:04Z stage implement end session claude:2b4eef28-ee49-4679-8486-d53e0b980b9f — arena validation, object contact/push/background/CCD, jump-release (stun, elimination, fight reset) and scripted UDP error tests added; each mechanic test fails under a targeted mutation
 - 2026-10-12T08:10:36Z stage verify end session claude:2b4eef28-ee49-4679-8486-d53e0b980b9f — rebased on origin/main 6d90793; tools/verify.ps1 passed (fmt, strict Clippy, locked build, serial tests, 0 ignored); default-parallel run of the verified test executables passed (sim 96, network 43, presentation 21, client CLI 7, others). A loop pattern also launched the client window off monitor 4; closed, recorded in docs/postmortems.md
 - 2026-10-12T08:19:22Z stage integration start session claude:2b4eef28-ee49-4679-8486-d53e0b980b9f — reviewed 6d907933e3c1..3618cd106ba4 as 01a690c896dd..737c06c4df66 (ticket-only commits upstream; code bytes unchanged)
+- 2026-10-12T08:19:37Z stage review end session codex:01a12f2a-41fe-7b62-b581-a90a8d512b92 — approved candidate 6d907933e3c1a1b065976327ce1b33141e0cd5bf..3618cd106ba4ff3ff51449b1c9c0b98f008d3c11
+- 2026-10-12T08:19:37Z stage integration end session claude:2b4eef28-ee49-4679-8486-d53e0b980b9f — integrated 3618cd106ba4ff3ff51449b1c9c0b98f008d3c11 as 186edf4d27a056832ac6461bb12b14b164fa5656
