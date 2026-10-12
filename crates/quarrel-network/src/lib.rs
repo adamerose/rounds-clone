@@ -393,6 +393,269 @@ pub use memory::{MemoryEndpoint, MemoryNetwork};
 mod tests {
     use super::*;
 
+    type Script = Box<dyn FnOnce(SocketAddr, &[UdpSocket; 2])>;
+
+    // Every endpoint a test sends to stays bound until the test ends, so no packet can
+    // reach a port that another parallel test bound after this one released it.
+    fn endpoint() -> UdpSocket {
+        let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .unwrap();
+        socket
+    }
+    fn hello(client_id: u8, config: &MatchConfig) -> ClientPacket {
+        ClientPacket::Hello {
+            protocol: NETWORK_PROTOCOL,
+            client_id,
+            config: config.clone(),
+        }
+    }
+    fn input(client_id: u8, sequence: u32) -> ClientPacket {
+        ClientPacket::Input {
+            protocol: NETWORK_PROTOCOL,
+            client_id,
+            sequence,
+            input: PlayerInput::default(),
+        }
+    }
+    /// Runs a two-fighter authority while `clients` sends packets from two sockets the
+    /// test owns, and returns the authority's result.
+    fn authority_result(
+        clients: impl FnOnce(SocketAddr, &[UdpSocket; 2]),
+    ) -> Result<ServerReport, String> {
+        let server = BoundServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let sockets = [endpoint(), endpoint()];
+        let authority = std::thread::spawn(move || server.run(MatchConfig::default(), 5));
+        clients(address, &sockets);
+        authority.join().unwrap()
+    }
+    fn handshake(address: SocketAddr, sockets: &[UdpSocket; 2]) {
+        for (id, socket) in sockets.iter().enumerate() {
+            send_client(socket, address, &hello(id as u8, &MatchConfig::default())).unwrap();
+        }
+        for socket in sockets {
+            assert!(matches!(
+                receive_authority(socket, address).unwrap(),
+                AuthorityPacket::Welcome { .. }
+            ));
+        }
+    }
+
+    #[test]
+    fn two_scripted_clients_receive_the_authority_state_for_every_input() {
+        let config = MatchConfig::default();
+        let server = BoundServer::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let authority = std::thread::spawn({
+            let config = config.clone();
+            move || server.run(config, 3)
+        });
+        let clients = (0..2)
+            .map(|id| {
+                let config = config.clone();
+                std::thread::spawn(move || {
+                    send_inputs(address, id, config, &[PlayerInput::default(); 3])
+                })
+            })
+            .collect::<Vec<_>>();
+        let reports = clients
+            .into_iter()
+            .map(|client| client.join().unwrap().unwrap())
+            .collect::<Vec<_>>();
+        let server = authority.join().unwrap().unwrap();
+        let mut local = AuthoritativeMatch::with_config(config).unwrap();
+        for _ in 0..3 {
+            local.step(&[PlayerInput::default(); 2]);
+        }
+        assert_eq!(server.state_hash, hash_snapshot(&local.snapshot()));
+        assert_eq!((server.inputs_received, server.last_snapshot_tick), (6, 3));
+        for report in reports {
+            assert_eq!(report.last_input_sequence, 2);
+            assert_eq!(report.snapshots_received, 3);
+            assert_eq!(report.final_report.state_hash, server.state_hash);
+        }
+    }
+
+    #[test]
+    fn authority_rejects_bad_handshakes() {
+        let other = MatchConfig {
+            seed: MatchConfig::default().seed + 1,
+            ..Default::default()
+        };
+        let cases: Vec<(Script, String)> = vec![
+            (
+                Box::new(|address, sockets| {
+                    let mut old = hello(0, &MatchConfig::default());
+                    if let ClientPacket::Hello { protocol, .. } = &mut old {
+                        *protocol -= 1;
+                    }
+                    send_client(&sockets[0], address, &old).unwrap();
+                }),
+                format!("protocol {} is not supported", NETWORK_PROTOCOL - 1),
+            ),
+            (
+                Box::new(move |address, sockets| {
+                    send_client(&sockets[0], address, &hello(0, &other)).unwrap();
+                }),
+                "client 0 used a different match config".into(),
+            ),
+            (
+                Box::new(|address, sockets| {
+                    send_client(&sockets[0], address, &hello(2, &MatchConfig::default())).unwrap();
+                }),
+                "client id 2 is outside configured fighter count".into(),
+            ),
+            (
+                Box::new(|address, sockets| {
+                    for socket in sockets {
+                        send_client(socket, address, &hello(0, &MatchConfig::default())).unwrap();
+                    }
+                }),
+                "duplicate handshake for client 0".into(),
+            ),
+            (
+                Box::new(|address, sockets| {
+                    send_client(&sockets[0], address, &input(0, 0)).unwrap();
+                }),
+                "input arrived before all handshakes".into(),
+            ),
+        ];
+        for (script, expected) in cases {
+            assert_eq!(authority_result(script), Err(expected.clone()));
+        }
+    }
+
+    #[test]
+    fn authority_rejects_out_of_order_duplicate_and_misaddressed_inputs() {
+        let cases: Vec<(Script, &str)> = vec![
+            (
+                Box::new(|address, sockets| {
+                    send_client(&sockets[0], address, &input(0, 1)).unwrap();
+                }),
+                "client 0 sent sequence 1; expected 0",
+            ),
+            (
+                Box::new(|address, sockets| {
+                    send_client(&sockets[0], address, &input(0, 0)).unwrap();
+                    send_client(&sockets[0], address, &input(0, 0)).unwrap();
+                }),
+                "duplicate input sequence 0 from client 0",
+            ),
+            (
+                Box::new(|address, sockets| {
+                    send_client(&sockets[1], address, &input(0, 0)).unwrap();
+                }),
+                "input sender did not match its handshake",
+            ),
+            (
+                Box::new(|address, sockets| {
+                    send_client(&sockets[0], address, &hello(0, &MatchConfig::default())).unwrap();
+                }),
+                "handshake arrived after match start",
+            ),
+        ];
+        for (script, expected) in cases {
+            let result = authority_result(|address, sockets| {
+                handshake(address, sockets);
+                script(address, sockets);
+            });
+            assert_eq!(result, Err(expected.to_owned()));
+        }
+    }
+
+    #[test]
+    fn tick_counts_and_client_ids_are_checked_before_any_traffic() {
+        let bounds = format!("tick count must be 1..={MAX_NETWORK_TICKS}");
+        for ticks in [0, MAX_NETWORK_TICKS + 1] {
+            let server = BoundServer::bind("127.0.0.1:0").unwrap();
+            assert_eq!(
+                server.run(MatchConfig::default(), ticks),
+                Err(bounds.clone())
+            );
+        }
+        // This endpoint never answers, so a client that sent anything would time out.
+        let silent = endpoint();
+        let address = silent.local_addr().unwrap();
+        for count in [0, MAX_NETWORK_TICKS as usize + 1] {
+            let inputs = vec![PlayerInput::default(); count];
+            assert_eq!(
+                send_inputs(address, 0, MatchConfig::default(), &inputs),
+                Err(bounds.clone())
+            );
+        }
+        assert_eq!(
+            send_inputs(
+                address,
+                2,
+                MatchConfig::default(),
+                &[PlayerInput::default()]
+            ),
+            Err("client id is outside configured fighter count".into())
+        );
+    }
+
+    #[test]
+    fn clients_reject_invalid_welcomes_and_snapshots() {
+        let config = MatchConfig::default();
+        let mut game = AuthoritativeMatch::with_config(config.clone()).unwrap();
+        let first = game.snapshot();
+        let first_hash = hash_snapshot(&first);
+        game.step(&[PlayerInput::default(); 2]);
+        let next = game.snapshot();
+        let next_hash = hash_snapshot(&next);
+        let welcome = |client_id, state_hash: &str| AuthorityPacket::Welcome {
+            protocol: NETWORK_PROTOCOL,
+            client_id,
+            state_hash: state_hash.to_owned(),
+            state: Box::new(first.clone()),
+        };
+        let snapshot = |protocol, sequence, state_hash: &str| AuthorityPacket::Snapshot {
+            protocol,
+            sequence,
+            state_hash: state_hash.to_owned(),
+            state: Box::new(next.clone()),
+        };
+        let invalid_handshake = "authority returned an invalid handshake".to_owned();
+        let cases = [
+            (welcome(1, &first_hash), None, invalid_handshake.clone()),
+            (welcome(0, &next_hash), None, invalid_handshake),
+            (
+                welcome(0, &first_hash),
+                Some(snapshot(NETWORK_PROTOCOL - 1, 0, &next_hash)),
+                format!("protocol {} is not supported", NETWORK_PROTOCOL - 1),
+            ),
+            (
+                welcome(0, &first_hash),
+                Some(snapshot(NETWORK_PROTOCOL, 1, &next_hash)),
+                "authority snapshot sequence did not advance".to_owned(),
+            ),
+            (
+                welcome(0, &first_hash),
+                Some(snapshot(NETWORK_PROTOCOL, 0, &first_hash)),
+                "authority snapshot hash did not match payload".to_owned(),
+            ),
+        ];
+        for (welcome, snapshot, expected) in cases {
+            let authority = endpoint();
+            let address = authority.local_addr().unwrap();
+            let client = std::thread::spawn({
+                let config = config.clone();
+                move || send_inputs(address, 0, config, &[PlayerInput::default(); 2])
+            });
+            let (packet, client_address) = receive_client(&authority).unwrap();
+            assert!(matches!(packet, ClientPacket::Hello { client_id: 0, .. }));
+            send_authority(&authority, client_address, &welcome).unwrap();
+            if let Some(snapshot) = snapshot {
+                let (packet, _) = receive_client(&authority).unwrap();
+                assert!(matches!(packet, ClientPacket::Input { sequence: 0, .. }));
+                send_authority(&authority, client_address, &snapshot).unwrap();
+            }
+            assert_eq!(client.join().unwrap(), Err(expected));
+        }
+    }
+
     #[test]
     fn client_address_matches_authority_family_and_limits_local_connections_to_loopback() {
         for (authority, expected) in [

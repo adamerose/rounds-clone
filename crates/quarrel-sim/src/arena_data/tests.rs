@@ -334,3 +334,102 @@ fn shooting_gatefall_support_swings_the_ball_into_the_middle_without_breaking_it
         "released ball did not swing into the middle"
     );
 }
+
+#[test]
+fn validation_rejects_invalid_geometry_spawns_references_and_motion() {
+    let workshop =
+        || ArenaDefinition::load(&default_arena_directory().join("all-kinds.ron")).unwrap();
+    workshop().validate().unwrap();
+    type Breakage = fn(&mut ArenaDefinition);
+    let cases: [(&str, Breakage, &str); 12] = [
+        (
+            "spawn outside the frame",
+            |a| a.spawns[0] = [700.0, 0.0],
+            "spawns must lie inside",
+        ),
+        (
+            "five spawns",
+            |a| a.spawns.push([0.0, 0.0]),
+            "one to four spawns",
+        ),
+        (
+            "piece outside the frame",
+            |a| a.objects[0].position[0] = 600.0,
+            "outside camera frame",
+        ),
+        (
+            "non-finite radius",
+            |a| a.objects[1].shape = ArenaShape::Circle { radius: f32::NAN },
+            "positive finite dimensions",
+        ),
+        (
+            "concave polygon",
+            |a| {
+                a.objects[2].shape = ArenaShape::Polygon {
+                    vertices: vec![
+                        [0.0, 0.0],
+                        [30.0, 0.0],
+                        [10.0, 5.0],
+                        [30.0, 30.0],
+                        [0.0, 30.0],
+                    ],
+                }
+            },
+            "strictly convex polygon",
+        ),
+        (
+            "duplicate piece id",
+            |a| a.objects[1].id = 0,
+            "duplicate object id",
+        ),
+        (
+            "breakable without health",
+            |a| a.objects[5].health = None,
+            "positive health",
+        ),
+        (
+            "square saw",
+            |a| a.objects[8].shape = ArenaShape::Rectangle { size: [40.0, 40.0] },
+            "saws require a circle",
+        ),
+        (
+            "chain to a missing piece",
+            |a| a.chains[0].body_b = 99,
+            "chain requires",
+        ),
+        (
+            "chain to the background",
+            |a| a.chains[1].body_b = 7,
+            "chain requires",
+        ),
+        (
+            "motion path leaving the frame",
+            |a| {
+                a.objects[10]
+                    .motion
+                    .as_mut()
+                    .unwrap()
+                    .path
+                    .push([1000.0, 0.0])
+            },
+            "outside camera frame",
+        ),
+        (
+            "motion on a loose piece",
+            |a| a.objects[3].motion = a.objects[10].motion.clone(),
+            "supported kinematic piece",
+        ),
+    ];
+    for (name, break_arena, message) in cases {
+        let mut arena = workshop();
+        break_arena(&mut arena);
+        let error = arena.validate().expect_err(name);
+        assert!(error.contains(message), "{name}: {error}");
+        // Loading applies the same validation to arena files.
+        assert_eq!(
+            ArenaDefinition::parse(&ron::to_string(&arena).unwrap()).unwrap_err(),
+            error,
+            "{name}"
+        );
+    }
+}

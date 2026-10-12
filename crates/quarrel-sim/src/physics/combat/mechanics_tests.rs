@@ -661,3 +661,146 @@ fn editing_damage_preserves_a_held_ground_crouch() {
         assert!((feet + 280_000).abs() < 1_000);
     }
 }
+
+fn floored() -> ArenaDefinition {
+    let mut a = arena();
+    a.objects = vec![ArenaObject {
+        id: 0,
+        position: [0.0, -200.0],
+        rotation: 0.0,
+        shape: ArenaShape::Rectangle {
+            size: [800.0, 40.0],
+        },
+        kind: ArenaKind::Solid,
+        color: [100, 100, 100],
+        mass: 1.0,
+        health: None,
+        motion: None,
+    }];
+    a
+}
+fn jump_input(jump: bool) -> PlayerInput {
+    PlayerInput {
+        jump,
+        ..Default::default()
+    }
+}
+fn jump_held(game: &AuthoritativeMatch, fighter: usize) -> bool {
+    game.world
+        .entity(game.player_entities[fighter])
+        .get::<PlayerState>()
+        .unwrap()
+        .jump_held
+}
+
+/// Vertical speed over thirty ticks of a jump pressed on the first tick and held
+/// until `release`, optionally stunned for six ticks from the second tick.
+fn jump_arc(release: Option<usize>, stunned: bool) -> Vec<i32> {
+    let mut game = game(floored(), CombatTuning::default());
+    idle(&mut game, 60);
+    assert!(game.snapshot().players[0].grounded);
+    (0..30)
+        .map(|tick| {
+            if stunned && tick == 1 {
+                game.world
+                    .entity_mut(game.player_entities[0])
+                    .get_mut::<PlayerState>()
+                    .unwrap()
+                    .stun_ticks = 6;
+            }
+            let held = release.is_none_or(|release| tick < release);
+            game.step(&[jump_input(held), PlayerInput::default()]);
+            game.snapshot().players[0].velocity_y_milli_per_second
+        })
+        .collect()
+}
+
+#[test]
+fn a_jump_release_read_while_stunned_is_spent_rather_than_deferred() {
+    // Without a stun, releasing while rising cuts the jump.
+    assert_ne!(jump_arc(Some(2), false), jump_arc(None, false));
+    // Stunned, the release is read and spent on the tick it happens; control returns
+    // while the fighter is still rising, and the jump continues as if held.
+    let held = jump_arc(None, true);
+    assert!(
+        held[8] > 0,
+        "the fighter must still be rising when the stun ends"
+    );
+    assert_eq!(jump_arc(Some(2), true), held);
+}
+
+#[test]
+fn a_jump_release_read_while_eliminated_is_spent() {
+    // Three fighters, so the fight continues after the first elimination.
+    let mut cards = load_card_directory(&default_card_directory()).unwrap();
+    for card in &mut cards {
+        card.modifiers = Default::default();
+        card.event_rules.clear();
+    }
+    let mut game = AuthoritativeMatch::with_content(
+        MatchConfig {
+            fighter_count: 3,
+            ..Default::default()
+        },
+        MatchContent {
+            tuning: CombatTuning::default(),
+            cards,
+            arenas: vec![floored()],
+        },
+    )
+    .unwrap();
+    let flow = game.snapshot().flow.unwrap();
+    game.step(
+        &flow
+            .offers
+            .iter()
+            .map(|offer| PlayerInput {
+                jump: true,
+                flow: Some(FlowCommand {
+                    phase_revision: flow.phase_revision,
+                    action: FlowAction::Confirm(offer[0]),
+                }),
+                ..Default::default()
+            })
+            .collect::<Vec<_>>(),
+    );
+    assert!(jump_held(&game, 0));
+    assert!(game.damage_fighter(0, 1_000).unwrap());
+    game.step(&[jump_input(false), jump_input(true), jump_input(true)]);
+    assert_eq!(game.snapshot().flow.unwrap().phase, FlowPhase::Combat);
+    assert!(!jump_held(&game, 0));
+}
+
+#[test]
+fn a_jump_held_into_the_next_fight_is_read_as_a_fresh_press() {
+    // Fighters are reset for each fight, including the remembered jump button, so
+    // holding jump through the draft jumps on the first tick of the next fight.
+    let mut game = game(floored(), CombatTuning::default());
+    let held = [jump_input(true), PlayerInput::default()];
+    game.step(&held);
+    assert!(jump_held(&game, 0));
+    assert!(game.damage_fighter(1, 1_000).unwrap());
+    for _ in 0..600 {
+        if game.snapshot().flow.unwrap().phase == FlowPhase::Draft {
+            break;
+        }
+        game.step(&held);
+    }
+    let flow = game.snapshot().flow.unwrap();
+    assert_eq!(flow.phase, FlowPhase::Draft);
+    assert!(jump_held(&game, 0));
+    game.step(&[
+        jump_input(true),
+        PlayerInput {
+            flow: Some(FlowCommand {
+                phase_revision: flow.phase_revision,
+                action: FlowAction::Confirm(flow.offers[1][0]),
+            }),
+            ..Default::default()
+        },
+    ]);
+    let state = game.snapshot();
+    assert_eq!(state.flow.unwrap().phase, FlowPhase::Combat);
+    assert!(state.players[0].velocity_y_milli_per_second > 0);
+    assert!(!state.players[0].jump_available);
+}

@@ -1044,6 +1044,178 @@ mod arena_runtime_tests {
         game.step(&inputs);
         assert_eq!(game.snapshot().flow.unwrap().phase, FlowPhase::Combat);
     }
+    /// A two-fighter match in combat whose cards change nothing, so shots behave as tuned.
+    fn plain_match(objects: Vec<ArenaObject>, tuning: CombatTuning) -> AuthoritativeMatch {
+        plain_match_at(objects, workshop().spawns, tuning)
+    }
+    fn plain_match_at(
+        objects: Vec<ArenaObject>,
+        spawns: Vec<[f32; 2]>,
+        tuning: CombatTuning,
+    ) -> AuthoritativeMatch {
+        let mut arena = workshop();
+        arena.objects = objects;
+        arena.spawns = spawns;
+        arena.chains.clear();
+        let mut cards = load_card_directory(&default_card_directory()).unwrap();
+        for card in &mut cards {
+            card.modifiers = Default::default();
+            card.event_rules.clear();
+        }
+        let mut game = AuthoritativeMatch::with_content(
+            MatchConfig::default(),
+            MatchContent {
+                tuning,
+                cards,
+                arenas: vec![arena],
+            },
+        )
+        .unwrap();
+        enter_combat(&mut game);
+        game
+    }
+    fn piece(id: u16, position: [f32; 2], size: [f32; 2], kind: ArenaKind) -> ArenaObject {
+        ArenaObject {
+            id,
+            position,
+            rotation: 0.0,
+            shape: ArenaShape::Rectangle { size },
+            kind,
+            color: [180, 120, 60],
+            mass: 4.0,
+            health: None,
+            motion: None,
+        }
+    }
+    /// The floor's top is at y = -280; the fighters spawn at x = -500 and 500.
+    fn floor() -> ArenaObject {
+        piece(0, [0.0, -300.0], [1240.0, 40.0], ArenaKind::Solid)
+    }
+    fn fire_right() -> [PlayerInput; 2] {
+        [
+            PlayerInput {
+                fire: true,
+                aim_x: 1000,
+                ..Default::default()
+            },
+            PlayerInput::default(),
+        ]
+    }
+    fn object_position(game: &mut AuthoritativeMatch, id: u16) -> [f32; 2] {
+        game.snapshot()
+            .arena_objects
+            .unwrap()
+            .objects
+            .into_iter()
+            .find(|object| object.id == id)
+            .unwrap()
+            .position
+    }
+
+    #[test]
+    fn a_piece_resting_on_a_fighter_does_not_hurt_it() {
+        // Only a dynamic piece arriving faster than the contact threshold hurts; a piece
+        // settling onto a fighter's head and staying there is a resting contact.
+        let mut game = plain_match_at(
+            vec![
+                floor(),
+                piece(1, [-500.0, -219.0], [30.0, 30.0], ArenaKind::Loose),
+            ],
+            vec![[-500.0, -258.0], [500.0, -258.0]],
+            CombatTuning::default(),
+        );
+        for _ in 0..120 {
+            game.step(&[PlayerInput::default(); 2]);
+            let state = game.snapshot();
+            let fighter_top = state.players[0].y_milli as f32 / 1000.0 + 22.0;
+            assert!(
+                object_position(&mut game, 1)[1] - 15.0 > fighter_top - 2.0,
+                "the piece must stay on the fighter's head at tick {}",
+                state.tick
+            );
+            assert_eq!(state.players[0].health, 100, "tick {}", state.tick);
+        }
+    }
+
+    #[test]
+    fn shots_push_loose_pieces() {
+        // A ball rolls, so the push is not lost to the floor's friction.
+        let start = [-410.0, -265.0];
+        let mut ball = piece(1, start, [0.0, 0.0], ArenaKind::Loose);
+        ball.shape = ArenaShape::Circle { radius: 15.0 };
+        ball.mass = 2.0;
+        let mut game = plain_match(vec![floor(), ball], CombatTuning::default());
+        // Let the fighter land so its shots travel at the piece's height.
+        for _ in 0..30 {
+            game.step(&[PlayerInput::default(); 2]);
+        }
+        let resting = object_position(&mut game, 1);
+        assert!(
+            (resting[0] - start[0]).abs() < 0.1,
+            "the piece rests at {resting:?}"
+        );
+        for _ in 0..10 {
+            game.step(&fire_right());
+        }
+        assert!(game.snapshot().metrics.shots_fired > 0);
+        let pushed = object_position(&mut game, 1);
+        assert!(
+            pushed[0] > resting[0] + 5.0,
+            "the piece stayed at {pushed:?}"
+        );
+    }
+
+    #[test]
+    fn background_pieces_collide_with_neither_fighters_nor_shots() {
+        // The backdrop overlaps the first fighter and the path of its shots.
+        let backdrop = piece(1, [-430.0, -240.0], [120.0, 120.0], ArenaKind::Background);
+        let mut empty = plain_match(vec![floor()], CombatTuning::default());
+        let mut decorated = plain_match(vec![floor(), backdrop], CombatTuning::default());
+        for _ in 0..60 {
+            empty.step(&fire_right());
+            decorated.step(&fire_right());
+            let (empty, decorated) = (empty.snapshot(), decorated.snapshot());
+            assert_eq!(empty.players, decorated.players, "tick {}", empty.tick);
+            assert_eq!(
+                empty.projectiles, decorated.projectiles,
+                "tick {}",
+                empty.tick
+            );
+        }
+        assert!(empty.snapshot().metrics.shots_fired >= 2);
+    }
+
+    #[test]
+    fn a_shot_fast_enough_to_cross_a_thin_wall_in_one_tick_still_stops_there() {
+        // At 12,000 units a second a shot moves 200 units a tick, fifty times the wall's
+        // thickness, so only continuous collision detection can stop it. The second
+        // fighter stands behind the wall, inside the same tick's travel.
+        let tuning = CombatTuning {
+            bullet_speed: 12_000.0,
+            ..CombatTuning::default()
+        };
+        let wall = piece(1, [-400.0, -180.0], [4.0, 200.0], ArenaKind::Solid);
+        let mut game = plain_match_at(
+            vec![floor(), wall],
+            vec![[-500.0, -250.0], [-340.0, -250.0]],
+            tuning,
+        );
+        for _ in 0..60 {
+            game.step(&fire_right());
+            let state = game.snapshot();
+            for shot in &state.projectiles {
+                assert!(
+                    shot.x_milli < -398_000 + 5_000,
+                    "shot {} crossed the wall to x {} at tick {}",
+                    shot.id,
+                    shot.x_milli,
+                    state.tick
+                );
+            }
+            assert_eq!(state.players[1].health, 100, "tick {}", state.tick);
+        }
+        assert!(game.snapshot().metrics.shots_fired >= 2);
+    }
 
     #[test]
     fn chains_constrain_objects_and_breaking_an_endpoint_releases_them() {
