@@ -1,7 +1,6 @@
 ---
 format: 3
 status: blocked
-owner: codex:01a133d9-d183-7983-a71e-d1e5fbd6f38a
 created: 2026-10-05T01:09:00Z
 origin: human-request
 tags: ["quarrel", "autonomy", "autonomy-goal", "mvp"]
