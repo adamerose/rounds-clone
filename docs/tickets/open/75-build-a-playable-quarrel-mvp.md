@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 owner: codex:01a133d9-d183-7983-a71e-d1e5fbd6f38a
 created: 2026-10-05T01:09:00Z
 origin: human-request
@@ -29,6 +29,23 @@ split-from: []
 
 Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor described in `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md` milestone M1. This run turns the footage-replay codebase into an ordinary match two people can start and finish, adds the card system and the loser-picks draft, and delegates implementation to Sol workers.
 
+## Blocked
+
+The run ended after a fresh non-author check passed all automated and visible MVP evidence on current main. Only the Steam friend invite between two homes, reserved for Adam's first play session, remains unverified. Goal completion is not claimed. No worker is still running.
+
+The check independently matched all 96 non-document inputs and the preserved MSVC binary, reused the complete identical-source ticket86 verification, passed fresh format and ordinary/impaired live checks, and observed opening draft, match end and run-backs to10/15 on monitor4 with scores/cards retained. The game window center stayed on monitor4 in all365 visible samples. No native build or clean target was needed. Evidence is out/autonomy75-goal-check-20261013/goal-check.json and report.md. The exact reviewed journal delivery0ffa4d81f967f97ad68f0d8d3c682f8f62fa965e is on origin/main and this run's journal worktree was removed; root edits remain untouched.
+
+These two decisions from the previous run are separate from the Steam prerequisite and do not block the automated MVP evidence:
+
+1. What should happen after ticket94's failed link-memory experiment?
+   a. (Recommended) Close the disproved experiment and file a separate idea for reducing dependency debugging information. This does not authorize a reduced-debugging build or its roughly17GiB rebuild.
+   b. Amend and re-admit the gate around private commit while proving actual paging benefit. Portable symbols stay, but paging benefit and the remaining executable/full route are unproved.
+   c. Keep MSVC and accept the observed7-to7.7GB resident memory for a single link.
+2. May the prepared Ivy launcher report be published?
+   a. (Recommended) Publish the concrete workers-inheriting-terminating-Windows-jobs report in adamerose/ivy with the ivy-report label.
+   b. Keep the local draft unpublished: out/autonomy75-goal-check-20261012/ivy-launch-report.md.
+
+Publishing that report is outside this repository and was noticed by the scheduler. The report-ivy-problem skill explicitly requires showing it and asking before filing; no publication was authorized by this autonomy invocation.
 ## Outcome
 
 - Two players can start a QUARREL match from a menu on one machine, over LAN, or online from two homes through a Steam friend invite, pick an opening card, fight on a new random arena every fight to five points with no tied fights, with each fight's loser picking a card, and run it back to 10 and then 15 or start a new match, with no footage replay profile involved.
@@ -169,3 +186,4 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-13T06:25:43Z stage review end session codex:01a133d9-d183-7983-a71e-d1e5fbd6f38a — independent Codex reviewer codex:01a133ec-2d06-7f82-89ba-7dd443c0975a APPROVE exact journal tipbb03a6c8ca6a3384ab1359a25136a9dcad194405; clean worktree and diff check, no findings. CLI reported68036tokens for20added journal lines, a disproportionate evidence-read cost; keep future bounded documentation reviews concise. Approval is docs only, not MVP completion.
 - 2026-10-13T06:26:35Z stage integration start session codex:01a133d9-d183-7983-a71e-d1e5fbd6f38a — reviewed journal b373ebadea9811d02de61b4e852a29c730b5c4ff..bb03a6c8ca6a3384ab1359a25136a9dcad194405 retargeted as91529c9f1bdb47f0fd2bd772482c9cdb57c3333c..18958cabd5e5c5e61aa78a0e35950f821513ed39; range-diff changes only required reviewer trailer, journal bytes unchanged. Partial documentation delivery only; two-home Steam contract outcome remains undelivered.
 - 2026-10-13T06:27:17Z stage integration end session codex:01a133d9-d183-7983-a71e-d1e5fbd6f38a — journal-only delivery0ffa4d81f967f97ad68f0d8d3c682f8f62fa965e published to origin/main; approved patch byte-identical after rebase, both provenance trailers retained. No code/API change or full-goal delivery; two-home Steam test remains pending. All check/review processes exited normally.
+- 2026-10-13T06:28:17Z Run ended: items1-4/6 PASS after fresh independent check, only planned two-home Steam invite PENDING_HUMAN. Journal0ffa4d81f967f97ad68f0d8d3c682f8f62fa965e delivered on origin/main, exact journal worktree removed; no new guard occurrences, one evidence-tool postmortem, no native builds. No routines configured; no delivery workers launched this resumption. Existing94 checkpoint/worktree retained,62 deferred,95 supplemental idea. Last quota readings Claude42percent weekly(reset2026-10-17T18:00Z),31percent short(reset2026-10-13T06:30Z); Codex5percent weekly(reset2026-10-20T04:58:14Z). Both subscription families remain below90percent; this is an evidence prerequisite stop, not budget exhaustion. Scheduler claim will be released; questions above remain pending.
