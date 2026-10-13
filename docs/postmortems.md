@@ -470,3 +470,23 @@ The scheduler put independent read calls and the dependent WMI resume in one unc
 The already running session kept its original model and ended with the measured blocker. Further Claude launches stopped, and the next Codex launch checked usable subscription windows immediately before process creation, refusing missing or capped data. No API billing or reset credit was authorized or used. Keep dependent launches after inspected results, with the final quota precondition enforced in the launch command; printing a batch's results is not inspection.
 
 The run-end scan read all 85 tickets through the release-matched helper. Its sole canonical guard occurrence was [ticket 59](http://ivy.localhost/tickets/59?repo=72104b08f3e558c1)'s ownership refusal, already judged above. There are no new guard occurrences, merged repeats or routine judgments; the two entries here record non-trivial departures outside that canonical guard mechanism. Scan, goal-check and launch-consult evidence is retained under `out/autonomy75-goal-check-20261012` and [goal 75's work log](http://ivy.localhost/tickets/75?repo=72104b08f3e558c1).
+
+## 2026-10-13 — The visible-flow watcher mistook an undrawn helper for a misplaced window
+
+The fresh goal check for [ticket 75](http://ivy.localhost/tickets/75?repo=72104b08f3e558c1) killed its first visible-flow attempt after 1.1 seconds, before QUARREL created its game window.
+The watcher treated winit's `Winit Thread Event Target` at (0,0) as a visible project window because its native visible flag was set.
+winit 0.30.13 creates that 18x18 helper with extended styles `0x080800a0` to receive paint messages without drawing it.
+The checker verified its exact class, styles, absent layered attributes and unchanged screen pixels, then exempted only that helper from the watcher.
+Every other visible client window still had to be on monitor 4; this corrected the evidence tool without changing the placement rule or product.
+The repeated public visible-flow command exited 0. The game was positioned while hidden, then shown with native center (1332,-520) on monitor 4 in all 365 visible samples.
+Rendered frames show the opening draft, match end and two run-backs to targets 10 and 15 with scores and cards retained.
+Raw attempt logs, watcher source, placement samples, pixel hashes and frames remain in `out/autonomy75-goal-check-20261013`.
+The checker also passed raw network traces to public replay twice, causing the expected `unknown field tick` decode rejection.
+The corrected smoke trace conversion produced a replay file that reached MatchEnd with the live authority hash; these rejected commands are evidence-tool errors, not product failures.
+The impaired replay lead stays in [ticket 95](http://ivy.localhost/tickets/95?repo=72104b08f3e558c1), outside the required MVP check.
+
+The fresh non-author [Claude check](http://ivy.localhost/sessions/claude/a7236ef8-7089-467c-8967-3b986ea76cc8) compared all 96 tracked non-document files to current main and verified the preserved MSVC client's hash.
+It reused the identical-source complete ticket 86 verification instead of repeating large native links; fresh format, ordinary and impaired live checks, headless captures and visible flow passed.
+No Cargo build or compiler/profile change was made. Only the two-home Steam invite reserved for Adam's first play remains unverified, so goal 75 is still incomplete.
+The finish audit compared all 85 destination tickets with the previously scanned set: only ticket 75 changed since `9b0c018`, and its helper-read record adds no guard line.
+The sole retained ticket 59 guard occurrence is already judged above; no new guard entry or repeat count is warranted.
