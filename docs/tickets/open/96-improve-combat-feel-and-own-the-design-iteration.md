@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-14T18:26:17Z
 origin: human-request
 tags: ["quarrel", "design", "playtest"]
@@ -30,7 +30,7 @@ QUARREL completes matches but Adam reports that shots are too fast, movement is 
 - Destination main, direct delivery. Adam explicitly requested agent playtesting, research, Opus consultation, roadmap/iteration changes, and minimal tuning prompts in this session.
 - Preserve settled online match rules, opening/loser drafts, scoring, run-back choices, cards, arenas and Steam transport. Adam's later instruction makes target practice the default; local PvP is not a delivery goal. Keep the explicit menu/online routes accessible.
 - Implement practice and detailed tooltips with existing simulation/input/rendering interfaces and no shared wire/schema change. Exact card numbers come from the authoritative catalog; a remote client's own base tuning must not be represented as the host's values.
-- Fixes and architecture work must follow demonstrated friction. No general agent framework, RL training, new game modes, or speculative refactor.
+- Fixes and architecture work must follow demonstrated friction. No general agent framework, RL training, game modes beyond Adam's target practice, or speculative refactor.
 - Tune through existing validated content and public player-input interfaces. Keep a no-upgrade baseline trial so a speed card cannot masquerade as a default.
 - GUI evidence must verify monitor 4 before capture. Reuse the attributed product build for live-data trials when code is unchanged; new compiled inputs require appropriate verification with the prepared Cargo target and serialized links.
 - Bots and model judgments cannot certify human enjoyment or claim the Steam release complete. Spending, Steam account/legal actions and actual publication still need Adam's authority at the concrete final step.
