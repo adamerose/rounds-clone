@@ -440,18 +440,26 @@ impl PhysicsBoundary {
         }
     }
     pub(crate) fn reset(&mut self) {
-        for (player, spawn) in self.players.iter_mut().zip(&self.spawns) {
-            player.crouched = false;
-            self.rapier.colliders[player.collider].set_shape(
-                bevy_rapier2d::rapier::prelude::SharedShape::ball(self.tuning.player_radius),
-            );
-            let body = &mut self.rapier.bodies[player.body];
-            body.set_translation(*spawn, true);
-            body.set_linvel(Vector::ZERO, true);
+        for id in 0..self.players.len() {
+            self.reset_player(id as u8);
         }
         for (_, bullet) in std::mem::take(&mut self.bullets) {
             self.rapier.remove_body(bullet.body);
         }
+        self.rapier
+            .bodies
+            .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);
+    }
+    pub(crate) fn reset_player(&mut self, id: u8) {
+        let spawn = self.spawns[usize::from(id)];
+        let player = &mut self.players[usize::from(id)];
+        player.crouched = false;
+        self.rapier.colliders[player.collider].set_shape(
+            bevy_rapier2d::rapier::prelude::SharedShape::ball(self.tuning.player_radius),
+        );
+        let body = &mut self.rapier.bodies[player.body];
+        body.set_translation(spawn, true);
+        body.set_linvel(Vector::ZERO, true);
         self.rapier
             .bodies
             .propagate_modified_body_positions_to_colliders(&mut self.rapier.colliders);

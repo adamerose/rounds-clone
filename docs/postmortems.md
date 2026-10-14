@@ -490,3 +490,32 @@ It reused the identical-source complete ticket 86 verification instead of repeat
 No Cargo build or compiler/profile change was made. Only the two-home Steam invite reserved for Adam's first play remains unverified, so goal 75 is still incomplete.
 The finish audit compared all 85 destination tickets with the previously scanned set: only ticket 75 changed since `9b0c018`, and its helper-read record adds no guard line.
 The sole retained ticket 59 guard occurrence is already judged above; no new guard entry or repeat count is warranted.
+
+
+## 2026-10-14 — Design iteration evidence boundaries
+
+A broad environment diagnostic accidentally printed unrelated credential-bearing values into tool output.
+The inspection was stopped; no values were copied into repository records or consultation prompts. Future identity reads must name the one required session variable.
+The candidate's ordinary file/process diagnostics use only the data required for this project.
+
+The native playtest reached draft/combat, but short Computer Use key pulses could not establish sustained motion.
+Adam stopped desktop control with physical Escape; subsequent work used legal recorded inputs and headless rendering.
+The first Opus consultation was denied access to the temp source and read an older worktree; its follow-up read the current owned worktree and corrected its earlier overclaims.
+The moving-platform and direct-shot trials changed the provisional tuning before verification. These corrections are evidence-led iteration, not human enjoyment evidence.
+## 2026-10-14: tuning exposed implicit test fixtures and tooltip occlusion
+
+The first full candidate suite passed formatting, strict lint and build but failed 27 simulation tests.
+Most asserted a fixed flight/control window while deriving their inputs from the shipped tuning file.
+Those tests now name controlled lab values; practice and replay probes still exercise the selected defaults.
+The remaining practice assertion mixed an airborne first tick, movement and opposite recoil; it now settles before isolating movement.
+Slower shots also lost terrain momentum, so density preserves the previous speed-times-mass value.
+Rendered evidence exposed a large numerical overlay covering the target and draft offers, and unsupported font symbols.
+The panel now reserves the toolbar, shows the controlled fighter compactly, and uses a separate card strip with supported glyphs.
+The next verifier compiled successfully, then its runtime-library copy hit a Windows file lock from a concurrent owned capture.
+The capture ended and verification was rerun; subsequent capture work uses copies after verification completes.
+Additional card rendering exposed reaction multipliers labelled as flat damage, and inspection exposed live default focus differing from capture focus.
+Labels now name their real units and live resource initialization gets the same primary focus; boundary regressions cover both.
+Inspection also found the first default Escape handoff called a second Bevy native app in the same process.
+Winit 0.30.13's EventLoopBuilder rejects that recreation, and Bevy's native plugin creates a loop for each app.
+The handoff now runs the existing menu command in a fresh process; menu-launched practice still exits to its existing parent.
+Native Escape input remained unavailable after Adam stopped Computer Use, so that final desktop transition is explicitly unverified.

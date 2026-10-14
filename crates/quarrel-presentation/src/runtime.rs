@@ -13,6 +13,10 @@ type CameraSettings<'a> = (
     &'a mut Projection,
 );
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "capture supplies scene assets and optional menu, practice, and tooltip views"
+)]
 pub(super) fn setup_offscreen_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -21,6 +25,8 @@ pub(super) fn setup_offscreen_scene(
     target: Res<CaptureTarget>,
     menu: Option<Res<super::menu::Menu>>,
     view: Res<super::capture::OffscreenView>,
+    practice: Option<Res<PracticeCapture>>,
+    details: Option<Res<super::stats::DetailedTooltips>>,
 ) {
     let (transform, bloom, chromatic, lens) = camera_state(&snapshot.0);
     commands.spawn((
@@ -45,7 +51,26 @@ pub(super) fn setup_offscreen_scene(
         super::menu::spawn_menu(&mut commands, &menu);
         return;
     }
-    spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot.0);
+    if practice.is_some() {
+        spawn_practice_scene(&mut commands, &mut meshes, &mut materials, &snapshot.0);
+    } else {
+        spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &snapshot.0);
+    }
+    if let Some(details) = details {
+        super::stats::spawn_details_overlay(
+            &mut commands,
+            &snapshot.0,
+            &details,
+            practice.as_deref().map(|practice| &practice.tuning),
+        );
+        if practice.is_some() {
+            details_toolbar(
+                &mut commands,
+                details.enabled(),
+                "TARGET PRACTICE | R reset | T details | Esc menu",
+            );
+        }
+    }
 }
 
 pub(super) fn setup_visible_scene(mut commands: Commands, snapshot: Res<SceneSnapshot>) {
@@ -108,6 +133,7 @@ pub(super) fn advance_interactive_scene(
     time: Res<Time>,
     mut authority: ResMut<InteractiveAuthority>,
     mut scene: ResMut<SceneSnapshot>,
+    mut details: ResMut<super::stats::DetailedTooltips>,
     mut lifetime: ResMut<VisibleLifetime>,
     mut camera: Single<CameraSettings<'_>, With<Camera2d>>,
     mut scripted_phase: Local<Option<FlowPhase>>,
@@ -119,6 +145,8 @@ pub(super) fn advance_interactive_scene(
         lifetime.frames = lifetime.frames.min(3);
         return;
     }
+    let suppress_detail_fire =
+        update_details(&keys, &mouse_buttons, &windows, &cameras, &mut details);
     let flow = scene.0.flow.as_ref();
     let fighters = flow.map_or(0, |flow| flow.scores.len());
     let mut controllers = gamepads.iter().collect::<Vec<_>>();
@@ -160,7 +188,7 @@ pub(super) fn advance_interactive_scene(
     }
     let live = crate::input::local_combat_inputs(
         &keys,
-        &mouse_buttons,
+        &detail_mouse_buttons(&mouse_buttons, suppress_detail_fire),
         &controllers
             .iter()
             .map(|(_, gamepad)| *gamepad)
@@ -225,8 +253,179 @@ pub(super) fn advance_interactive_scene(
         commands.entity(entity).despawn();
     }
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, &scene.0);
+    super::stats::spawn_details_overlay(
+        &mut commands,
+        &scene.0,
+        &details,
+        Some(authority.simulation.tuning()),
+    );
+    details_toolbar(&mut commands, details.enabled(), "LOCAL MATCH | T details");
     if authority.tick >= authority.limit {
         lifetime.frames = 3;
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "target practice keeps device input, authority, and rendering together in one local loop"
+)]
+pub(super) fn advance_practice_scene(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    visuals: Query<Entity, With<SceneVisual>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+    time: Res<Time>,
+    mut authority: ResMut<PracticeAuthority>,
+    mut scene: ResMut<SceneSnapshot>,
+    mut details: ResMut<super::stats::DetailedTooltips>,
+    mut camera: Single<CameraSettings<'_>, With<Camera2d>>,
+    mut exit: MessageWriter<AppExit>,
+    lifetime: Res<VisibleLifetime>,
+) {
+    if !lifetime.shown {
+        return;
+    }
+    if keys.just_pressed(KeyCode::Escape) {
+        let _ = authority.exit.try_send(PracticeExit::Menu);
+        exit.write(AppExit::Success);
+        return;
+    }
+    if keys.just_pressed(KeyCode::KeyR) {
+        authority.simulation.reset_practice();
+    }
+    let suppress_detail_fire =
+        update_details(&keys, &mouse_buttons, &windows, &cameras, &mut details);
+    authority.tick_budget += time.delta_secs_f64() * f64::from(quarrel_sim::TICKS_PER_SECOND);
+    let steps = authority.tick_budget.floor() as usize;
+    authority.tick_budget -= steps as f64;
+    for _ in 0..steps {
+        let input = keyboard_mouse_combat_input(
+            &keys,
+            &detail_mouse_buttons(&mouse_buttons, suppress_detail_fire),
+            mouse_aim(&scene.0, 0, &windows, &cameras),
+        );
+        authority.simulation.step_practice(input);
+    }
+    scene.0 = authority.simulation.snapshot();
+    let (transform, bloom, chromatic, lens) = camera_state(&scene.0);
+    *camera.0 = transform;
+    *camera.1 = bloom;
+    *camera.2 = chromatic;
+    *camera.3 = lens;
+    *camera.4 = camera_projection(&scene.0);
+    for entity in &visuals {
+        commands.entity(entity).despawn();
+    }
+    spawn_practice_scene(&mut commands, &mut meshes, &mut materials, &scene.0);
+    super::stats::spawn_details_overlay(
+        &mut commands,
+        &scene.0,
+        &details,
+        Some(authority.simulation.tuning()),
+    );
+    details_toolbar(
+        &mut commands,
+        details.enabled(),
+        "TARGET PRACTICE | R reset | T details | Esc menu",
+    );
+}
+
+fn details_toolbar(commands: &mut Commands, detailed: bool, label: &str) {
+    commands.spawn((
+        SceneVisual,
+        Text2d::new(label),
+        TextFont {
+            font_size: FontSize::Px(18.0),
+            ..default()
+        },
+        TextColor(Color::srgb_u8(235, 242, 239)),
+        TextLayout::justify(Justify::Left),
+        Anchor::TOP_LEFT,
+        Transform::from_xyz(-630.0, 350.0, 82.0),
+    ));
+    commands.spawn((
+        SceneVisual,
+        Sprite::from_color(Color::srgb_u8(35, 95, 130), Vec2::new(220.0, 36.0)),
+        Transform::from_xyz(500.0, 330.0, 81.0),
+    ));
+    commands.spawn((
+        SceneVisual,
+        Text2d::new(format!(
+            "Detailed stats: {}",
+            if detailed { "On" } else { "Off" }
+        )),
+        TextFont {
+            font_size: FontSize::Px(16.0),
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        TextLayout::justify(Justify::Center),
+        Transform::from_xyz(500.0, 330.0, 82.0),
+    ));
+}
+
+fn spawn_practice_scene(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    snapshot: &MatchSnapshot,
+) {
+    crate::data_arena::spawn_data_arena_scene(commands, meshes, materials, snapshot);
+}
+
+fn update_details(
+    keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    windows: &Query<&Window, With<PrimaryWindow>>,
+    cameras: &Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+    details: &mut super::stats::DetailedTooltips,
+) -> bool {
+    let over_button = detail_button_hit(windows, cameras);
+    if keys.just_pressed(KeyCode::KeyT) {
+        details.toggle();
+    }
+    details.update_mouse_capture(
+        mouse_buttons.pressed(MouseButton::Left),
+        mouse_buttons.just_pressed(MouseButton::Left),
+        over_button,
+    )
+}
+
+fn detail_button_hit(
+    windows: &Query<&Window, With<PrimaryWindow>>,
+    cameras: &Query<(&Camera, &GlobalTransform), With<Camera2d>>,
+) -> bool {
+    let Some(cursor) = windows
+        .single()
+        .ok()
+        .and_then(|window| window.cursor_position())
+    else {
+        return false;
+    };
+    let Some((camera, transform)) = cameras.single().ok() else {
+        return false;
+    };
+    camera
+        .viewport_to_world_2d(transform, cursor)
+        .is_ok_and(detail_button_contains)
+}
+
+fn detail_button_contains(point: Vec2) -> bool {
+    (390.0..=610.0).contains(&point.x) && (312.0..=348.0).contains(&point.y)
+}
+
+fn detail_mouse_buttons(
+    mouse_buttons: &ButtonInput<MouseButton>,
+    suppress_detail_fire: bool,
+) -> ButtonInput<MouseButton> {
+    if suppress_detail_fire {
+        ButtonInput::default()
+    } else {
+        mouse_buttons.clone()
     }
 }
 
@@ -424,6 +623,7 @@ pub(super) fn advance_live_scene(
     visuals: Query<Entity, With<SceneVisual>>,
     mut cameras: Query<CameraSettings<'_>, With<Camera2d>>,
     live: Res<LivePresentation>,
+    details: Res<super::stats::DetailedTooltips>,
 ) {
     let Some(snapshot) = live.displayed_snapshot.as_ref() else {
         return;
@@ -458,6 +658,13 @@ pub(super) fn advance_live_scene(
         commands.entity(entity).despawn();
     }
     spawn_snapshot_scene(&mut commands, &mut meshes, &mut materials, snapshot);
+    let tuning = live
+        .handle
+        .presentation_samples()
+        .last()
+        .map(|sample| sample.tuning.clone());
+    super::stats::spawn_details_overlay(&mut commands, snapshot, &details, tuning.as_ref());
+    details_toolbar(&mut commands, details.enabled(), "ONLINE MATCH | T details");
 }
 
 pub(super) fn verify_live_monitor_show(
@@ -525,6 +732,7 @@ pub(super) fn submit_live_input(
     cameras: Query<(&Camera, &GlobalTransform), With<Camera2d>>,
     lifetime: Res<VisibleLifetime>,
     mut live: ResMut<LivePresentation>,
+    mut details: ResMut<super::stats::DetailedTooltips>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if keys.just_pressed(KeyCode::Escape) {
@@ -545,12 +753,14 @@ pub(super) fn submit_live_input(
     if !lifetime.shown {
         return;
     }
+    let suppress_detail_fire =
+        update_details(&keys, &mouse_buttons, &windows, &cameras, &mut details);
     let mut controllers = gamepads.iter().collect::<Vec<_>>();
     controllers.sort_by_key(|(entity, _)| entity.to_bits());
     let gamepad = controllers.first().map(|(_, gamepad)| *gamepad);
     let input = crate::input::online_combat_input(
         &keys,
-        &mouse_buttons,
+        &detail_mouse_buttons(&mouse_buttons, suppress_detail_fire),
         gamepad,
         live.displayed_snapshot
             .as_ref()
@@ -673,6 +883,24 @@ pub(super) fn is_project_display(monitor: &Monitor) -> bool {
 #[cfg(test)]
 mod scripted_tests {
     use super::*;
+
+    #[test]
+    fn details_button_uses_its_drawn_world_rect_and_consumes_held_fire() {
+        assert!(detail_button_contains(Vec2::new(500.0, 330.0)));
+        assert!(!detail_button_contains(Vec2::new(389.0, 330.0)));
+        let mut mouse = ButtonInput::default();
+        mouse.press(MouseButton::Left);
+        assert!(keyboard_mouse_combat_input(&ButtonInput::default(), &mouse, None).fire);
+        assert!(
+            !keyboard_mouse_combat_input(
+                &ButtonInput::default(),
+                &detail_mouse_buttons(&mouse, true),
+                None,
+            )
+            .fire
+        );
+    }
+
     #[test]
     fn a_new_authority_sample_does_not_replace_the_pose_used_for_mouse_aim() {
         use quarrel_network::{LiveClient, LiveServer};

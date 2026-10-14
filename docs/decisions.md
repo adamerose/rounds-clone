@@ -1289,3 +1289,29 @@ Ticket 86 restores tests for surviving ordinary-match behavior that were removed
 - Jump release: the stun and elimination cases return. The old `revive_fighters` test becomes an observable one: per-tick input overwrites the memory, so clearing it at a fight reset shows only as a jump held through the draft acting as a fresh press on the next fight's first tick. The test pins that current behavior; changing it later is a deliberate tuning choice, not a regression.
 - Not restored: the source-shaped jump-cut bands (82–90 px hop, fitted v0 and ascent from the footage's ice hop) and the footage-profile scripted-jump digests, which are retired tuning. The cut itself is still checked inside the stun test. Ring-out and the footage UDP replays (yellow, radial, lime, rematch-draft) are also gone; the live UDP tests for join timeouts, stale sessions and tick bounds already exist.
 - Scripted UDP: the `BoundServer`/`send_inputs` path had only socket-address tests. New tests cover a short two-client success, rejected handshakes (protocol, config, id, duplicate, early input), rejected inputs (sequence, duplicate, wrong sender, late handshake), tick and client-id bounds checked before any traffic, and client-side rejection of bad welcomes and snapshots. Every endpoint a test sends to stays bound until the test ends, which preserves ticket 85's ownership rule.
+
+
+## 2026-10-14 — Practice-led combat iteration
+
+Adam reported fast bullets, slow movement and an amateur feel, then explicitly made AFK target practice the default and requested exact numerical tooltips.
+[Ticket 96](http://ivy.localhost/tickets/96?repo=72104b08f3e558c1) delivers that entry point, a measured first tuning pass, and the revised quality gates.
+The fresh admission context [design contract review](http://ivy.localhost/sessions/codex/01a13bad-3abe-7ea0-a41d-e4a8d4abf4e3)
+approved the amended contract at risk 4 after removing a contradiction that had prohibited the user-requested practice mode.
+Its parent [design iteration session](http://ivy.localhost/sessions/codex/01a13b9d-4094-7da3-9381-8a7815803a02) owns the implementation.
+
+Ordinary reversible tuning and usability decisions are delegated; Adam need not choose values or a weekly schedule.
+Base response, sound and readable combat feedback now precede content expansion. Online 1v1 and the settled match rules remain.
+Human preference is separate from correctness and measured motion. Agents promote a reviewed provisional best build and seek short experience feedback at meaningful gates.
+
+A continuing [Opus consultation](http://ivy.localhost/sessions/claude/48aeb5d0-6eaf-4f0a-96ab-d315025fe659)
+and repeatable public-input trials support the initial choices in [the playtest record](playtests/2026-10-14.md).
+The final data sets run target 300, ground control .50, braking .12, air control .10, bullet speed 1300 and projectile gravity .40.
+Actual flat-floor ground speed rises from 118.565 to 260.179 px/s; direct 360-pixel input-to-contact time grows from six to fifteen ticks.
+Braking .20 was rejected because the moving-platform trial loses 25.677 pixels per second; .12 loses 3.433 while remaining grounded.
+Long horizontal shots still need arc aiming. Jump, damage, magazine and combat timings are preserved.
+Projectile density .0013846154 preserves the former terrain momentum despite slower travel.
+These are provisional feel choices, not a certified fun result.
+
+No new wire schema, generalized agent system or friction rewrite is needed. Existing legal inputs, replay prefixes and the renderer supply the first evidence.
+[Game iteration](design-docs/game-iteration.html) records the process; [the roadmap](roadmap.md) orders the remaining work.
+Steam account/legal/spending actions and actual public release remain concrete final approval points after agents prepare the build and materials.

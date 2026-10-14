@@ -34,6 +34,7 @@ pub struct AuthoritativeMatch {
     reaction_random: SeededRandom,
     reaction_budget_tick: u32,
     reaction_budget: usize,
+    practice: bool,
 }
 
 impl AuthoritativeMatch {
@@ -177,10 +178,68 @@ impl AuthoritativeMatch {
             reaction_random: SeededRandom(config.seed),
             reaction_budget_tick: 0,
             reaction_budget: 0,
+            practice: false,
             flow,
         };
         game.select_next_arena(0);
         Ok(game)
+    }
+    /// A local, unscored two-fighter practice session with no draft or cards.
+    /// Fighter zero is the only controllable fighter; fighter one is a neutral target.
+    pub fn practice(seed: u64) -> Result<Self, String> {
+        let arena = ArenaDefinition {
+            name: "Target practice".into(),
+            frame: [-640.0, -360.0, 640.0, 360.0],
+            spawns: [[-180.0, -258.0], [180.0, -258.0]].into(),
+            objects: vec![ArenaObject {
+                id: 0,
+                position: [0.0, -300.0],
+                rotation: 0.0,
+                shape: ArenaShape::Rectangle {
+                    size: [1240.0, 40.0],
+                },
+                kind: ArenaKind::Solid,
+                color: [72, 177, 185],
+                mass: 1.0,
+                health: None,
+                motion: None,
+            }],
+            chains: Vec::new(),
+            surfaces: Vec::new(),
+            legacy_bodies: Vec::new(),
+            legacy_saws: Vec::new(),
+        };
+        let mut game = Self::with_content(
+            MatchConfig {
+                fighter_count: 2,
+                seed,
+                ..Default::default()
+            },
+            MatchContent {
+                tuning: CombatTuning::load(&default_tuning_path())?,
+                cards: load_card_directory(&default_card_directory())?,
+                arenas: vec![arena],
+            },
+        )?;
+        game.watch_tuning_file(&default_tuning_path())?;
+        game.practice = true;
+        game.flow.begin_practice();
+        game.phase = FlowPhase::Combat;
+        game.reset_fight();
+        Ok(game)
+    }
+    /// Advances target practice with primary-player input only.
+    pub fn step_practice(&mut self, primary: PlayerInput) {
+        debug_assert!(
+            self.practice,
+            "step_practice requires AuthoritativeMatch::practice"
+        );
+        self.step(&[primary, PlayerInput::default()]);
+    }
+    /// Restores the practice fighters and shots using the last validated live tuning.
+    pub fn reset_practice(&mut self) {
+        assert!(self.practice, "reset_practice requires target practice");
+        self.reset_fight();
     }
     pub fn step(&mut self, inputs: &[PlayerInput]) {
         self.tick = self.tick.saturating_add(1);
@@ -194,6 +253,11 @@ impl AuthoritativeMatch {
             .iter()
             .enumerate()
             .map(|(player, input)| {
+                let input = if self.practice && player == 1 {
+                    PlayerInput::default()
+                } else {
+                    *input
+                };
                 input.with_progressive_observation(player as u8, Some(&observation))
             })
             .collect::<Vec<_>>();
@@ -366,7 +430,14 @@ impl AuthoritativeMatch {
             .collect::<Vec<_>>();
         // These records serve the transient renderer; cumulative outcomes live in metrics.
         self.impacts.drain(..self.impacts.len().saturating_sub(64));
-        self.flow.record_survivors(&alive);
+        if self.practice {
+            if !alive[1] {
+                self.physics.reset_player(1);
+                self.reset_player(1);
+            }
+        } else {
+            self.flow.record_survivors(&alive);
+        }
     }
     /// Applies ordinary damage, including periodic effect ticks. Blocking only
     /// intercepts shots and edge impacts at their respective contact boundaries.
@@ -665,27 +736,30 @@ impl AuthoritativeMatch {
         self.physics.replace_arena(&self.arena);
     }
     fn reset_players(&mut self) {
-        for entity in &self.player_entities {
-            let cap = self
-                .flow
-                .capabilities(self.world.entity(*entity).get::<PlayerState>().unwrap().id);
-            let mut actor = self.world.entity_mut(*entity);
-            let mut state = actor.get_mut::<PlayerState>().unwrap();
-            state.health = 100u16.saturating_add(cap.health_bonus);
-            state.alive = true;
-            state.fire_cooldown = 0;
-            state.block_ticks = 0;
-            state.hit_flash_ticks = 0;
-            state.stun_ticks = 0;
-            state.stun_pulses_remaining = 0;
-            state.jump_held = false;
-            state.jump_available = true;
-            state.grounded = false;
-            state.block_held = false;
-            state.block_cooldown = 0;
-            state.ammunition = self.tuning.magazine_size.saturating_add(cap.magazine_bonus);
-            state.reload_ticks = 0;
+        for index in 0..self.player_entities.len() {
+            self.reset_player(index);
         }
+    }
+    fn reset_player(&mut self, index: usize) {
+        let entity = self.player_entities[index];
+        let id = self.world.entity(entity).get::<PlayerState>().unwrap().id;
+        let cap = self.flow.capabilities(id);
+        let mut actor = self.world.entity_mut(entity);
+        let mut state = actor.get_mut::<PlayerState>().unwrap();
+        state.health = 100u16.saturating_add(cap.health_bonus);
+        state.alive = true;
+        state.fire_cooldown = 0;
+        state.block_ticks = 0;
+        state.hit_flash_ticks = 0;
+        state.stun_ticks = 0;
+        state.stun_pulses_remaining = 0;
+        state.jump_held = false;
+        state.jump_available = true;
+        state.grounded = false;
+        state.block_held = false;
+        state.block_cooldown = 0;
+        state.ammunition = self.tuning.magazine_size.saturating_add(cap.magazine_bonus);
+        state.reload_ticks = 0;
     }
     fn prepare_definition(mut definition: ArenaDefinition) -> Result<ArenaDefinition, String> {
         for body in &definition.legacy_bodies {
@@ -1154,7 +1228,12 @@ mod arena_runtime_tests {
             (resting[0] - start[0]).abs() < 0.1,
             "the piece rests at {resting:?}"
         );
-        for _ in 0..10 {
+        // Travel to the near edge, then observe six ticks of rolling. The
+        // contract is a physical push, independent of the chosen shot speed.
+        let travel_ticks = ((90.0 - 15.0 - 31.0) / game.tuning().bullet_speed
+            * TICKS_PER_SECOND as f32)
+            .ceil() as u16;
+        for _ in 0..travel_ticks + 6 {
             game.step(&fire_right());
         }
         assert!(game.snapshot().metrics.shots_fired > 0);
@@ -1289,6 +1368,90 @@ mod arena_runtime_tests {
             game.step(&vec![PlayerInput::default(); fighter_count]);
             assert_eq!(game.snapshot().players.len(), fighter_count);
         }
+    }
+
+    #[test]
+    fn target_practice_starts_in_combat_with_one_neutral_target() {
+        let mut practice = AuthoritativeMatch::practice(38).unwrap();
+        let initial = practice.snapshot();
+        assert_eq!(initial.flow.unwrap().phase, FlowPhase::Combat);
+        assert_eq!(initial.players.len(), 2);
+        for _ in 0..30 {
+            practice.step_practice(PlayerInput::default());
+        }
+        practice.step_practice(PlayerInput {
+            move_axis: 1,
+            aim_x: 1000,
+            ..Default::default()
+        });
+        let state = practice.snapshot();
+        assert!(state.players[0].velocity_x_milli_per_second > 0);
+        assert_eq!(state.players[1].velocity_x_milli_per_second, 0);
+        assert_eq!(state.flow.unwrap().scores, vec![0, 0]);
+    }
+
+    #[test]
+    fn target_practice_respawns_the_target_without_entering_result_flow() {
+        let mut practice = AuthoritativeMatch::practice(38).unwrap();
+        for _ in 0..600 {
+            let observation = practice.snapshot();
+            let distance = observation.players[1].x_milli - observation.players[0].x_milli;
+            practice.step_practice(PlayerInput {
+                move_axis: if distance.abs() > 220_000 {
+                    distance.signum() as i8
+                } else {
+                    0
+                },
+                aim_at_opponent: true,
+                fire: true,
+                ..Default::default()
+            });
+            let state = practice.snapshot();
+            if state
+                .impacts
+                .iter()
+                .any(|impact| impact.target == Some(1) && impact.eliminated)
+            {
+                assert!(state.players[1].alive);
+                assert_eq!(state.players[1].health, 100);
+                assert_eq!(state.flow.as_ref().unwrap().phase, FlowPhase::Combat);
+                assert_eq!(state.flow.unwrap().scores, vec![0, 0]);
+                return;
+            }
+        }
+        panic!("legal practice shots did not eliminate and restore the target");
+    }
+
+    #[test]
+    fn practice_ignores_secondary_inputs_and_reset_restores_the_session() {
+        let mut practice = AuthoritativeMatch::practice(38).unwrap();
+        let initial = practice.snapshot();
+        practice.step(&[
+            PlayerInput::default(),
+            PlayerInput {
+                move_axis: 1,
+                jump: true,
+                fire: true,
+                block: true,
+                ..Default::default()
+            },
+        ]);
+        let state = practice.snapshot();
+        assert_eq!(state.metrics.shots_fired, 0);
+        assert_eq!(state.metrics.jumps, 0);
+        assert_eq!(state.metrics.block_activations, 0);
+        assert_eq!(state.players[1].x_milli, initial.players[1].x_milli);
+        practice.step_practice(PlayerInput {
+            move_axis: 1,
+            fire: true,
+            ..Default::default()
+        });
+        practice.reset_practice();
+        let reset = practice.snapshot();
+        assert_eq!(reset.players[0].x_milli, initial.players[0].x_milli);
+        assert!(reset.projectiles.is_empty());
+        assert!(reset.players.iter().all(|p| p.alive && p.health == 100));
+        assert_eq!(reset.flow.unwrap().phase, FlowPhase::Combat);
     }
 
     #[test]

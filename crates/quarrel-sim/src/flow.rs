@@ -391,6 +391,15 @@ impl FlowAuthority {
     pub fn accepts_combat(&self) -> bool {
         self.snapshot.phase == FlowPhase::Combat
     }
+    pub(crate) fn begin_practice(&mut self) {
+        self.eligible.fill(false);
+        self.snapshot.offers.iter_mut().for_each(Vec::clear);
+        self.snapshot.hovered.fill(None);
+        self.snapshot.selected.fill(None);
+        self.snapshot.winner = None;
+        self.snapshot.fighter_alive.fill(true);
+        self.transition(FlowPhase::Combat);
+    }
     pub fn record_survivors(&mut self, alive: &[bool]) -> bool {
         if !self.accepts_combat() || alive.len() != self.config.fighter_count {
             return false;

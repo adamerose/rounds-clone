@@ -10,6 +10,21 @@ fn arena() -> ArenaDefinition {
     arena.frame = [-640.0, -360.0, 640.0, 360.0];
     arena
 }
+/// Fixed inputs for mechanics whose expected flight, control, and hit timing
+/// predate the shipped practice-feel tuning. Default-data behavior is covered
+/// through the separate live-tuning and practice probes.
+fn mechanics_tuning() -> CombatTuning {
+    CombatTuning {
+        run_speed: 220.0,
+        ground_control: 0.18,
+        ground_braking: 0.02,
+        air_control: 0.08,
+        bullet_speed: 3600.0,
+        bullet_gravity_factor: 1.0,
+        bullet_density: 0.0005,
+        ..CombatTuning::default()
+    }
+}
 fn game(arena: ArenaDefinition, tuning: CombatTuning) -> AuthoritativeMatch {
     let mut cards = load_card_directory(&default_card_directory()).unwrap();
     for card in &mut cards {
@@ -68,7 +83,7 @@ fn each_edge_damages_and_pushes_inward_while_block_launches_without_damage() {
         for block in [false, true] {
             let mut a = arena();
             a.spawns[0] = spawn;
-            let mut game = game(a, CombatTuning::default());
+            let mut game = game(a, mechanics_tuning());
             for _ in 0..6 {
                 game.step(&[
                     PlayerInput {
@@ -130,7 +145,7 @@ fn three_shots_then_reload_and_new_magazine() {
 
 #[test]
 fn base_hit_takes_sixty_health_and_pushes_target_and_second_hit_kills() {
-    let mut game = game(arena(), CombatTuning::default());
+    let mut game = game(arena(), mechanics_tuning());
     let fire = PlayerInput {
         fire: true,
         aim_x: 1000,
@@ -163,7 +178,7 @@ fn block_reflects_extends_and_has_a_press_and_cooldown_gate() {
         arena(),
         CombatTuning {
             gravity: 1.0,
-            ..Default::default()
+            ..mechanics_tuning()
         },
     );
     game.step(&[
@@ -237,7 +252,7 @@ fn bullets_fall_and_downward_recoil_is_capped_and_switchable() {
             arena(),
             CombatTuning {
                 recoil_enabled: enabled,
-                ..Default::default()
+                ..mechanics_tuning()
             },
         );
         let before = game.snapshot().players[0].velocity_y_milli_per_second;
@@ -285,7 +300,7 @@ fn stored_jump_works_in_air_once_and_floor_restores_it_without_fall_damage() {
         health: None,
         motion: None,
     }];
-    let mut game = game(a, CombatTuning::default());
+    let mut game = game(a, mechanics_tuning());
     let jump = PlayerInput {
         jump: true,
         ..Default::default()
@@ -327,7 +342,7 @@ fn wall_restores_jump_clings_and_jump_climbs() {
         health: None,
         motion: None,
     }];
-    let mut game = game(a, CombatTuning::default());
+    let mut game = game(a, mechanics_tuning());
     let towards = PlayerInput {
         move_axis: -1,
         ..Default::default()
@@ -370,7 +385,7 @@ fn crouch_halves_collision_height_and_accelerates_air_fall() {
         health: None,
         motion: None,
     }];
-    let mut game = game(a, CombatTuning::default());
+    let mut game = game(a, mechanics_tuning());
     idle(&mut game, 30);
     let standing = game.snapshot().players[0].height_milli;
     game.step(&[
@@ -428,7 +443,7 @@ fn crouch_halves_collision_height_and_accelerates_air_fall() {
     );
 }
 fn game_for_air(crouch: bool) -> AuthoritativeMatch {
-    let mut game = game(arena(), CombatTuning::default());
+    let mut game = game(arena(), mechanics_tuning());
     for _ in 0..10 {
         game.step(&[
             PlayerInput {
@@ -446,7 +461,7 @@ fn live_tuning_reload_changes_real_shot_damage_and_rejects_invalid_edits() {
     let directory = std::env::temp_dir().join(format!("quarrel-tuning-{}", std::process::id()));
     std::fs::create_dir_all(directory.join("assets")).unwrap();
     let path = directory.join("assets/tuning.ron");
-    let mut tuning = CombatTuning::default();
+    let mut tuning = mechanics_tuning();
     std::fs::write(&path, ron::to_string(&tuning).unwrap()).unwrap();
     let mut game = game(arena(), tuning.clone());
     game.watch_tuning_file(&path).unwrap();
@@ -497,7 +512,7 @@ fn crouching_ducks_a_shot_above_the_reduced_collider() {
             health: None,
             motion: None,
         }];
-        let mut game = game(a, CombatTuning::default());
+        let mut game = game(a, mechanics_tuning());
         for tick in 0..6 {
             game.step(&[
                 PlayerInput {
@@ -520,7 +535,7 @@ fn crouching_ducks_a_shot_above_the_reduced_collider() {
 
 #[test]
 fn block_does_not_stop_repeated_damage_ticks() {
-    let mut game = game(arena(), CombatTuning::default());
+    let mut game = game(arena(), mechanics_tuning());
     game.step(&[
         PlayerInput {
             block: true,
@@ -588,7 +603,7 @@ fn arcing_shots_can_leave_the_top_of_the_frame_and_return() {
         a,
         CombatTuning {
             bullet_speed: 1200.0,
-            ..Default::default()
+            ..mechanics_tuning()
         },
     );
     game.step(&[
@@ -609,7 +624,7 @@ fn arcing_shots_can_leave_the_top_of_the_frame_and_return() {
 
 #[test]
 fn old_snapshots_without_size_fields_keep_visible_standing_fighters() {
-    let original = game(arena(), CombatTuning::default()).snapshot();
+    let original = game(arena(), mechanics_tuning()).snapshot();
     let mut legacy = serde_json::to_value(&original).unwrap();
     for actor in legacy["players"].as_array_mut().unwrap() {
         actor.as_object_mut().unwrap().remove("radiusMilli");
@@ -629,7 +644,7 @@ fn editing_damage_preserves_a_held_ground_crouch() {
     a.chains.clear();
     a.surfaces.clear();
     a.spawns = vec![[-100.0, -258.0], [100.0, -258.0]];
-    let mut tuning = CombatTuning::default();
+    let mut tuning = mechanics_tuning();
     let mut game = game(a, tuning.clone());
     idle(&mut game, 30);
     let path =
@@ -696,7 +711,7 @@ fn jump_held(game: &AuthoritativeMatch, fighter: usize) -> bool {
 /// Vertical speed over thirty ticks of a jump pressed on the first tick and held
 /// until `release`, optionally stunned for six ticks from the second tick.
 fn jump_arc(release: Option<usize>, stunned: bool) -> Vec<i32> {
-    let mut game = game(floored(), CombatTuning::default());
+    let mut game = game(floored(), mechanics_tuning());
     idle(&mut game, 60);
     assert!(game.snapshot().players[0].grounded);
     (0..30)
@@ -743,7 +758,7 @@ fn a_jump_release_read_while_eliminated_is_spent() {
             ..Default::default()
         },
         MatchContent {
-            tuning: CombatTuning::default(),
+            tuning: mechanics_tuning(),
             cards,
             arenas: vec![floored()],
         },
@@ -775,7 +790,7 @@ fn a_jump_release_read_while_eliminated_is_spent() {
 fn a_jump_held_into_the_next_fight_is_read_as_a_fresh_press() {
     // Fighters are reset for each fight, including the remembered jump button, so
     // holding jump through the draft jumps on the first tick of the next fight.
-    let mut game = game(floored(), CombatTuning::default());
+    let mut game = game(floored(), mechanics_tuning());
     let held = [jump_input(true), PlayerInput::default()];
     game.step(&held);
     assert!(jump_held(&game, 0));

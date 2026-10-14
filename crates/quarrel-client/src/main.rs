@@ -3,8 +3,8 @@ use quarrel_network::{
     send_inputs,
 };
 use quarrel_presentation::{
-    OnlineService, render_menu_png, render_png, render_waiting_png, run_interactive_visible,
-    run_live_visible, run_menu, run_visible,
+    OnlineService, render_detailed_png, render_menu_png, render_png, render_practice_png,
+    render_waiting_png, run_interactive_visible, run_live_visible, run_menu, run_visible,
 };
 use quarrel_sim::{
     AuthoritativeMatch, FlowPhase, InputRecording, MatchConfig, MatchContent, PlayerInput,
@@ -37,11 +37,16 @@ fn run() -> Result<(), String> {
         translated.extend(menu_args.into_iter().skip(1));
         args = translated;
     }
-    let mode = args.get(1).map(String::as_str).unwrap_or("menu");
+    let mode = args
+        .get(1)
+        .filter(|argument| !argument.starts_with("--"))
+        .map(String::as_str)
+        .unwrap_or("practice");
     let config = config(&args)?;
     let ticks = argument(&args, "--ticks", 2_400_u32)?;
     match mode {
         "menu" => run_menu(SteamMenu::new(None)),
+        "practice" => practice(&args, config.seed),
         // Steam starts the game this way when a player joins a friend from outside it.
         quarrel_steam::CONNECT_LOBBY => run_menu(SteamMenu::new(Some(
             quarrel_steam::connect_lobby(args.iter().map(String::as_str))
@@ -61,7 +66,35 @@ fn run() -> Result<(), String> {
         "arena-preview" => { let arena = PathBuf::from(required(&args, "--arena")?); let output = PathBuf::from(required(&args, "--output")?); let mut state = AuthoritativeMatch::from_arena_file(config.seed, &arena)?.snapshot(); state.flow = None; render_png(&state, &output)?; print(serde_json::json!({"arena": arena, "output": output, "stateSha256": hash_snapshot(&state)})) },
         "join" => join(&args, config, ticks),
         "host" => host(&args, config, ticks),
-        _ => Err("usage: quarrel-client [local|replay|remote|join|host|steam-host|steam-join|capture|record|visible|visible-flow|arena-preview] [options]".into()),
+        _ => Err("usage: quarrel-client [practice|menu|local|replay|remote|join|host|steam-host|steam-join|capture|record|visible|visible-flow|arena-preview] [options]".into()),
+    }
+}
+fn practice(args: &[String], seed: u64) -> Result<(), String> {
+    if args.iter().any(|arg| arg == "--headless") {
+        let ticks = argument(args, "--ticks", 0_u32)?;
+        let mut session = AuthoritativeMatch::practice(seed)?;
+        for _ in 0..ticks {
+            session.step_practice(PlayerInput::default());
+        }
+        return print(session.snapshot());
+    }
+    match quarrel_presentation::run_practice_visible(seed)? {
+        quarrel_presentation::PracticeExit::Menu
+            if !args.iter().any(|arg| arg == "--return-menu") =>
+        {
+            // Winit allows one event loop per process. Use the existing menu
+            // command in a fresh process after the practice window exits.
+            let status = std::process::Command::new(env::current_exe().map_err(|e| e.to_string())?)
+                .arg("menu")
+                .status()
+                .map_err(|e| format!("open menu after practice: {e}"))?;
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("menu exited with {status}"))
+            }
+        }
+        _ => Ok(()),
     }
 }
 fn capture_destinations(
@@ -114,6 +147,7 @@ fn paths_equal(left: &Path, right: &Path) -> bool {
     }
 }
 fn capture(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> {
+    let seed = config.seed;
     let (output, metadata) =
         capture_destinations(args, "--output", "--metadata")?.ok_or("missing --output")?;
     let state = match optional(args, "--state") {
@@ -121,18 +155,64 @@ fn capture(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), Strin
             serde_json::from_slice(&fs::read(&path).map_err(|e| format!("read {path}: {e}"))?)
                 .map_err(|e| format!("decode {path}: {e}"))?
         }
+        None if args.iter().any(|arg| arg == "--practice") => {
+            let mut session = AuthoritativeMatch::practice(config.seed)?;
+            for _ in 0..ticks {
+                session.step_practice(PlayerInput::default());
+            }
+            session.snapshot()
+        }
         None => state_after(config, ticks)?,
     };
-    print(render_capture(&state, &output, metadata.as_deref())?)
+    if args.iter().any(|arg| arg == "--practice") {
+        let tuning = AuthoritativeMatch::practice(seed)?.tuning().clone();
+        print(render_practice_capture(
+            &state,
+            &tuning,
+            args.iter().any(|arg| arg == "--detailed"),
+            &output,
+            metadata.as_deref(),
+        )?)
+    } else {
+        print(render_capture(
+            &state,
+            args.iter().any(|arg| arg == "--detailed"),
+            &output,
+            metadata.as_deref(),
+        )?)
+    }
 }
-fn render_capture(
+fn render_practice_capture(
     state: &quarrel_sim::MatchSnapshot,
+    tuning: &quarrel_sim::CombatTuning,
+    detailed: bool,
     output: &Path,
     metadata_path: Option<&Path>,
 ) -> Result<serde_json::Value, String> {
+    let frame = render_practice_png(state, tuning, detailed, output)?;
+    render_capture_metadata(state, output, metadata_path, frame)
+}
+fn render_capture(
+    state: &quarrel_sim::MatchSnapshot,
+    detailed: bool,
+    output: &Path,
+    metadata_path: Option<&Path>,
+) -> Result<serde_json::Value, String> {
+    let frame = if detailed {
+        render_detailed_png(state, output)?
+    } else {
+        render_png(state, output)?
+    };
+    render_capture_metadata(state, output, metadata_path, frame)
+}
+fn render_capture_metadata(
+    state: &quarrel_sim::MatchSnapshot,
+    output: &Path,
+    metadata_path: Option<&Path>,
+    frame: Vec<u8>,
+) -> Result<serde_json::Value, String> {
     let executable =
         fs::read(env::current_exe().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-    let frame = render_png(state, output)?;
     let metadata = serde_json::json!({"format": 1, "package": env!("CARGO_PKG_VERSION"), "output": output, "executableSha256": format!("{:x}", Sha256::digest(executable)), "frameSha256": format!("{:x}", Sha256::digest(frame)), "stateSha256": hash_snapshot(state), "tick": state.tick, "phase": state.flow.as_ref().map(|flow| flow.phase)});
     if let Some(path) = metadata_path {
         if let Some(parent) = path
@@ -165,7 +245,12 @@ fn remote(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String
         .collect::<Result<Vec<_>, _>>()?;
     let report = send_inputs(address, id, config, &inputs)?;
     if let Some((output, metadata)) = capture {
-        render_capture(&report.final_report.state, &output, metadata.as_deref())?;
+        render_capture(
+            &report.final_report.state,
+            false,
+            &output,
+            metadata.as_deref(),
+        )?;
     }
     print(report)
 }

@@ -63,8 +63,13 @@ The one change under test is recoil you can move with: firing pushes you back, s
     At the end, everyone can vote to run it back with builds kept, raising the target to 10 and then 15; there are at most two run-backs.
 11. **1v1 first, more players later.**
     The rules, draft and scoring work for any number of fighters, so 2v2 and free-for-all are configuration rather than rewrites.
-12. **Style and juice matter as much as mechanics, after the MVP.**
-    The MVP uses plain shapes; the look, sound and feel get full attention once the game is playable.
+12. **Readability and feedback are part of the base fight.**
+    Sound, shot travel, hit and block feedback, and responsive controls get attention before content expansion.
+    Plain shapes support early iteration; a coherent original visual identity is required before release.
+
+Target practice is the default: one primary control set and an idle target make the base fight easy to test.
+Online 1v1 remains the match experience. Local PvP is not a milestone.
+The [iteration process](design-docs/game-iteration.html) delegates ordinary tuning and keeps human preference as its own evidence.
 
 ## Experiments for play sessions
 

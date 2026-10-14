@@ -49,6 +49,64 @@ fn capture_renders_the_ordinary_opening_draft_with_provenance() {
 }
 
 #[test]
+fn detailed_capture_supports_draft_and_practice_off_on() {
+    let dir = fresh_directory();
+    let draft = dir.join("draft-detailed.png");
+    let practice_off = dir.join("practice-off.png");
+    let practice_on = dir.join("practice-on.png");
+    for args in [
+        vec!["capture", "--seed", "38", "--ticks", "0", "--detailed"],
+        vec!["capture", "--practice", "--seed", "38", "--ticks", "0"],
+        vec![
+            "capture",
+            "--practice",
+            "--seed",
+            "38",
+            "--ticks",
+            "0",
+            "--detailed",
+        ],
+    ] {
+        let output = match args.as_slice() {
+            ["capture", "--seed", ..] => &draft,
+            ["capture", "--practice", .., "--detailed"] => &practice_on,
+            _ => &practice_off,
+        };
+        let result = Command::new(test_client())
+            .args(args)
+            .arg("--output")
+            .arg(output)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    assert_ne!(
+        fs::read(&practice_off).unwrap(),
+        fs::read(&practice_on).unwrap()
+    );
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn leading_flags_default_to_headless_target_practice() {
+    let result = Command::new(test_client())
+        .args(["--headless", "--ticks", "1"])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let state: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(state["flow"]["phase"], "Combat");
+}
+
+#[test]
 fn capture_and_remote_reject_output_aliases_before_rendering_or_connecting() {
     let dir = fresh_directory();
     let sentinel = dir.join("frame.png");

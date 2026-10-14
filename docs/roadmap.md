@@ -1,65 +1,68 @@
 # Roadmap
 
-Each milestone ends with something the group can play, followed by a play session whose notes go in `docs/playtests/`.
-Those notes decide what comes next; this list is a plan, not a contract.
+The next milestone is combat people enjoy, not another list of implemented features.
+Agents own tuning and implementation; Adam supplies occasional short reactions to a playable build.
+The [iteration process](design-docs/game-iteration.html) defines how candidates are measured, reviewed and promoted.
 
-## Where things stand (2026-10-06)
+## Current position — 2026-10-14
 
-The Rust/Bevy/Rapier foundation runs ordinary matches: a 60 Hz authority, general fighter vectors, opening and loser drafts, one point per fight, seeded tie resolution and unanimous end choices.
-Data arenas rotate without repeats and retain their object physics and live editing. Twelve original data-defined cards combine stats and event rules, with copies that stack and live-edited files.
-The shared renderer, local 1v1 controls, UDP client/host/dedicated split, headless captures and CI remain in use. A short input recording pins its starting content and checks replay determinism.
-Footage profiles, fixed source offers and the ROUNDS card catalog have been removed. Ten original arenas cover static layouts, physics stacks, hanging platforms, a released wrecking ball, saws and moving pieces.
-Base-fight movement, recoil, magazines and block timing are live-tuned from a file. Production online play remains ahead.
+Ordinary matches, twelve cards, ten arenas, controllers, prediction and Steam friend invites exist.
+Previous automated checks establish flow and transport correctness; they do not establish enjoyable combat.
+Adam reports that bullets are too fast, movement is slow, and the game feels amateur.
 
-## M1 — The MVP: a real match, online with friends
+Target practice becomes the default: one keyboard/mouse player and an idle, respawning target.
+Local PvP is not a product milestone. Online 1v1 with friends remains the intended match experience.
 
-The goal is an ordinary match that anyone can start and finish, locally or between two homes, with no script behind it, and a base fight that is fun before any card.
-Online play was a separate milestone until 2026-10-05; Adam moved it into the MVP because the group plays from their own homes.
+## 1. Make the base fight responsive and readable
 
-- Replace `ReplayProfile` with general data: an arena definition (surfaces, spawns, dynamic bodies, hazards) and a match config (fighters, target score, run-it-back limit).
-- Rules, draft and scoring for any number of fighters; ship 1v1.
-- An arena format covering every ROUNDS object kind in `docs/rounds-maps.md` (solid, loose, breakable, background, chained, saws, moving), and a first set of our own arenas that use each kind; the existing scene geometry can seed them.
-- Play the base fight with no cards and tune movement, shot, block and knockback until it is fun on its own.
-- A card system built from event rules (on fire, hit, block, bounce, land, damage, kill) and effects, loaded from data that reloads while the game runs.
-- The first twelve cards from `docs/card-ideas.md`, chosen to combine: Fast shot, Spray, Bounce, Grow, Steer, Drill, Explode, Poison, Reload on hit, Teleport, Echo and Radar (renamed before release).
-- Everyone picks one card before the first fight; every fight is a point; the loser of each fight picks from a seeded offer; first to five; a fight never ends in a tie.
-- Running it back raises the target to 10, then 15.
-- A minimal menu: local match, host, join, invite a Steam friend.
-- Keep a short recorded-input replay as a regression check; it plays through the general rules, not a profile.
-- Delete the footage-slice profiles, the historical-rematch setup, the fixed offer lists, the ROUNDS card catalog and their capture-anchor tests once nothing uses them.
+Use practice to compare actual running, stopping, reversing, jumping, recoil, shot travel and blocking.
+Keep exact combat numbers and card effects behind the detailed-tooltip toggle.
+Add original or properly licensed firing, hit, block, reflect, reload, landing, death and UI sounds.
+Add restrained trails, muzzle/hit feedback, clear health/ammo/block readiness and a readable death/reset.
+Check mouse/controller aim, moving-platform contact, slopes and wall movement through real inputs.
 
-Online, inside M1:
+Exit when repeatable probes and rendered evidence explain the remaining tradeoffs and a short human checkpoint prefers the new base.
+Models and metrics cannot certify that preference. Sound and feedback belong here because players need them to judge the fight.
 
-- Spike first: run the current host/client at simulated 80 ms round trip with 2 % loss, and compare client-side prediction with interpolation against rollback for this physics.
-  The current model shows the remote authority's snapshot with no prediction, so a player's own movement lags by a full round trip.
-- Replace JSON snapshots with a compact binary encoding.
-- Add Steam networking (relay, friend invites, no port forwarding) beside the UDP transport.
-  Development can use Valve's public test app until the game has its own App ID.
-- The MVP's first play session is online.
+## 2. Make complete online matches worth repeating
 
-## M3 — Builds that keep surprising us
+Recheck the twelve existing cards against the new base, including fast shots, spread, steering, blocks and reaction chains.
+Use bounded aggressive and evasive test policies with delayed observation and imperfect aim when the design question needs them.
+Review arenas for readable materials, reachable routes, useful cover, spawn safety and stalled fights.
+Record actual human inputs so a reported bad moment can be replayed.
+Test Steam invites, leaving/rejoining and sustained matches between homes beside the impaired-network checks.
 
-The goal is the "first time we found that combo" feeling, session after session.
+Exit when the friend group starts and finishes matches comfortably and voluntarily chooses to play again.
+Record complaints and rematch choices; silent bots and passing smokes are not enthusiasm.
 
-- Play-test the experiments in `docs/game-design.md`: target score, run-it-back, opening pick, curse and modifier frequency.
-- Trait cards, duo cards, curses and random fight modifiers.
-- Fighter-changing cards: grapple hook, portal gun, melee, dash.
-- Destructible terrain and screen distortion that scale with build power.
-- Grow toward forty cards and ten arenas, adding what play sessions ask for.
+## 3. Establish a coherent identity and ship a dependable playtest
 
-## M4 — Our own identity
+Unify fighter, arena, card, audio and UI direction.
+Add onboarding, remappable controls, persistent audio/video/accessibility settings and controller reconnect handling.
+Package a release build that works from a clean installation without developer paths or test-app assumptions.
+Check performance/input response on declared minimum hardware, crashes, recovery and disconnects.
+Give small groups an attributable build and gather observed behavior plus brief feedback.
+Use Steam Playtest once the real App ID and store prerequisites are available.
 
-Style and juice are as important as mechanics; they wait only until the game is playable.
+Exit when new players can learn and return without an agent explaining the game, and repeated sessions remain reliable.
 
-- Logo, palette, fighter and card art, original sound, screen shake, hit pause and particles.
-- Controller support for every player, settings that persist.
-- 2v2 and free-for-all.
+## 4. Release on Steam
 
-## M5 — Steam release
+Finish the real App ID, ownership/licensing and name review, store assets, trailer, honest feature description,
+depots/prerequisites, supported-platform checks, and Valve's store/build review.
+Prepare support/crash reporting, Steam Input behavior and a rollbackable release process.
+Adam retains spending, legal/account actions and the final public release decision.
+Agents prepare the concrete build and materials first, then request only the authority actually needed.
 
-- A check by someone qualified that the game does not infringe Landfall's trademarks or trade dress.
-- App ID (Steam Direct fee), store page, achievements if wanted, crash reporting, a release build pipeline, and an outside playtest.
+## Content after evidence
 
-## Settled
+Traits, duos, curses, fight modifiers, more cards, grapple/portal/melee/dash, destructible terrain and more players remain experiments.
+Resume them when base combat and complete matches pass their gates and playtests identify a missing experience.
+Keep existing content working while tuning; do not expand the pool to make the roadmap appear busy.
 
-- Working title `QUARREL` (2026-10-04); a trademark check comes before release.
+## Settled direction
+
+QUARREL remains the working title and a clean-room spiritual successor to ROUNDS.
+Online 1v1, loser drafts, first to five and unanimous run-backs to ten/fifteen remain the match rules.
+Adam's 2026-10-14 instruction delegates ordinary design/tuning and makes AFK target practice the default.
+Bounded programmatic play, authoritative inspection and headless rendering remain development capabilities.

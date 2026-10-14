@@ -26,6 +26,20 @@ fn arena(wall: bool) -> ArenaDefinition {
 fn pool() -> Vec<ItemDefinition> {
     load_card_directory(&default_card_directory()).unwrap()
 }
+/// Card mechanics use this fixed lab baseline because their assertions isolate
+/// card effects from movement and projectile-feel tuning chosen for practice.
+fn card_lab_tuning() -> CombatTuning {
+    CombatTuning {
+        run_speed: 220.0,
+        ground_control: 0.18,
+        ground_braking: 0.02,
+        air_control: 0.08,
+        bullet_speed: 3600.0,
+        bullet_gravity_factor: 1.0,
+        bullet_density: 0.0005,
+        ..CombatTuning::default()
+    }
+}
 fn game(names: &[&str], wall: bool) -> AuthoritativeMatch {
     game_with_content(names, pool(), arena(wall))
 }
@@ -40,7 +54,7 @@ fn game_with_content(
             ..Default::default()
         },
         MatchContent {
-            tuning: CombatTuning::default(),
+            tuning: card_lab_tuning(),
             cards,
             arenas: vec![arena],
         },

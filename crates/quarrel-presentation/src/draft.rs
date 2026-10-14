@@ -1,6 +1,31 @@
 use super::*;
 use crate::hud::wrapped_rules;
 
+/// The current card focus for detailed mode. Normal draft cards remain compact;
+/// the numerical text belongs in the readable details panel.
+pub(super) fn detail_cards(snapshot: &MatchSnapshot, focus: Option<u8>) -> Vec<&ItemDefinition> {
+    let Some(flow) = &snapshot.flow else {
+        return Vec::new();
+    };
+    if flow.phase != FlowPhase::Draft {
+        return Vec::new();
+    }
+    let start = focus.map(usize::from).unwrap_or(0);
+    flow.offers
+        .iter()
+        .enumerate()
+        .skip(start)
+        .filter_map(|(fighter, offers)| {
+            let selected = flow.selected.get(fighter).copied().flatten();
+            let hovered = flow.hovered.get(fighter).copied().flatten();
+            hovered
+                .or(selected)
+                .filter(|id| offers.contains(id))
+                .and_then(|id| flow.catalog.iter().find(|item| item.id == id))
+        })
+        .collect()
+}
+
 pub(super) fn spawn_draft_scene(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -79,7 +104,7 @@ pub(super) fn spawn_draft_scene(
             ..default()
         },
         TextColor(Color::WHITE),
-        Transform::from_xyz(0.0, -285.0, 40.0),
+        Transform::from_xyz(0.0, -255.0, 40.0),
     ));
 }
 

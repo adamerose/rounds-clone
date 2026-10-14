@@ -4,7 +4,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use std::process::{Child, Command};
 
 const ITEMS: [&str; 5] = [
-    "Local match",
+    "Target practice",
     "Host on port 7777",
     "Join",
     "Address",
@@ -151,7 +151,7 @@ pub(super) fn spawn_menu(commands: &mut Commands, menu: &Menu) {
     }
     text(
         commands,
-        "Click or use arrows / D-pad, Enter / A to start.\nSelect Address; Ctrl+A clears it for the host's IP and port.\nOnline: pick a friend in Steam's invite window; they accept the invite in Steam.\nLocal: keyboard + mouse and one controller, or two controllers.\nConnect your controllers before starting the match.",
+        "Target practice uses keyboard and mouse only; the target stays still and respawns.\nClick or use arrows / D-pad, Enter / A to start.\nSelect Address; Ctrl+A clears it for the host's IP and port.\nOnline: pick a friend in Steam's invite window; they accept the invite in Steam.",
         -190.0,
         20.0,
     );
@@ -179,7 +179,7 @@ pub fn menu_match_args(
     online: &mut dyn OnlineService,
 ) -> Result<Vec<String>, String> {
     let args = match selected {
-        0 => vec!["visible-flow", "--ticks", "4294967295"],
+        0 => vec!["practice", "--return-menu"],
         1 => vec![
             "host",
             "--bind",
@@ -208,7 +208,7 @@ pub fn menu_match_args(
             online.ready()?;
             vec!["steam-host"]
         }
-        _ => return Err("Select Local, Host, Join or Online to start".into()),
+        _ => return Err("Select Target practice, Host, Join or Online to start".into()),
     };
     Ok(args.into_iter().map(str::to_owned).collect())
 }
@@ -382,9 +382,9 @@ mod tests {
     }
 
     #[test]
-    fn menu_launches_existing_local_and_network_routes() {
+    fn menu_launches_practice_and_network_routes() {
         let online = &mut Steam(Ok(()));
-        assert_eq!(menu_match_args(0, "", online).unwrap()[0], "visible-flow");
+        assert_eq!(menu_match_args(0, "", online).unwrap()[0], "practice");
         assert!(
             menu_match_args(1, "", online)
                 .unwrap()

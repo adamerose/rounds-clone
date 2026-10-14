@@ -1,0 +1,17 @@
+:root { color-scheme: light dark; font: 17px/1.55 system-ui, sans-serif; }
+body { margin: 0; background: #101723; color: #e8edf2; }
+main { max-width: 76ch; margin: 3rem auto; padding: 0 1.5rem 3rem; }
+h1, h2 { line-height: 1.2; color: #fff; }
+h2 { margin-top: 2.2rem; }
+a { color: #8bd6e4; }
+p, li, dd { margin-bottom: .75rem; }
+code { font-size: .9em; color: #b2e5c5; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+dt { font-weight: 650; }
+nav { margin-bottom: 2rem; }
+@media (prefers-color-scheme: light) {
+  body { background: #fafbf9; color: #23303a; }
+  h1, h2 { color: #13222d; }
+  a { color: #006879; }
+  code { color: #256840; }
+}

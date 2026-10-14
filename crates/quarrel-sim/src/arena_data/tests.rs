@@ -24,6 +24,14 @@ fn original(slug: &str) -> ArenaDefinition {
 }
 
 fn game(arena: ArenaDefinition, fighters: usize) -> AuthoritativeMatch {
+    game_with_tuning(arena, fighters, CombatTuning::default())
+}
+
+fn game_with_tuning(
+    arena: ArenaDefinition,
+    fighters: usize,
+    tuning: CombatTuning,
+) -> AuthoritativeMatch {
     let mut cards =
         load_card_directory(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/cards"))
             .unwrap();
@@ -38,7 +46,7 @@ fn game(arena: ArenaDefinition, fighters: usize) -> AuthoritativeMatch {
             ..Default::default()
         },
         MatchContent {
-            tuning: CombatTuning::default(),
+            tuning,
             cards,
             arenas: vec![arena],
         },
@@ -257,8 +265,16 @@ fn original_arenas_cover_every_object_kind() {
 fn shots_topple_both_original_physics_stacks() {
     for (slug, target) in [("kiln", [-130.0, -145.0]), ("trestle", [-180.0, -215.0])] {
         let arena = original(slug);
-        let mut idle = game(arena.clone(), 2);
-        let mut shot = game(arena.clone(), 2);
+        // This fixture targets a fixed point with four straight shots, so its
+        // flight and momentum stay fixed while shipped base feel is tuned.
+        let tuning = CombatTuning {
+            bullet_speed: 3600.0,
+            bullet_gravity_factor: 1.0,
+            bullet_density: 0.0005,
+            ..CombatTuning::default()
+        };
+        let mut idle = game_with_tuning(arena.clone(), 2, tuning.clone());
+        let mut shot = game_with_tuning(arena.clone(), 2, tuning);
         enter_combat(&mut idle);
         enter_combat(&mut shot);
         let mut toppled = false;

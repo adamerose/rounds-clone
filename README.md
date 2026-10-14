@@ -29,40 +29,46 @@ The smoke runs an authority and two UDP clients through ordinary drafts, checkin
 Adding or editing live assets does not change that recording.
 Use `quarrel-client replay --input assets/replays/ordinary-match.json` to print its final authority snapshot.
 
-## Play locally
+## Practice and online play
 
-The client opens a menu when launched without arguments. Select Local match, Host on port 7777, or Join; type the host's IPv4 address and port in Address.
+Launching without arguments opens target practice immediately, with one keyboard/mouse player and an idle target that respawns after elimination.
+Use A/D to move, Space/W to jump, S to crouch, mouse to aim, left mouse/F to fire and right mouse/left Shift to block.
+R resets practice. Click Detailed stats or press T to show exact base combat values and current motion; the same toggle reveals exact focused-card effects in match drafts.
+The run target is a controller setting, so detailed mode labels actual velocity separately.
+Escape opens the menu; closing practice quits. Select Online, Host on port 7777, or Join there; Address takes the host's IPv4 address and port.
 For play between homes, both players run Steam and QUARREL. One selects Online: invite a Steam friend; Steam's invite window opens over the waiting screen. The friend, at the QUARREL menu, accepts the invite in Steam or chooses Join Game on the host in their friends list. Traffic goes through Steam's relays, so nobody forwards ports.
 Development runs as Valve's test app Spacewar (App ID 480), so Steam shows both players in Spacewar and launching Join Game from outside QUARREL opens Spacewar instead; start QUARREL first. Without Steam, Online explains that Steam is needed and local and direct-IP play still work.
-Click a choice, or use arrows/D-pad and Enter/south button. The menu returns when the match window closes.
+Click a menu choice, or use arrows/D-pad and Enter/south button. A menu-launched session returns to that menu when closed.
 Connect controllers before starting; reconnecting or changing their count can change fighter assignment.
-For local play, one controller controls fighter two and keyboard/mouse controls fighter one; two controllers control both fighters.
-While a fighter's controller is idle, that fighter's keyboard controls still work in combat; any mapped stick or combat button input beyond the dead zones gives the controller precedence.
-Keyboard/mouse uses A/D, Space/W jump, S crouch, Shift or right mouse block, F or left mouse fire, and mouse aim. Existing keyboard aim and two-keyboard controls remain available.
+Practice accepts only the primary keyboard/mouse controls. Its target receives no movement, jump, block or firing input.
 Interactive Host/Join waits until cancelled and has no timed match cutoff. Escape or close the waiting/game window to leave.
 Online players each use their own primary keyboard/mouse layout or controller, and the keyboard keeps working in combat while the controller is idle. Card choices and match-end votes use the same device as combat.
 Headless UI evidence: `quarrel-client menu-capture --output out/menu.png`; `menu-start --choice 1|2 --headless --ticks 90` exercises the same host/join menu selections, and `--choice 4` the Steam host.
 
 ```powershell
-out/cargo-target/debug/quarrel-client visible-flow --seed 38 --ticks 18000
+out/cargo-target/debug/quarrel-client
+out/cargo-target/debug/quarrel-client --headless --ticks 30
+out/cargo-target/debug/quarrel-client capture --practice --ticks 30 --detailed --output out/practice.png
 ```
 
 Capture metadata includes executable, PNG and state hashes. `capture --metadata` and scripted `remote --render-output --render-metadata` retain provenance; PNG and metadata paths must differ.
 
 Project windows open hidden and appear only after placement on monitor four is verified.
 
-| Input | Fighter one | Fighter two |
-|---|---|---|
-| Move or navigate draft | A / D | Left / Right |
-| Jump | Space / W | Up |
-| Crouch | S | Down |
-| Block | Right mouse / Left Shift | Right Shift |
-| Fire | Left mouse / F | Enter |
-| Confirm card | Space | Enter |
-| Aim up / left / down / right | I / J / K / L | Numpad 8 / 4 / 5 / 6 |
-| Run it back / new match | Y / N | K / L |
+| Input | Practice and your online fighter |
+|---|---|
+| Move or navigate draft | A / D |
+| Jump | Space / W |
+| Crouch | S |
+| Block | Right mouse / Left Shift |
+| Fire | Left mouse / F |
+| Confirm card | Space |
+| Aim up / left / down / right | I / J / K / L |
+| Run it back / new match | Y / N |
+| Detailed numbers | T or Detailed stats button |
+| Reset practice / open menu | R / Escape |
 
-Fighter one aims at the mouse cursor; keyboard aim keys take priority over the cursor.
+Mouse aim applies to your controlled fighter; keyboard aim keys take priority over the cursor.
 
 Controllers use the left stick to move, right stick to aim, south button to jump, west button to block and right trigger to fire. Down on the left stick crouches.
 D-pad and south button choose a card. At match end, south chooses run it back and east chooses a new match.

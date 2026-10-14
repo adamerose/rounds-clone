@@ -16,13 +16,14 @@ use bevy::{
         renderer::RenderDevice,
         view::screenshot::{Screenshot, ScreenshotCaptured},
     },
+    sprite::Anchor,
     window::{ExitCondition, Monitor, OnMonitor, PrimaryWindow, WindowClosed},
     winit::WinitPlugin,
 };
 use quarrel_network::LiveClientHandle;
 use quarrel_sim::{
-    AuthoritativeMatch, FlowAction, FlowCommand, FlowPhase, FlowSnapshot, ItemDefinition, ItemId,
-    MatchSnapshot, PlayerInput,
+    AuthoritativeMatch, CombatTuning, FlowAction, FlowCommand, FlowPhase, FlowSnapshot,
+    ItemDefinition, ItemId, MatchSnapshot, PlayerInput,
 };
 use std::{
     path::Path,
@@ -47,12 +48,14 @@ mod draft;
 mod hud;
 mod input;
 mod menu;
+mod stats;
 
 mod runtime;
 mod scene;
 
 pub use capture::{
-    render_png, render_waiting_png, run_interactive_visible, run_live_visible, run_visible,
+    render_detailed_png, render_png, render_practice_png, render_waiting_png,
+    run_interactive_visible, run_live_visible, run_practice_visible, run_visible,
 };
 pub use input::{
     gamepad_combat_input, gamepad_flow_command, keyboard_combat_input, keyboard_flow_command,
@@ -128,6 +131,27 @@ struct InteractiveAuthority {
     tick_budget: f64,
     pending_flow: Vec<Option<FlowCommand>>,
     final_state: std::sync::mpsc::SyncSender<MatchSnapshot>,
+}
+#[derive(Resource)]
+struct PracticeAuthority {
+    simulation: AuthoritativeMatch,
+    tick_budget: f64,
+    exit: std::sync::mpsc::SyncSender<PracticeExit>,
+}
+#[derive(Resource, Clone)]
+struct PracticeCapture {
+    tuning: CombatTuning,
+    detailed: bool,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PracticeExit {
+    Menu,
+    Closed,
+}
+impl Drop for PracticeAuthority {
+    fn drop(&mut self) {
+        let _ = self.exit.try_send(PracticeExit::Closed);
+    }
 }
 #[derive(Resource)]
 struct LivePresentation {

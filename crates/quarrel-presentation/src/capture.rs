@@ -5,6 +5,30 @@ pub fn render_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Vec<u8>, St
     render_png_with_readiness(snapshot, output).map(|(bytes, _)| bytes)
 }
 
+pub fn render_detailed_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Vec<u8>, String> {
+    render_scene_png_with_practice(snapshot, output, OffscreenView::Match, None, true)
+        .map(|(bytes, _)| bytes)
+}
+
+pub fn render_practice_png(
+    snapshot: &MatchSnapshot,
+    tuning: &quarrel_sim::CombatTuning,
+    detailed: bool,
+    output: &Path,
+) -> Result<Vec<u8>, String> {
+    render_scene_png_with_practice(
+        snapshot,
+        output,
+        OffscreenView::Match,
+        Some(PracticeCapture {
+            tuning: tuning.clone(),
+            detailed,
+        }),
+        detailed,
+    )
+    .map(|(bytes, _)| bytes)
+}
+
 pub(super) fn render_png_with_readiness(
     snapshot: &MatchSnapshot,
     output: &Path,
@@ -33,6 +57,16 @@ pub(super) fn render_scene_png(
     output: &Path,
     view: OffscreenView,
 ) -> Result<(Vec<u8>, CaptureReadiness), String> {
+    render_scene_png_with_practice(snapshot, output, view, None, false)
+}
+
+fn render_scene_png_with_practice(
+    snapshot: &MatchSnapshot,
+    output: &Path,
+    view: OffscreenView,
+    practice: Option<PracticeCapture>,
+    detailed: bool,
+) -> Result<(Vec<u8>, CaptureReadiness), String> {
     let render_plugin = RenderPlugin {
         synchronous_pipeline_compilation: true,
         ..default()
@@ -58,6 +92,13 @@ pub(super) fn render_scene_png(
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, update_pipeline_readiness);
     app.insert_resource(view);
+    if practice.is_some() || detailed {
+        let enabled = practice.as_ref().is_some_and(|practice| practice.detailed) || detailed;
+        app.insert_resource(super::stats::DetailedTooltips::new(enabled));
+    }
+    if let Some(practice) = practice {
+        app.insert_resource(practice);
+    }
     if matches!(view, OffscreenView::Menu) {
         app.init_resource::<super::menu::Menu>();
     }
@@ -126,6 +167,7 @@ pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
         })
         .add_systems(Startup, setup_visible_scene)
         .add_systems(Update, create_monitor_four_window)
+        .add_systems(Update, close_practice)
         .add_systems(
             Update,
             (verify_monitor_show_and_exit, advance_visible_scene).chain(),
@@ -134,6 +176,19 @@ pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
         .is_success()
         .then_some(())
         .ok_or_else(|| "visible replay exited before verifying the project display".to_owned())
+}
+
+fn close_practice(
+    mut closed: MessageReader<WindowClosed>,
+    authority: Option<Res<PracticeAuthority>>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if closed.read().next().is_some() {
+        if let Some(authority) = authority {
+            let _ = authority.exit.try_send(PracticeExit::Closed);
+        }
+        exit.write(AppExit::Success);
+    }
 }
 
 /// Runs a local client-host whose keyboard/controller commands enter the
@@ -164,6 +219,7 @@ pub fn run_interactive_visible(
             pending_flow: vec![None; fighter_count],
             final_state,
         })
+        .init_resource::<super::stats::DetailedTooltips>()
         .init_resource::<VisibleWindowRequested>()
         .init_resource::<MonitorDiscovery>()
         .insert_resource(VisibleLifetime {
@@ -189,6 +245,45 @@ pub fn run_interactive_visible(
         .map_err(|error| format!("receive final interactive state: {error}"))
 }
 
+/// Runs the local target-practice loop. Escape returns control to the CLI owner.
+pub fn run_practice_visible(seed: u64) -> Result<PracticeExit, String> {
+    let mut simulation = AuthoritativeMatch::practice(seed)?;
+    let initial = simulation.snapshot();
+    let (exit, result) = sync_channel(1);
+    let mut app = App::new();
+    app.add_plugins((DefaultPlugins.set(WindowPlugin {
+        primary_window: None,
+        exit_condition: ExitCondition::DontExit,
+        ..default()
+    }),))
+        .insert_resource(ClearColor(Color::srgb_u8(2, 48, 54)))
+        .insert_resource(SceneSnapshot(initial))
+        .insert_resource(PracticeAuthority {
+            simulation,
+            tick_budget: 0.0,
+            exit,
+        })
+        .init_resource::<super::stats::DetailedTooltips>()
+        .init_resource::<VisibleWindowRequested>()
+        .init_resource::<MonitorDiscovery>()
+        .insert_resource(VisibleLifetime {
+            frames: u32::MAX,
+            shown: false,
+        })
+        .add_systems(Startup, setup_visible_scene)
+        .add_systems(Update, create_monitor_four_window)
+        .add_systems(
+            Update,
+            (verify_monitor_show_and_exit, advance_practice_scene).chain(),
+        );
+    if !app.run().is_success() {
+        return Err("target practice exited before verifying the project display".into());
+    }
+    result
+        .try_recv()
+        .map_err(|error| format!("receive target practice exit: {error}"))
+}
+
 /// Presents one current predicted world corrected from host snapshots.
 pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), String> {
     let closer = handle.clone();
@@ -205,6 +300,7 @@ pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), Stri
             player,
             displayed_snapshot: None,
         })
+        .insert_resource(super::stats::DetailedTooltips::for_player(player))
         .init_resource::<VisibleWindowRequested>()
         .init_resource::<MonitorDiscovery>()
         .insert_resource(VisibleLifetime {
