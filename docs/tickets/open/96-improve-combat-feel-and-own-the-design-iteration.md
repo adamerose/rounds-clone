@@ -65,3 +65,4 @@ Adam — same session, 2026-10-14:
 - 2026-10-14T18:26:17Z stage research start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — compare delivered game feel, research limits and Opus advice.
 - 2026-10-14T18:37:22Z guard session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — put conflict: 1 conflicting hunk(s) against b85ef05e3387
 - 2026-10-14T18:39:47Z Admitted risk 4 by fresh read-only /root/admit_design after the practice and tooltip amendment; no open product decision, depends-on empty. Destination main, direct delivery.
+- 2026-10-14T19:03:00Z stage research end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — complete repeated motion/riding/shot trials and continuing Opus challenge; retain separate native-control limits.
