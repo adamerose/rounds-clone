@@ -75,3 +75,4 @@ Adam — same session, 2026-10-14:
 - 2026-10-14T20:26:36Z stage review start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — prepare frozen range and exact executable/image/input provenance for independent configured Codex CLI review.
 - 2026-10-14T20:49:28Z stage review end session codex:01a13c1d-a008-7db2-b1fe-e091fc2ddeef — changes requested for misplaced close handler leaving practice windowless; complete review receipt retained in quarrel-review-96-01a13b9d-20261014; evidence inventory unchanged.
 - 2026-10-14T20:49:34Z stage correction start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — register practice close handler and regress close events; preserve authority tuning only for newly produced captures, omitting guesses for saved snapshots.
+- 2026-10-14T21:08:42Z stage correction end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — practice close and saved-snapshot tuning provenance fixed with boundary regressions
