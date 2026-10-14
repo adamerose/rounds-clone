@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a13b9d-4094-7da3-9381-8a7815803a02
+status: closed
 created: 2026-10-14T18:26:17Z
 origin: human-request
 tags: ["quarrel", "design", "playtest"]
@@ -79,3 +78,5 @@ Adam — same session, 2026-10-14:
 - 2026-10-14T21:08:52Z stage verify end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — corrected full suite passed 184 tests, format, strict Clippy, locked build and doctests; seven captures read and two legal replay states identical
 - 2026-10-14T21:09:04Z stage review start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — fresh correction review of the complete candidate, prior finding and final evidence
 - 2026-10-14T21:17:27Z stage integration start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — direct origin/main delivery; reviewed 0e04a5d40c7764b0167fe5076acf47be35497e6c..df74af64203d0bce68f0bac5b257a6e742bf0503; metadata-only retargeting and required checks precede publication
+- 2026-10-14T21:37:33Z stage review end session codex:01a13c40-2c9a-7a72-b907-4c4eac6fefaa — approved candidate 0e04a5d40c7764b0167fe5076acf47be35497e6c..df74af64203d0bce68f0bac5b257a6e742bf0503
+- 2026-10-14T21:37:33Z stage integration end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — integrated df74af64203d0bce68f0bac5b257a6e742bf0503 as eadfb51e37d9440dc26aef28f8fd83b352749091
