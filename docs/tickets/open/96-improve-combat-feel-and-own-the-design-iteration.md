@@ -68,3 +68,4 @@ Adam — same session, 2026-10-14:
 - 2026-10-14T19:03:00Z stage research end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — complete repeated motion/riding/shot trials and continuing Opus challenge; retain separate native-control limits.
 - 2026-10-14T19:03:07Z stage verify start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — full supported verifier on practice/tooltips/data candidate with prepared target; serialized links.
 - 2026-10-14T19:39:18Z stage verify end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — fmt, strict Clippy and build passed; full tests found 27 simulation failures tied to changed flight/control assumptions and the practice movement assertion; rendered details obscured gameplay.
+- 2026-10-14T19:39:25Z stage correction start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — fix controlled lab fixtures, preserve terrain momentum and clear tooltip occlusion through rendered evidence.
