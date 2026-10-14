@@ -78,3 +78,4 @@ Adam — same session, 2026-10-14:
 - 2026-10-14T21:08:42Z stage correction end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — practice close and saved-snapshot tuning provenance fixed with boundary regressions
 - 2026-10-14T21:08:52Z stage verify end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — corrected full suite passed 184 tests, format, strict Clippy, locked build and doctests; seven captures read and two legal replay states identical
 - 2026-10-14T21:09:04Z stage review start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — fresh correction review of the complete candidate, prior finding and final evidence
+- 2026-10-14T21:17:27Z stage integration start session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — direct origin/main delivery; reviewed 0e04a5d40c7764b0167fe5076acf47be35497e6c..df74af64203d0bce68f0bac5b257a6e742bf0503; metadata-only retargeting and required checks precede publication
