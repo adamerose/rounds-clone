@@ -61,7 +61,9 @@ pub(super) fn setup_offscreen_scene(
             &mut commands,
             &snapshot.0,
             &details,
-            practice.as_deref().map(|practice| &practice.tuning),
+            practice
+                .as_deref()
+                .and_then(|practice| practice.tuning.as_ref()),
         );
         if practice.is_some() {
             details_toolbar(

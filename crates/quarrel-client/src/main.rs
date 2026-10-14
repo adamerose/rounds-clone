@@ -147,28 +147,13 @@ fn paths_equal(left: &Path, right: &Path) -> bool {
     }
 }
 fn capture(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> {
-    let seed = config.seed;
     let (output, metadata) =
         capture_destinations(args, "--output", "--metadata")?.ok_or("missing --output")?;
-    let state = match optional(args, "--state") {
-        Some(path) => {
-            serde_json::from_slice(&fs::read(&path).map_err(|e| format!("read {path}: {e}"))?)
-                .map_err(|e| format!("decode {path}: {e}"))?
-        }
-        None if args.iter().any(|arg| arg == "--practice") => {
-            let mut session = AuthoritativeMatch::practice(config.seed)?;
-            for _ in 0..ticks {
-                session.step_practice(PlayerInput::default());
-            }
-            session.snapshot()
-        }
-        None => state_after(config, ticks)?,
-    };
+    let (state, tuning) = capture_state(args, config, ticks)?;
     if args.iter().any(|arg| arg == "--practice") {
-        let tuning = AuthoritativeMatch::practice(seed)?.tuning().clone();
         print(render_practice_capture(
             &state,
-            &tuning,
+            tuning.as_ref(),
             args.iter().any(|arg| arg == "--detailed"),
             &output,
             metadata.as_deref(),
@@ -182,9 +167,40 @@ fn capture(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), Strin
         )?)
     }
 }
+
+// A snapshot file has no tuning provenance. Only the same authority that
+// produced a new practice snapshot may supply its base combat values.
+fn capture_state(
+    args: &[String],
+    config: MatchConfig,
+    ticks: u32,
+) -> Result<
+    (
+        quarrel_sim::MatchSnapshot,
+        Option<quarrel_sim::CombatTuning>,
+    ),
+    String,
+> {
+    match optional(args, "--state") {
+        Some(path) => {
+            let state =
+                serde_json::from_slice(&fs::read(&path).map_err(|e| format!("read {path}: {e}"))?)
+                    .map_err(|e| format!("decode {path}: {e}"))?;
+            Ok((state, None))
+        }
+        None if args.iter().any(|arg| arg == "--practice") => {
+            let mut session = AuthoritativeMatch::practice(config.seed)?;
+            for _ in 0..ticks {
+                session.step_practice(PlayerInput::default());
+            }
+            Ok((session.snapshot(), Some(session.tuning().clone())))
+        }
+        None => Ok((state_after(config, ticks)?, None)),
+    }
+}
 fn render_practice_capture(
     state: &quarrel_sim::MatchSnapshot,
-    tuning: &quarrel_sim::CombatTuning,
+    tuning: Option<&quarrel_sim::CombatTuning>,
     detailed: bool,
     output: &Path,
     metadata_path: Option<&Path>,
@@ -629,4 +645,45 @@ fn print(value: impl Serialize) -> Result<(), String> {
         serde_json::to_string(&value).map_err(|e| e.to_string())?
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod capture_source_tests {
+    use super::*;
+
+    #[test]
+    fn saved_snapshot_keeps_its_state_without_inventing_local_tuning() {
+        let mut authority = AuthoritativeMatch::practice(38).unwrap();
+        let state = authority.snapshot();
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = env::temp_dir().join(format!(
+            "quarrel-capture-source-{}-{nonce}.json",
+            std::process::id()
+        ));
+        fs::write(&path, serde_json::to_vec(&state).unwrap()).unwrap();
+        let args = vec![
+            "--practice".into(),
+            "--state".into(),
+            path.to_string_lossy().into_owned(),
+        ];
+        let result = capture_state(&args, MatchConfig::default(), 120);
+        fs::remove_file(&path).unwrap();
+        let (loaded, tuning) = result.unwrap();
+        assert_eq!(hash_snapshot(&loaded), hash_snapshot(&state));
+        assert!(
+            tuning.is_none(),
+            "a snapshot contains no combat tuning provenance"
+        );
+
+        let (live, tuning) =
+            capture_state(&["--practice".into()], MatchConfig::default(), 1).unwrap();
+        assert_eq!(live.tick, 1);
+        assert!(
+            tuning.is_some(),
+            "new practice captures retain their own authority's tuning"
+        );
+    }
 }

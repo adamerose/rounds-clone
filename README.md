@@ -52,6 +52,7 @@ out/cargo-target/debug/quarrel-client capture --practice --ticks 30 --detailed -
 ```
 
 Capture metadata includes executable, PNG and state hashes. `capture --metadata` and scripted `remote --render-output --render-metadata` retain provenance; PNG and metadata paths must differ.
+Loaded snapshot captures show their observed values and card data. They omit base combat values because a snapshot does not contain its tuning source.
 
 Project windows open hidden and appear only after placement on monitor four is verified.
 

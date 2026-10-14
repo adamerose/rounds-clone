@@ -519,3 +519,9 @@ Inspection also found the first default Escape handoff called a second Bevy nati
 Winit 0.30.13's EventLoopBuilder rejects that recreation, and Bevy's native plugin creates a loop for each app.
 The handoff now runs the existing menu command in a fresh process; menu-launched practice still exits to its existing parent.
 Native Escape input remained unavailable after Adam stopped Computer Use, so that final desktop transition is explicitly unverified.
+The first exact independent review refused the candidate because the close handler was registered on visible replay instead of practice.
+With DontExit configured, closing practice left a windowless process and its menu parent waiting.
+The handler is now registered on practice, with a headless WindowClosed regression checking Closed and successful AppExit.
+A separate capture reproduction loaded the old run60 snapshot but displayed new local base values, because capture created a second authority for tuning.
+Capture now keeps new state/tuning from one authority together and carries no inferred tuning for a saved snapshot.
+A source-loading regression and an offline rendered comparison protect that distinction; loaded snapshots retain observed/card values.

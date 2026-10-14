@@ -12,7 +12,7 @@ pub fn render_detailed_png(snapshot: &MatchSnapshot, output: &Path) -> Result<Ve
 
 pub fn render_practice_png(
     snapshot: &MatchSnapshot,
-    tuning: &quarrel_sim::CombatTuning,
+    tuning: Option<&quarrel_sim::CombatTuning>,
     detailed: bool,
     output: &Path,
 ) -> Result<Vec<u8>, String> {
@@ -21,7 +21,7 @@ pub fn render_practice_png(
         output,
         OffscreenView::Match,
         Some(PracticeCapture {
-            tuning: tuning.clone(),
+            tuning: tuning.cloned(),
             detailed,
         }),
         detailed,
@@ -167,7 +167,6 @@ pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
         })
         .add_systems(Startup, setup_visible_scene)
         .add_systems(Update, create_monitor_four_window)
-        .add_systems(Update, close_practice)
         .add_systems(
             Update,
             (verify_monitor_show_and_exit, advance_visible_scene).chain(),
@@ -180,13 +179,11 @@ pub fn run_visible(snapshots: Vec<MatchSnapshot>) -> Result<(), String> {
 
 fn close_practice(
     mut closed: MessageReader<WindowClosed>,
-    authority: Option<Res<PracticeAuthority>>,
+    authority: Res<PracticeAuthority>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if closed.read().next().is_some() {
-        if let Some(authority) = authority {
-            let _ = authority.exit.try_send(PracticeExit::Closed);
-        }
+        let _ = authority.exit.try_send(PracticeExit::Closed);
         exit.write(AppExit::Success);
     }
 }
@@ -272,6 +269,7 @@ pub fn run_practice_visible(seed: u64) -> Result<PracticeExit, String> {
         })
         .add_systems(Startup, setup_visible_scene)
         .add_systems(Update, create_monitor_four_window)
+        .add_systems(Update, close_practice)
         .add_systems(
             Update,
             (verify_monitor_show_and_exit, advance_practice_scene).chain(),
@@ -495,4 +493,37 @@ pub(super) fn create_parent(path: &Path) -> Result<(), String> {
             .map_err(|error| format!("create {}: {error}", parent.display()))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn practice_window_close_reports_closed_and_exits() {
+        let (sender, receiver) = sync_channel(1);
+        let mut app = App::new();
+        app.add_message::<WindowClosed>()
+            .add_message::<AppExit>()
+            .insert_resource(PracticeAuthority {
+                simulation: AuthoritativeMatch::practice(38).unwrap(),
+                tick_budget: 0.0,
+                exit: sender,
+            })
+            .add_systems(Update, close_practice);
+
+        app.world_mut().write_message(WindowClosed {
+            window: Entity::PLACEHOLDER,
+        });
+        app.update();
+
+        assert_eq!(receiver.try_recv().unwrap(), PracticeExit::Closed);
+        assert_eq!(
+            app.world_mut()
+                .resource_mut::<Messages<AppExit>>()
+                .drain()
+                .collect::<Vec<_>>(),
+            vec![AppExit::Success]
+        );
+    }
 }

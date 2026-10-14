@@ -140,7 +140,7 @@ struct PracticeAuthority {
 }
 #[derive(Resource, Clone)]
 struct PracticeCapture {
-    tuning: CombatTuning,
+    tuning: Option<CombatTuning>,
     detailed: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
