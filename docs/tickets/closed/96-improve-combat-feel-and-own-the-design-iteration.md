@@ -81,3 +81,4 @@ Adam — same session, 2026-10-14:
 - 2026-10-14T21:37:33Z stage review end session codex:01a13c40-2c9a-7a72-b907-4c4eac6fefaa — approved candidate 0e04a5d40c7764b0167fe5076acf47be35497e6c..df74af64203d0bce68f0bac5b257a6e742bf0503
 - 2026-10-14T21:37:33Z stage integration end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — integrated df74af64203d0bce68f0bac5b257a6e742bf0503 as eadfb51e37d9440dc26aef28f8fd83b352749091
 - 2026-10-14T21:40:08Z stage verify end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — post-rebase checks passed 184 tests; the cleanup guard identified four crate-local render-test images, now retained with the delivery evidence before exact removal
+- 2026-10-14T21:41:57Z stage integration end session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — exact worktree removed after preserving all delivery evidence, four crate-local render-test images and their empty folder tree; the verified practice bundle is retained on monitor 4
