@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-17T09:16:57Z
 origin: system-detected
 tags: [quarrel, autonomy, verification]
@@ -39,9 +39,10 @@ Establish current-source ordinary and impaired live-match, headless capture/repl
 - Ordinary two-client host/join reaches MatchEnd with matching authoritative hashes and a draft; headless captures show Draft and MatchEnd, and converted legal recording replays to its matching authority hash.
 - Impaired public host/join completes with matching terminal state/scores under the stated impairment.
 - Current visible-flow reaches opening draft, match end, run-back10 and15 with scores/cards retained. Retain frames, exact owned PID/window identities, fresh display inventory and center samples proving zero visible off-monitor game polls. Close only owned processes and confirm successful exit.
-- Record results/limits in the existing goal evidence record or playtest record; applicable docs checks and git diff --check pass, with known installed check-all limitation stated if applicable.
+- Append results and precise limits to docs/playtests/2026-10-14.md under a dated2026-10-17 MVP-flow-refresh section. Raw output/frames/window samples/hashes remain under ignored out/. Do not edit docs/decisions.md or docs/postmortems.md. Applicable docs checks and git diff --check pass, with known installed check-all limitation stated if applicable.
 - Fresh nonauthor exact-candidate CLI review precedes integration/close and exact worktree cleanup. If an evidence step cannot pass, block with precise gap; no fabricated full pass.
 
 ## Work log
 
 - 2026-10-17T09:16:57Z Fresh independent /root/goal_evidence assessed origin/main6dc3ceea: current95 full verifier applies, but simulation change invalidates old ordinary/impaired/visible behavior evidence. Captured minimal refresh without new product decisions or duplicate build.
+- 2026-10-17T09:18:11Z Admitted after fresh /root/shape_docs conditional approval risk2 with its sole required amendment applied: exact existing playtest record pinned, raw proof under ignored out, no shared decision/postmortem journal edits. depends-on95 closed, no operator decision.
