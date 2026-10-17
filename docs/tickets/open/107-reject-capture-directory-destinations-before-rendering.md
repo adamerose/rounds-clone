@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a14b3a-4989-7243-8714-7e5004bba7f3
 created: 2026-10-17T18:55:00Z
 origin: system-detected
 tags: [quarrel, capture, cli, bug]
@@ -7,6 +8,7 @@ value: 5
 risk: 2
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a14b3a-4989-7243-8714-7e5004bba7f3
 execution: unattended
 parent: 105
 depends-on: []
