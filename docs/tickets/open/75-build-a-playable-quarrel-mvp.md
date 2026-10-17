@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 owner: codex:01a148af-57cb-7751-96dc-e93972e0b69f
 created: 2026-10-05T01:09:00Z
 origin: human-request
@@ -30,7 +30,7 @@ split-from: []
 
 Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor described in `GOAL.md`, `docs/game-design.md` and `docs/roadmap.md` milestone M1. This run turns the footage-replay codebase into an ordinary match two people can start and finish, adds the card system and the loser-picks draft, and delegates implementation to Sol workers.
 
-## Blocked
+## Pending first-play evidence
 
 The run ended after a fresh non-author check passed all automated and visible MVP evidence on current main. Only the Steam friend invite between two homes, reserved for Adam's first play session, remains unverified. Goal completion is not claimed. No worker is still running.
 
@@ -57,6 +57,8 @@ Publishing that report is outside this repository and was noticed by the schedul
 - The superseded footage-fidelity queue is closed, and every ticket this run launches is closed or blocked.
 
 ## Decisions
+
+- Resumed 2026-10-17 on Adam's explicit autonomy high drain instruction. Active preset high-drain: up to six useful independent workers, Codex subscription, saved gpt-6-astra medium worker seat and gpt-6.1-sol high review seat. Destination: `main` (standing recorded destination retained; resolver reports unresolved legacy ticket49 delivery, which cannot reroute this run). Launch ceiling90percent; current Codex weekly15percent resets2026-10-22T06:19:26Z. No new deadline supplied; prior invocation deadlines have elapsed. Native Cargo serialized, jobs<=2, reusable out/cargo-target. Resume supplemental useful work62/95 before the fresh goal check; preserve Steam first-play evidence and ticket94/operator report choices as unresolved, without changing their contracts. Previous stop describes the completed prior invocation, so ready here authorizes this renewed scheduling and claims no MVP completion.
 
 - Run resumed 2026-10-13 by this Codex scheduler on Adam's autonomy invocation. Preserve the standing maximum of ten useful independent workers; the Regular preset supplies three by default, overridden by Adam's recorded ten-worker decision. Subscription billing for both families, direct delivery to main, current exact preset seats, and no API billing or reset credits. Claude session 28 percent resets 2026-10-13T06:30:00Z, weekly 42 percent resets 2026-10-17T18:00:00Z; Codex weekly 4 percent resets 2026-10-20T04:58:14Z. Launch ceiling 90 percent per relevant window; run end 2026-10-17T18:00:00Z. Prefer eligible Claude headroom expiring first. Native Cargo remains serialized with the prepared target and two-job cap. No routines configured. Current native display inventory now includes monitor 4 at (364,-1080), 1920x1080, so perform a fresh non-author goal evidence check without relaxing placement. Ticket 94's failed experiment and report publication choice remain isolated from MVP evidence; 62 remains deferred and 95 supplemental.
 
