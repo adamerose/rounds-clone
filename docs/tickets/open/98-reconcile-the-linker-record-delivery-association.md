@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-17T07:42:48Z
 origin: system-detected
 tags: [quarrel, workflow, provenance]
@@ -13,6 +13,8 @@ depends-on: [94, 99, 100, 102]
 supersedes: []
 split-from: []
 ---
+
+# Record delivery-association failure and upstream correction
 
 The ticket helper refuses to associate three reviewed deliveries with the autonomy goal after their integration ranges were rebased around legacy metadata. Record the exact producer mismatch and a concrete upstream proposal without weakening proof or changing history.
 
@@ -40,3 +42,4 @@ Append a concise ticket98/goal75 decision record to docs/decisions.md identifyin
 
 - 2026-10-17T07:42:48Z Filed after the scheduler's one canonical association attempt refused while source ticket94 was closed and its journal delivery was already on origin/main. No source record, receipt or association was changed to bypass the refusal.
 - 2026-10-17T09:38:45Z Read-only /root/admit_replay traced same mechanism through94/100/102 and immutable receipt validation. Folded same-mechanism Scratch facts into contract/evidence, separated unrelated49/59 leads without claiming their resolution. Records-only proposal now depends on99 to serialize the shared journal. Fresh admission pending.
+- 2026-10-17T09:42:06Z Admitted after independent /root/shape_docs conditional approval risk1 with sole required correction applied: restored missing H1 title. Contract complete, no operator decision;99 must close first to serialize shared docs/decisions. Only bounded diagnosis/proposal authorized, no upstream implementation or publication.
