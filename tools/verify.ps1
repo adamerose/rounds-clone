@@ -35,7 +35,7 @@ The script limits how much it competes with the applications someone is using. I
 BelowNormal priority, so compiling and linking yield the processor to them: Windows gives each
 new process the BelowNormal class of the process that creates it, so Cargo, the compiler and the
 linker all inherit it. The script takes back its caller's priority before running the tests, so
-the test executables and the client they launch keep normal scheduling. Their wall-clock network
+the test executables and the product binaries they launch keep normal scheduling. Their wall-clock network
 checks failed under a busy foreground at BelowNormal, and each uses at most about one core.
 
 Linking one Bevy executable takes 5 to 7.5 GB of memory, and two at once exhausted a 32 GB
@@ -45,7 +45,7 @@ configured two. Holding the lock through the tests keeps another checkout's link
 beside them.
 
 Copies stay under out/verify in this checkout: build/ holds the product binaries for smoke and
-capture runs, and test/ holds the test executables and the client they launch. Both, and the
+capture runs, and test/ holds the test executables and the product binaries they launch. Both, and the
 target's debug directory, also get the dynamic libraries build scripts link, such as Steam's
 steam_api64.dll, which the client cannot start without.
 #>
@@ -341,6 +341,7 @@ public static class QuarrelVerifyFile {
 
     $tests = [Collections.Generic.List[object]]::new()
     $client = $null
+    $server = $null
     $lockPath = Join-Path $target 'quarrel-verify.lock'
     $lock = $null
     while (-not $lock) {
@@ -384,6 +385,8 @@ public static class QuarrelVerifyFile {
                 })
             } elseif ($message.target.name -eq 'quarrel-client') {
                 $script:client = Save-Executable $message (Join-Path $snapshot 'test')
+            } elseif ($message.target.name -eq 'quarrel-server') {
+                $script:server = Save-Executable $message (Join-Path $snapshot 'test')
             }
         }
         Save-Record $settings $content $started
@@ -395,6 +398,8 @@ public static class QuarrelVerifyFile {
 
         if (-not $client) { throw 'cargo test --no-run did not report the quarrel-client executable.' }
         $self.PriorityClass = $callerPriority
+        if (-not $server) { throw 'cargo test --no-run did not report the quarrel-server executable.' }
+        $env:QUARREL_TEST_SERVER = $server
         $env:QUARREL_TEST_CLIENT = $client
         $env:RUST_TEST_THREADS = '1'
         $failed = @()

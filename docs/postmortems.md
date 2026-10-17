@@ -596,3 +596,10 @@ During [run 105](http://ivy.localhost/tickets/105?repo=72104b08f3e558c1), both r
 The rounds-* paths exposed the source mismatch before implementation. One finding was discarded; the capture destination finding was revalidated against current quarrel-* code before admission.
 [Ticket 107](http://ivy.localhost/tickets/107?repo=72104b08f3e558c1) reproduced that defect from a fresh detached checkout: capture wrote its PNG before failing to write metadata to an existing directory.
 The existing source instruction was sufficient. No new process rule was needed, and the stale root, earlier experiments and retained proof were left intact.
+
+## Ticket 108 / run 105: corrected reflection provenance
+
+The admission reader for [ticket 109](http://ivy.localhost/tickets/109?repo=72104b08f3e558c1) inferred a human decision from Git's Adam Rose author field.
+The parent checked commits `c56799c8` and `2f7c5848`; both carry Codex `Provider-Session-Id` trailers, so that inference was withdrawn.
+The existing arena-reload reset still prevents fighters being trapped in changed geometry.
+Ticket 109 was abandoned because that rationale remains live, with no behavior change and no invented operator decision.

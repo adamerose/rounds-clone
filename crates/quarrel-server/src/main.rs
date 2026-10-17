@@ -15,6 +15,7 @@ fn run() -> Result<(), String> {
     let config = config(&args)?;
     let bind = argument(&args, "--bind", "127.0.0.1".to_owned())?;
     if args.get(1).is_some_and(|mode| mode == "dedicated") {
+        let trace = trace_path(&args)?;
         let server = LiveServer::bind(format!("{bind}:{port}"))?;
         println!(
             "{{\"event\":\"listening\",\"address\":\"{}\"}}",
@@ -22,17 +23,8 @@ fn run() -> Result<(), String> {
         );
         println!(
             "{}",
-            serde_json::to_string(
-                &server.run(
-                    config,
-                    ticks,
-                    args.iter()
-                        .position(|arg| arg == "--trace")
-                        .and_then(|index| args.get(index + 1))
-                        .map(std::path::Path::new)
-                )?
-            )
-            .map_err(|e| e.to_string())?
+            serde_json::to_string(&server.run(config, ticks, trace.as_deref())?)
+                .map_err(|e| e.to_string())?
         );
         return Ok(());
     }
@@ -46,6 +38,17 @@ fn run() -> Result<(), String> {
         serde_json::to_string(&server.run(config, ticks)?).map_err(|e| e.to_string())?
     );
     Ok(())
+}
+fn trace_path(args: &[String]) -> Result<Option<std::path::PathBuf>, String> {
+    args.iter()
+        .position(|arg| arg == "--trace")
+        .map(|index| {
+            args.get(index + 1)
+                .filter(|value| !value.starts_with('-'))
+                .map(std::path::PathBuf::from)
+                .ok_or_else(|| "missing value for --trace".to_owned())
+        })
+        .transpose()
 }
 fn config(args: &[String]) -> Result<MatchConfig, String> {
     Ok(MatchConfig {

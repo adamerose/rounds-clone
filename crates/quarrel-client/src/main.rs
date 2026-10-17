@@ -447,6 +447,7 @@ fn host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
     let bind = argument(args, "--bind", "127.0.0.1".to_owned())?;
     let port = argument(args, "--port", 0_u16)?;
     let id = argument(args, "--client", 0_u8)?;
+    let trace = trace_path(args)?;
     let server = LiveServer::bind(format!("{bind}:{port}"))?;
     let address = server.local_addr()?;
     println!("{{\"event\":\"listening\",\"address\":\"{address}\"}}");
@@ -461,7 +462,6 @@ fn host(args: &[String], config: MatchConfig, ticks: u32) -> Result<(), String> 
         return host_interactive(server, client, id, config, ticks, headless);
     }
     let server_config = config.clone();
-    let trace = optional(args, "--trace").map(PathBuf::from);
     let authority = std::thread::spawn(move || server.run(server_config, ticks, trace.as_deref()));
     let client = run_live_client(peer, id, config, ticks, headless, false);
     let report = authority
@@ -627,6 +627,17 @@ fn required(args: &[String], name: &str) -> Result<String, String> {
         .and_then(|i| args.get(i + 1))
         .cloned()
         .ok_or_else(|| format!("missing value for {name}"))
+}
+fn trace_path(args: &[String]) -> Result<Option<std::path::PathBuf>, String> {
+    args.iter()
+        .position(|arg| arg == "--trace")
+        .map(|index| {
+            args.get(index + 1)
+                .filter(|value| !value.starts_with('-'))
+                .map(std::path::PathBuf::from)
+                .ok_or_else(|| "missing value for --trace".to_owned())
+        })
+        .transpose()
 }
 fn optional(args: &[String], name: &str) -> Option<String> {
     args.iter()
