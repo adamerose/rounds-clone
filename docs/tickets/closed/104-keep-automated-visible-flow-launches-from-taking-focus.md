@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a1498b-b1b7-7952-b1eb-ec8cbd93c1bf
+status: closed
 created: 2026-10-17T11:05:06Z
 origin: system-detected
 tags: [quarrel, automation, window, bug]
@@ -53,3 +52,5 @@ Correct the owning launch boundary so public visible-flow --automated can render
 - 2026-10-17T11:29:39Z Fresh exact CLI review approved3c131fd4832ed5c378f7916a937b38df8f35302f..d1a986f4a4a72423df9ecca93f3986aac99fdc94 by codex:01a1499c-4387-74f2-8d29-474b1aa5789a, no findings; receipt out/ticket104-focus/review-result.json. Reviewer independently checked attribution/786 samples/five images and reused exact185/full verification; its network refresh unavailable, supplied current ticket/goal exports used. Post-review recursive inventory found only worker review-result.json added, no other output changes, root/worktree statuses unchanged. Direct delivery to main per admitted destination/run75; current high-drain settings agree.
 - 2026-10-17T11:30:52Z stage integration start session codex:01a1498b-b1b7-7952-b1eb-ec8cbd93c1bf — reviewed 3c131fd4832ed5c378f7916a937b38df8f35302f..935ce812c8c015759e37ca6bacdb57a1323baa20 as 93e980ee6e24698bee16f9f3a756ad18fbf66eda..99129e3b5056f775844bb3e9998518598ebbdd3e
 - 2026-10-17T11:32:12Z Integration preparation: equivalent first rebase passed close preflight (push code first), intent recorded. Full verifier repeats per delivery policy. Git rewrote unchanged capture.rs timestamp and triggered presentation-dependent relinks despite zero source-content changes. For final metadata-only rebase, preserve only that file LastWriteTimeUtc after checking SHA256 equality before/after; full normal verifier and its content/artifact guards still run. No source, Cargo flags, dependency cache or target trust changes; this avoids a needless identical relink.
+- 2026-10-17T11:42:06Z stage review end session codex:01a1499c-4387-74f2-8d29-474b1aa5789a — approved candidate 3c131fd4832ed5c378f7916a937b38df8f35302f..935ce812c8c015759e37ca6bacdb57a1323baa20
+- 2026-10-17T11:42:06Z stage integration end session codex:01a1498b-b1b7-7952-b1eb-ec8cbd93c1bf — integrated 935ce812c8c015759e37ca6bacdb57a1323baa20 as 639dc5baf9e5b52f1ab7f427d65dbf73e9c57ba1
