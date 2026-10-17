@@ -1,5 +1,5 @@
 ---
-status: ready
+status: blocked
 owner: codex:01a14920-040a-73f3-88c1-9550be47146b
 created: 2026-10-17T08:50:31Z
 origin: system-detected
@@ -19,6 +19,14 @@ split-from: []
 # Diagnose intermittent welcome timeout in the stale-session test
 
 The unchanged raw UDP fixture in stale_session_and_invalid_hash_are_rejected sometimes times out before it tests stale sessions or invalid hashes. Establish why its welcome is missed and correct the owning boundary, keeping the intended rejection checks.
+
+## Blocked
+
+No causal failure was reproduced. The retained ticket95 timeout has no packet trace, and the independently identified baseline and temporarily instrumented runs all passed. There is no evidence that the original Welcome was lost, consumed, mismatched or late, and no basis to classify this as environment-only.
+
+Resume when a failed run can retain ordered Hello/Welcome send and receive evidence, including peer addresses, nonce, session and times. The temporary instrumentation patch and passing traces are retained at `C:/Users/Adam/AppData/Local/Temp/ivy-ticket101-01a14920-040a-73f3-88c1-9550be47146b`; they are diagnostic material, not a fix. Instrumentation records send completion after the socket call, so a receive can be logged before its corresponding send-completion line.
+
+No source correction or unfinished implementation remains. No pre-fix regression, full-verifier result for a correction, exact-candidate review or delivered SHA exists. The full verifier was conditional on a source correction. No operator product decision is requested; the missing evidence is the blocker.
 
 ## Outcome
 
