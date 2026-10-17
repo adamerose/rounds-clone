@@ -38,5 +38,5 @@ Append a concise ticket98/goal75 decision record to docs/decisions.md identifyin
 
 ## Work log
 
-- 2026-10-17T07:42:48Z Original idea retained the one-shot94 association refusal after its reviewed journal delivery reached origin/main; no bypass or source/receipt mutation.
+- 2026-10-17T07:42:48Z Filed after the scheduler's one canonical association attempt refused while source ticket94 was closed and its journal delivery was already on origin/main. No source record, receipt or association was changed to bypass the refusal.
 - 2026-10-17T09:38:45Z Read-only /root/admit_replay traced same mechanism through94/100/102 and immutable receipt validation. Folded same-mechanism Scratch facts into contract/evidence, separated unrelated49/59 leads without claiming their resolution. Records-only proposal now depends on99 to serialize the shared journal. Fresh admission pending.
