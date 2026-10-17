@@ -1393,3 +1393,99 @@ A disposable standalone Git fixture contained `docs/design-docs/index.html`, `th
 The index linked the theme and used `<a href="../reading.md" target="_top">Reading</a>`: exit 0, `designRecords: valid`.
 Removing only `target="_top"` produced exit 1 and `index.html must open linked project documents in the top frame: ../reading.md`.
 The legacy Markdown error remains unresolved. This records the available check and its limits; it claims no full documentation or repository pass.
+
+## 2026-10-17 — Ticket 98, run #75: delivery association rejects an equivalent final rebase
+
+The reviewed deliveries remain on origin/main with valid close receipts; no delivery proof was lost.
+Canonical association with the autonomy goal remains unavailable for the three required cases:
+[ticket 94](http://ivy.localhost/tickets/94?repo=72104b08f3e558c1),
+[ticket 100](http://ivy.localhost/tickets/100?repo=72104b08f3e558c1) and
+[ticket 102](http://ivy.localhost/tickets/102?repo=72104b08f3e558c1).
+[Ticket 98](http://ivy.localhost/tickets/98?repo=72104b08f3e558c1) records this diagnosis and proposed upstream correction.
+
+The release-matched installed Playbook is the physical location recorded under ticket 99 above.
+Its checks/src/ticket-store.mjs SHA-256 is 4490ef672aafe853cd2cae5a35f5f21bd07181ab87e5d498edf8ce78190e7c08.
+integrationStart (lines 787–835) validates independent review, range equivalence, ownership and destination,
+then records the intended range. Here that legacy ticket write itself advanced main.
+Each worker rebased its unchanged reviewed patch over that metadata commit before publication.
+closeTicket (lines 696–755) permits this equivalent rebase, checks destination ancestry and validates the close;
+its Delivery-Integrated-As trailer records the final range while the closed ticket retains the earlier intent.
+
+associateDelivery validates the receipt and destination, then reads the closed ticket at the receipt commit
+(lines 889–907), rather than using later appended log entries.
+It selects the last start for the receipt's reviewed range and rejects at lines 914–915:
+`start[4] !== integrated` produces `source integration start conflicts with its receipt`.
+All three cases have valid start identities/timestamps and different intended/final ranges, so this exact comparison owns the rejection.
+An append to today's source cannot alter that immutable receipt snapshot; integration-start also requires a ready ticket.
+There is no supported repository-side correction. No association was retried or source/receipt history changed here.
+
+### Reproducible evidence
+
+The goal's helper record preserves the one-shot refusals at 07:42:10Z (94), 08:39:05Z (100) and 09:35:40Z (102), October 17.
+The exact refusal text is `source integration start conflicts with its receipt`.
+The following objects were independently read through the helper and Git; source paths are the closed ticket paths at the receipts.
+For each case, installed rangeDiffErrors returned no errors for reviewed-to-final and intended-to-final ranges.
+This compares commit count and order, messages, and per-file added/removed lines or binary patches, ignoring moved hunk positions and blob IDs.
+reviewIndependenceErrors on each receipt's parent..receipt returned no errors, and each current source preserves its receipt snapshot.
+Every final tip is an ancestor of origin/main at 5c4f160ecda8408705a2a68623885e2282598787.
+Each intended-base..final-base contains exactly its integration-start metadata commit, changing only that ticket's open record.
+
+[Ticket 94](http://ivy.localhost/tickets/94?repo=72104b08f3e558c1):
+
+```text
+source path: docs/tickets/closed/94-keep-a-single-bevy-link-from-exhausting-memory.md
+source blob: b8334e4469be8b068f06208ab5cb2c7342882a52
+receipt:     567d57ccaf66c78a10932ba2b0507fa34ca68529
+closed blob: 668cd976178a3b8d87eec1b28233cafe298d047a
+reviewed:    de84278b1489afffc79c37cffb713e90065f2119..2a131094b6d3357d40d53787fa9a0556bcf6ef72
+intended:    190555c32d5fe06273ab4f393cc36d3bfb0cfc39..45f770a62ac41f16b2278c7ca43c629c2735f6f5
+final:       273cc8f4b04a3b0b050f1df9066ee8d9442b5107..75807e7cc8283cd17b6f4b335ec44816c01efd84
+```
+
+[Ticket 100](http://ivy.localhost/tickets/100?repo=72104b08f3e558c1):
+
+```text
+source path: docs/tickets/closed/100-keep-game-iteration-document-links-outside-the-frame.md
+source blob: 9f7e415332c8d9c1ed46c1d66707a2990473b3fe
+receipt:     b0be3d76de385b80c8d035a3ba0161be01297be5
+closed blob: a889d25378a583bcbf416a9ccc2a856f6de1fd56
+reviewed:    bc97da9932a5bddd89a82a7eb01a280a7d0ca498..762ecf998a490996d6b82c9d76455af1871425c6
+intended:    38bfe2b839ae6acd5952e186faf7bee7c300c067..16de0d1d4117c531ec0fbed9180a2ffb326e1647
+final:       7fb486468d4f9fa34edddcf2c5dd53a66f4aee8e..113dda4db4c9cbd2386b04baae4478a733038503
+```
+
+[Ticket 102](http://ivy.localhost/tickets/102?repo=72104b08f3e558c1):
+
+```text
+source path: docs/tickets/closed/102-record-the-autonomy-scheduling-and-verification-detours.md
+source blob: a5ea716281fde3bead1082e615500c1b8b1016c2
+receipt:     714c72cb2c962a7dd515bd9ae9ee1d4c5061e0c1
+closed blob: 45d70d36805abd364ae3ad8326260852303b0ecb
+reviewed:    9cb865460e56a2f5adaabead3cb297aec81ddee9..e217272c6c050cff68e7678f317b01fd3669dc57
+intended:    4183f72208873e14a154924c30ef148328460965..bf2d9912aaa00e87f2e0a3919c7a3fc1bdd232dc
+final:       90bcfe90562655f83436e7c7cb3d011d097f27f5..f267a9489cb44d4c689eb8136bd7b61c77504c6c
+```
+
+[Ticket 99](http://ivy.localhost/tickets/99?repo=72104b08f3e558c1) is a further independently traced repeat,
+with the same successful equivalence, receipt and ancestry checks and one integration-start metadata commit between bases.
+Its one-shot refusal is retained in the goal's 09:50:44Z entry; this adds no repair scope.
+Receipt 5afa9d1a9f96cfcdf2a48c967c6769ead2e55bb2 and source blob 585f470de251e44ddce4a046205a287c1e789a24
+retain its reviewed, intended and final ranges; the delivered tip is cd6890c1cba1bd14c1a0e1ebe76f235ace344a19.
+The earlier resolver questions for tickets 49 and 59 remain separate; this evidence does not establish a common cause.
+
+### Proposed upstream correction, requiring separate authorization
+
+Ownership belongs to Ivy's ticket-store producer/consumer and review-independence validation in the installed Playbook source.
+A separately authorized Ivy change could use the validated receipt's final range for delivery association when:
+
+- The immutable start names exactly the receipt's reviewed range, with valid identity, time ordering and unambiguous current intent.
+- Independent checks prove both intended and final ranges equivalent to that reviewed range; missing objects or changed commits refuse.
+- Existing close-proof, independent-review, source-prefix, repository/destination ancestry, goal-owner and conflicting-association checks still pass.
+- The association retains the original intended range, timestamp and actor separately from the final receipt range and integration result.
+  It must not relabel the original start as though its actor had recorded the later range.
+
+Upstream regression cases should include a legacy integration-start write followed by an equivalent rebase,
+a direct exact-range delivery, changed content/message/count, missing evidence, malformed or conflicting starts,
+wrong destination or goal ownership, and an immutable receipt followed by later log appends.
+These are proposed validation conditions, not an accepted provider-boundary decision, implementation or external publication.
+No new repository rule or retry bypass is introduced.
