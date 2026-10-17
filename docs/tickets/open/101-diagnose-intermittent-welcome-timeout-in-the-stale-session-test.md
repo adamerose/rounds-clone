@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a14920-040a-73f3-88c1-9550be47146b
 created: 2026-10-17T08:50:31Z
 origin: system-detected
 tags: [quarrel, network, testing]
@@ -7,6 +8,7 @@ value: 4
 risk: 3
 sessions:
   - codex:01a148b3-4215-78f1-b9a5-4ed795348e75
+  - codex:01a14920-040a-73f3-88c1-9550be47146b
 execution: unattended
 parent: 75
 depends-on: []
