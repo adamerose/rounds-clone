@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a148b3-4215-78f1-b9a5-4ed795348e75
 created: 2026-10-12T18:49:42Z
 origin: system-detected
 tags: [quarrel, replay, network]
@@ -7,6 +8,7 @@ value: 5
 risk: 3
 sessions:
   - codex:01a12f11-0715-7b71-b569-474dc68c330e
+  - codex:01a148b3-4215-78f1-b9a5-4ed795348e75
 execution: unattended
 depends-on: []
 supersedes: []
