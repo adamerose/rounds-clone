@@ -1,5 +1,5 @@
 ---
-status: blocked
+status: ready
 created: 2026-10-17T09:16:57Z
 origin: system-detected
 tags: [quarrel, autonomy, verification]
@@ -18,12 +18,6 @@ split-from: []
 # Refresh MVP flow evidence after the replay mass correction
 
 The replay correction changed simulation startup behavior, so the older successful live-match and visible-flow runs no longer represent current product source. Refresh those existing MVP checks with the verified current executable.
-
-## Blocked
-
-The current native capture preflight cannot read the desktop: Graphics.CopyFromScreen returns “The handle is invalid”, and a read-only OpenInputDesktop query at 2026-10-17T09:22:29Z identifies `Screen-saver`. Fresh monitor4 inventory is correct, but no game was launched and no native frames, owned game-window placement samples or current visible run-backs exist. Resume the same contract when normal interactive desktop capture is available; do not switch/unlock desktops or fabricate native proof. This is an environment prerequisite, not a delegated product decision.
-
-Headless ordinary/impaired host/join, Draft/MatchEnd captures and both converted-recording replays passed. Retained evidence: root ignored `out/ticket103-refresh/`. The partial dated playtest update is checkpointed in `.ivy/worktrees/103-refresh-mvp-flow-evidence`; exact SHA/ref follows in the work log. No source, shared journal or Cargo changes. Full installed documentation checks unavailable because check-all expects absent `playbook/skills/flows/SKILL.md`; diff check passed. Fresh exact nonauthor review, visible-flow proof, integration and closure remain outstanding.
 
 ## Outcome
 
@@ -56,3 +50,4 @@ Establish current-source ordinary and impaired live-match, headless capture/repl
 - 2026-10-17T09:20:42Z stage verify start â€” Independent retained95 attribution and public MVP refresh; power sleep/restart active after resolving installed playbook physical root. Direct delivery main; only playtest record will change.
 - 2026-10-17T09:24:24Z stage verify end — Partial headless evidence passed: ordinary/impaired MatchEnd 2-0 full hashes and legal replay match, Draft and MatchEnd captures inspected. Native preflight failed before process launch; active input desktop Screen-saver, Graphics.CopyFromScreen invalid handle. No native proof. Installed check-all ENOENT playbook/skills/flows/SKILL.md; diff and ticket checks pass. Recovery commit 11ba8b505ca929d47b44d3724de196e69f6406ec pushed origin refs/ivy/candidates/103; clean retained worktree C:/_MyFiles/Programming/Projects/rounds-clone/.ivy/worktrees/103-refresh-mvp-flow-evidence. Raw evidence out/ticket103-refresh. No review or integration; blocked until native capture available.
 - 2026-10-17T09:24:43Z Worker exit: ownership released; power helper released successfully, sleep and restart requests inactive. All owned headless processes exited; visible preflight never started a game. Recovery worktree retained for unfinished visible evidence.
+- 2026-10-17T11:01:08Z Scheduler read-only prerequisite probe after about an hour now reports input desktop Default at11:00:51Z. Cleared environment block without contract change to resume original103 session/worktree; capture and current monitor4 preflight still mandatory before any GUI, no visible pass inferred. Reuse matching headless evidence only after current attribution check, no repeated Cargo. All shared/native workers exited.
