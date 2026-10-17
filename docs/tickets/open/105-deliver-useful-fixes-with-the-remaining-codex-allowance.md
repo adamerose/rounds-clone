@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a148af-57cb-7751-96dc-e93972e0b69f
 created: 2026-10-17T18:52:00Z
 origin: human-request
 tags: [quarrel, autonomy, autonomy-goal]
