@@ -1,6 +1,6 @@
 ---
 format: 3
-status: ready
+status: blocked
 owner: codex:01a148b4-9e0c-72d1-ab77-8787238ff7df
 created: 2026-10-02T03:17:15Z
 origin: system-detected
@@ -21,6 +21,10 @@ split-from: []
 
 The checked-in documentation index already links the current project records. Make its existing project-document links open outside the design-record frame so navigation follows the supported documentation layout.
 
+## Blocked
+
+The named check-all.mjs assumes Ivy source files and fails on this project before checking documentation. Fresh independent admission must judge the corrected project-specific evidence below before delivery. No operator product decision is needed.
+
 ## Outcome
 
 - `docs/design-docs/index.html` remains the entry page for current project records. Its links to `game-iteration.html` and `arena-data.html` stay in the design-record frame; its links to `../roadmap.md`, `../game-design.md`, `../playtests/README.md`, `../decisions.md`, and `../postmortems.md` open in the top frame.
@@ -34,7 +38,7 @@ The checked-in documentation index already links the current project records. Ma
 
 ## Evidence required
 
-- On the candidate worktree, `node C:\Users\Adam\.ivy\source-checkouts\ivy-main-repair-20261014-ivy-open\playbook\checks\scripts\check-all.mjs .` passes. This is the release-matched Node-only ticket/documentation checker.
+- The installed ticket-tools.ps1 check . --ticket-ref passes. Run the installed designRecordErrors function on the candidate and its unchanged implementation base: exactly the five index.html outside-frame errors disappear, with no new errors. Its three existing errors (legacy postmortems.md and two game-iteration.html targets) remain outside this five-attribute contract. The check-all.mjs entry point is unavailable for onboarded projects because documentationErrors unconditionally loads playbook/skills.
 - `git diff --check` passes.
 - Review confirms the two internal HTML links lack `_top`, the five existing `../` project-document links have `_top`, and each resolves in the candidate.
 
