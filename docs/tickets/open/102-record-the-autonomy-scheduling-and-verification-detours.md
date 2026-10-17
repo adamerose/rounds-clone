@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a1492e-d3f5-7a73-a23c-66b5cb01a5b5
 created: 2026-10-17T09:10:57Z
 origin: system-detected
 tags: [quarrel, autonomy, evidence]
@@ -7,6 +8,7 @@ value: 3
 risk: 1
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a1492e-d3f5-7a73-a23c-66b5cb01a5b5
 execution: unattended
 parent: 75
 depends-on: [94, 95, 100]
