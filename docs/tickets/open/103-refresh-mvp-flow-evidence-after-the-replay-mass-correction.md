@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a14927-f14b-7e33-a770-82aabc2bc94a
 created: 2026-10-17T09:16:57Z
 origin: system-detected
 tags: [quarrel, autonomy, verification]
@@ -7,6 +8,7 @@ value: 7
 risk: 2
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a14927-f14b-7e33-a770-82aabc2bc94a
 execution: unattended
 parent: 75
 depends-on: [95]
