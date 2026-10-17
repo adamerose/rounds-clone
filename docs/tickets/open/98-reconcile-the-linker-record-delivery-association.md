@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a14945-bd70-7b22-b707-09584bbd2357
 created: 2026-10-17T07:42:48Z
 origin: system-detected
 tags: [quarrel, workflow, provenance]
@@ -7,6 +8,7 @@ value: 3
 risk: 1
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a14945-bd70-7b22-b707-09584bbd2357
 execution: unattended
 parent: 75
 depends-on: [94, 99, 100, 102]
