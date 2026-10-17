@@ -1,5 +1,5 @@
 ---
-status: ready
+status: blocked
 owner: codex:01a14919-7a30-74e1-b46f-fc14f5f5682a
 created: 2026-10-17T07:14:14Z
 origin: system-detected
@@ -19,6 +19,12 @@ split-from: []
 # Verify the native practice-to-menu Escape handoff
 
 Practice is the default entry point and Escape is the route from it to the match menu. The October14 playtest record explicitly leaves that desktop transition unverified, despite passing event-level lifecycle tests.
+
+## Blocked
+
+The current worker has no supported native input route scoped to an exact project window. Inspection of the complete callable tool catalog found no native desktop/computer input tool and no tool-search facility to expose one. The admitted contract explicitly requires stopping here; global keyboard injection, shell-based desktop-control workarounds and headless events cannot supply the missing native proof.
+
+Resume in a session exposing supported scoped native window input. Still required: source/artifact attribution, native Escape transition, practice window/event-loop release, exactly one rendered menu child, both process exits after menu close, lifecycle regressions, and fresh exact-candidate review. No defect has been demonstrated and no product decision is requested.
 
 ## Outcome
 
@@ -44,3 +50,5 @@ Practice is the default entry point and Escape is the route from it to the match
 
 - 2026-10-17T07:14:14Z Bounded reflection found the explicitly unverified native Escape handoff in docs/playtests/2026-10-14.md; idea recorded without claiming a defect or changing product behavior.
 - 2026-10-17T07:16:38Z Admitted after fresh context /root/shape_docs identified and corrected the mistaken parent-process exit expectation, then approved corrected wording risk2. Current Command::status intentionally retains the waiting parent; the evidence checks window/event-loop release and both exits after closing the child. depends-on96 closed; no operator decision open.
+
+- 2026-10-17T09:04:06Z Capability preflight blocked before implementation: complete callable tool inventory exposes no supported scoped native input. No windows/processes launched, Cargo invoked, source/artifact attribution asserted, lifecycle tests run, or native evidence claimed. No code worktree/candidate was created because the explicit capability stop preceded code work; nothing requires checkpoint publication or review. Existing proof, old94 ref/worktree, prepared target and root edits remain unchanged. Initial power-hook alias path failed resolution; physical installed Playbook path succeeded with sleep active and restart active.
