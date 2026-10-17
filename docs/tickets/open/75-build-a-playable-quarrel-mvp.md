@@ -32,21 +32,10 @@ Adam wants a first playable version of QUARREL, the ROUNDS spiritual successor d
 
 ## Pending first-play evidence
 
-The run ended after a fresh non-author check passed all automated and visible MVP evidence on current main. Only the Steam friend invite between two homes, reserved for Adam's first play session, remains unverified. Goal completion is not claimed. No worker is still running.
+The previous invocation independently passed the automated and visible MVP evidence; the two-home Steam friend invite reserved for Adam's first play session remains unverified. This renewed run is delivering supplemental useful work and does not claim the manual Steam outcome.
 
-The check independently matched all 96 non-document inputs and the preserved MSVC binary, reused the complete identical-source ticket86 verification, passed fresh format and ordinary/impaired live checks, and observed opening draft, match end and run-backs to10/15 on monitor4 with scores/cards retained. The game window center stayed on monitor4 in all365 visible samples. No native build or clean target was needed. Evidence is out/autonomy75-goal-check-20261013/goal-check.json and report.md. The exact reviewed journal delivery0ffa4d81f967f97ad68f0d8d3c682f8f62fa965e is on origin/main and this run's journal worktree was removed; root edits remain untouched.
+The linker choice is resolved by closed ticket94: its failed dual-memory-gate experiment is recorded on origin/main, with no linker/debugging change or improvement claim. A reduced-debuginfo or private-commit-only follow-up is not admitted. The prepared external Ivy launcher report remains unpublished; it is outside this repository and is not required for this run.
 
-These two decisions from the previous run are separate from the Steam prerequisite and do not block the automated MVP evidence:
-
-1. What should happen after ticket94's failed link-memory experiment?
-   a. (Recommended) Close the disproved experiment and file a separate idea for reducing dependency debugging information. This does not authorize a reduced-debugging build or its roughly17GiB rebuild.
-   b. Amend and re-admit the gate around private commit while proving actual paging benefit. Portable symbols stay, but paging benefit and the remaining executable/full route are unproved.
-   c. Keep MSVC and accept the observed7-to7.7GB resident memory for a single link.
-2. May the prepared Ivy launcher report be published?
-   a. (Recommended) Publish the concrete workers-inheriting-terminating-Windows-jobs report in adamerose/ivy with the ivy-report label.
-   b. Keep the local draft unpublished: out/autonomy75-goal-check-20261012/ivy-launch-report.md.
-
-Publishing that report is outside this repository and was noticed by the scheduler. The report-ivy-problem skill explicitly requires showing it and asking before filing; no publication was authorized by this autonomy invocation.
 ## Outcome
 
 - Two players can start a QUARREL match from a menu on one machine, over LAN, or online from two homes through a Steam friend invite, pick an opening card, fight on a new random arena every fight to five points with no tied fights, with each fight's loser picking a card, and run it back to 10 and then 15 or start a new match, with no footage replay profile involved.
@@ -200,3 +189,5 @@ Adam — [this session](http://ivy.localhost/sessions/claude/bcbe88ae-0a32-432f-
 - 2026-10-17T07:22:07Z delivery association {"ticket":62,"goal":75,"source":{"repository":"C:\\_MyFiles\\Programming\\Projects\\rounds-clone","remote":"origin","ref":"refs/heads/main","path":"docs/tickets/closed/62-index-the-project-documents-after-ivy-scaffold-recovery.md","blob":"9127a708d1718d69b3575b190c7c1c4f52c992f3","receipt":"5c0c0750a6484b60fe089564ada65eb484c5c412","parent":59},"reviewed":"af73200493863a504fc3ba5605b6da9eeb124ba1..872d0d0d0ee2f3de4570f06505d3ff88f21f407e","integrated":"40a2493b98dfa6f85e3f74f9eba5d34275b8ac5b..fff8358db4065a8559d8b3d1ab256d1a5a8bd16a","by":"codex:01a148af-57cb-7751-96dc-e93972e0b69f"}
 - 2026-10-17T07:22:17Z 62 exited0 and is closed: five frame-navigation attributes delivered to origin/main as fff8358db4065a8559d8b3d1ab256d1a5a8bd16a, fresh exact-range review codex:01a148b7-e962-7c82-a12c-3c2362753988. Ticket checker, seven link/path assertions and diff check passed; exactly five checker errors removed. Original check-all evidence proved unavailable because it loads absent project playbook/skills; worker independently re-admitted scoped comparison evidence and preserved three unrelated baseline errors. No Cargo/GUI. Exact62 worktree removed, root edits preserved. Replay95 still holds native slot;97 queued.
 - 2026-10-17T07:30:15Z Launched94 documentation-only conclusion as Codex Astra medium ordinary run be0522e8-51e3-4954-832d-cbb985a390eb. Fresh independent /root/reflect authority assessment and /root/shape_docs risk1 admission, both corrections applied. No linker trial, Cargo, GUI, capability reduction or gate weakening; preserve old94 worktree/ref/proof/target. Native95 continues alone;97 queued. High-drain six-worker ceiling unchanged; latest Codex weekly19percent resets2026-10-22T06:19:26Z, below90percent. Guard passed and reach withheld; residual outer job containment still observed.
+
+- 2026-10-17T07:42:10Z 94 exited0 closed; journal delivery75807e7cc8283cd17b6f4b335ec44816c01efd84 and close receipt567d57ccaf66c78a10932ba2b0507fa34ca68529 are on origin/main. Fresh exact-range review codex:01a148c8-ea53-7961-bf0a-b527544e6c94. No Cargo/native/GUI or config/cache change; preserved old94 experiment/ref/proof, removed only unique record worktree. Canonical associate94 refused: source integration start conflicts with its receipt. Per skill, logged refusal without retry; no source/receipt mutation or association claim. Removed obsolete linker question from current goal summary. 95 remains sole native worker and97 is queued.
