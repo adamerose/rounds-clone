@@ -1,6 +1,6 @@
 ---
 format: 3
-status: blocked
+status: ready
 owner: codex:01a148b4-9e0c-72d1-ab77-8787238ff7df
 created: 2026-10-02T03:17:15Z
 origin: system-detected
@@ -20,10 +20,6 @@ split-from: []
 # Keep project-document links outside the design-record frame
 
 The checked-in documentation index already links the current project records. Make its existing project-document links open outside the design-record frame so navigation follows the supported documentation layout.
-
-## Blocked
-
-The named check-all.mjs assumes Ivy source files and fails on this project before checking documentation. Fresh independent admission must judge the corrected project-specific evidence below before delivery. No operator product decision is needed.
 
 ## Outcome
 
@@ -49,3 +45,5 @@ The named check-all.mjs assumes Ivy source files and fails on this project befor
 - 2026-10-17T07:12:19Z Current origin/main already contains the useful index; stale inventory/defer premise removed. Fresh context /root/shape_docs approved this exact narrow contract risk1, depends-on empty, no operator decision open. Admission authorizes only five target attributes, no implementation bytes.
 - 2026-10-17T07:13:53Z stage implement start — Detached origin/main worktree; direct delivery to main per run75. Sleep and restart protection active after resolving installed skill junction to physical Playbook root.
 - 2026-10-17T07:15:47Z stage verify end — Exact candidate7af8ad99fa9445626ed46a10c1c0f586954322a1 changes only five target attributes. Ticket checker, seven path/target assertions and diff check pass. Installed designRecordErrors removes exactly five index errors versus base af73200493863a504fc3ba5605b6da9eeb124ba1; three unrelated baseline errors remain. check-all fails at documentation.mjs:135 loading absent playbook/skills; corrected evidence awaits fresh admission. No GUI/Cargo or linked document changes.
+
+- 2026-10-17T07:18:28Z Re-admitted corrected Node evidence at risk1 by independent reviewer codex:01a148b7-e962-7c82-a12c-3c2362753988; no human decision, depends-on empty. Same reviewer approved exact implementation af73200493863a504fc3ba5605b6da9eeb124ba1..7af8ad99fa9445626ed46a10c1c0f586954322a1 with no findings. Both admission and candidate independently checked; no source changes requested. Review receipt: C:\Users\Adam\AppData\Local\Temp\ticket62-01a148b4-9e0c-72d1-ab77-8787238ff7df/codex-review-af7320049386-7af8ad99fa94-949fdaf9d02e.
