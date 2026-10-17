@@ -1,6 +1,5 @@
 ---
 status: blocked
-owner: codex:01a14927-f14b-7e33-a770-82aabc2bc94a
 created: 2026-10-17T09:16:57Z
 origin: system-detected
 tags: [quarrel, autonomy, verification]
