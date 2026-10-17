@@ -4,7 +4,7 @@ created: 2026-10-17T07:50:27Z
 origin: system-detected
 tags: [quarrel, documentation, workflow]
 value: 4
-risk: 2
+risk: 1
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
 execution: unattended
@@ -20,21 +20,24 @@ The installed check-all entry point aborts before documentation checking because
 
 ## Outcome
 
-- Identify an installed documentation-check entry point that works in a normal onboarded repository without copying the Ivy source tree into it, or prepare a concrete upstream repair proposal if none exists.
-- State precisely which checks are available and which remain unavailable. A failed checker must never be treated as a documentation pass, and unrelated baseline document errors must stay visible.
+Record the supported project-facing documentation checker and its actual coverage in docs/decisions.md, under a ticket99/goal75 heading. Use the existing installed tool; no local wrapper, new checker or Ivy repair is needed.
 
 ## Decisions
 
-- Destination for any future project delivery: main. This is an unlaunched idea, not authorization to modify Ivy outside this repository or to publish an external report.
-- check-all.mjs in the release-matched installed Playbook reaches documentation.mjs:135, which tries to load repo/playbook/skills and reports ENOENT here. Tickets62 and94 retain the concrete base/candidate outcomes and their independently admitted evidence substitutions.
-- Do not add an in-repository Playbook clone, blanket suppression, success fallback or broad document conversion merely to make the checker green. Keep this separate from the known five-link repair and the three pre-existing design-record errors.
+- Destination: main. Records-only project delivery; do not change source, tools, configuration, AGENTS.md, existing design records or external Ivy files.
+- The installed playbook/skills/onboard/check-documents.mjs --path <project-or-worktree> is the documented project-facing entrypoint. Resolve its installed physical path from the current skill root, rather than requiring a project-local Playbook checkout.
+- The source-repository aggregate checks/scripts/check-all.mjs loads repo/playbook/skills and repo/playbook/context/AGENTS.md unconditionally. Its ENOENT here reflects the wrong entrypoint, not a project checker defect.
+- Project checker coverage is designRecordErrors: shared-theme/link/frame targets, line length, reachability and forbidden Markdown under docs/design-docs. It is not a complete game/source/ticket checker.
+- Current project checker truthfully rejects the existing legacy docs/design-docs/postmortems.md Markdown-file error. Keep that error visible; do not convert/delete/suppress it in this ticket. Earlier five/two frame-link repairs are already delivered62/100.
+- Do not publish an external report or create a framework/policy file. The decision record prevents repeating the observed wrong-entrypoint verification cost.
 
 ## Evidence required
 
-- Reproduce with a normal onboarded-project fixture and the installed release-matched checker; identify the failing owning line before proposing a correction.
-- An available replacement must perform its documented checks on a project fixture and reject a relevant deliberate documentation fault. If the fix belongs to Ivy, retain the concrete report locally and obtain separate authority before external publication or implementation.
-- Record commands, exit outcomes and actual coverage without claiming a full pass from unavailable checks.
-
+- Verify the installed onboard skill documents this command and inspect its implementation/coverage. Run it against current project-worktree inputs and retain the exact residual legacy error/exit1.
+- Use a disposable documentation fixture to demonstrate the supported checker rejects one relevant deliberate link/frame fault, with a clean fixture passing. Keep it outside tracked source; no permanent test framework required.
+- Record the command, source-repository aggregate limitation, available coverage and existing failure accurately; no full-documentation or full-repository pass claim.
+- Release-matched ticket validation and git diff --check pass. Fresh independent exact-candidate CLI review precedes integration/close; clean only the new owned record worktree. No Cargo/GUI required.
 ## Work log
 
 - 2026-10-17T07:50:27Z Filed after tickets62 and94 independently observed the same absent-project-playbook failure and preserved truthful narrower evidence. No checker, suppression, project document or external repository was changed by this idea.
+- 2026-10-17T09:37:26Z Read-only /root/shape_docs found the existing documented onboard/check-documents.mjs public entrypoint and reproduced its truthful residual error. Shaped records-only delivery, risk1; no upstream repair or product decision needed. Fresh admission pending.
