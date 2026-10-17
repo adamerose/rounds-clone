@@ -1,5 +1,5 @@
 ---
-status: blocked
+status: ready
 created: 2026-10-17T09:10:57Z
 origin: system-detected
 tags: [quarrel, autonomy, evidence]
@@ -18,9 +18,6 @@ split-from: []
 
 The current autonomy run repeated expensive verification after two workers appended to the same decision journal. Record what happened and what restored trustworthy evidence so the next run can avoid the same cost.
 
-## Blocked
-
-Scheduler-only contract amendment awaiting fresh re-admission: add the newly found ticket96 guard judgment to the same journal delivery. No operator decision is open.
 ## Outcome
 
 Append concise factual entries to docs/postmortems.md for the significant departures in the October17 run, including the scheduler's shared-file scheduling mistake and the related verification detours. Preserve existing journal entries and distinguish known causes from unresolved evidence limitations.
@@ -48,3 +45,4 @@ Append concise factual entries to docs/postmortems.md for the significant depart
 - 2026-10-17T09:10:57Z Captured the scheduler's acknowledged shared-record overlap and evidence detours; the corrective scheduling is already active. Queue behind101 to avoid repeating it.
 - 2026-10-17T09:13:12Z Admitted as written after fresh nonauthor /root/shape_docs contract check: risk1, dependencies closed, no operator decision. Explicit scheduler hold behind101 and every known native/shared-record writer remains binding.
 - 2026-10-17T09:16:07Z Returned to blocked for a bounded contract addition from final guard audit: 92 tickets/two guard occurrences,59 already judged and96 newly unjudged. Fresh admit_replay inspected96/Git and judged it routine with unknown deeper cause; no code scope added. Worker101 exited blocked/no source change, so native/shared-record slot is free.
+- 2026-10-17T09:17:20Z Re-admitted after fresh /root/shape_docs exact amended-contract check risk1, no operator decision. Native101 exited; existing all-native/shared-writer gate now holds launch behind newly shaped103 flow-evidence refresh, with no scope change.
