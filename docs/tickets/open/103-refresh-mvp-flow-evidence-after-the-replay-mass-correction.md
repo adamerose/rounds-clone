@@ -1,5 +1,5 @@
 ---
-status: blocked
+status: ready
 created: 2026-10-17T09:16:57Z
 origin: system-detected
 tags: [quarrel, autonomy, verification]
@@ -18,12 +18,6 @@ split-from: []
 # Refresh MVP flow evidence after the replay mass correction
 
 The replay correction changed simulation startup behavior, so the older successful live-match and visible-flow runs no longer represent current product source. Refresh those existing MVP checks with the verified current executable.
-
-## Blocked
-
-Resume cleared the Screen-saver limitation, but the public automated visible launch became the foreground window. Owned PID83648/HWND3413098 stayed on monitor4; watcher recorded foreground=true. The exact game window was closed upon observing this and process exited0 at tick10230. Raw189 frames and189 placement samples are retained in root out/ticket103-refresh/resume-visible; they do not satisfy the unfocused-launch contract. No source correction is authorized in this evidence-only ticket. Safe unfocused launch needs separately owned correction before a new visible run, exact nonauthor review, integration and closure. No operator product decision is requested.
-
-All retained source/executable hashes still match, so earlier ordinary/impaired/headless proof is reused without Cargo or duplicate runs. Existing original recovery ref refs/ivy/candidates/103 remains untouched. Resumed checkpoint and clean retained worktree are recorded in the work log. Project-facing docs checker reports the known root legacy Markdown error; diff check passes.
 
 ## Outcome
 
@@ -59,3 +53,4 @@ Establish current-source ordinary and impaired live-match, headless capture/repl
 - 2026-10-17T11:01:08Z Scheduler read-only prerequisite probe after about an hour now reports input desktop Default at11:00:51Z. Cleared environment block without contract change to resume original103 session/worktree; capture and current monitor4 preflight still mandatory before any GUI, no visible pass inferred. Reuse matching headless evidence only after current attribution check, no repeated Cargo. All shared/native workers exited.
 - 2026-10-17T11:03:57Z Resume verify ended blocked: exact unchanged attributed executable captured 189 on-monitor4 samples, all foreground=true. Closed exact owned PID83648/HWND3413098 on observing violation; exit0 at tick10230. Placement passed, unfocused launch failed; no native contract pass or source correction. Original refs/ivy/candidates/103 preserved. Recovery ce603319c515c324d377c6167ae7281c23078b30 pushed refs/ivy/candidates/103-resume; clean retained .ivy/worktrees/103-refresh-mvp-flow-evidence. Diff check passed; project docs checker has known legacy root Markdown error. No review or main integration. Power acquire unavailable: no unique live Codex session writer.
 -  delivered automated-only focus correction and exact current full185/native892-safe-sample proof. Added104 as prerequisite; outcome/evidence contract unchanged, fresh re-admission requested before clearing block. Final currentclient hash bb5398d63235342caef7760cfa9614e5b3b52a4b3d1e8b58d41416dd516fa47d in root out/ticket104-focus/final-build. Refresh own headless evidence against finalclient and independently validate/reuse exact native104 proof; no duplicate Cargo/native run without new concern. Original103 checkpoint/ref retained.
+- 2026-10-17T11:45:26Z Re-admitted risk2 after fresh independent /root/goal_evidence verifies104 closed/current43 inputs/exact finalclient and native892-safe-sample proof. Cleared obsolete focus block, dependencies95/104 closed, no operator decision. Currentclient headless refresh and validated native proof reuse satisfy same outcomes without redundant GUI/Cargo; original103 session resumes its own worktree for record/review/delivery.
