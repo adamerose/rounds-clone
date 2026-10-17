@@ -1,6 +1,5 @@
 ---
 status: blocked
-owner: codex:01a14919-7a30-74e1-b46f-fc14f5f5682a
 created: 2026-10-17T07:14:14Z
 origin: system-detected
 tags: [quarrel, practice, verification]
