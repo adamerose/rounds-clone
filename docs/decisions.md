@@ -1323,3 +1323,34 @@ The pinned toolchain's bundled `rust-lld.exe` does not keep a single Bevy link u
 The image used was the toolchain's own `lib\rustlib\x86_64-pc-windows-msvc\bin\rust-lld.exe`, and no `/DEBUG:FASTLINK` was passed. Symbols stay portable: with System32 DbgHelp 10.0.26100.9444, both the baseline and candidate copied executable/PDB pairs resolve `quarrel_client::main` and `bevy_app::app::App::run` with source lines, and `quarrel_sim::arena_data::ArenaDefinition` and `bevy_ecs::world::World` with type information. The heaviest baseline link, the `quarrel-presentation` unit-test executable (7,721,877,504 bytes of working set, 4,310,970,368 of private commit), was not relinked with rust-lld. One unit already failing the gate decides the result, and another 7 GB link would only add paging on the host. Raw evidence, the monitor and the symbol probe are in the main checkout's `out/ticket094proof`.
 
 This closure does not admit a reduced-debuginfo or private-commit-only follow-up; either would require a separate decision and contract.
+
+## 2026-10-17 — Ticket 95, run #75: replay fighter mass
+
+[Ticket 95](http://ivy.localhost/tickets/95?repo=72104b08f3e558c1) was admitted by fresh context `/root/admit_replay` at risk 3.
+The contract was bounded and checkable, had no open operator decision or dependency, and required conversion completeness before a product fix.
+That admission approved the investigation, not implementation bytes.
+
+The retained impaired trace is complete for this replay: all 1,200 applied input vectors, including three draft confirmations, equal the recording.
+The pinned content equals a fresh recording from the retained, hash-verified source assets; the host used the same seed and target score.
+Hashes use compact raw replay stdout with only trailing CR/LF removed. JSON parsing and reserialization must not stand in for that byte contract.
+
+`PhysicsBoundary::new` created fighter colliders from density, but live startup's `watch_tuning_file` immediately set explicit mass.
+The formulas rounded differently: inverse mass was 0.16441624 in replay and 0.16441625 after live initialization.
+Both the retained MSVC client and an unfixed current-source probe reproduced the reported tick-99 and tick-100 hashes.
+At tick 100 the first snapshot difference is loose object 1305's rotation, 0.01760505 in authority versus 0.017605051 in replay.
+At tick 99, fighter 0 is at x=217.035, just beyond radius 22 from the box's right edge near x=195; the next step brings them into contact.
+The earlier snapshots agree because the mass difference is latent until that contact; snapshots do not include internal mass properties.
+
+Construction and stance changes now use the existing live tuning expression, `PI * radius.powi(2) * density`.
+This preserves the live startup calculation and crouch's constant-mass intent while removing the replay initialization difference.
+The boundary regression first failed on the exact inverse-mass difference, then passed; it also checks mass through crouch and standing again.
+The corrected current-source simulation reproduces every one of the 1,200 retained authority hashes with unchanged input and content.
+The freshly built public client also matches authority at ticks 1, 99, 100 and 1,200; `public-replay.json` records raw stdout and executable hashes.
+No trace conversion correction, new recording format, or network design change is needed.
+
+Reproduction fixtures remain in `out/autonomy75-goal-check-20261012` in the root checkout.
+Run the verified client with `replay --input <fixture>` for `replay-prefix-99.json`, `replay-prefix-100.json`, and `impaired.replay.json`.
+The corrected tick-99 hash remains `eee5a4e50c333a879eed48b0372991b3c10d147cafc960a9fb5835ff38d7f6bb`.
+Tick 100 must now hash to the authority's `effbd25b9e37a476436421820d6bc40a0a7f80ac4df6530aa95ce15d9cfe635d`.
+Evidence and the temporary all-ticks probe are retained under `%TEMP%/ivy-ticket095-01a148b3-4215-78f1-b9a5-4ed795348e75`.
+This proves replay with pinned starting content; input-only recordings do not encode live asset changes.

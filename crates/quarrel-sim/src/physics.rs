@@ -178,7 +178,12 @@ impl PhysicsBoundary {
                         .ccd_enabled(true)
                         .can_sleep(false),
                     ColliderBuilder::ball(tuning.player_radius)
-                        .density(tuning.player_density)
+                        // Match live tuning's explicit mass, including f32 rounding.
+                        .mass(
+                            std::f32::consts::PI
+                                * tuning.player_radius.powi(2)
+                                * tuning.player_density,
+                        )
                         .friction(tuning.player_friction)
                         .restitution(tuning.player_restitution),
                 );
@@ -533,7 +538,7 @@ impl PhysicsBoundary {
             true,
         );
         // Keep mass independent of crouch so impulses have the same strength.
-        collider.set_mass(std::f32::consts::PI * radius * radius * self.tuning.player_density);
+        collider.set_mass(std::f32::consts::PI * radius.powi(2) * self.tuning.player_density);
         player.collider = self.rapier.colliders.insert_with_parent(
             collider,
             player.body,
@@ -995,3 +1000,29 @@ fn distributed_spawns(count: usize, arena: &ArenaDefinition, radius: f32) -> Vec
 }
 mod combat;
 pub use combat::*;
+
+#[cfg(test)]
+mod replay_mass_tests {
+    use super::*;
+
+    #[test]
+    fn initial_fighter_mass_matches_unchanged_live_tuning() {
+        let arena =
+            ArenaDefinition::load(&default_arena_directory().join("all-kinds.ron")).unwrap();
+        let tuning = CombatTuning::default();
+        let mut physics = PhysicsBoundary::new(2, &arena, tuning.clone());
+        let collider = physics.players[0].collider;
+        let initial = physics.rapier.colliders[collider].mass_properties();
+        physics.update_tuning(tuning);
+        assert_eq!(
+            initial,
+            physics.rapier.colliders[collider].mass_properties()
+        );
+        physics.set_crouch(0, true);
+        let crouched = physics.rapier.colliders[physics.players[0].collider].mass_properties();
+        assert_eq!(initial.inv_mass, crouched.inv_mass);
+        physics.set_crouch(0, false);
+        let standing = physics.rapier.colliders[physics.players[0].collider].mass_properties();
+        assert_eq!(initial, standing);
+    }
+}
