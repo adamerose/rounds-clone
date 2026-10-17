@@ -1,6 +1,5 @@
 ---
 status: blocked
-owner: codex:01a14920-040a-73f3-88c1-9550be47146b
 created: 2026-10-17T08:50:31Z
 origin: system-detected
 tags: [quarrel, network, testing]
