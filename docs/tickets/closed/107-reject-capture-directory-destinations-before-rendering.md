@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a14b3a-4989-7243-8714-7e5004bba7f3
+status: closed
 created: 2026-10-17T18:55:00Z
 origin: system-detected
 tags: [quarrel, capture, cli, bug]
@@ -55,3 +54,5 @@ Reject an existing directory supplied as either capture output or metadata desti
 - 2026-10-17T19:20:09Z Fresh CLI review approved exact pre-trailer940c06ef1651d9c3fa8f042242c61f88a7df0a11, reviewer codex:01a14b4b-d683-7992-8f76-5867a99311cb; receipt out/ticket107-directory-destinations/review-result.json. All43 recorded source hashes and attributed binary copies checked. Reviewer ticket-helper refresh was network-blocked, retained current admitted107/goal105 exports used. Post-rebase full verifier passed all186 tests. Current direct delivery and Sol6.1 high preset refreshed; supported live budget95 eligible89percent, explicit goal100 ceiling remains. No files or GUI artifacts from reviewer. Preparing equivalent main integration.
 - 2026-10-17T19:20:18Z stage integration start session codex:01a14b3a-4989-7243-8714-7e5004bba7f3 — reviewed 62c55297533f7031847cb3829a1e45814f60f66e..6154e55d90cb5b08a3d3888aaae70be06f302750 as 12d679ca17bf84e81bc8c5c69688edec36365fd5..c66962ef5ee85ec9e034232fdad1a4e2e080d3fe
 - 2026-10-17T19:40:06Z stage integration start session codex:01a14b3a-4989-7243-8714-7e5004bba7f3 — reviewed 62c55297533f7031847cb3829a1e45814f60f66e..6154e55d90cb5b08a3d3888aaae70be06f302750 as c87128ca3d7bd72954ad624869f9987434ed9c7c..f8130fb01238919522548a29c591d36f005fedd5
+- 2026-10-17T19:40:11Z stage review end session codex:01a14b4b-d683-7992-8f76-5867a99311cb — approved candidate 62c55297533f7031847cb3829a1e45814f60f66e..6154e55d90cb5b08a3d3888aaae70be06f302750
+- 2026-10-17T19:40:11Z stage integration end session codex:01a14b3a-4989-7243-8714-7e5004bba7f3 — integrated 6154e55d90cb5b08a3d3888aaae70be06f302750 as f8130fb01238919522548a29c591d36f005fedd5
