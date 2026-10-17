@@ -44,3 +44,4 @@ A fresh public host/join check completed with matching live client and authority
 - 2026-10-12T18:49:42Z Recorded supplemental reproducible hash mismatch from the fresh MVP check. No cause, live score disagreement or user-visible defect claimed; not admitted or launched in this run.
 
 - 2026-10-17T07:10:46Z Admitted after fresh read-only non-author context /root/admit_replay approved the corrected contract at risk3: conversion completeness is a first investigation step, Scratch folded into evidence, dependencies empty and no operator decision open. Admission approves no implementation bytes.
+- 2026-10-17T07:12:18Z stage research start — acquired sleep and restart protection; initial alias-relative power-helper paths unavailable, resolved installed playbook path succeeded. Conversion completeness and raw public replay reproduction first.
