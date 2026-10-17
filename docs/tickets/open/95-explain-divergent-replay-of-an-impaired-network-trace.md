@@ -27,7 +27,7 @@ A fresh public host/join check completed with matching live client and authority
 
 ## Decisions
 
-- Destination for any future delivery: main.
+- Destination: main.
 - This is a supplemental investigation outside the required MVP evidence; live scores agree and no user-visible impact or cause has been established.
 - Preserve the existing host-authoritative online model. docs/decisions.md pins starting tuning, cards and arenas for recordings, and rejects peer rollback for this MVP; this observation does not reopen that design.
 
