@@ -1,5 +1,5 @@
 ---
-status: idea
+status: closed
 created: 2026-10-17T19:10:53Z
 origin: system-detected
 tags: [quarrel, simulation, hot-reload, bug]
@@ -16,7 +16,7 @@ split-from: []
 
 # Preserve fighter motion when reloading an arena
 
-Saving a valid arena edit teleports active fighters to spawn and clears their velocity, including when only an object's color changed. Keep the ongoing fight continuous while replacing the edited arena.
+Closed as an abandoned idea, with no implementation or delivery. The proposed motion-preserving reload conflicted with the current documented geometry-safety policy; a cosmetic-only complaint did not establish a correctness defect or justify a new overlap policy.
 
 ## Outcome
 
