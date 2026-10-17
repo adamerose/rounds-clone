@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-09T05:10:37Z
 origin: agent-proposed
 tags: ["quarrel", "build", "performance"]
@@ -21,7 +21,7 @@ The bundled rust-lld experiment failed the original working-set gate even though
 
 ## Outcome
 
-- The existing failure rationale from checkpoint `b50bed74d1a66cf5800d549384d3fd9e3f7a3ceb` is recorded in `docs/decisions.md` on main, with the original acceptance failure stated explicitly.
+- The measured failure rationale from checkpoint `b50bed74d1a66cf5800d549384d3fd9e3f7a3ceb` is reconciled into `docs/decisions.md` on main. Retain the measurements, failed dual gate, unchanged linker, unrun presentation candidate and proof location. Replace its obsolete reference to ticket94's Blocked section with: This closure does not admit a reduced-debuginfo or private-commit-only follow-up; either would require a separate decision and contract.
 - The ticket closes as a disproved experiment. It makes no claim that link memory, paging, or developer responsiveness improved.
 - The raw proof `out/ticket094proof`, named checkpoint `refs/ivy/candidates/94`, existing experiment worktree and reusable shared target remain available and unchanged.
 
@@ -37,7 +37,7 @@ The bundled rust-lld experiment failed the original working-set gate even though
 
 - Inspect the retained measurement/symbol reports and checkpoint patch; confirm the recorded numbers and that main still has no linker override. No remeasurement or large artifact copy is needed.
 - Fresh non-author exact-candidate review confirms only the existing failure rationale is reconciled into docs/decisions.md, no original gate is declared passed, and all preserved paths/configurations remain untouched.
-- The release-matched ticket checker and git diff --check pass. For the journal-only candidate compare the installed documentation checker with its unchanged base; no new documentation errors are allowed. The current check-all.mjs entry point is known unavailable in onboarded projects because it loads absent project playbook/skills; state baseline errors explicitly instead of claiming a full checker pass.
+- Run the release-matched ticket checker and git diff --check. Run check-all.mjs against the unchanged base and candidate only to record the same known absent-project-playbook failure; treat documentation checking as unavailable and do not claim it passed or that it proved no new documentation errors.
 - Integrate the reviewed journal delivery and close through the helper against its exact ranges. Preserve the existing experiment worktree/proof/reference; clean only the new record worktree.
 
 ## Historical experiment contract (failed, retained without weakening)
@@ -81,3 +81,5 @@ The bundled rust-lld experiment failed the original working-set gate even though
 - 2026-10-12T19:37:17Z checkpoint preservation: final primary proof found refs/ivy/candidates/94 absent despite the worker record. The exact b50bed74d1a66cf5800d549384d3fd9e3f7a3ceb checkpoint was still reachable as the clean registered94 worktree HEAD; no work was lost. Primary created that exact named reference with a zero-old-value guard. No checkpoint bytes, branch, configuration, contract or ticket status changed;94 remains blocked and worktree retained.
 
 - 2026-10-17T07:26:36Z Fresh read-only context /root/reflect confirmed closure of the disproved experiment is technical delegation, not capability reduction. Amended at idea for fresh admission of documentation-only conclusion; no linker/symbol/build changes authorized. Original acceptance retained as failed historical evidence.
+
+- 2026-10-17T07:29:02Z Admitted after fresh context /root/shape_docs verified retained proof/checkpoint/config and approved risk1 with two corrections now applied: reconcile stale Blocked-reference wording, and report check-all documentation proof unavailable. depends-on91/93 closed, no operator decision open. Documentation-only closure cannot change acceptance or reduce symbols.
