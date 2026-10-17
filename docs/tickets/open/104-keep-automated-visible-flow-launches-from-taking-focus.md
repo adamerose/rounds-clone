@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-17T11:05:06Z
 origin: system-detected
 tags: [quarrel, automation, window, bug]
@@ -44,3 +44,4 @@ Correct the owning launch boundary so public visible-flow --automated can render
 ## Work log
 
 - 2026-10-17T11:05:06Z103 resumed after desktop became Default and reproduced foreground focus with on-monitor4 placement. Captured bounded launch correction; no source edit by scheduler.103 checkpointce603319c515c324d377c6167ae7281c23078b30/ref refs/ivy/candidates/103-resume and clean worktree retained.
+- 2026-10-17T11:07:03Z Admitted as written after independent /root/shape_docs source/contract check risk3, no operator decision. Identified application boundary create_monitor_four_window in rounds-presentation lib.rs: hidden Window uses default focused=true, mapped by Bevy/Winit to active before visibility. Shared manual/live routine means fix must apply only to automated visible-flow; retained103 proof covers failure before. Depends95 closed; sole native slot free.
