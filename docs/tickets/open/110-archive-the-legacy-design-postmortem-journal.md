@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a14b51-ef77-71c0-8c23-f14fc1d38437
 created: 2026-10-17T19:18:36Z
 origin: system-detected
 tags: [quarrel, documentation, archive]
@@ -7,6 +8,7 @@ value: 3
 risk: 1
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a14b51-ef77-71c0-8c23-f14fc1d38437
 execution: unattended
 parent: 105
 depends-on: []
