@@ -1,5 +1,5 @@
 ---
-status: ready
+status: blocked
 owner: codex:01a14927-f14b-7e33-a770-82aabc2bc94a
 created: 2026-10-17T09:16:57Z
 origin: system-detected
@@ -19,6 +19,12 @@ split-from: []
 # Refresh MVP flow evidence after the replay mass correction
 
 The replay correction changed simulation startup behavior, so the older successful live-match and visible-flow runs no longer represent current product source. Refresh those existing MVP checks with the verified current executable.
+
+## Blocked
+
+The current native capture preflight cannot read the desktop: Graphics.CopyFromScreen returns “The handle is invalid”, and a read-only OpenInputDesktop query at 2026-10-17T09:22:29Z identifies `Screen-saver`. Fresh monitor4 inventory is correct, but no game was launched and no native frames, owned game-window placement samples or current visible run-backs exist. Resume the same contract when normal interactive desktop capture is available; do not switch/unlock desktops or fabricate native proof. This is an environment prerequisite, not a delegated product decision.
+
+Headless ordinary/impaired host/join, Draft/MatchEnd captures and both converted-recording replays passed. Retained evidence: root ignored `out/ticket103-refresh/`. The partial dated playtest update is checkpointed in `.ivy/worktrees/103-refresh-mvp-flow-evidence`; exact SHA/ref follows in the work log. No source, shared journal or Cargo changes. Full installed documentation checks unavailable because check-all expects absent `playbook/skills/flows/SKILL.md`; diff check passed. Fresh exact nonauthor review, visible-flow proof, integration and closure remain outstanding.
 
 ## Outcome
 
@@ -48,4 +54,4 @@ Establish current-source ordinary and impaired live-match, headless capture/repl
 
 - 2026-10-17T09:16:57Z Fresh independent /root/goal_evidence assessed origin/main6dc3ceea: current95 full verifier applies, but simulation change invalidates old ordinary/impaired/visible behavior evidence. Captured minimal refresh without new product decisions or duplicate build.
 - 2026-10-17T09:18:11Z Admitted after fresh /root/shape_docs conditional approval risk2 with its sole required amendment applied: exact existing playtest record pinned, raw proof under ignored out, no shared decision/postmortem journal edits. depends-on95 closed, no operator decision.
-- 2026-10-17T09:20:42Z stage verify start — Independent retained95 attribution and public MVP refresh; power sleep/restart active after resolving installed playbook physical root. Direct delivery main; only playtest record will change.
+- 2026-10-17T09:20:42Z stage verify start â€” Independent retained95 attribution and public MVP refresh; power sleep/restart active after resolving installed playbook physical root. Direct delivery main; only playtest record will change.
