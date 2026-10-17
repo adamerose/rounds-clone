@@ -16,6 +16,8 @@ fn capture_renders_the_ordinary_opening_draft_with_provenance() {
     let dir = fresh_directory();
     let output = dir.join("draft.png");
     let metadata_path = dir.join("metadata.json");
+    fs::write(&output, b"old image").unwrap();
+    fs::write(&metadata_path, b"old metadata").unwrap();
     let executable = test_client();
     let result = Command::new(&executable)
         .args(["capture", "--seed", "38", "--ticks", "0", "--output"])
@@ -128,6 +130,57 @@ fn capture_and_remote_reject_output_aliases_before_rendering_or_connecting() {
         assert_eq!(fs::read(&sentinel).unwrap(), b"preserve this file");
     }
     fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn capture_and_remote_reject_directory_destinations_before_work() {
+    let dir = fresh_directory();
+    let directory = dir.join("destination");
+    fs::create_dir(&directory).unwrap();
+    let sentinel = directory.join("sentinel");
+    fs::write(&sentinel, b"preserve directory contents").unwrap();
+    let paired = dir.join("paired");
+    for (mode, output_flag, metadata_flag) in [
+        ("capture", "--output", "--metadata"),
+        ("remote", "--render-output", "--render-metadata"),
+    ] {
+        for directory_flag in [metadata_flag, output_flag] {
+            for existing_pair in [false, true] {
+                if existing_pair {
+                    fs::write(&paired, b"preserve paired file").unwrap();
+                }
+                let (output, metadata) = if directory_flag == output_flag {
+                    (&directory, &paired)
+                } else {
+                    (&paired, &directory)
+                };
+                // No remote address: even a regression cannot start network work.
+                let result = Command::new(test_client())
+                    .args([mode, "--seed", "38", "--ticks", "0", output_flag])
+                    .arg(output)
+                    .arg(metadata_flag)
+                    .arg(metadata)
+                    .output()
+                    .unwrap();
+                assert!(!result.status.success());
+                let error = String::from_utf8_lossy(&result.stderr);
+                assert!(
+                    error.contains(&format!("{directory_flag} destination is a directory:")),
+                    "{mode}: {error}"
+                );
+                assert!(directory.is_dir());
+                assert_eq!(fs::read(&sentinel).unwrap(), b"preserve directory contents");
+                assert_eq!(fs::read_dir(&directory).unwrap().count(), 1);
+                if existing_pair {
+                    assert_eq!(fs::read(&paired).unwrap(), b"preserve paired file");
+                    fs::remove_file(&paired).unwrap();
+                } else {
+                    assert!(!paired.exists());
+                }
+            }
+        }
+    }
+    fs::remove_dir_all(dir).unwrap();
 }
 
 fn test_client() -> std::path::PathBuf {

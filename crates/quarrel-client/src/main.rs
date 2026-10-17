@@ -115,6 +115,14 @@ fn capture_destinations(
         }
         _ => {}
     }
+    for (flag, path) in [(output_flag, &output), (metadata_flag, &metadata)] {
+        if let Some(path) = path.as_ref().filter(|path| path.is_dir()) {
+            return Err(format!(
+                "{flag} destination is a directory: {}",
+                path.display()
+            ));
+        }
+    }
     Ok(output.map(|output| (output, metadata)))
 }
 fn resolved_path(path: &Path) -> Result<PathBuf, String> {

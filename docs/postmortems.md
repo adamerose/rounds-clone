@@ -589,3 +589,10 @@ The full normal verifier passed format, strict all-target Clippy, locked build, 
 The supported documentation checker still reports the shared root's existing legacy Markdown error; no full documentation pass is claimed.
 This native before/after check exercises the Windows activation boundary; a field-only unit assertion would merely repeat the configuration.
 Steam friend-invite play and native practice Escape were not exercised, and ticket 103's worktree and record remain separate.
+
+## Ticket 107: current-source check caught stale reflection input
+
+During [run 105](http://ivy.localhost/tickets/105?repo=72104b08f3e558c1), both reflection readers initially inspected stale local main despite the instruction to use fetched origin/main.
+The rounds-* paths exposed the source mismatch before implementation. One finding was discarded; the capture destination finding was revalidated against current quarrel-* code before admission.
+[Ticket 107](http://ivy.localhost/tickets/107?repo=72104b08f3e558c1) reproduced that defect from a fresh detached checkout: capture wrote its PNG before failing to write metadata to an existing directory.
+The existing source instruction was sufficient. No new process rule was needed, and the stale root, earlier experiments and retained proof were left intact.
