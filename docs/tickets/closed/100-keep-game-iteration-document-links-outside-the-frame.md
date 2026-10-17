@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a148fb-3fe1-7eb2-b374-bf714f99b8fd
+status: closed
 created: 2026-10-17T08:27:06Z
 origin: system-detected
 tags: [quarrel, documentation, navigation]
@@ -45,3 +44,5 @@ Two links in the Game iteration design record open project Markdown documents in
 - 2026-10-17T08:32:03Z stage verify end — exact-byte/path/label/index assertions and diff check passed; installed designRecordErrors base 3 to candidate 1, exactly two top-frame errors removed, legacy postmortems.md error unchanged. Ticket checker passed. No broad checker, Cargo or GUI run; required scope is contract evidence.
 - 2026-10-17T08:33:00Z stage review start — fresh Codex CLI exact-candidate review; current preset Sol6.1 high, normal budget endpoint eligible at 33percent weekly below90. Candidate f5c3350; only two navigation attributes; root status unchanged.
 - 2026-10-17T08:35:28Z stage integration start session codex:01a148fb-3fe1-7eb2-b374-bf714f99b8fd — reviewed bc97da9932a5bddd89a82a7eb01a280a7d0ca498..762ecf998a490996d6b82c9d76455af1871425c6 as 38bfe2b839ae6acd5952e186faf7bee7c300c067..16de0d1d4117c531ec0fbed9180a2ffb326e1647
+- 2026-10-17T08:36:30Z stage review end session codex:01a148fd-f072-7703-bf9d-eae1451807cc — approved candidate bc97da9932a5bddd89a82a7eb01a280a7d0ca498..762ecf998a490996d6b82c9d76455af1871425c6
+- 2026-10-17T08:36:30Z stage integration end session codex:01a148fb-3fe1-7eb2-b374-bf714f99b8fd — integrated 762ecf998a490996d6b82c9d76455af1871425c6 as 113dda4db4c9cbd2386b04baae4478a733038503
