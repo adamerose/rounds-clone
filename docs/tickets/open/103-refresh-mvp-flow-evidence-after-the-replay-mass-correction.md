@@ -1,5 +1,5 @@
 ---
-status: ready
+status: blocked
 owner: codex:01a14927-f14b-7e33-a770-82aabc2bc94a
 created: 2026-10-17T09:16:57Z
 origin: system-detected
@@ -19,6 +19,12 @@ split-from: []
 # Refresh MVP flow evidence after the replay mass correction
 
 The replay correction changed simulation startup behavior, so the older successful live-match and visible-flow runs no longer represent current product source. Refresh those existing MVP checks with the verified current executable.
+
+## Blocked
+
+Resume cleared the Screen-saver limitation, but the public automated visible launch became the foreground window. Owned PID83648/HWND3413098 stayed on monitor4; watcher recorded foreground=true. The exact game window was closed upon observing this and process exited0 at tick10230. Raw189 frames and189 placement samples are retained in root out/ticket103-refresh/resume-visible; they do not satisfy the unfocused-launch contract. No source correction is authorized in this evidence-only ticket. Safe unfocused launch needs separately owned correction before a new visible run, exact nonauthor review, integration and closure. No operator product decision is requested.
+
+All retained source/executable hashes still match, so earlier ordinary/impaired/headless proof is reused without Cargo or duplicate runs. Existing original recovery ref refs/ivy/candidates/103 remains untouched. Resumed checkpoint and clean retained worktree are recorded in the work log. Project-facing docs checker reports the known root legacy Markdown error; diff check passes.
 
 ## Outcome
 
