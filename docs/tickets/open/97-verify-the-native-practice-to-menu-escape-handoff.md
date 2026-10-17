@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-17T07:14:14Z
 origin: system-detected
 tags: [quarrel, practice, verification]
@@ -20,7 +20,7 @@ Practice is the default entry point and Escape is the route from it to the match
 
 ## Outcome
 
-- Establish whether Escape from visible native practice launches exactly one working menu window/process and releases the practice window/process without an extra retained event loop.
+- Establish whether Escape from visible native practice starts exactly one working menu child window/process and releases the practice window and native event loop, with the original practice process waiting only for that child's exit.
 - Correct only a reproduced defect in that existing handoff, preserving the current practice and menu flows. If the route works, deliver the bounded evidence record without a product change.
 
 ## Decisions
@@ -34,10 +34,11 @@ Practice is the default entry point and Escape is the route from it to the match
 ## Evidence required
 
 - Retain source/executable/content identity, invocation, practice/menu PID identities, process lineage, window identities/placement before and after Escape, and a successful visible menu render.
-- Show exactly one menu child and no retained practice process/window after the transition, then close the exact owned menu and verify its exit. Do not touch other project/user processes.
+- Show exactly one menu child/window and no retained practice window or native event loop after the transition. Record that the original practice process may remain only as the menu child's waiting parent; after closing the exact owned menu, verify both child and parent exit successfully. Do not touch other processes.
 - Run the existing headless practice close/menu-route regressions. If code changes, preserve a smallest reliable boundary regression and complete the normal verification route; if only evidence changes, the release-matched Node documentation checker and git diff --check pass.
 - A fresh non-author context reviews the exact evidence/code candidate. State unavailable evidence explicitly and never call native desktop proof passed from event-level tests alone.
 
 ## Work log
 
 - 2026-10-17T07:14:14Z Bounded reflection found the explicitly unverified native Escape handoff in docs/playtests/2026-10-14.md; idea recorded without claiming a defect or changing product behavior.
+- 2026-10-17T07:16:38Z Admitted after fresh context /root/shape_docs identified and corrected the mistaken parent-process exit expectation, then approved corrected wording risk2. Current Command::status intentionally retains the waiting parent; the evidence checks window/event-loop release and both exits after closing the child. depends-on96 closed; no operator decision open.
