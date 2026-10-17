@@ -10,7 +10,7 @@ sessions:
   - codex:01a14927-f14b-7e33-a770-82aabc2bc94a
 execution: unattended
 parent: 75
-depends-on: [95]
+depends-on: [95, 104]
 supersedes: []
 split-from: []
 ---
@@ -58,3 +58,4 @@ Establish current-source ordinary and impaired live-match, headless capture/repl
 - 2026-10-17T09:24:43Z Worker exit: ownership released; power helper released successfully, sleep and restart requests inactive. All owned headless processes exited; visible preflight never started a game. Recovery worktree retained for unfinished visible evidence.
 - 2026-10-17T11:01:08Z Scheduler read-only prerequisite probe after about an hour now reports input desktop Default at11:00:51Z. Cleared environment block without contract change to resume original103 session/worktree; capture and current monitor4 preflight still mandatory before any GUI, no visible pass inferred. Reuse matching headless evidence only after current attribution check, no repeated Cargo. All shared/native workers exited.
 - 2026-10-17T11:03:57Z Resume verify ended blocked: exact unchanged attributed executable captured 189 on-monitor4 samples, all foreground=true. Closed exact owned PID83648/HWND3413098 on observing violation; exit0 at tick10230. Placement passed, unfocused launch failed; no native contract pass or source correction. Original refs/ivy/candidates/103 preserved. Recovery ce603319c515c324d377c6167ae7281c23078b30 pushed refs/ivy/candidates/103-resume; clean retained .ivy/worktrees/103-refresh-mvp-flow-evidence. Diff check passed; project docs checker has known legacy root Markdown error. No review or main integration. Power acquire unavailable: no unique live Codex session writer.
+-  delivered automated-only focus correction and exact current full185/native892-safe-sample proof. Added104 as prerequisite; outcome/evidence contract unchanged, fresh re-admission requested before clearing block. Final currentclient hash bb5398d63235342caef7760cfa9614e5b3b52a4b3d1e8b58d41416dd516fa47d in root out/ticket104-focus/final-build. Refresh own headless evidence against finalclient and independently validate/reuse exact native104 proof; no duplicate Cargo/native run without new concern. Original103 checkpoint/ref retained.
