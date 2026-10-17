@@ -1354,3 +1354,42 @@ The corrected tick-99 hash remains `eee5a4e50c333a879eed48b0372991b3c10d147cafc9
 Tick 100 must now hash to the authority's `effbd25b9e37a476436421820d6bc40a0a7f80ac4df6530aa95ce15d9cfe635d`.
 Evidence and the temporary all-ticks probe are retained under `%TEMP%/ivy-ticket095-01a148b3-4215-78f1-b9a5-4ed795348e75`.
 This proves replay with pinned starting content; input-only recordings do not encode live asset changes.
+
+## 2026-10-17 — Ticket 99, run #75: the supported project documentation check
+
+Use the installed onboard skill's `check-documents` helper for this project's HTML documentation.
+[Ticket 99](http://ivy.localhost/tickets/99?repo=72104b08f3e558c1) records the verification scope.
+The current skill root `C:/Users/Adam/.codex/skills/ivy` resolves to
+`C:/Users/Adam/.ivy/source-checkouts/ivy-main-repair-20261014-ivy-open/playbook/skills`.
+Resolve that installed location again after an installation change; no project-local Playbook checkout is required.
+The onboard skill documents these entrypoints beside its `SKILL.md` (the PowerShell launcher is its Windows route):
+
+```text
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <physical-skills-root>/onboard/check-documents.ps1 --path <project-or-worktree>
+node <physical-skills-root>/onboard/check-documents.mjs --path <project-or-worktree>
+```
+
+`checkProjectDocuments` resolves the Git common directory to the integration root, then calls `designRecordErrors` there.
+Passing a linked worktree therefore checks the shared root's current files, including its uncommitted files, rather than that worktree's candidate bytes.
+Inspect the JSON `root` before attributing a result to a candidate. A disposable standalone Git fixture checks its own files.
+
+Coverage includes the design site's index, shared theme references, local link and asset existence, frame targets,
+180-character HTML line limit, HTML reachability from the index, and forbidden Markdown and non-regular entries under `docs/design-docs`.
+It does not validate game code or tickets, fetch remote links, check fragment IDs, or prove rendered appearance.
+An absent design-record directory produces no errors; a passing result alone does not prove a documentation site exists.
+
+The installed `checks/scripts/check-all.mjs` is the Ivy source-repository aggregate.
+Its `documentationErrors` loads `playbook/skills` and later `playbook/context/AGENTS.md` from the supplied repository.
+Those source files are absent here, so its earlier ENOENT was an entrypoint mismatch, not a defect requiring a new project checker.
+
+Verification on October 17 used the installed Node entrypoint with the owned worktree as `--path`.
+It reported the shared project root and exit 1 with exactly this existing error:
+
+```text
+Markdown remains in docs/design-docs: postmortems.md; journals and reading belong outside the HTML site
+```
+
+A disposable standalone Git fixture contained `docs/design-docs/index.html`, `theme.css` and `docs/reading.md`.
+The index linked the theme and used `<a href="../reading.md" target="_top">Reading</a>`: exit 0, `designRecords: valid`.
+Removing only `target="_top"` produced exit 1 and `index.html must open linked project documents in the top frame: ../reading.md`.
+The legacy Markdown error remains unresolved. This records the available check and its limits; it claims no full documentation or repository pass.
