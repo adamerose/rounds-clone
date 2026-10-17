@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a1493b-3018-7fd0-8478-9bc19bc5c639
 created: 2026-10-17T07:50:27Z
 origin: system-detected
 tags: [quarrel, documentation, workflow]
@@ -7,6 +8,7 @@ value: 4
 risk: 1
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a1493b-3018-7fd0-8478-9bc19bc5c639
 execution: unattended
 parent: 75
 depends-on: []
