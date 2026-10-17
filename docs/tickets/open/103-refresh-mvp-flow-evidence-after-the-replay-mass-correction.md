@@ -48,3 +48,4 @@ Establish current-source ordinary and impaired live-match, headless capture/repl
 
 - 2026-10-17T09:16:57Z Fresh independent /root/goal_evidence assessed origin/main6dc3ceea: current95 full verifier applies, but simulation change invalidates old ordinary/impaired/visible behavior evidence. Captured minimal refresh without new product decisions or duplicate build.
 - 2026-10-17T09:18:11Z Admitted after fresh /root/shape_docs conditional approval risk2 with its sole required amendment applied: exact existing playtest record pinned, raw proof under ignored out, no shared decision/postmortem journal edits. depends-on95 closed, no operator decision.
+- 2026-10-17T09:20:42Z stage verify start — Independent retained95 attribution and public MVP refresh; power sleep/restart active after resolving installed playbook physical root. Direct delivery main; only playtest record will change.
