@@ -25,7 +25,7 @@ Move docs/design-docs/postmortems.md unchanged to docs/legacy/postmortems.md and
 ## Decisions
 
 - Destination: main. Exact allowed candidate paths are old journal removal, new archive file and one index link. No canonical docs/postmortems.md, docs/decisions.md, source, tool, config, theme or guidance edits.
-- Source baseline inspected at origin/mainf6268a1c3ac70076b8297f1d5c6189099c700701: legacy138177bytes/173entries, canonical79755bytes/41entries. Legacy contains unique August history; it is not a redundant duplicate to delete.
+- Source baseline inspected at origin/mainf6268a1c3ac70076b8297f1d5c6189099c700701: legacy138178bytes/173entries, canonical79756bytes/41entries. Legacy contains unique August history; it is not a redundant duplicate to delete.
 - Add relative href ../legacy/postmortems.md with target=_top and label Archived postmortems beside the canonical ../postmortems.md link. Preserve canonical link behavior and current HTML formatting rules.
 - Archive path has the same depth as the original, preserving parent-relative references. Inspect outgoing relative links before moving; if the move would newly break a formerly resolvable same-directory link, stop for a bounded contract amendment instead of rewriting historical prose or claiming preservation.
 - Native107 currently owns canonical journals/Cargo. This exact-path records-only job can run independently because it edits neither those journals nor native source and runs no Cargo/GUI. Routine facts stay in its ticket log; a new consequential judgment requiring a shared journal is outside this narrow contract and must wait for serialization.
@@ -43,3 +43,4 @@ Move docs/design-docs/postmortems.md unchanged to docs/legacy/postmortems.md and
 ## Work log
 
 - 2026-10-17T19:18:36Z Read-only admit_replay feasibility pass found unique historical content and safe same-depth archive path; no existing remote incoming links to the old path. Records-only exact scope avoids the active native worker's canonical journal.
+- 2026-10-17T19:22:07Z Independent current_sim_reflect admission check verified exact current Git blobs; corrected initial byte-count readings to138178/79756, preserving legacy blob2ab2c344ae1f8251ebb55a10b1843a7a8583fe8f. No scope or historical artifact changed. All other contract points judged complete at9c6193c3cb266a8fc35ba7971a02da9db4ebe9f0.
