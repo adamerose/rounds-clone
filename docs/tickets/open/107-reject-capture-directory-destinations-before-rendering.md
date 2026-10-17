@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-17T18:55:00Z
 origin: system-detected
 tags: [quarrel, capture, cli, bug]
@@ -44,3 +44,4 @@ Reject an existing directory supplied as either capture output or metadata desti
 ## Work log
 
 - 2026-10-17T18:55:00Z Bounded reflection yielded one current-source capture validation defect. Runtime reader discarded its stale rematch finding after rechecking exact origin/main. No code changed by scheduler; fresh admission pending.
+- 2026-10-17T18:56:21Z Admitted after independent /root/drain_runtime_reflect current-origin source and contract check: risk2, no dependencies or operator decision. Resolver boundary precedes capture/remote work, public regressions preserve sentinels/valid captures/aliases, no atomic-framework expansion. Sole native slot free; no shared journal writer overlaps.
