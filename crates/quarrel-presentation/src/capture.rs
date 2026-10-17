@@ -329,6 +329,7 @@ pub fn run_live_visible(handle: LiveClientHandle, player: u8) -> Result<(), Stri
 pub(super) fn create_monitor_four_window(
     mut commands: Commands,
     monitors: Query<(Entity, &Monitor)>,
+    authority: Option<Res<InteractiveAuthority>>,
     mut requested: ResMut<VisibleWindowRequested>,
     mut discovery: ResMut<MonitorDiscovery>,
     mut exit: MessageWriter<AppExit>,
@@ -369,6 +370,8 @@ pub(super) fn create_monitor_four_window(
             resolution: (FRAME_WIDTH, FRAME_HEIGHT).into(),
             position: WindowPosition::Centered(MonitorSelection::Entity(monitor_entity)),
             visible: false,
+            // Winit retains this creation-time choice when the hidden window is shown.
+            focused: !authority.is_some_and(|authority| authority.automated),
             ..default()
         },
         PrimaryWindow,

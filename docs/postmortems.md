@@ -561,3 +561,31 @@ The scheduler recorded each refusal without retrying or changing its source reco
 The installed `check-all.mjs` aborted on absent `playbook/skills`, so it supplied no documentation pass.
 The narrower design-record check used by the navigation repairs removed the targeted link errors; one unrelated legacy Markdown error remained after ticket 100.
 [Ticket 99](http://ivy.localhost/tickets/99?repo=1302a5de74680c84) owns the unavailable project-checker follow-up. No checker suppression or upstream repair was made in this run.
+
+## 2026-10-17 — Automated visible-flow took foreground focus
+
+[Ticket 104](http://ivy.localhost/tickets/104?repo=72104b08f3e558c1) corrects the launch defect found while refreshing ticket 103's evidence.
+The retained reproduction in `out/ticket103-refresh/resume-visible` has 189 foreground samples for PID 83648, HWND 3413098.
+All window centers were on monitor 4, but the launch violated the standing instruction to leave the operator's foreground alone.
+The old watcher aborted on incorrect placement but only recorded focus, so it continued after the violation.
+
+`create_monitor_four_window` in `crates/quarrel-presentation/src/capture.rs` created a hidden `Window` with default `focused: true`.
+Bevy 0.19.1 passes that field to Winit's `with_active`; Winit 0.30.13 stores `MARKER_ACTIVATE` and selects `SW_SHOW` on first visibility.
+Automated interactive launches now set that field false before creation, selecting `SW_SHOWNOACTIVATE`.
+The existing hidden placement checks remain, and ordinary manual, menu, practice and live launches keep their previous focus behavior.
+No focus restoration, native input injection, unrelated-window manipulation or new process rule was added.
+
+The corrected public command was `visible-flow --seed 38 --ticks 18000 --automated`, run from the verified candidate.
+The fresh input desktop was Default, capture succeeded, and monitor index 3 had bounds `(364,-1080)-(2284,0)`.
+Starting foreground identity was PID 7444/HWND 16843698; the game was PID 71488/HWND 58791604.
+The updated exact-process watcher kills its own process immediately upon a focus or placement violation.
+All 786 visible observations were on monitor 4 and none was foreground; the process exited 0 at tick 18000.
+Inspected frames show opening draft, 5–0 match end, retained 5–0 scores/cards at target 10, 10–0 match end and retained scores/cards at target 15.
+Final output records two run-backs, scores `[10,0]`, target 15 and retained loadouts of one and eleven cards.
+
+Evidence, watcher, all frames, selected images, executable and source attribution remain in `out/ticket104-focus`.
+`build/quarrel-client.exe` has SHA-256 `297ec294e07483343fb09a87fb1f0f2a921a854202e5b8aa0ed9d4ef6c7ed803`.
+The full normal verifier passed format, strict all-target Clippy, locked build, doctests and all 185 executable tests.
+The supported documentation checker still reports the shared root's existing legacy Markdown error; no full documentation pass is claimed.
+This native before/after check exercises the Windows activation boundary; a field-only unit assertion would merely repeat the configuration.
+Steam friend-invite play and native practice Escape were not exercised, and ticket 103's worktree and record remain separate.

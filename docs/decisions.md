@@ -1489,3 +1489,15 @@ a direct exact-range delivery, changed content/message/count, missing evidence, 
 wrong destination or goal ownership, and an immutable receipt followed by later log appends.
 These are proposed validation conditions, not an accepted provider-boundary decision, implementation or external publication.
 No new repository rule or retry bypass is introduced.
+
+## 2026-10-17 — Ticket 104, run #75: create automated windows without activation
+
+[Ticket 104](http://ivy.localhost/tickets/104?repo=72104b08f3e558c1) uses the existing interactive authority's `automated` flag
+to set `Window.focused` before native creation. Manual interactive, menu, practice and live launches retain their existing focus behavior.
+The window still starts hidden, and the existing monitor and center checks run before it becomes visible.
+Bevy passes this field to Winit's `with_active`; on Windows, false selects `SW_SHOWNOACTIVATE` for the first show.
+
+The retained native reproduction and corrected public command are the regression evidence.
+A unit assertion on the configured field would repeat the implementation without exercising Windows activation.
+The exact-process watcher instead records foreground and placement observations and kills its own process immediately on a violation.
+It never restores focus, injects native input or manipulates another application's windows.
