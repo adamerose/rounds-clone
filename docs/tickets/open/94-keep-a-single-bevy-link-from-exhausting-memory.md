@@ -1,5 +1,5 @@
 ---
-status: blocked
+status: idea
 created: 2026-10-09T05:10:37Z
 origin: agent-proposed
 tags: ["quarrel", "build", "performance"]
@@ -12,33 +12,44 @@ parent: 75
 depends-on: [91, 93]
 supersedes: []
 split-from: []
-risk: 4
+risk: 1
 ---
 
-# Keep a single Bevy link from exhausting memory
+# Record the disproved single-link memory experiment
 
-A single MSVC debug link of this workspace peaks at 5 to 7.5 GB and can page Adam's applications out when only about 4 GB is free. Test the pinned toolchain's bundled rust-lld before selecting it, keeping ordinary portable debug symbols and complete verification.
-
-## Blocked
-
-The memory gate failed, so no linker configuration was delivered and `.cargo/config.toml` is unchanged. Linking `quarrel-client` with the bundled rust-lld halved private commit (2,298,753,024 vs 4,931,825,664 bytes) but not working set (7,155,937,280 vs 7,189,938,176 bytes), against a 3,500,000,000-byte cap and a 0.5x-baseline limit on both. rust-lld keeps portable symbols: 4/4 DbgHelp queries pass on both pairs. Raw evidence is in the main checkout's `out/ticket094proof`. The `docs/decisions.md` entry is on the checkpoint `refs/ivy/candidates/94` (b50bed7) and is not yet on main.
-
-Questions for Adam:
-
-1. What should happen next with link memory?
-   a. (Recommended) Close this ticket as disproved and file a separate idea for reducing dependency debuginfo (for example `debug = "line-tables-only"` for non-workspace packages), which needs your approval because it reduces debugging capability and rebuilds about 17 GiB of dependencies. That is the remaining lever that shrinks what any linker must read.
-   b. Amend the gate to judge private commit instead of working set and re-admit. rust-lld then passes on `quarrel-client` (0.47x), because its working set is mostly reclaimable file-backed input mappings. It still needs the presentation-test comparison and the full verification route. Lower risk to symbols, but whether it actually stops Adam's applications being paged out is unproven.
-   c. Keep link.exe and accept the current 7 to 7.7 GB single link.
-
+The bundled rust-lld experiment failed the original working-set gate even though private commit fell and full portable symbols passed. Preserve that measured result on main and close the experiment without delivering a linker change or rebuilding the prepared target.
 
 ## Outcome
+
+- The existing failure rationale from checkpoint `b50bed74d1a66cf5800d549384d3fd9e3f7a3ceb` is recorded in `docs/decisions.md` on main, with the original acceptance failure stated explicitly.
+- The ticket closes as a disproved experiment. It makes no claim that link memory, paging, or developer responsiveness improved.
+- The raw proof `out/ticket094proof`, named checkpoint `refs/ivy/candidates/94`, existing experiment worktree and reusable shared target remain available and unchanged.
+
+## Decisions
+
+- Destination: main. This is a documentation-only conclusion under goal75's delegated technical authority; the failed original gate is retained below as historical evidence, not rewritten into a pass.
+- Client rust-lld working set was 7,155,937,280 bytes versus link.exe 7,189,938,176 (0.995x), failing both the 3,500,000,000-byte cap and 0.5x baseline limit. Private commit was 2,298,753,024 versus 4,931,825,664 (0.466x); 4/4 DbgHelp portable-symbol queries passed. Those partial successes do not authorize linker delivery.
+- No Cargo command, native process, GUI, rebuild, artifact cleanup or change to .cargo/config.toml, code, toolchain, profiles, symbols, debuginfo, target, dependencies or verification scripts. Do not run the unperformed presentation-candidate/full route merely to close an already-failed gate.
+- Use a distinct newly owned detached worktree for this record delivery. Do not alter the preserved experiment worktree .ivy/worktrees/094-keep-a-single-bevy-link-from-exhausting-memory or its checkpoint. The prior owning experiment session was claude:fbdac464-eb9e-4af5-9cb8-6896fca1ba9e; the checkpoint's one-file rationale is the source, not an approved patch to integrate blindly.
+- Reduced dependency debuginfo remains an operator decision because it reduces debugging capability and changes about17GiB of compilation artifacts. No follow-up is admitted by this closure. Do not weaken acceptance to private commit or claim a paging benefit.
+
+## Evidence required
+
+- Inspect the retained measurement/symbol reports and checkpoint patch; confirm the recorded numbers and that main still has no linker override. No remeasurement or large artifact copy is needed.
+- Fresh non-author exact-candidate review confirms only the existing failure rationale is reconciled into docs/decisions.md, no original gate is declared passed, and all preserved paths/configurations remain untouched.
+- The release-matched ticket checker and git diff --check pass. For the journal-only candidate compare the installed documentation checker with its unchanged base; no new documentation errors are allowed. The current check-all.mjs entry point is known unavailable in onboarded projects because it loads absent project playbook/skills; state baseline errors explicitly instead of claiming a full checker pass.
+- Integrate the reviewed journal delivery and close through the helper against its exact ranges. Preserve the existing experiment worktree/proof/reference; clean only the new record worktree.
+
+## Historical experiment contract (failed, retained without weakening)
+
+### Original outcome
 
 - Ordinary Windows developer commands, tools/verify.ps1 and CI use the pinned bundled rust-lld through .cargo/config.toml, with no extra installation or caller PATH change.
 - A complete warm verification run that relinks workspace executables keeps the simultaneous build-process working set at or below 3,500,000,000 bytes. Each selected executable's rust-lld lifetime peak working set and private commit are each at most that cap and half the corresponding same-target link.exe baseline.
 - Matching executable/PDB pairs preserve portable full symbols: one workspace and one Bevy function resolve with source file and line, and one workspace and one Bevy concrete type resolve with type information.
 - Complete verification passes; jobs = 2, the canonical shared out/cargo-target, profiles, debuginfo, dependencies and feature sets remain unchanged.
 
-## Decisions
+### Original decisions
 
 - Destination: main. Only linker selection may change compilation, through [target.x86_64-pc-windows-msvc] linker = "rust-lld.exe". No FASTLINK, profile/debuginfo changes, RUSTFLAGS, extra link arguments or dependency changes. Update the verify script's linker-memory explanation, README's Cargo configuration note and docs/decisions.md when they become false.
 - Begin only after the sole native worker slot is released. Trials use the Git-common-directory-derived shared target, its existing quarrel-verify.lock, the compiler priority used by tools/verify.ps1 and --jobs 1; preserve the repository's two-job cap. Check for overlapping project Cargo, rustc, clippy-driver and linker writers before and after.
@@ -46,12 +57,13 @@ Questions for Adam:
 - On discovery, sampling, memory, symbols or full-verification failure, deliver no linker configuration. Restore pre-trial tracked configuration and scoped environment in finally, and invalidate this checkout's verification attribution record. Preserve reusable trial artifacts; do not delete the target or run a redundant rebuild to roll back. Record the demonstrated failure in the ticket and docs/decisions.md, then block on that reason. Reduced dependency debugging capability remains a separate operator decision; failure does not authorize it.
 - Before old worktrees next verify, rebase them onto the delivered configuration so they do not switch the shared target's linker back and rebuild dependencies. Integrate only when no other native writer is verifying.
 
-## Evidence required
+### Original evidence required
 
 - Measure one baseline/candidate pair for quarrel-client and the executable with the highest observed baseline peak only if it is different: at most four selected-unit compilations/links. Record package, target selector (binary/test/example), profile, features and complete commands. Use identical inputs, --locked, --jobs 1 and final-unit arguments -- -C linker=link.exe versus -- -C linker=rust-lld.exe. Retain verbose/JSON Cargo evidence that dependencies were fresh and both linkers ran. Unexpected dependency rebuilding is preparation, not the warm comparison. Prove rust-lld's observed image path belongs to the pinned toolchain; retain raw proof under out/ticket094proof. Repeated trials or a soak require a separate benchmark ticket.
 - For every selected linker, retain process handles long enough to capture lifetime PeakWorkingSetSize and PeakPagefileUsage, plus PID, creation time, parent, image path, command and exit status. Both candidate metrics must be <=3,500,000,000 bytes and <=0.50 times their same-target baseline. For the supported warm route, sample at a fixed interval <=100 ms and compute the maximum simultaneous sum of current WorkingSetSize for that route's Cargo/compiler/linker descendants, including clippy-driver and rust-lld and excluding test/game processes. Report summed current private commit too. Do not sum individual lifetime peaks as the tree peak. Report system available-memory minimum, time under 500,000,000 bytes, page reads, linker concurrency (at most one) and route time as context. Missing acceptance metrics or incomplete process capture leave the gate unproved.
 - Before the global configuration switch, preflight a headless 64-bit probe using installed System32 dbghelp.dll and record its version/API errors. Record four successful baseline queries: workspace and Bevy functions with source lines, and workspace and Bevy concrete types with type information; require all four on the candidate. Partial or zero baseline success is unavailable evidence. Find the matching PDB from the executable's CodeView record, copy each pair to its own scratch directory, ignore embedded original CodeView paths with SYMOPT_IGNORE_CVREC, suppress ambient symbol/server searches and explicitly load the copied module. Record LoadedPdbName and matching PDB identity to prove the copied PDB was used. Retain the actual full-PDB linker invocation (no FASTLINK), and function/line/type queries through SymEnumSymbols/SymGetLineFromAddr64 and SymEnumTypes/SymGetTypeInfo. If installed DbgHelp cannot establish this proof, stop without installing a debugger or changing debuginfo.
 - Use one measured complete warm candidate tools/verify.ps1 run as both route memory proof and full functional verification, with its normal checked-in linker configuration, no per-unit overrides or PATH changes, and captured bundled linker image. Invalidate this checkout's attribution record first so workspace executables actually relink. If the first changed-config run rebuilds dependencies, record it as preparation and perform at most one subsequent warm candidate route. Reuse the selected-unit baseline instead of requiring another complete baseline route or another duplicate candidate verification. Check CI's pinned toolchain/configuration, successful Steam DLL imports and client-start tests; diff confirms only the linker table and necessary record updates.
+
 
 ## Work log
 
@@ -67,3 +79,5 @@ Questions for Adam:
 - 2026-10-12T18:08:12Z memory gate failed: cand-client rust-lld peak WS 7,155,937,280 / private 2,298,753,024 vs link.exe 7,189,938,176 / 4,931,825,664 (WS 0.995x, private 0.466x; cap 3.5e9 and 0.5x on both). Candidate symbols 4/4 after the probe was fixed to skip same-named typedef records (first-match result retained). Presentation candidate not run: the gate had already failed. Tracked config never changed; this checkout has no verification record to invalidate; target not deleted and not rebuilt. Checkpoint refs/ivy/candidates/94 b50bed74d1a66cf5800d549384d3fd9e3f7a3ceb (docs/decisions.md entry only), worktree .ivy/worktrees/094-keep-a-single-bevy-link-from-exhausting-memory kept. Full verification and route measurement not run (gate precondition failed). Blocked on Adam's choice.
 - 2026-10-12T18:08:16Z stage implement end session claude:fbdac464-eb9e-4af5-9cb8-6896fca1ba9e — blocked on memory gate failure
 - 2026-10-12T19:37:17Z checkpoint preservation: final primary proof found refs/ivy/candidates/94 absent despite the worker record. The exact b50bed74d1a66cf5800d549384d3fd9e3f7a3ceb checkpoint was still reachable as the clean registered94 worktree HEAD; no work was lost. Primary created that exact named reference with a zero-old-value guard. No checkpoint bytes, branch, configuration, contract or ticket status changed;94 remains blocked and worktree retained.
+
+- 2026-10-17T07:26:36Z Fresh read-only context /root/reflect confirmed closure of the disproved experiment is technical delegation, not capability reduction. Amended at idea for fresh admission of documentation-only conclusion; no linker/symbol/build changes authorized. Original acceptance retained as failed historical evidence.
