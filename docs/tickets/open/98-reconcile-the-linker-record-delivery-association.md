@@ -39,3 +39,6 @@ The documentation-only linker experiment conclusion is closed and its reviewed p
 ## Work log
 
 - 2026-10-17T07:42:48Z Filed after the scheduler's one canonical association attempt refused while source ticket94 was closed and its journal delivery was already on origin/main. No source record, receipt or association was changed to bypass the refusal.
+## Scratch
+
+- Related unresolved-history lead from this run's resolve-destination --resume75: closed record has no established delivery for origin:refs/heads/main:docs/tickets/closed/049-reproduce-the-short-hop-at-the-ice-platform-edge.md at cc20853c0e7c728747954d08f5e3da66daab01ed; closed goal59 is also reported as cumulative-versus-independent authority unknown. The scheduler retained goal75's explicit main destination and did not reroute any admitted ticket. This is not proof of the same producer cause as94; separate it before admission if the mechanisms differ. Keep both original records and avoid inventing delivery proof.
