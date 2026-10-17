@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a1498b-b1b7-7952-b1eb-ec8cbd93c1bf
 created: 2026-10-17T11:05:06Z
 origin: system-detected
 tags: [quarrel, automation, window, bug]
@@ -7,6 +8,7 @@ value: 7
 risk: 3
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a1498b-b1b7-7952-b1eb-ec8cbd93c1bf
 execution: unattended
 parent: 75
 depends-on: [95]
