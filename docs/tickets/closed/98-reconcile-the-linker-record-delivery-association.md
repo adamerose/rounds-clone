@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a14945-bd70-7b22-b707-09584bbd2357
+status: closed
 created: 2026-10-17T07:42:48Z
 origin: system-detected
 tags: [quarrel, workflow, provenance]
@@ -51,3 +50,5 @@ Append a concise ticket98/goal75 decision record to docs/decisions.md identifyin
 - 2026-10-17T09:56:22Z stage review start — independent read-only CLI exact range2c3d4be720c00c9afebddf1ccee30f025a339e94..cc382ca9f1aba386f50d2b6d22eb50a166a87222; preset Sol6.1 high refreshed against current98/75 Decisions. Evidence and reviewer artifacts under OS Temp ivy-ticket098-01a14945-bd70-7b22-b707-09584bbd2357. Candidate clean; root status unchanged; no visual artifacts required.
 - 2026-10-17T09:58:47Z stage review end — independent codex:01a1494a-0118-7f90-9cae-9978e3e29e8f approved exact cc382ca9f1aba386f50d2b6d22eb50a166a87222 with no findings; independently verified all four cases and required checks. Receipt in OS Temp ivy-ticket098-01a14945-bd70-7b22-b707-09584bbd2357; no reviewer files changed. Publication policy direct main; root human files and preserved94/103 untouched.
 - 2026-10-17T09:59:14Z stage integration start session codex:01a14945-bd70-7b22-b707-09584bbd2357 — reviewed 2c3d4be720c00c9afebddf1ccee30f025a339e94..6d0ba84f4f534dc3af08a5594bf7dfa4c05ecf22 as a2407951f625f53b7a5c53c5c268a4b552e05746..acd25f13f088089e47aea5b208854f43230ab1b6
+- 2026-10-17T09:59:38Z stage review end session codex:01a1494a-0118-7f90-9cae-9978e3e29e8f — approved candidate 2c3d4be720c00c9afebddf1ccee30f025a339e94..6d0ba84f4f534dc3af08a5594bf7dfa4c05ecf22
+- 2026-10-17T09:59:38Z stage integration end session codex:01a14945-bd70-7b22-b707-09584bbd2357 — integrated 6d0ba84f4f534dc3af08a5594bf7dfa4c05ecf22 as 6d6f4b2e70a8039da22dc822e9dcda373e288901
