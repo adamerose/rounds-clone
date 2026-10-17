@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-17T08:27:06Z
 origin: system-detected
 tags: [quarrel, documentation, navigation]
@@ -38,3 +38,4 @@ Two links in the Game iteration design record open project Markdown documents in
 ## Work log
 
 - 2026-10-17T08:27:06Z Fresh read-only context /root/shape_docs confirmed the exact two current origin/main defects and proposed this risk1 scope. New idea recorded for a separate admission check; no implementation bytes approved.
+- 2026-10-17T08:29:11Z Admitted as written by independent context /root/admit_replay at risk1: complete, bounded, checkable, depends-on empty, no human decision. /root/shape_docs independently confirmed both source anchors. Approval covers contract only, no implementation bytes.
