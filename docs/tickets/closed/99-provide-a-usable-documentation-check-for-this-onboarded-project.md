@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a1493b-3018-7fd0-8478-9bc19bc5c639
+status: closed
 created: 2026-10-17T07:50:27Z
 origin: system-detected
 tags: [quarrel, documentation, workflow]
@@ -48,3 +47,5 @@ Record the supported project-facing documentation checker and its actual coverag
 - 2026-10-17T09:43:12Z stage verify end — Required scope from ticket99: installed skill/API inspected; project checker exit1 retains exactly legacy Markdown error; disposable clean fixture exit0 and missing _top fault exit1; release-matched ticket validation and diff check passed. No Cargo or GUI required. Power acquire remains active for sleep and restart. Direct main delivery per goal75.
 - 2026-10-17T09:45:05Z stage review start — Fresh independent Codex CLI review of c6ac0d9f3b48a16f4e8b17909d366668172ac4a8..faf173533b4e070a58dfff82c00d3bd9a58e9b6c. Current preset selects gpt-6.1-sol high; approved usage fallback shows weekly42percent below90. Launcher requires an existing artifact parent outside candidate, so its receipt uses task-specific TEMP/ivy-ticket099-review-01a1493b-3018-7fd0-8478-9bc19bc5c639; candidate and fixtures remain in owned worktree. No reviewer launched in the two setup refusals.
 - 2026-10-17T09:47:46Z stage integration start session codex:01a1493b-3018-7fd0-8478-9bc19bc5c639 — reviewed c6ac0d9f3b48a16f4e8b17909d366668172ac4a8..8171b3e17aa542fc459c4a82c41d539a898913f0 as 8f194fa0175034ed602ee4111f7551e28fff113d..0d450ae22040417f61a521dcc2426308f0508289
+- 2026-10-17T09:48:32Z stage review end session codex:01a1493f-c668-71b1-9e09-d54fc35f812a — approved candidate c6ac0d9f3b48a16f4e8b17909d366668172ac4a8..8171b3e17aa542fc459c4a82c41d539a898913f0
+- 2026-10-17T09:48:32Z stage integration end session codex:01a1493b-3018-7fd0-8478-9bc19bc5c639 — integrated 8171b3e17aa542fc459c4a82c41d539a898913f0 as cd6890c1cba1bd14c1a0e1ebe76f235ace344a19
