@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a1492e-d3f5-7a73-a23c-66b5cb01a5b5
+status: closed
 created: 2026-10-17T09:10:57Z
 origin: system-detected
 tags: [quarrel, autonomy, evidence]
@@ -53,3 +52,5 @@ Append concise factual entries to docs/postmortems.md for the significant depart
 - 2026-10-17T09:30:17Z stage review start — clean exact journal candidate9cb865460e56a2f5adaabead3cb297aec81ddee9..27c62140dbcfd65aebe8a9da6af65a8c83cf979e; fresh read-only Codex CLI via current preset Sol6.1 high, subscription41percent below90 ceiling. Current ticket/goal reread; direct main. Required checks derive from102 journal contract; no game source or rendered behavior changed.
 - 2026-10-17T09:33:05Z stage review end — independent CLI reviewer codex:01a14932-5db8-7bb2-b9d6-ea5deaae77f0 approved exact27c62140dbcfd65aebe8a9da6af65a8c83cf979e with no findings. Reviewer canonical helper reads lacked network; it inspected local source records and retained tool logs. Receipt retained under Temp/ivy-ticket102-01a1492e-d3f5-7a73-a23c-66b5cb01a5b5; candidate unchanged, root hashes preserved.
 - 2026-10-17T09:33:31Z stage integration start session codex:01a1492e-d3f5-7a73-a23c-66b5cb01a5b5 — reviewed 9cb865460e56a2f5adaabead3cb297aec81ddee9..e217272c6c050cff68e7678f317b01fd3669dc57 as 4183f72208873e14a154924c30ef148328460965..bf2d9912aaa00e87f2e0a3919c7a3fc1bdd232dc
+- 2026-10-17T09:34:04Z stage review end session codex:01a14932-5db8-7bb2-b9d6-ea5deaae77f0 — approved candidate 9cb865460e56a2f5adaabead3cb297aec81ddee9..e217272c6c050cff68e7678f317b01fd3669dc57
+- 2026-10-17T09:34:04Z stage integration end session codex:01a1492e-d3f5-7a73-a23c-66b5cb01a5b5 — integrated e217272c6c050cff68e7678f317b01fd3669dc57 as f267a9489cb44d4c689eb8136bd7b61c77504c6c
