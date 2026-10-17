@@ -44,3 +44,4 @@ Arena hot reload does not itself reset fighter position or velocity. Preserve ac
 ## Work log
 
 - 2026-10-17T19:10:53Z Fresh current_sim_reflect fetched current origin/main first and traced the live reload reset chain. Pure read-only finding, no implementation or claimed test pass; independent admission required.
+- 2026-10-17T19:14:31Z Abandon as no-work after independent admission challenge and provenance correction. Current design explicitly resets positions/projectiles on valid reload to avoid trapping fighters in edited collision geometry. That reason remains live; cosmetic-only continuity is an unrequested policy/diff feature, not an established correctness defect. Git Author Adam was not human attribution: c56799c8 and2f7c5848 carry Codex Provider-Session-Id trailers. No verified operator decision is claimed, no new question needed, no source change or delivery occurred.
