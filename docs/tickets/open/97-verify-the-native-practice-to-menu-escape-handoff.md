@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a14919-7a30-74e1-b46f-fc14f5f5682a
 created: 2026-10-17T07:14:14Z
 origin: system-detected
 tags: [quarrel, practice, verification]
@@ -7,6 +8,7 @@ value: 6
 risk: 2
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a14919-7a30-74e1-b46f-fc14f5f5682a
 execution: unattended
 parent: 75
 depends-on: [96]
