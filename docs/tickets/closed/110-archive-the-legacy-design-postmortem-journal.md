@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a14b51-ef77-71c0-8c23-f14fc1d38437
+status: closed
 created: 2026-10-17T19:18:36Z
 origin: system-detected
 tags: [quarrel, documentation, archive]
@@ -52,3 +51,5 @@ Move docs/design-docs/postmortems.md unchanged to docs/legacy/postmortems.md and
 - 2026-10-17T19:26:21Z stage review start: clean candidate 6685e4e submitted to fresh foreground Codex CLI reviewer with refreshed ticket/goal authority and current preset gpt-6.1-sol high. Direct delivery selected by goal/current settings. Official run reading 90 percent, ordinaryUsageAllowed true, reset 2026-10-22T06:19:26Z; supported helper95 eligible, helper100 limitation remains. Narrow contract excludes native/GUI; reviewer artifacts isolated in task-specific OS temporary parent.
 - 2026-10-17T19:28:19Z Fresh CLI review approved exact 8ac1834a2c1b9b439b4b6c94edc0f98879b7f1ac..6685e4e2923698e8b49127fac2c14c4452324708; reviewer codex:01a14b54-0d4c-7f81-a260-7cb2042c6416, no findings. Independent exact blob/link/checker/ticket-format/diff checks passed. Reviewer live ticket fetch unavailable (GitHub unreachable); supplied admitted contract governed approval. Receipt retained in OS temporary ivy-110-review-e1a116bd-d1ab-4bd6-8908-60cd33f68145/codex-review-8ac1834a2c1b-6685e4e29236-9a71edca938c. Candidate clean; root status unchanged.
 - 2026-10-17T19:28:49Z stage integration start session codex:01a14b51-ef77-71c0-8c23-f14fc1d38437 — reviewed 8ac1834a2c1b9b439b4b6c94edc0f98879b7f1ac..20c1a79140e1a92d517ec03f32fe40c73d2a50b4 as 37a1ca7fcd1c2afdd9973e719daf473383939698..6099433204f90e2d6f960d5fd8c5057436ad3341
+- 2026-10-17T19:29:22Z stage review end session codex:01a14b54-0d4c-7f81-a260-7cb2042c6416 — approved candidate 8ac1834a2c1b9b439b4b6c94edc0f98879b7f1ac..20c1a79140e1a92d517ec03f32fe40c73d2a50b4
+- 2026-10-17T19:29:22Z stage integration end session codex:01a14b51-ef77-71c0-8c23-f14fc1d38437 — integrated 20c1a79140e1a92d517ec03f32fe40c73d2a50b4 as 8901f9480c0507d144464777fd593dab20e21f9d
