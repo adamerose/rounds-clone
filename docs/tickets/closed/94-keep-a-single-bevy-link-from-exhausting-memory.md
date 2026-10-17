@@ -1,6 +1,5 @@
 ---
-status: ready
-owner: codex:01a148c4-6c83-7803-aeba-86adb8d68a75
+status: closed
 created: 2026-10-09T05:10:37Z
 origin: agent-proposed
 tags: ["quarrel", "build", "performance"]
@@ -89,3 +88,5 @@ The bundled rust-lld experiment failed the original working-set gate even though
 - 2026-10-17T07:33:30Z stage verify end session codex:01a148c4-6c83-7803-aeba-86adb8d68a75 — retained base/candidate client and baseline presentation reports match all six journal measurements; baseline/candidate symbol reports pass 4/4 with copied matching PDB. Config has jobs=2 and no linker override. Release-matched ticket checker and git diff --check passed. check-all on unchanged de84278 base and candidate both exit1 ENOENT playbook/skills; documentation checking unavailable, no documentation-pass claim. Only docs/decisions.md changed; no Cargo/native/GUI commands. Eight-line rationale retains failed gate and replaces obsolete blocked wording.
 - 2026-10-17T07:35:10Z stage review start session codex:01a148c4-6c83-7803-aeba-86adb8d68a75 — fresh preset Codex Sol6.1 high CLI exact-range review de84278b1489afffc79c37cffb713e90065f2119..da0497bc025ba036d958de93e7dd12719278835b; weekly20percent below90 ceiling. Artifacts confined to OS temp ticket094-review-01a148c4; root status unchanged, candidate clean, preserved experiment clean at b50bed74.
 - 2026-10-17T07:38:05Z stage integration start session codex:01a148c4-6c83-7803-aeba-86adb8d68a75 — reviewed de84278b1489afffc79c37cffb713e90065f2119..2a131094b6d3357d40d53787fa9a0556bcf6ef72 as 190555c32d5fe06273ab4f393cc36d3bfb0cfc39..45f770a62ac41f16b2278c7ca43c629c2735f6f5
+- 2026-10-17T07:39:07Z stage review end session codex:01a148c8-ea53-7961-bf0a-b527544e6c94 — approved candidate de84278b1489afffc79c37cffb713e90065f2119..2a131094b6d3357d40d53787fa9a0556bcf6ef72
+- 2026-10-17T07:39:07Z stage integration end session codex:01a148c4-6c83-7803-aeba-86adb8d68a75 — integrated 2a131094b6d3357d40d53787fa9a0556bcf6ef72 as 75807e7cc8283cd17b6f4b335ec44816c01efd84
