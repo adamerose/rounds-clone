@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-17T07:50:27Z
 origin: system-detected
 tags: [quarrel, documentation, workflow]
@@ -41,3 +41,4 @@ Record the supported project-facing documentation checker and its actual coverag
 
 - 2026-10-17T07:50:27Z Filed after tickets62 and94 independently observed the same absent-project-playbook failure and preserved truthful narrower evidence. No checker, suppression, project document or external repository was changed by this idea.
 - 2026-10-17T09:37:26Z Read-only /root/shape_docs found the existing documented onboard/check-documents.mjs public entrypoint and reproduced its truthful residual error. Shaped records-only delivery, risk1; no upstream repair or product decision needed. Fresh admission pending.
+- 2026-10-17T09:38:39Z Admitted after fresh independent /root/goal_evidence read source/documented command and approved exact bounded record contract risk1, no dependencies or operator decision. Supported fixture verification covers both pass and intentional fault rejection; current legacy error remains visible.
