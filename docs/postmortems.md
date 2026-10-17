@@ -280,6 +280,12 @@ Ticket #59 records the old owner being released and the new coordinator taking o
 
 - **Guard evidence:** Ticket #59; occurrence 1; `- 2026-10-02T14:30:40Z guard session codex:01a0fd03-d222-7cf2-a225-29c243f2337e — own refused: #59 is owned by codex:01a0fb88-1e6f-7a80-88cc-62fc856e1443; Ivy has no live observation that the session ended; release the ticket to hand it over`; judged by codex:01a114f0-227b-7711-828e-c62f2606df5c.
 
+The [ticket 96](http://ivy.localhost/tickets/96?repo=1302a5de74680c84) occurrence below was a routine prevented collision: `put` rejected a stale or overlapping ticket edit.
+The ticket was later admitted, reviewed and closed; no lost work or delivery defect is established. The conflicting actor and deeper scheduling cause remain unknown.
+The final [goal 75](http://ivy.localhost/tickets/75?repo=1302a5de74680c84) audit read 92 tickets and found only the existing ticket 59 occurrence and this occurrence.
+
+- **Guard evidence:** Ticket #96; occurrence 1; `- 2026-10-14T18:37:22Z guard session codex:01a13b9d-4094-7da3-9381-8a7815803a02 — put conflict: 1 conflicting hunk(s) against b85ef05e3387`; judged by [codex:01a148af-57cb-7751-96dc-e93972e0b69f/admit_replay](http://ivy.localhost/sessions/codex/01a148af-57cb-7751-96dc-e93972e0b69f).
+
 ## 2026-10-06 — Shared Cargo target replaced a CLI under ticket 80's tests
 
 The card sim passed, but `cargo test --workspace --locked -- --test-threads=1` launched a shared `quarrel-client.exe` that rejected the new card fields.
@@ -525,3 +531,33 @@ The handler is now registered on practice, with a headless WindowClosed regressi
 A separate capture reproduction loaded the old run60 snapshot but displayed new local base values, because capture created a second authority for tuning.
 Capture now keeps new state/tuning from one authority together and carries no inferred tuning for a saved snapshot.
 A source-loading regression and an offline rendered comparison protect that distinction; loaded snapshots retain observed/card values.
+
+## 2026-10-17 — The scheduler overlapped writers to the decision journal
+
+The [goal 75 scheduler](http://ivy.localhost/sessions/codex/01a148af-57cb-7751-96dc-e93972e0b69f) knowingly launched [ticket 94](http://ivy.localhost/tickets/94?repo=1302a5de74680c84) while [ticket 95](http://ivy.localhost/tickets/95?repo=1302a5de74680c84) was running, although both prompts required `docs/decisions.md`.
+This was the scheduler's mistake: the existing autonomy rule already required serializing shared-file writers.
+The append conflict forced ticket 95 to preserve both records during rebase, repeat complete verification and obtain fresh independent review.
+The initial and reconciliation reviewers approved their exact candidates; both records survived, and no lost work was established.
+Subsequent native and shared-record writers ran serially before this journal update.
+
+During reconciliation, `physics.rs` changed from CRLF to LF on disk while its Git content stayed identical.
+Source-byte attribution therefore required rebuilding affected units and repeating verification; the originating writer is unknown.
+This was an attribution change, with no additional product change established. The shared target and build configuration were retained.
+
+One later full verification attempt passed 184 tests and failed `stale_session_and_invalid_hash_are_rejected` at `live.rs:1582`, waiting for Welcome before reaching validation.
+Six focused repeats passed, and the final complete verification passed all 185 executable tests, format, strict Clippy, locked build and doctests.
+Those passes did not explain or repair the earlier timeout.
+[Ticket 101](http://ivy.localhost/tickets/101?repo=1302a5de74680c84) subsequently passed its baseline and temporarily instrumented focused/network checks without reproducing the failure.
+It remains blocked with diagnostic traces and the temporary patch retained; no source correction or environment-only cause was established.
+The failed and final full logs remain in `C:/Users/Adam/AppData/Local/Temp/ivy-ticket095-01a148b3-4215-78f1-b9a5-4ed795348e75/verify-integration.log` and `verify-final.log`.
+
+## 2026-10-17 — Delivery association and documentation checks remained limited
+
+The helper refused one goal-delivery association each for [ticket 94](http://ivy.localhost/tickets/94?repo=1302a5de74680c84) and [ticket 100](http://ivy.localhost/tickets/100?repo=1302a5de74680c84): `source integration start conflicts with its receipt`.
+Both reviewed deliveries were closed and on `origin/main`; canonical goal association remained unavailable.
+The scheduler recorded each refusal without retrying or changing its source record or receipt.
+[Ticket 98](http://ivy.localhost/tickets/98?repo=1302a5de74680c84) retains the intended/delivered range mismatches for diagnosis; the identical refusals do not establish a shared root cause.
+
+The installed `check-all.mjs` aborted on absent `playbook/skills`, so it supplied no documentation pass.
+The narrower design-record check used by the navigation repairs removed the targeted link errors; one unrelated legacy Markdown error remained after ticket 100.
+[Ticket 99](http://ivy.localhost/tickets/99?repo=1302a5de74680c84) owns the unavailable project-checker follow-up. No checker suppression or upstream repair was made in this run.
