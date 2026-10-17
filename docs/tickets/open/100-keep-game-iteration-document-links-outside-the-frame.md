@@ -1,5 +1,6 @@
 ---
 status: ready
+owner: codex:01a148fb-3fe1-7eb2-b374-bf714f99b8fd
 created: 2026-10-17T08:27:06Z
 origin: system-detected
 tags: [quarrel, documentation, navigation]
@@ -7,6 +8,7 @@ value: 3
 risk: 1
 sessions:
   - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+  - codex:01a148fb-3fe1-7eb2-b374-bf714f99b8fd
 execution: unattended
 parent: 75
 depends-on: []
