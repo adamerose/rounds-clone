@@ -1,5 +1,5 @@
 ---
-status: idea
+status: ready
 created: 2026-10-17T09:10:57Z
 origin: system-detected
 tags: [quarrel, autonomy, evidence]
@@ -42,3 +42,4 @@ Append concise factual entries to docs/postmortems.md for the significant depart
 ## Work log
 
 - 2026-10-17T09:10:57Z Captured the scheduler's acknowledged shared-record overlap and evidence detours; the corrective scheduling is already active. Queue behind101 to avoid repeating it.
+- 2026-10-17T09:13:12Z Admitted as written after fresh nonauthor /root/shape_docs contract check: risk1, dependencies closed, no operator decision. Explicit scheduler hold behind101 and every known native/shared-record writer remains binding.
