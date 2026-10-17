@@ -1,0 +1,50 @@
+---
+status: idea
+created: 2026-10-17T18:52:00Z
+origin: human-request
+tags: [quarrel, autonomy, autonomy-goal]
+value: 8
+sessions:
+  - codex:01a148af-57cb-7751-96dc-e93972e0b69f
+execution: unattended
+depends-on: []
+supersedes: []
+split-from: []
+---
+
+# Deliver useful fixes with the remaining Codex allowance
+
+Adam requested useful project work that exhausts the remaining Codex subscription allowance before its reset. Continue bounded fixes and improvements beyond the completed MVP software evidence, preserving the reserved Steam first-play acceptance in ticket75.
+
+## Outcome
+
+Deliver reviewed useful project improvements using the remaining current Codex subscription window, until no allowance remains or that window resets. Preserve every unfinished candidate and report real delivery versus checkpointed work.
+
+## Decisions
+
+- Destination: main. Continue the established direct destination and never touch the stale human-dirty root checkout; all code work uses isolated detached worktrees.
+- Adam explicitly instructed drain to0percent remaining on2026-10-17. Authorized utilization ceiling100percent supersedes the skill's usual95percent maximum reserve for this run. Subscription only, no API billing, reset credits or paid overflow.
+- Initial official Codex reading89percent used,11percent remaining; weekly window resets2026-10-22T06:19:26Z (Toronto October22 02:19:26). The official reset differs from the user's expectation that it is imminent; use verified current allowance, do not assume a second hidden window. Stop this capacity goal at exhaustion or window rollover; do not consume renewed allowance without another request.
+- The installed budget helper refuses ceiling100 because its implementation caps at95. Do not modify Ivy or falsify usage. Call the supported helper and record its limitation; independently require fresh authoritative usage below the user-authorized100 ceiling and ordinaryUsageAllowed before launches, including reviews. Never bypass catastrophe or credential gates; refusal by those gates remains binding.
+- High-drain preset: up to6 useful independent Codex workers; saved Astra medium ordinary worker and Sol6.1 high review, subscription. Re-read settings before launches; preserve each session model.
+- Serialize native Cargo and every shared-file writer, including ancillary decision/postmortem journals. Cargo jobs<=2 and canonical ignored out/cargo-target reused; no clean target without the required resource notice.
+- No new product direction, external messaging/publication except destination push, protocol/security/data foundation, capability deletion, spending, credentials or physical action. Technical bounded corrections toward existing wanted behavior are delegated.
+- Ticket75 remains blocked on its standing two-home Steam first-play check; it is not abandoned or falsely closed by this capacity run.97/101 retain their exact evidence limits unless new supported evidence resolves them.
+- Keep scope useful: no arbitrary soaks, redundant builds, generic framework or token-burning filler. When quota cannot support review, preserve/checkpoint owned work and block it rather than integrate unreviewed code.
+
+## Evidence required
+
+- Each launched ticket closes with supported checks/fresh nonauthor exact review and proved main delivery, or blocks with precise missing evidence/authority/quota and retained clean checkpoint.
+- Account usage/reset and source identity are refreshed before launches; report observed percent rather than inventing run-only usage attribution.
+- All delivered tips, review sessions, run ids and unfinished work are recorded here. Guard occurrences judged once; significant departures in the project journal.
+- Finish only at current-window exhaustion, rollover, operator stop or a genuinely blocking external boundary after useful eligible work is exhausted. No failed/skipped test or false pass is delivered to consume allowance.
+
+## Chat excerpts
+
+Adam, current chat,2026-10-17:
+
+> use up my remaining codex usage getting things done. drain to 0%. a reset is imminent
+
+## Work log
+
+- 2026-10-17T18:52:00Z Created on the operator's explicit renewed capacity-drain instruction. Previous MVP run remains an intact blocked product acceptance record; new capacity focus coordinates useful additional work. Queue empty except75/97/101, so bounded independent runtime/flow reflection readers started before admission.
